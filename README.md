@@ -30,6 +30,8 @@ MuJoCo from source and takes several minutes.
 bazel test //...          # build everything and run the tests
 bazel run //:step_arm     # simulate one second and print the joint angles
 bazel run //:viewer       # draw the arm in a window; needs a display
+bazel run //:print_profile  # print a trapezoid and an S-curve as CSV;
+                            # add `-- --pretty` for an aligned table
 ```
 
 ## Layout
@@ -46,5 +48,12 @@ bazel run //:viewer       # draw the arm in a window; needs a display
 
 The toolchain works: a C++ program loads a robot arm into MuJoCo, steps it and
 draws it, and CI runs the tests on every push. The arm is a stand-in, a
-Universal Robots UR10e from MuJoCo Menagerie. The cell, the KUKA arm,
-perception, planning and control are not written yet.
+Universal Robots UR10e from MuJoCo Menagerie.
+
+Timing is written: `src/profile.h` gives the shortest rest-to-rest move along
+one axis within velocity and acceleration limits (trapezoid) or velocity,
+acceleration and jerk limits (S-curve), and `src/joint_move.h` uses one such
+profile to move all joints together within each joint's own limits. Nothing
+drives the simulated arm with them yet.
+
+The cell, the KUKA arm, perception, planning and control are not written yet.

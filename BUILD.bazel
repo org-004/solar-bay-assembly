@@ -53,6 +53,57 @@ cc_test(
     ],
 )
 
+# Velocity profiles for one axis: trapezoid and S-curve.
+# Include as "src/profile.h".
+cc_library(
+    name = "profile",
+    srcs = ["src/profile.cc"],
+    hdrs = ["src/profile.h"],
+)
+
+cc_test(
+    name = "profile_test",
+    size = "small",
+    srcs = ["tests/profile_test.cc"],
+    deps = [
+        ":profile",
+        "@googletest//:gtest_main",
+    ],
+)
+
+# A move of all joints together, timed by one profile.
+# Include as "src/joint_move.h".
+cc_library(
+    name = "joint_move",
+    srcs = ["src/joint_move.cc"],
+    hdrs = ["src/joint_move.h"],
+    deps = [
+        ":profile",
+        "@eigen",
+    ],
+)
+
+cc_test(
+    name = "joint_move_test",
+    size = "small",
+    srcs = ["tests/joint_move_test.cc"],
+    deps = [
+        ":joint_move",
+        "@eigen",
+        "@googletest//:gtest_main",
+    ],
+)
+
+# Prints a trapezoid and an S-curve for the same move as CSV, or with
+# --pretty as an aligned table.
+#   bazel run //:print_profile
+#   bazel run //:print_profile -- --pretty
+cc_binary(
+    name = "print_profile",
+    srcs = ["src/print_profile.cc"],
+    deps = [":profile"],
+)
+
 # Draws the arm in a window.
 #   bazel run //:viewer
 cc_binary(

@@ -11,6 +11,10 @@ bazel_dep(name = "rules_cc", version = "0.2.28")
 # Physics engine. Its C API is the target @mujoco//:mujoco.
 bazel_dep(name = "mujoco", version = "4.0.0")
 
+# Vectors and matrices. MuJoCo already depends on this version, so naming it
+# here adds nothing to the download.
+bazel_dep(name = "eigen", version = "5.0.1.bcr.2")
+
 # Window and OpenGL context for the viewer.
 bazel_dep(name = "glfw", version = "3.4.0.bcr.4")
 

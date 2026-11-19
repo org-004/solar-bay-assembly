@@ -2,3 +2,6 @@
 
 # Bazel output links
 /bazel-*
+
+# Plots and screenshots, for now
+*.png

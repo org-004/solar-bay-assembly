@@ -4,3 +4,8 @@ build --host_cxxopt=-std=c++20
 
 # Print a failing test's output in the terminal instead of only a log path.
 test --test_output=errors
+
+# Show compiler output only for this repository's own targets. Dependencies are
+# compiled from source and their warnings would otherwise fill the terminal.
+# Errors are always shown.
+build --output_filter=^//
