@@ -1,0 +1,68 @@
+load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+load("@rules_cc//cc:cc_test.bzl", "cc_test")
+
+# The arm used until the KUKA model exists: MuJoCo Menagerie's UR10e, fetched
+# as the external repository @menagerie_ur10e (declared in MODULE.bazel).
+# ur10e.xml refers to the mesh files in assets/ by relative path, so the
+# meshes have to travel with it.
+UR10E = "@menagerie_ur10e//:ur10e.xml"
+
+# Listing UR10E by itself as well lets $(rootpath ...) below name that one file.
+UR10E_FILES = [
+    UR10E,
+    "@menagerie_ur10e//:ur10e",
+]
+
+# Owning handles for mjModel and mjData, shared by everything below.
+# Include as "src/mj_handles.h".
+cc_library(
+    name = "mj_handles",
+    hdrs = ["src/mj_handles.h"],
+    deps = ["@mujoco"],
+)
+
+# Loads a model, steps it for one simulated second, prints the joint angles.
+#   bazel run //:step_arm
+# $(rootpath ...) becomes the model's path relative to the directory the
+# program is started in, and is passed as its first argument.
+cc_binary(
+    name = "step_arm",
+    srcs = ["src/step_arm.cc"],
+    args = ["$(rootpath %s)" % UR10E],
+    data = UR10E_FILES,
+    deps = [
+        ":mj_handles",
+        "@mujoco",
+    ],
+)
+
+# Same load and step, with assertions.
+#   bazel test //...
+# The test reads the model's path from the MODEL_PATH environment variable.
+cc_test(
+    name = "step_test",
+    size = "small",
+    srcs = ["tests/step_test.cc"],
+    data = UR10E_FILES,
+    env = {"MODEL_PATH": "$(rootpath %s)" % UR10E},
+    deps = [
+        ":mj_handles",
+        "@googletest//:gtest_main",
+        "@mujoco",
+    ],
+)
+
+# Draws the arm in a window.
+#   bazel run //:viewer
+cc_binary(
+    name = "viewer",
+    srcs = ["src/viewer.cc"],
+    args = ["$(rootpath %s)" % UR10E],
+    data = UR10E_FILES,
+    deps = [
+        ":mj_handles",
+        "@glfw",
+        "@mujoco",
+    ],
+)

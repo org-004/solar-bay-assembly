@@ -1,0 +1,2 @@
+# Holds .bzl files only. A directory needs a BUILD file before Bazel can load
+# anything from it.

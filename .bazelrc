@@ -1,0 +1,6 @@
+# C++20 for this project's code and for everything it builds from source.
+build --cxxopt=-std=c++20
+build --host_cxxopt=-std=c++20
+
+# Print a failing test's output in the terminal instead of only a log path.
+test --test_output=errors
