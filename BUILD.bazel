@@ -104,6 +104,78 @@ cc_binary(
     deps = [":profile"],
 )
 
+# Least-squares and RANSAC plane fits.
+# Include as "src/plane_fit.h".
+cc_library(
+    name = "plane_fit",
+    srcs = ["src/plane_fit.cc"],
+    hdrs = ["src/plane_fit.h"],
+    deps = ["@eigen"],
+)
+
+# Made-up point clouds with known answers, for testing the plane fit.
+# Include as "src/point_generator.h".
+cc_library(
+    name = "point_generator",
+    srcs = ["src/point_generator.cc"],
+    hdrs = ["src/point_generator.h"],
+    deps = [
+        ":plane_fit",
+        "@eigen",
+    ],
+)
+
+cc_test(
+    name = "plane_fit_test",
+    size = "small",
+    srcs = ["tests/plane_fit_test.cc"],
+    deps = [
+        ":plane_fit",
+        ":point_generator",
+        "@eigen",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "point_generator_test",
+    size = "small",
+    srcs = ["tests/point_generator_test.cc"],
+    deps = [
+        ":plane_fit",
+        ":point_generator",
+        "@eigen",
+        "@googletest//:gtest_main",
+    ],
+)
+
+# Fits a plane to made-up pallet views and prints the error of each as CSV,
+# or with --pretty as an aligned table.
+#   bazel run //:print_plane_fit
+#   bazel run //:print_plane_fit -- --pretty
+cc_binary(
+    name = "print_plane_fit",
+    srcs = ["src/print_plane_fit.cc"],
+    deps = [
+        ":plane_fit",
+        ":point_generator",
+        "@eigen",
+    ],
+)
+
+# Prints one made-up pallet view as CSV, one row per point, for plotting.
+#   bazel run //:print_points
+#   bazel run //:print_points -- <seed>
+cc_binary(
+    name = "print_points",
+    srcs = ["src/print_points.cc"],
+    deps = [
+        ":plane_fit",
+        ":point_generator",
+        "@eigen",
+    ],
+)
+
 # Draws the arm in a window.
 #   bazel run //:viewer
 cc_binary(

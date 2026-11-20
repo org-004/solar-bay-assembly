@@ -9,3 +9,11 @@ test --test_output=errors
 # compiled from source and their warnings would otherwise fill the terminal.
 # Errors are always shown.
 build --output_filter=^//
+
+# On 64-bit ARM, GCC prints a note wherever a small fixed-size Eigen vector is
+# passed or returned by value, because the calling convention for such types
+# changed in GCC 10.1. It matters only when linking against code built by an
+# older GCC, and everything here is built from source by one compiler. The
+# note is turned off for this repository's own files only; changing the
+# options of the dependencies would compile MuJoCo again.
+build --per_file_copt=^(src|tests)/.*\.cc$@-Wno-psabi
