@@ -3,7 +3,7 @@
 //
 //   bazel run --config=opt //:view_cell -- [--seed N] [--nominal]
 //       [--modules M] [--blind] [--no-noise] [--calibration MM,DEG]
-//       [--carry scripted|planned]
+//       [--carry scripted|planned] [--check] [--check-calibration MM,DEG]
 //
 //   --camera     (the default) one depth picture per pick; the corner text
 //                shows the look step and what the finder made of the
@@ -22,6 +22,12 @@
 //                scripted joint moves (the default), or one planned move
 //                (src/pick_place.h); the corner text then shows how the
 //                planning went
+//   --check      the check after pickup (implies --carry planned): the
+//                carry stops over the check camera, the grip is measured
+//                and the place corrected; the corner text shows the
+//                measured offset and, from the truth, its error
+//   --check-calibration MM,DEG  the check camera's calibration off, as
+//                --calibration
 //
 // The corner text shows the module being picked, its slot, the script's
 // current step, the last picture's outcome (the finder's estimate, and its
@@ -41,27 +47,32 @@
 #include <optional>
 #include <string>
 
+#include <Eigen/Core>
+#include <Eigen/Geometry>
 #include <mujoco/mujoco.h>
 
 #include "src/cell.h"
 #include "src/cycle_check.h"
+#include "src/held_module_finder.h"
 #include "src/module_finder.h"
 #include "src/pick_place.h"
 #include "src/score.h"
+#include "src/suction.h"
 #include "src/viewer_lib.h"
 
 int main(int argc, char** argv) {
   const char* usage =
       "usage: %s <cell.xml> [--seed N] [--nominal] [--modules M] "
       "[--camera | --blind] [--noise | --no-noise] [--calibration MM,DEG] "
-      "[--carry scripted|planned]\n";
+      "[--carry scripted|planned] [--check] [--check-calibration MM,DEG]\n";
   if (argc < 2) {
     std::fprintf(stderr, usage, argv[0]);
     return 1;
   }
   long seed = 1;
-  bool nominal = false, camera = true, noise = true;
+  bool nominal = false, camera = true, noise = true, with_check = false;
   double calibration_mm = 0.0, calibration_deg = 0.0;
+  double check_calibration_mm = 0.0, check_calibration_deg = 0.0;
   int modules = 1;
   cell::CarryMode carry = cell::CarryMode::kScripted;
   for (int i = 2; i < argc; ++i) {
@@ -79,6 +90,14 @@ int main(int argc, char** argv) {
     } else if (std::strcmp(argv[i], "--calibration") == 0 && has_value) {
       if (std::sscanf(argv[++i], "%lf,%lf", &calibration_mm,
                       &calibration_deg) != 2) {
+        std::fprintf(stderr, usage, argv[0]);
+        return 1;
+      }
+    } else if (std::strcmp(argv[i], "--check") == 0) {
+      with_check = true;
+    } else if (std::strcmp(argv[i], "--check-calibration") == 0 && has_value) {
+      if (std::sscanf(argv[++i], "%lf,%lf", &check_calibration_mm,
+                      &check_calibration_deg) != 2) {
         std::fprintf(stderr, usage, argv[0]);
         return 1;
       }
@@ -119,10 +138,17 @@ int main(int argc, char** argv) {
   randomization.camera_noise = camera && noise;
   randomization.camera_shift = calibration_mm * 1e-3;
   randomization.camera_turn = calibration_deg * kDegree;
+  randomization.check_camera_shift = check_calibration_mm * 1e-3;
+  randomization.check_camera_turn = check_calibration_deg * kDegree;
+  if (with_check) carry = cell::CarryMode::kPlanned;
   cell::PickPlaceOptions options;
   options.sensing =
       camera ? cell::SensingMode::kCamera : cell::SensingMode::kBlind;
   options.carry = carry;
+  options.check_after_pickup = with_check;
+  // The check's measured grip against the truth (the weld's pose in the
+  // tool tip's frame at the picture), for the corner text.
+  std::string check_truth;
   // The finder's error for the estimate the current pick uses, from the
   // truth, for the corner text.
   std::string seen;
@@ -150,8 +176,25 @@ int main(int argc, char** argv) {
       scores += line;
       ++placed;
     });
+    script->set_check_hook([&](const cell::CheckRecord& record) {
+      if (!record.module_in_tip) return;
+      const std::optional<cell::Pose> held =
+          cell.suction().HeldPoseInTip(*cell.data());
+      if (!held) return;
+      Eigen::Isometry3d truth = Eigen::Isometry3d::Identity();
+      truth.translation() = held->position;
+      truth.linear() = held->rotation.normalized().toRotationMatrix();
+      const Eigen::Isometry3d error = truth.inverse() * *record.module_in_tip;
+      char line[200];
+      std::snprintf(line, sizeof(line),
+                    "  measured grip off the truth by %.3f mm, %.4f deg\n",
+                    1e3 * error.translation().norm(),
+                    Eigen::AngleAxisd(error.linear()).angle() / kDegree);
+      check_truth = line;
+    });
     scores.clear();
     seen.clear();
+    check_truth.clear();
     placed = 0;
     next = 0;
     script->Start(next++);
@@ -166,6 +209,7 @@ int main(int argc, char** argv) {
         script->outcome().status == cell::PickPlaceOutcome::Status::kPlaced &&
         next < modules) {
       seen.clear();
+      check_truth.clear();
       script->Start(next++);
     }
     script->Update();
@@ -244,6 +288,29 @@ int main(int argc, char** argv) {
                       1e3 * outcome.carry.plan_seconds);
       }
       status += line;
+    }
+    if (outcome.check.status != cell::CheckReport::Status::kOff) {
+      // The check after pickup of this cycle.
+      const cell::CheckReport& c = outcome.check;
+      char line[400];
+      if (c.status == cell::CheckReport::Status::kChecked) {
+        std::snprintf(line, sizeof(line),
+                      "check: grip off the design by %+.2f %+.2f %+.2f mm, "
+                      "%.3f deg (%d picture%s, finder %.0f ms)%s\n",
+                      1e3 * c.offset_shift.x(), 1e3 * c.offset_shift.y(),
+                      1e3 * c.offset_shift.z(),
+                      c.offset_rotation.norm() / kDegree, c.pictures,
+                      c.pictures == 1 ? "" : "s", 1e3 * c.finder_seconds,
+                      c.replanned ? "; leg 2 replanned" : "");
+      } else if (c.pictures > 0) {
+        std::snprintf(line, sizeof(line), "check: %s (%s)\n",
+                      cell::CheckStatusName(c.status),
+                      cell::HeldFinderFailureName(c.failure));
+      } else {
+        std::snprintf(line, sizeof(line), "check: not yet\n");
+      }
+      status += line;
+      status += check_truth;
     }
     if (outcome.status == cell::PickPlaceOutcome::Status::kFailed) {
       status += "FAILED: " + outcome.reason + "\n";

@@ -681,7 +681,9 @@ cc_binary(
 # The blind pick and place: one module from the front of the stack onto the
 # tube, as a state machine run one physics step at a time. Plans from the
 # design poses only and never reads the truth. The carry is scripted, or
-# planned by the motion planner (CarryMode::kPlanned).
+# planned by the motion planner (CarryMode::kPlanned); with the planned carry
+# the check after pickup (check_after_pickup) measures the grip over the
+# check camera and corrects the place for it.
 # Include as "src/pick_place.h".
 cc_library(
     name = "pick_place",
@@ -730,7 +732,8 @@ cc_library(
 #   bazel run --config=opt //:run_cell -- --pretty --trials 20
 #   bazel run //:run_cell -- [--pretty] [--seed N] [--modules M] [--trials T]
 #       [--nominal] [--blind] [--no-noise] [--calibration MM,DEG]
-#       [--carry scripted|planned] [--verbose]
+#       [--carry scripted|planned] [--check] [--check-calibration MM,DEG]
+#       [--verbose]
 cc_binary(
     name = "run_cell",
     srcs = ["src/run_cell.cc"],
@@ -739,8 +742,11 @@ cc_binary(
     deps = [
         ":cell",
         ":cycle_check",
+        ":held_module_finder",
         ":pick_place",
         ":score",
+        ":suction",
+        "@eigen",
         "@mujoco",
     ],
 )
@@ -749,7 +755,7 @@ cc_binary(
 # score of each placement in the corner. Backspace runs the trial again.
 #   bazel run --config=opt //:view_cell -- [--seed N] [--nominal]
 #       [--modules M] [--blind] [--no-noise] [--calibration MM,DEG]
-#       [--carry scripted|planned]
+#       [--carry scripted|planned] [--check] [--check-calibration MM,DEG]
 cc_binary(
     name = "view_cell",
     srcs = ["src/view_cell.cc"],
@@ -758,10 +764,13 @@ cc_binary(
     deps = [
         ":cell",
         ":cycle_check",
+        ":held_module_finder",
         ":module_finder",
         ":pick_place",
         ":score",
+        ":suction",
         ":viewer_lib",
+        "@eigen",
         "@mujoco",
     ],
 )
@@ -1422,3 +1431,42 @@ cc_test(
     ],
 )
 # END planned_carry
+
+# BEGIN check_cycle
+# The check after pickup in the cycle (PickPlaceOptions::check_after_pickup),
+# one action at a time: the check pose clear of the planning margin at every
+# depth and slot, and what the via costs; the two-leg carry and its dwell;
+# the picture and the finder; the measured grip against the truth; the
+# corrected lower and set down; the refusals (unchecked, slipped); whole
+# camera cycles with the pallet camera's calibration off, with and without
+# the check; and stage 6's fixes (a blocked set-down's record, records
+# across a Reset, pausing on a skipped step).
+#   bazel test --config=opt //:check_cycle_test --test_output=all
+cc_test(
+    name = "check_cycle_test",
+    size = "medium",
+    srcs = ["tests/check_cycle_test.cc"],
+    data = CELL_FILES,
+    env = {"MODEL_PATH": "$(rootpath %s)" % CELL_SCENE},
+    deps = [
+        ":arm",
+        ":arm_follower",
+        ":cell",
+        ":check_rig",
+        ":collision",
+        ":conveyor",
+        ":cycle_check",
+        ":held_module_finder",
+        ":ik",
+        ":mj_handles",
+        ":motion_planner",
+        ":pallet",
+        ":pick_place",
+        ":score",
+        ":suction",
+        "@eigen",
+        "@googletest//:gtest_main",
+        "@mujoco",
+    ],
+)
+# END check_cycle

@@ -233,6 +233,22 @@ const char* CarryModeName(CarryMode mode) {
   return "?";
 }
 
+const char* CheckStatusName(CheckReport::Status status) {
+  switch (status) {
+    case CheckReport::Status::kOff:
+      return "off";
+    case CheckReport::Status::kNotRun:
+      return "not run";
+    case CheckReport::Status::kChecked:
+      return "checked";
+    case CheckReport::Status::kUnchecked:
+      return "unchecked";
+    case CheckReport::Status::kSlipped:
+      return "slipped";
+  }
+  return "?";
+}
+
 PlanScene CarryScene(const PalletBodies& design, const CarrySceneInput& input) {
   PlanScene scene;
   scene.pallet = input.pallet_shift * FromWorldPose(design.nominal_pallet);
@@ -249,7 +265,14 @@ PlanScene CarryScene(const PalletBodies& design, const CarrySceneInput& input) {
         pose = Conveyor::SlotPose(known.slot, input.tube_slide);
         break;
       case ModulePlace::kParked:
+      case ModulePlace::kUnaccounted:
         pose = ParkingPose(i);
+        break;
+      case ModulePlace::kLetGo:
+        // Where the tool let it go, carried along by the tube since.
+        pose = Conveyor::SlotPose(known.slot, input.tube_slide) *
+               Conveyor::SlotPose(known.slot, known.slide).inverse() *
+               known.pose;
         break;
       case ModulePlace::kOnStack:
       case ModulePlace::kHeld:  // held once, by a cycle that failed: unknown
@@ -266,7 +289,10 @@ PlanScene CarryScene(const PalletBodies& design, const CarrySceneInput& input) {
   scene.tube_slide = input.tube_slide;
   if (input.held >= 0) {
     scene.held_module = input.held;
-    scene.module_in_tip = DesignModuleInTip(kModuleThickness, input.grip_gap);
+    scene.module_in_tip =
+        input.module_in_tip
+            ? *input.module_in_tip
+            : DesignModuleInTip(kModuleThickness, input.grip_gap);
   }
   return scene;
 }
@@ -570,9 +596,10 @@ bool PickPlace::PlanPlace(std::string* reason) {
   // blind mode that is wrong by however far the pallet is off its design;
   // in camera mode by the error of the estimate the pick aimed at plus how
   // far the approach strayed from it. The script cannot see either, and
-  // lays the module down wrong by just that much; the scorer shows it. A
-  // look at the module in the tool after the pick (stage 7) would measure
-  // the actual grip and take it out here.
+  // lays the module down wrong by just that much; the scorer shows it.
+  // With the check after pickup the grip has been measured (held_in_tip_),
+  // and the tip is sent where that grip puts the MODULE on its release pose
+  // (CorrectedTipTarget): the module, not the tool, lands on the slot.
   const Conveyor& conveyor = cell_.conveyor();
   const Eigen::Isometry3d slot = Conveyor::SlotPose(
       outcome_.slot, conveyor.SensorPosition(*cell_.data()));
@@ -580,10 +607,16 @@ bool PickPlace::PlanPlace(std::string* reason) {
   const Eigen::Vector3d glass =
       slot.translation() +
       (0.5 * kModuleThickness + options_.release_clearance) * up;
-  // The module hangs grip_gap below the tip (the weld kept the gap it was
-  // gripped with), so the tip is that much above where the glass goes.
-  const Eigen::Isometry3d release = *GripPose(
+  // With the design grip the module hangs grip_gap below the tip (the weld
+  // kept the gap it was gripped with), so the tip is that much above where
+  // the glass goes.
+  const Eigen::Isometry3d design_release = *GripPose(
       glass + options_.grip_gap * up, up, place_x_sign_ * slot.linear().col(0));
+  release_module_ =
+      design_release * DesignModuleInTip(kModuleThickness, options_.grip_gap);
+  const Eigen::Isometry3d release =
+      held_in_tip_ ? CorrectedTipTarget(*release_module_, *held_in_tip_)
+                   : design_release;
   release_tip_ = release;
 
   // Where the arm is: the end of the turn, as planned. In from there at
@@ -632,7 +665,28 @@ bool PickPlace::PlanPlace(std::string* reason) {
 }
 
 void PickPlace::set_known_module(int i, const KnownModule& known) {
+  NoticeReset();
   if (i >= 0 && i < static_cast<int>(known_.size())) known_[i] = known;
+}
+
+bool PickPlace::NoticeReset() {
+  const double now = cell_.data()->time;
+  const bool reset = now < last_time_;
+  if (reset) {
+    // The cell was Reset: the old plan is in the old time, the last
+    // cycle's picture is of another scene, and every module stands on the
+    // pallet again.
+    follower_ = ArmFollower(cell_.arm());
+    look_ahead_.reset();
+    known_.assign(cell_.module_count(), KnownModule{});
+  }
+  last_time_ = now;
+  return reset;
+}
+
+Eigen::Isometry3d PickPlace::GripInTip() const {
+  return held_in_tip_ ? *held_in_tip_
+                      : DesignModuleInTip(kModuleThickness, options_.grip_gap);
 }
 
 Eigen::Isometry3d PickPlace::PalletShift(int held) const {
@@ -648,6 +702,7 @@ PlanScene PickPlace::CarryPlanScene(int held) const {
   CarrySceneInput input;
   input.held = held;
   input.grip_gap = options_.grip_gap;
+  input.module_in_tip = held_in_tip_;
   input.pallet_shift = PalletShift(held);
   input.modules = known_;
   // The encoder; while the tube still moves, where it is headed (its
@@ -687,14 +742,21 @@ bool PickPlace::PlanCarry(std::string* reason) {
     const PlanScene scene = CarryPlanScene(outcome_.module);
     report.tube_moving = cell_.conveyor().Moving(*cell_.data());
 
-    // Where each leg ends, and how long the arm holds still there. One leg
-    // today, to the end of the turn. A via (a later stage's check pose) is
-    // one more entry in front of the goal, with its dwell.
+    // Where each leg ends, and how long the arm holds still there: to the
+    // end of the turn; with the check after pickup, first to the check
+    // pose, holding still there for the picture. Every leg with the grip
+    // the script has (the design's, until measured).
     struct LegEnd {
       Eigen::VectorXd q;
       double dwell = 0.0;
     };
-    const std::vector<LegEnd> ends = {{turn_.back(), 0.0}};
+    std::vector<LegEnd> ends;
+    check_leg_.reset();
+    if (options_.check_after_pickup) {
+      check_leg_ = ends.size();
+      ends.push_back({options_.check_pose, options_.check_dwell});
+    }
+    ends.push_back({turn_.back(), 0.0});
 
     Eigen::VectorXd from = clear_.back();
     for (std::size_t leg = 0; leg < ends.size(); ++leg) {
@@ -717,16 +779,10 @@ bool PickPlace::PlanCarry(std::string* reason) {
         }
         return false;
       }
-      if (leg == 0 || leg_report.clearance < report.clearance) {
-        report.clearance = leg_report.clearance;
-        report.clearance_between = leg_report.clearance_between;
-      }
-      report.trajectory_seconds += move->trajectory.duration();
-      carry_.insert(carry_.end(), move->path.begin() + (leg == 0 ? 0 : 1),
-                    move->path.end());
       carry_legs_.push_back({std::move(*move), ends[leg].dwell});
       from = ends[leg].q;
     }
+    JoinCarryLegs();
     return true;
   }();
   report.plan_seconds = std::chrono::duration<double>(
@@ -738,6 +794,209 @@ bool PickPlace::PlanCarry(std::string* reason) {
     carry_.clear();
   }
   return found;
+}
+
+void PickPlace::JoinCarryLegs() {
+  CarryReport& report = outcome_.carry;
+  carry_.clear();
+  report.trajectory_seconds = 0.0;
+  for (std::size_t leg = 0; leg < carry_legs_.size(); ++leg) {
+    const TimedMove& move = carry_legs_[leg].move;
+    // The legs' reports, in order; a replanned leg's report replaces the
+    // first plan's.
+    const MotionPlanReport& leg_report = report.legs[leg];
+    if (leg == 0 || leg_report.clearance < report.clearance) {
+      report.clearance = leg_report.clearance;
+      report.clearance_between = leg_report.clearance_between;
+    }
+    report.trajectory_seconds += move.trajectory.duration();
+    carry_.insert(carry_.end(), move.path.begin() + (leg == 0 ? 0 : 1),
+                  move.path.end());
+  }
+}
+
+bool PickPlace::RecheckLeg(std::size_t leg, std::string* reason) {
+  CheckReport& check = outcome_.check;
+  const MotionPlanOptions& planner = options_.planner;
+  const double spacing = options_.recheck_spacing;
+  // The planner's budget (src/motion_planner.h) with the edge term for
+  // samples `spacing` apart: every configuration along the path is then
+  // within spacing / 2 of a checked one, and the corners and the tracking
+  // add the same as for the planned path. A path whose samples all keep
+  // these margins keeps required_margin when followed, as a planned one
+  // does.
+  const double budget =
+      0.5 * spacing + planner.corner_allowance + planner.tracking_allowance;
+  check.recheck_margin = planner.required_margin + budget;
+  check.recheck_self_margin = planner.required_self_margin + budget;
+  const auto begin = std::chrono::steady_clock::now();
+  // The checker still holds the scene the legs were planned in (PlanArmMove
+  // left it so), and nothing in it has moved since: the stack's estimate is
+  // the same, and the tube stands still from before lift until the set
+  // down is over (if it was still moving when the carry was planned, the
+  // scene has it at its nominal stop, as the plan did). Only the grip
+  // changes: the measured one goes on the tool.
+  bool clear = checker_->SetHeldModule(outcome_.module, GripInTip());
+  const double old_margin = checker_->margin();
+  const double old_self = checker_->self_margin();
+  if (clear) {
+    clear = checker_->SetMargins(check.recheck_margin,
+                                 check.recheck_self_margin);
+  }
+  check.recheck_hit.clear();
+  if (clear) {
+    const JointPath samples =
+        DenseSamples(*checker_, carry_legs_[leg].move.path, spacing);
+    check.recheck_samples = static_cast<int>(samples.size());
+    for (std::size_t i = 0; i < samples.size(); ++i) {
+      const std::optional<CollisionReport> hit = checker_->Check(samples[i]);
+      if (!hit || !hit->free) {
+        clear = false;
+        char text[300];
+        std::snprintf(text, sizeof(text), "sample %zu of %zu: %s", i + 1,
+                      samples.size(),
+                      !hit ? "not a configuration"
+                      : !hit->in_range ? "out of the joints' range"
+                      : hit->pairs.empty()
+                          ? "too close"
+                          : hit->pairs.front().between.c_str());
+        check.recheck_hit = text;
+        break;
+      }
+    }
+  } else {
+    check.recheck_hit = "the measured grip could not be put on the tool";
+  }
+  checker_->SetMargins(old_margin, old_self);
+  check.rechecked = true;
+  check.recheck_clear = clear;
+  check.recheck_seconds = std::chrono::duration<double>(
+                              std::chrono::steady_clock::now() - begin)
+                              .count();
+  if (clear) return true;
+
+  // Replanned from where the leg starts (the arm holds there) to where it
+  // ends, in the scene as it is now, with the measured grip; its own seeds.
+  const auto replan_begin = std::chrono::steady_clock::now();
+  const PlanScene scene = CarryPlanScene(outcome_.module);
+  MotionPlanOptions plan = planner;
+  plan.speed = options_.speed_carrying;
+  plan.base_seed = planner.base_seed + 1000u * static_cast<std::uint32_t>(leg) +
+                   500u;
+  const TimedMove& old = carry_legs_[leg].move;
+  std::optional<TimedMove> move =
+      PlanArmMove(*checker_, scene, old.path.front(), old.path.back(),
+                  cell_.arm().limits, plan, &check.replan);
+  check.replanned = true;
+  check.replan_seconds = std::chrono::duration<double>(
+                             std::chrono::steady_clock::now() - replan_begin)
+                             .count();
+  if (!move) {
+    *reason = std::string("leg ") + std::to_string(leg + 1) +
+              " replanned with the measured grip: " +
+              ToString(check.replan.status) + ": " + check.replan.reason;
+    return false;
+  }
+  carry_legs_[leg].move = std::move(*move);
+  outcome_.carry.legs[leg] = check.replan;
+  JoinCarryLegs();
+  return true;
+}
+
+PickPlace::CheckNext PickPlace::RunCheck() {
+  CheckReport& check = outcome_.check;
+  CheckRecord record;
+  record.time = cell_.data()->time;
+  record.attempt = check.pictures + 1;
+  // Where the arm says it is, not where it was told to be: the expected
+  // pose and the tip the grip is measured against both come from these.
+  record.arm = JointAngles(cell_.arm(), *cell_.data());
+  record.tip = TipPoseAt(*cell_.model(), scratch_.get(), cell_.arm(),
+                         record.arm);
+  const Eigen::Isometry3d design_in_tip =
+      DesignModuleInTip(kModuleThickness, options_.grip_gap);
+  record.expected = record.tip * design_in_tip;
+  const auto begin = std::chrono::steady_clock::now();
+  const DepthImage image = cell_.TakeCheckImage();
+  record.render_seconds = std::chrono::duration<double>(
+                              std::chrono::steady_clock::now() - begin)
+                              .count();
+  // The check camera as calibrated: where the control code believes it is.
+  record.estimate =
+      FindHeldModule(image, cell_.CalibratedCheckCamera(), record.expected,
+                     options_.held_finder, &record.diagnostics);
+  if (record.estimate) {
+    record.module_in_tip = GripOffsetFromCheck(record.estimate->pose,
+                                               record.tip);
+  }
+  ++check.pictures;
+  check.finder_seconds += record.diagnostics.seconds_total;
+  check.render_seconds += record.render_seconds;
+  checks_.push_back(record);
+  if (check_hook_) check_hook_(checks_.back());
+
+  const HeldFinderDiagnostics& d = record.diagnostics;
+  char text[600];
+  if (record.estimate) {
+    held_in_tip_ = *record.module_in_tip;
+    check.status = CheckReport::Status::kChecked;
+    check.module_in_tip = *held_in_tip_;
+    const Eigen::Isometry3d offset = design_in_tip.inverse() * *held_in_tip_;
+    check.offset_shift = offset.translation();
+    const Eigen::AngleAxisd turn(offset.linear());
+    check.offset_rotation = turn.angle() * turn.axis();
+    // Leg 2 was planned with the design grip; checked again with the
+    // measured one, replanned only if that fails.
+    std::string why;
+    const std::size_t next = *check_leg_ + 1;
+    if (next < carry_legs_.size() && !RecheckLeg(next, &why)) {
+      Fail("the check after pickup: " + why);
+      return CheckNext::kFailed;
+    }
+    char leg[300] = "";
+    if (next < carry_legs_.size()) {
+      if (check.replanned) {
+        std::snprintf(leg, sizeof(leg),
+                      "; leg %zu not clear with it (%s), replanned in %.0f ms",
+                      next + 1, check.recheck_hit.c_str(),
+                      1e3 * check.replan_seconds);
+      } else {
+        std::snprintf(leg, sizeof(leg),
+                      "; leg %zu clear with it at %.0f mm (%d samples, %.0f "
+                      "ms)",
+                      next + 1, 1e3 * check.recheck_margin,
+                      check.recheck_samples, 1e3 * check.recheck_seconds);
+      }
+    }
+    std::snprintf(text, sizeof(text),
+                  "check: grip off the design by %+.2f %+.2f %+.2f mm, %.3f "
+                  "deg (picture %d, finder %.0f ms)%s",
+                  1e3 * check.offset_shift.x(), 1e3 * check.offset_shift.y(),
+                  1e3 * check.offset_shift.z(),
+                  check.offset_rotation.norm() / kDegree, check.pictures,
+                  1e3 * d.seconds_total, leg);
+    check_note_ = text;
+    return CheckNext::kGoOn;
+  }
+  check.failure = d.failure;
+  check.failure_detail = d.detail;
+  if (d.failure == HeldFinderFailure::kFarFromExpected) {
+    // src/held_module_finder.h, step 9: slipped on the cups; stop.
+    check.status = CheckReport::Status::kSlipped;
+    Fail(std::string("the check after pickup: the module has slipped on the "
+                     "cups: ") +
+         d.detail);
+    return CheckNext::kFailed;
+  }
+  if (check.pictures < 2) return CheckNext::kRetake;
+  // Refused twice: placed as gripped by design, and said so.
+  check.status = CheckReport::Status::kUnchecked;
+  std::snprintf(text, sizeof(text),
+                "check: refused twice (%s: %s), placing UNCHECKED with the "
+                "design grip",
+                HeldFinderFailureName(d.failure), d.detail.c_str());
+  check_note_ = text;
+  return CheckNext::kGoOn;
 }
 
 void PickPlace::BeginCarry() {
@@ -772,9 +1031,10 @@ void PickPlace::BeginCarry() {
     std::snprintf(when, sizeof(when), "when the carry began");
   }
   std::snprintf(text, sizeof(text),
-                "planned in %.0f ms %s; %zu waypoints, %.2f s; clearance %.0f "
-                "mm (%s)%s",
-                1e3 * report.plan_seconds, when, carry_.size(),
+                "planned in %.0f ms %s; %zu leg%s, %zu waypoints, %.2f s; "
+                "clearance %.0f mm (%s)%s",
+                1e3 * report.plan_seconds, when, carry_legs_.size(),
+                carry_legs_.size() == 1 ? "" : "s", carry_.size(),
                 report.trajectory_seconds, 1e3 * report.clearance,
                 report.clearance_between.c_str(),
                 report.tube_moving ? "; tube still moving when planned" : "");
@@ -801,10 +1061,24 @@ bool PickPlace::CarryFinished() {
   if (carry_dwelling_) {
     if (now < carry_dwell_end_) return false;
     carry_dwelling_ = false;
+    if (check_leg_ && carry_leg_ == *check_leg_) {
+      // The end of the dwell at the check pose: the picture.
+      switch (RunCheck()) {
+        case CheckNext::kFailed:
+          return false;  // the cycle has failed, holding here
+        case CheckNext::kRetake:
+          // One more dwell, then the picture again.
+          carry_dwelling_ = true;
+          carry_dwell_end_ = now + options_.check_dwell;
+          return false;
+        case CheckNext::kGoOn:
+          break;
+      }
+    }
   } else {
     if (MoveFinished(false) != Progress::kFinished) return false;
     const double dwell = carry_legs_[carry_leg_].dwell;
-    if (dwell > 0.0) {
+    if (dwell > 0.0 || (check_leg_ && carry_leg_ == *check_leg_)) {
       carry_dwelling_ = true;
       carry_dwell_end_ = now + dwell;
       return false;
@@ -819,14 +1093,7 @@ bool PickPlace::CarryFinished() {
 bool PickPlace::Start(int module, PickPlaceStep first) {
   if (step_ != PickPlaceStep::kIdle && !Done()) return false;
   const mjData& data = *cell_.data();
-  if (data.time < last_time_) {
-    // The cell was Reset: a new follower, the last cycle's picture is of
-    // another scene, and every module stands on the pallet again.
-    follower_ = ArmFollower(cell_.arm());
-    look_ahead_.reset();
-    known_.assign(cell_.module_count(), KnownModule{});
-  }
-  last_time_ = data.time;
+  NoticeReset();
   const bool camera = options_.sensing == SensingMode::kCamera;
   if (first == PickPlaceStep::kIdle) {
     first = camera ? PickPlaceStep::kLook : PickPlaceStep::kToStandoff;
@@ -839,17 +1106,26 @@ bool PickPlace::Start(int module, PickPlaceStep first) {
   outcome_.slot = cell_.conveyor().steps();
   outcome_.start_time = data.time;
   outcome_.carry.mode = options_.carry;
+  outcome_.check.status = options_.check_after_pickup
+                              ? CheckReport::Status::kNotRun
+                              : CheckReport::Status::kOff;
   carry_legs_.clear();
   carry_.clear();
   carry_failure_.clear();
   carry_note_.clear();
   carry_leg_ = 0;
   carry_dwelling_ = false;
+  check_leg_.reset();
+  checks_.clear();
+  held_in_tip_.reset();
+  check_note_.clear();
   planned_.clear();
   records_.clear();
   looks_.clear();
   estimate_.reset();
   release_tip_.reset();
+  release_module_.reset();
+  set_down_blocked_ = false;
   paused_ = false;
   step_ = PickPlaceStep::kIdle;
 
@@ -867,6 +1143,21 @@ bool PickPlace::Start(int module, PickPlaceStep first) {
     return false;
   }
   const bool planned_carry = options_.carry == CarryMode::kPlanned;
+  if (options_.check_after_pickup) {
+    if (!planned_carry) {
+      Fail("the check after pickup needs the planned carry: the check pose "
+           "is a leg end of the planned carry, and the scripted one has no "
+           "place to stop over the check camera");
+      return false;
+    }
+    if (options_.check_pose.size() != Arm::kJoints ||
+        !options_.check_pose.allFinite() || !(options_.check_dwell >= 0.0) ||
+        !(options_.recheck_spacing > 0.0)) {
+      Fail("the check after pickup's options are out of range (check_pose "
+           "six finite angles, check_dwell >= 0, recheck_spacing > 0)");
+      return false;
+    }
+  }
   const bool scripted_carry_step = first == PickPlaceStep::kFlatten ||
                                    first == PickPlaceStep::kSwing ||
                                    first == PickPlaceStep::kTurn;
@@ -1073,42 +1364,46 @@ void PickPlace::Update() {
   // The clock went back: the cell was Reset under us. The old plan is in
   // the old time, so start again with a fresh follower, holding the
   // commands Reset left (home).
-  if (data->time < last_time_) {
-    follower_ = ArmFollower(cell_.arm());
-    look_ahead_.reset();
-    known_.assign(cell_.module_count(), KnownModule{});
-    if (!Done() && step_ != PickPlaceStep::kIdle) {
-      Fail("the cell was reset during the cycle");
-    }
+  if (NoticeReset() && !Done() && step_ != PickPlaceStep::kIdle) {
+    Fail("the cell was reset during the cycle");
   }
-  last_time_ = data->time;
   if (!Done() && !paused_ && step_ != PickPlaceStep::kIdle) Advance();
   follower_.Update(*cell_.model(), data);
 }
 
-PickPlaceStep PickPlace::Next(PickPlaceStep step) const {
+bool PickPlace::Skipped(PickPlaceStep step) const {
   const bool camera = options_.sensing == SensingMode::kCamera;
   const bool planned = options_.carry == CarryMode::kPlanned;
-  auto skipped = [&](PickPlaceStep s) {
-    switch (s) {
-      case PickPlaceStep::kLook:
-      case PickPlaceStep::kLookAhead:
-        return !camera;
-      case PickPlaceStep::kFlatten:
-      case PickPlaceStep::kSwing:
-      case PickPlaceStep::kTurn:
-        return planned;
-      case PickPlaceStep::kCarry:
-        return !planned;
-      default:
-        return false;
-    }
-  };
+  switch (step) {
+    case PickPlaceStep::kLook:
+    case PickPlaceStep::kLookAhead:
+      return !camera;
+    case PickPlaceStep::kFlatten:
+    case PickPlaceStep::kSwing:
+    case PickPlaceStep::kTurn:
+      return planned;
+    case PickPlaceStep::kCarry:
+      return !planned;
+    default:
+      return false;
+  }
+}
+
+PickPlaceStep PickPlace::Next(PickPlaceStep step) const {
   PickPlaceStep next = step;
   do {
     next = static_cast<PickPlaceStep>(static_cast<int>(next) + 1);
-  } while (skipped(next));
+  } while (Skipped(next));
   return next;
+}
+
+bool PickPlace::set_pause_after(std::optional<PickPlaceStep> step) {
+  if (step && (*step == PickPlaceStep::kIdle || *step == PickPlaceStep::kDone ||
+               *step == PickPlaceStep::kFailed || Skipped(*step))) {
+    return false;
+  }
+  pause_after_ = step;
+  return true;
 }
 
 LookRecord PickPlace::TakeLook(PickPlaceStep step) {
@@ -1302,8 +1597,25 @@ void PickPlace::BeginStep(PickPlaceStep step) {
     case PickPlaceStep::kRelease:
       Enter(step);
       cell_.Release();
-      // Let go over its slot: the cell knows where it lies from now on.
-      set_known_module(outcome_.module, {ModulePlace::kOnTube, outcome_.slot});
+      if (!set_down_blocked_) {
+        // Let go over its slot as planned: the cell knows where it lies
+        // from now on.
+        set_known_module(outcome_.module,
+                         {ModulePlace::kOnTube, outcome_.slot});
+      } else {
+        // Let go where the blocked set-down stopped: the module is where
+        // the tool held it then (the joint angles and the grip the script
+        // used), resting on the rails, but not confirmed in its slot.
+        KnownModule let_go;
+        let_go.place = ModulePlace::kLetGo;
+        let_go.slot = outcome_.slot;
+        let_go.pose = TipPoseAt(*cell_.model(), scratch_.get(), cell_.arm(),
+                                JointAngles(cell_.arm(), *data)) *
+                      GripInTip();
+        let_go.slide = cell_.conveyor().SensorPosition(*data);
+        set_known_module(outcome_.module, let_go);
+        outcome_.placement_unconfirmed = true;
+      }
       return;
     case PickPlaceStep::kRetreat:
       BeginMove(step, retreat_, options_.speed_empty, options_.deviation_near);
@@ -1326,9 +1638,13 @@ void PickPlace::BeginStep(PickPlaceStep step) {
       } else if (outcome_.slot >= Conveyor::kSlotCount - 1) {
         // The full tube went away with its modules (Cell::SwapTube parks
         // them).
+        // One let go where a blocked set-down stopped went with it only if
+        // it lay on the tube, which the script cannot confirm.
         for (KnownModule& known : known_) {
           if (known.place == ModulePlace::kOnTube) {
             known = {ModulePlace::kParked, -1};
+          } else if (known.place == ModulePlace::kLetGo) {
+            known = {ModulePlace::kUnaccounted, -1};
           }
         }
       }
@@ -1389,12 +1705,16 @@ void PickPlace::Advance() {
       // before the end and the arm stops short, pressing. Let go anyway.
       const Progress p = MoveFinished(true);
       if (p == Progress::kRunning) return;
-      if (p == Progress::kBlocked) result = "blocked, let go: " + Shortfall();
+      if (p == Progress::kBlocked) {
+        set_down_blocked_ = true;
+        result = "blocked, let go (placement unconfirmed): " + Shortfall();
+      }
       break;
     }
     case PickPlaceStep::kCarry:
       if (!CarryFinished()) return;
       result = carry_note_;
+      if (!check_note_.empty()) result += "; " + check_note_;
       break;
     case PickPlaceStep::kToStandoff:
     case PickPlaceStep::kApproach:

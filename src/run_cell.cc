@@ -10,6 +10,7 @@
 //   bazel run //:run_cell -- [--pretty] [--seed N] [--modules M] [--phases]
 //                            [--trials T] [--nominal] [--blind] [--no-noise]
 //                            [--calibration MM,DEG] [--carry planned|scripted]
+//                            [--check] [--check-calibration MM,DEG]
 //                            [--verbose]
 //
 //   --camera     (the default) one depth picture per pick, and the pick aimed
@@ -28,6 +29,14 @@
 //                the carry from the end of "clear" to over the slot: the
 //                three scripted joint moves (the default), or one move
 //                planned by the motion planner (src/pick_place.h)
+//   --check      the check after pickup (src/pick_place.h): the planned
+//                carry (implied) through the check pose over the check
+//                camera, where the grip is measured and the place corrected
+//                for it. Off by default.
+//   --check-calibration MM,DEG
+//                the check camera's calibration off by MM millimetres and
+//                DEG degrees, as --calibration for the pallet camera
+//                (default 0,0: exact)
 //
 //   --seed N     the first trial's seed (default 1); trial t uses N + t
 //   --trials T   how many trials (default 1)
@@ -66,8 +75,16 @@
 // planner's wall time, a "*" if that did not fit in the lift, pull back and
 // clear it ran alongside, and the clearance the planner measured along its
 // path; and the highest motor torque during the carry, as a fraction of its
-// limit (from the truth, cycle_check; the whole cycle's in the summary). The ratio of simulated to wall-clock
-// time goes to stderr.
+// limit (from the truth, cycle_check; the whole cycle's in the summary).
+// Then, with --check: how the check went ("ok" measured, "UNC" refused
+// twice and placed unchecked, "SLIP" slipped, failed), the measured grip's
+// offset from the design grip (shift and turn, in all), the finder's
+// computing time over its pictures, the measured grip's error against the
+// true grip (the suction weld's pose in the tool tip's frame at the moment
+// of the picture, from the truth, printed only), and "r" if leg 2 was
+// replanned with the measured grip. A cycle placed unchecked shows
+// "unchkd" as its result and counts as placed. The ratio of simulated to
+// wall-clock time goes to stderr.
 //
 // The first argument is the cell's model; BUILD.bazel passes it.
 
@@ -84,12 +101,16 @@
 #include <string>
 #include <vector>
 
+#include <Eigen/Core>
+#include <Eigen/Geometry>
 #include <mujoco/mujoco.h>
 
 #include "src/cell.h"
 #include "src/cycle_check.h"
+#include "src/held_module_finder.h"
 #include "src/pick_place.h"
 #include "src/score.h"
+#include "src/suction.h"
 
 namespace {
 
@@ -120,26 +141,109 @@ struct Row {
   cell::CarryReport carry;
   double peak_torque = 0.0;
   double carry_torque = 0.0;  // the same during the carry's steps only
+  // The check after pickup, and the measured grip's error against the true
+  // grip (shift in m, turn in rad), from the truth at the accepted picture.
+  cell::CheckReport check;
+  std::optional<double> check_error_shift, check_error_turn;
+  bool unconfirmed = false;  // a blocked set-down: placement unconfirmed
 };
 
-void PrintHeader(bool pretty) {
+bool Unchecked(const Row& r) {
+  return r.placed && r.check.status == cell::CheckReport::Status::kUnchecked;
+}
+
+void PrintHeader(bool pretty, bool check) {
   if (pretty) {
     std::printf("%5s %3s | %7s %7s %6s | %-6s %4s | %7s %7s %7s %7s %6s %4s | "
-                "%7s %7s | %6s | %6s %6s %6s %6s %6s %4s | %5s %6s %5s %5s | "
-                "%s\n",
+                "%7s %7s | %6s | %6s %6s %6s %6s %6s %4s | %5s %6s %5s %5s | ",
                 "seed", "mod", "dx mm", "dy mm", "yaw d", "result", "slot",
                 "along", "across", "height", "yaw d", "tilt d", "rest",
                 "stack", "turn d", "cycle", "seen n", "long", "up",
-                "face d", "rot d", "ms", "carry", "plan", "clr", "ctorq",
-                "reason");
+                "face d", "rot d", "ms", "carry", "plan", "clr", "ctorq");
+    if (check) {
+      std::printf("%4s %6s %6s %4s %6s %6s %2s | ", "chk", "off mm", "off d",
+                  "ms", "err mm", "err d", "rp");
+    }
+    std::printf("%s\n", "reason");
   } else {
     std::printf("seed,module,pallet_dx_mm,pallet_dy_mm,pallet_yaw_deg,outcome,"
                 "slot,along_mm,across_mm,height_mm,yaw_deg,tilt_deg,at_rest,"
                 "stack_moved_mm,stack_turned_deg,cycle_s,seen_normal_mm,"
                 "seen_long_mm,seen_up_mm,seen_face_deg,seen_turn_deg,"
                 "finder_ms,carry_s,plan_ms,plan_fits,plan_clearance_mm,"
-                "carry_torque,peak_torque,reason\n");
+                "carry_torque,peak_torque,check,check_pictures,"
+                "grip_x_mm,grip_y_mm,grip_z_mm,grip_rx_deg,grip_ry_deg,"
+                "grip_rz_deg,check_finder_ms,check_error_mm,check_error_deg,"
+                "leg2_replanned,replan_ms,reason\n");
   }
+}
+
+// The check's columns: status, the measured grip's offset from the design
+// (in all), the finder's time, its error against the truth, replanned.
+std::string Check(const Row& r, bool pretty) {
+  const cell::CheckReport& c = r.check;
+  const bool measured = c.status == cell::CheckReport::Status::kChecked;
+  const char* status = "-";
+  switch (c.status) {
+    case cell::CheckReport::Status::kOff:
+      status = "-";
+      break;
+    case cell::CheckReport::Status::kNotRun:
+      status = pretty ? "-" : "not run";
+      break;
+    case cell::CheckReport::Status::kChecked:
+      status = pretty ? "ok" : "checked";
+      break;
+    case cell::CheckReport::Status::kUnchecked:
+      status = pretty ? "UNC" : "unchecked";
+      break;
+    case cell::CheckReport::Status::kSlipped:
+      status = pretty ? "SLIP" : "slipped";
+      break;
+  }
+  char text[300];
+  if (pretty) {
+    char off[40], err[40];
+    if (measured) {
+      std::snprintf(off, sizeof(off), "%6.2f %6.3f",
+                    1e3 * c.offset_shift.norm(),
+                    c.offset_rotation.norm() / kDegree);
+    } else {
+      std::snprintf(off, sizeof(off), "%6s %6s", "-", "-");
+    }
+    if (r.check_error_shift) {
+      std::snprintf(err, sizeof(err), "%6.3f %6.4f", 1e3 * *r.check_error_shift,
+                    *r.check_error_turn / kDegree);
+    } else {
+      std::snprintf(err, sizeof(err), "%6s %6s", "-", "-");
+    }
+    char ms[16];
+    if (c.pictures > 0) {
+      std::snprintf(ms, sizeof(ms), "%4.0f", 1e3 * c.finder_seconds);
+    } else {
+      std::snprintf(ms, sizeof(ms), "%4s", "-");
+    }
+    std::snprintf(text, sizeof(text), "%4s %s %s %s %2s", status, off, ms,
+                  err, c.replanned ? "r" : "");
+    return text;
+  }
+  char off[160] = ",,,,,";
+  if (measured) {
+    std::snprintf(off, sizeof(off), "%.4f,%.4f,%.4f,%.5f,%.5f,%.5f",
+                  1e3 * c.offset_shift.x(), 1e3 * c.offset_shift.y(),
+                  1e3 * c.offset_shift.z(), c.offset_rotation.x() / kDegree,
+                  c.offset_rotation.y() / kDegree,
+                  c.offset_rotation.z() / kDegree);
+  }
+  char err[64] = ",";
+  if (r.check_error_shift) {
+    std::snprintf(err, sizeof(err), "%.4f,%.5f", 1e3 * *r.check_error_shift,
+                  *r.check_error_turn / kDegree);
+  }
+  std::snprintf(text, sizeof(text), "%s,%d,%s,%.1f,%s,%d,%.1f", status,
+                c.pictures, off, 1e3 * c.finder_seconds, err,
+                c.replanned ? 1 : 0, 1e3 * c.replan_seconds);
+  return text;
 }
 
 // The finder's columns, or blanks.
@@ -197,10 +301,15 @@ std::string Carry(const Row& r, bool pretty) {
   return text;
 }
 
-void PrintRow(const Row& r, bool pretty) {
+void PrintRow(const Row& r, bool pretty, bool check) {
   const cell::PlacementError e = r.error.value_or(cell::PlacementError{});
   const bool scored = r.error.has_value();
-  const char* outcome = r.placed ? "placed" : "failed";
+  const char* outcome =
+      !r.placed ? "failed" : (Unchecked(r) ? "unchkd" : "placed");
+  // CSV always has the check's columns; the table only with --check.
+  const std::string check_columns =
+      pretty ? (check ? Check(r, true) + " | " : std::string())
+             : Check(r, false) + ",";
   if (pretty) {
     char score[120] = "";
     if (scored) {
@@ -213,35 +322,35 @@ void PrintRow(const Row& r, bool pretty) {
                     "-", "-", "-", "-");
     }
     std::printf("%5u %3d | %7.2f %7.2f %6.2f | %-6s %4d | %s | %7.3f %7.4f | "
-                "%6.2f | %s | %s | %s\n",
+                "%6.2f | %s | %s | %s%s\n",
                 r.seed, r.module, 1e3 * r.dx, 1e3 * r.dy, r.yaw / kDegree,
                 outcome, scored ? e.slot : -1, score,
                 1e3 * r.disturbance.worst_displacement,
                 r.disturbance.worst_rotation / kDegree, r.cycle_time,
                 Seen(r, true).c_str(), Carry(r, true).c_str(),
-                r.reason.c_str());
+                check_columns.c_str(), r.reason.c_str());
   } else {
     // The reason may hold commas; quote it.
     std::string reason = r.reason;
     std::replace(reason.begin(), reason.end(), '"', '\'');
     if (scored) {
       std::printf("%u,%d,%.3f,%.3f,%.4f,%s,%d,%.4f,%.4f,%.4f,%.5f,%.5f,%d,"
-                  "%.4f,%.5f,%.3f,%s,%s,\"%s\"\n",
+                  "%.4f,%.5f,%.3f,%s,%s,%s\"%s\"\n",
                   r.seed, r.module, 1e3 * r.dx, 1e3 * r.dy, r.yaw / kDegree,
                   outcome, e.slot, 1e3 * e.along_tube, 1e3 * e.across_tube,
                   1e3 * e.height, e.yaw / kDegree, e.tilt / kDegree,
                   e.at_rest ? 1 : 0, 1e3 * r.disturbance.worst_displacement,
                   r.disturbance.worst_rotation / kDegree, r.cycle_time,
                   Seen(r, false).c_str(), Carry(r, false).c_str(),
-                  reason.c_str());
+                  check_columns.c_str(), reason.c_str());
     } else {
-      std::printf("%u,%d,%.3f,%.3f,%.4f,%s,,,,,,,,%.4f,%.5f,%.3f,%s,%s,"
+      std::printf("%u,%d,%.3f,%.3f,%.4f,%s,,,,,,,,%.4f,%.5f,%.3f,%s,%s,%s"
                   "\"%s\"\n",
                   r.seed, r.module, 1e3 * r.dx, 1e3 * r.dy, r.yaw / kDegree,
                   outcome, 1e3 * r.disturbance.worst_displacement,
                   r.disturbance.worst_rotation / kDegree, r.cycle_time,
                   Seen(r, false).c_str(), Carry(r, false).c_str(),
-                  reason.c_str());
+                  check_columns.c_str(), reason.c_str());
     }
   }
 }
@@ -269,15 +378,17 @@ int main(int argc, char** argv) {
       "usage: %s <cell.xml> [--pretty] [--seed N] [--modules M] [--trials T] "
       "[--first K] [--nominal] [--xy MM] [--yaw DEG] [--camera | --blind] "
       "[--noise | --no-noise] [--calibration MM,DEG] "
-      "[--carry scripted|planned] [--phases] [--verbose]\n";
+      "[--carry scripted|planned] [--check] [--check-calibration MM,DEG] "
+      "[--phases] [--verbose]\n";
   if (argc < 2) {
     std::fprintf(stderr, usage, argv[0]);
     return 1;
   }
   bool pretty = false, nominal = false, verbose = false, phases = false;
-  bool camera = true, noise = true;
+  bool camera = true, noise = true, with_check = false;
   cell::CarryMode carry = cell::CarryMode::kScripted;
   double calibration_mm = 0.0, calibration_deg = 0.0;
+  double check_calibration_mm = 0.0, check_calibration_deg = 0.0;
   long first_seed = 1;
   int modules = 1, trials = 1, first = 0;
   std::optional<double> xy, yaw;  // ranges, mm and degrees
@@ -308,6 +419,14 @@ int main(int argc, char** argv) {
       } else if (std::strcmp(mode, "scripted") == 0) {
         carry = cell::CarryMode::kScripted;
       } else {
+        std::fprintf(stderr, usage, argv[0]);
+        return 1;
+      }
+    } else if (std::strcmp(argv[i], "--check") == 0) {
+      with_check = true;
+    } else if (std::strcmp(argv[i], "--check-calibration") == 0 && has_value) {
+      if (std::sscanf(argv[++i], "%lf,%lf", &check_calibration_mm,
+                      &check_calibration_deg) != 2) {
         std::fprintf(stderr, usage, argv[0]);
         return 1;
       }
@@ -353,12 +472,17 @@ int main(int argc, char** argv) {
   randomization.camera_noise = camera && noise;
   randomization.camera_shift = calibration_mm * 1e-3;
   randomization.camera_turn = calibration_deg * kDegree;
+  randomization.check_camera_shift = check_calibration_mm * 1e-3;
+  randomization.check_camera_turn = check_calibration_deg * kDegree;
+  // The check after pickup needs the planned carry.
+  if (with_check) carry = cell::CarryMode::kPlanned;
   cell::PickPlaceOptions options;
   options.sensing =
       camera ? cell::SensingMode::kCamera : cell::SensingMode::kBlind;
   options.carry = carry;
+  options.check_after_pickup = with_check;
 
-  PrintHeader(pretty);
+  PrintHeader(pretty, with_check);
   std::vector<Row> rows;
   double simulated = 0.0;
   const auto wall_start = std::chrono::steady_clock::now();
@@ -387,9 +511,27 @@ int main(int argc, char** argv) {
       disturbance = cell::MeasureStackDisturbance(cell);
       cell.RebaselineStack();
     });
+    // The measured grip against the true one, at the picture: the suction
+    // weld's pose in the tool tip's frame, from the positions the picture
+    // brought up to date.
+    std::optional<double> check_error_shift, check_error_turn;
+    script.set_check_hook([&](const cell::CheckRecord& record) {
+      if (!record.module_in_tip) return;
+      const std::optional<cell::Pose> held =
+          cell.suction().HeldPoseInTip(*cell.data());
+      if (!held) return;
+      Eigen::Isometry3d truth = Eigen::Isometry3d::Identity();
+      truth.translation() = held->position;
+      truth.linear() = held->rotation.normalized().toRotationMatrix();
+      const Eigen::Isometry3d error = truth.inverse() * *record.module_in_tip;
+      check_error_shift = error.translation().norm();
+      check_error_turn = Eigen::AngleAxisd(error.linear()).angle();
+    });
 
     for (int m = first; m < first + modules; ++m) {
       Row row;
+      check_error_shift.reset();
+      check_error_turn.reset();
       row.seed = seed;
       row.module = m;
       row.dx = scene.pallet_x;
@@ -421,6 +563,20 @@ int main(int argc, char** argv) {
       }
       row.cycle_time = cell.data()->time - start;
       row.carry = outcome.carry;
+      row.check = outcome.check;
+      row.unconfirmed = outcome.placement_unconfirmed;
+      if (row.check.status == cell::CheckReport::Status::kChecked) {
+        row.check_error_shift = check_error_shift;
+        row.check_error_turn = check_error_turn;
+      }
+      if (row.placed && row.unconfirmed) {
+        row.reason = "set down blocked: placement unconfirmed";
+      } else if (Unchecked(row)) {
+        row.reason = "unchecked: " +
+                     std::string(cell::HeldFinderFailureName(
+                         row.check.failure)) +
+                     ": " + row.check.failure_detail;
+      }
       row.peak_torque = check.peak_torque().maxCoeff();
       for (cell::PickPlaceStep s :
            {cell::PickPlaceStep::kFlatten, cell::PickPlaceStep::kSwing,
@@ -463,7 +619,7 @@ int main(int argc, char** argv) {
           std::fprintf(stderr, "  %s\n", cell::Describe(*row.error).c_str());
         }
       }
-      PrintRow(row, pretty);
+      PrintRow(row, pretty, with_check);
       if (phases || (pretty && !row.placed)) {
         PrintPhases(script, stdout, pretty ? "        " : "# ");
       }
@@ -498,9 +654,37 @@ int main(int argc, char** argv) {
   std::string clearance_between;
   int planned = 0, fits = 0;
   Stat seen_normal, seen_long, seen_up, seen_face, seen_turn, finder;
+  // The check: measured offsets, the finder's error against the truth and
+  // its time, leg 2's recheck and replans.
+  Stat check_shift, check_turn, check_error_shift, check_error_turn;
+  Stat check_finder, recheck_time, replan_time;
+  int checked = 0, unchecked = 0, slipped = 0, replanned = 0, rechecked = 0;
+  int unconfirmed = 0;
   int placed = 0;
   std::map<std::string, int> failures;
   for (const Row& r : rows) {
+    const cell::CheckReport& c = r.check;
+    if (c.status == cell::CheckReport::Status::kChecked) {
+      ++checked;
+      check_shift.Add(1e3 * c.offset_shift.norm());
+      check_turn.Add(c.offset_rotation.norm() / kDegree);
+    }
+    if (Unchecked(r)) ++unchecked;
+    if (c.status == cell::CheckReport::Status::kSlipped) ++slipped;
+    if (c.pictures > 0) check_finder.Add(1e3 * c.finder_seconds);
+    if (c.rechecked) {
+      ++rechecked;
+      recheck_time.Add(1e3 * c.recheck_seconds);
+    }
+    if (c.replanned) {
+      ++replanned;
+      replan_time.Add(1e3 * c.replan_seconds);
+    }
+    if (r.check_error_shift) {
+      check_error_shift.Add(1e3 * *r.check_error_shift);
+      check_error_turn.Add(*r.check_error_turn / kDegree);
+    }
+    if (r.placed && r.unconfirmed) ++unconfirmed;
     if (r.placed && r.error) {
       ++placed;
       along.Add(1e3 * r.error->along_tube);
@@ -535,14 +719,24 @@ int main(int argc, char** argv) {
     }
   }
   const char* lead = pretty ? "" : "# ";
-  std::printf("%s%s%d of %zu cycles placed (%s%s%s, %s carry)\n",
+  std::printf("%s%s%d of %zu cycles placed (%s%s%s, %s carry%s%s)",
               pretty ? "\n" : "", lead, placed, rows.size(),
               camera ? "camera" : "blind",
               camera ? (noise ? ", noisy pictures" : ", exact pictures") : "",
               calibration_mm > 0.0 || calibration_deg > 0.0
                   ? ", calibration off"
                   : "",
-              cell::CarryModeName(carry));
+              cell::CarryModeName(carry),
+              with_check ? ", check after pickup" : "",
+              with_check && (check_calibration_mm > 0.0 ||
+                        check_calibration_deg > 0.0)
+                  ? ", check camera's calibration off"
+                  : "");
+  if (with_check || unconfirmed > 0) {
+    std::printf("; %d unchecked, %d placement unconfirmed", unchecked,
+                unconfirmed);
+  }
+  std::printf("\n");
   if (placed > 0) {
     std::printf("%splacement, worst / rms: along %.2f / %.2f mm, across %.2f "
                 "/ %.2f mm, height %.2f / %.2f mm, yaw %.3f / %.3f deg, tilt "
@@ -578,6 +772,25 @@ int main(int argc, char** argv) {
                 seen_long.Rms(), seen_up.worst, seen_up.Rms(), seen_face.worst,
                 seen_face.Rms(), seen_turn.worst, seen_turn.Rms(),
                 finder.worst);
+  }
+  if (with_check) {
+    std::printf("%scheck after pickup: %d checked, %d unchecked, %d slipped; "
+                "measured grip offset, worst / rms: %.2f / %.2f mm, %.3f / "
+                "%.3f deg; finder %.0f ms at most (all pictures of a cycle)\n",
+                lead, checked, unchecked, slipped, check_shift.worst,
+                check_shift.Rms(), check_turn.worst, check_turn.Rms(),
+                check_finder.worst);
+    if (check_error_shift.count > 0) {
+      std::printf("%scheck finder error against the true grip, worst / rms: "
+                  "%.3f / %.3f mm, %.4f / %.4f deg\n",
+                  lead, check_error_shift.worst, check_error_shift.Rms(),
+                  check_error_turn.worst, check_error_turn.Rms());
+    }
+    std::printf("%sleg 2 rechecked with the measured grip: %d (mean %.0f ms, "
+                "worst %.0f ms); replanned: %d (mean %.0f ms, worst %.0f "
+                "ms)\n",
+                lead, rechecked, recheck_time.Mean(), recheck_time.worst,
+                replanned, replan_time.Mean(), replan_time.worst);
   }
   for (const auto& [kind, count] : failures) {
     std::printf("%sfailed %d: %s\n", pretty ? "" : "# ", count, kind.c_str());

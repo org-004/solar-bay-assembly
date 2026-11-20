@@ -129,9 +129,40 @@
 // planner), so a cycle is reproducible from the cell's seed.
 //
 // The carry is a list of legs (CarryLeg), each a timed move and a dwell at
-// its end; today there is one leg and no dwell. A via point (a pose to pass
-// through, such as a check pose in front of a camera) is one more leg end
-// and its dwell, planned leg by leg (as PlanThrough does).
+// its end. Without the check after pickup there is one leg and no dwell;
+// with it, two (below).
+//
+// The check after pickup (PickPlaceOptions::check_after_pickup; planned
+// carry only, Start refuses it with the scripted one). The grip holds the
+// module wherever it was on the tool at the grip, so an error in the pallet
+// camera's estimate (its calibration above all) would go straight into the
+// placement. With the check the carry runs in two legs, both planned at the
+// start of lift with the design grip:
+//   leg 1  the end of clear to the check pose (check_pose: the module flat,
+//          glass up, over the check camera on the floor), then a dwell of
+//          check_dwell; at its end the check camera's picture is taken
+//          (Cell::TakeCheckImage) and src/held_module_finder.h's
+//          FindHeldModule run on it with the calibrated check camera and
+//          the expected pose TipPoseAt(the joint angles the arm REPORTS
+//          then) times DesignModuleInTip(thickness, grip_gap).
+//   leg 2  the check pose to the end of the turn, as the single leg was.
+// From the module's measured pose and the tip's, GripOffsetFromCheck gives
+// where the module sits on the tool. From then on the script uses that
+// grip: leg 2 is checked again with the measured module on the tool
+// (DenseSamples along its path, at the margin that keeps the planner's
+// required_margin for samples that dense, see RecheckLeg in the .cc) and
+// replanned with it only if that check fails; the planner's scene
+// (CarryPlanScene) holds the measured grip; and the place is planned with
+// CorrectedTipTarget, so that lower and set down put the MODULE, not the
+// tool, on the slot. All of it is kept in PickPlaceOutcome::check.
+//
+// A refusal by the finder. kFarFromExpected means the module has slipped on
+// the cups (src/held_module_finder.h, step 9: "the cycle should stop"): the
+// cycle fails in the carry, the arm holding the module at the check pose.
+// Any other refusal earns one more picture after another check_dwell; if
+// that is refused too, the module is placed uncorrected, with the design
+// grip, and the cycle ends placed but "unchecked" (CheckReport::Status::
+// kUnchecked), not failed.
 //
 // Use, once per physics step, with a Cell that has just been Reset:
 //
@@ -144,9 +175,16 @@
 //   script.outcome();    // placed, or failed and why
 //
 // Start the next module once Done. The script keeps one ArmFollower across
-// cycles, whose plan is kept in simulation time; after another Cell::Reset
-// it notices the clock went back and starts a fresh follower, but making a
-// new PickPlace is clearer.
+// cycles, whose plan is kept in simulation time, and its records of where
+// each module is (known_modules). One rule for a Cell::Reset: the script
+// notices it when the clock is behind the last time it saw, at the next
+// Start, Update or set_known_module, whichever comes first, and then starts
+// a fresh follower, drops the look-ahead picture and wipes every record
+// (every module on the stack again), before doing what was asked. So
+// records set with set_known_module after a Reset survive into Start, and
+// records from before a Reset never do. A Reset the script cannot see (it
+// has seen no time later than the settled clock since the Reset before)
+// is not noticed: make a new PickPlace after a Reset to be sure.
 //
 // Units: metres, radians and simulated seconds. Poses are in the world
 // frame.
@@ -156,6 +194,7 @@
 
 #include <cstddef>
 #include <functional>
+#include <numbers>
 #include <optional>
 #include <string>
 #include <vector>
@@ -166,6 +205,7 @@
 #include "src/arm_follower.h"
 #include "src/cell.h"
 #include "src/collision.h"
+#include "src/held_module_finder.h"
 #include "src/ik.h"
 #include "src/mj_handles.h"
 #include "src/module_finder.h"
@@ -321,6 +361,36 @@ struct PickPlaceOptions {
   // does.
   MotionPlanOptions planner;
 
+  // ------------------------------------------------ the check after pickup
+  // Off by default. On, the planned carry goes through check_pose and the
+  // grip is measured there (see the top of the file); Start refuses it with
+  // the scripted carry.
+  bool check_after_pickup = false;
+  // The check pose, joints 1 to 6: the module flat, glass up, its centre
+  // straight above the check camera (src/check_placement.h's study; the
+  // camera stands at (0.1307, 1.4943) on the floor, tests/
+  // check_camera_cell_test.cc). Joint 1 at -85 degrees: on the way round +Y.
+  Eigen::VectorXd check_pose = [] {
+    Eigen::VectorXd q(6);
+    q << -85.00, -90.81, 81.68, 0.0, 99.13, 90.0;
+    return Eigen::VectorXd(q * (std::numbers::pi / 180.0));
+  }();
+  // How long the arm holds still at the check pose before the picture (the
+  // arm settling and one exposure); a retake after a refusal waits as long
+  // again.
+  double check_dwell = 0.2;  // s
+  // The held-module finder's settings; its defaults are the ones it was
+  // measured with.
+  HeldFinderOptions held_finder;
+  // Leg 2 is checked again with the measured grip at configurations no
+  // further apart than this (m of motion, DenseSamples), and so at the
+  // margin required_margin + recheck_spacing / 2 + corner_allowance +
+  // tracking_allowance (35 mm with the defaults; self pairs the same over
+  // required_self_margin): the planner's own budget (src/motion_planner.h)
+  // with the edge term for samples this dense, so a path that passes keeps
+  // the planner's required_margin as surely as a planned one.
+  double recheck_spacing = 0.01;  // m
+
   // ------------------------------------------------------------- the place
   // The lowering comes straight down at speed_carrying to this height above
   // the release pose, then at speed_touching for the rest (a 40 mm leg
@@ -419,7 +489,8 @@ enum class PickPlaceStep {
   kFlatten,
   kSwing,
   kTurn,
-  kCarry,           // planned carry only, in place of flatten .. turn
+  kCarry,           // planned carry only, in place of flatten .. turn; with
+                    // the check after pickup, its picture too
   kWaitForConveyor,
   kLower,
   kSetDown,
@@ -468,6 +539,67 @@ struct CarryReport {
   bool tube_moving = false;
 };
 
+// One picture of the check after pickup and what the finder made of it.
+struct CheckRecord {
+  double time = 0.0;      // simulation time it was taken
+  int attempt = 1;        // 1, or 2 for the retake after a refusal
+  Eigen::VectorXd arm;    // the joint angles the arm reported then
+  // The tool tip's pose from those angles (TipPoseAt), and the module's
+  // expected pose: tip times DesignModuleInTip(thickness, grip_gap).
+  Eigen::Isometry3d tip = Eigen::Isometry3d::Identity();
+  Eigen::Isometry3d expected = Eigen::Isometry3d::Identity();
+  // The finder's answer, or nothing (diagnostics.failure says why).
+  std::optional<HeldModuleEstimate> estimate;
+  HeldFinderDiagnostics diagnostics;
+  // With an answer: the module's pose in the tool tip's frame
+  // (GripOffsetFromCheck).
+  std::optional<Eigen::Isometry3d> module_in_tip;
+  double render_seconds = 0.0;  // computer time to take the picture
+};
+
+// The check after pickup of one cycle.
+struct CheckReport {
+  enum class Status {
+    kOff,        // not asked for
+    kNotRun,     // asked for, but the carry has not reached it (or the
+                 // cycle started after the carry, or failed before it)
+    kChecked,    // measured; the place is corrected
+    kUnchecked,  // refused twice: placed uncorrected, with the design grip
+    kSlipped,    // the finder says the module slipped: the cycle failed
+  };
+  Status status = Status::kOff;
+  int pictures = 0;
+  // kUnchecked, kSlipped: the last refusal.
+  HeldFinderFailure failure = HeldFinderFailure::kNone;
+  std::string failure_detail;
+  // Computer time: the finder (all pictures), and rendering them.
+  double finder_seconds = 0.0;
+  double render_seconds = 0.0;
+
+  // ------------------------------------------------------ kChecked only
+  // The measured grip (module in tip), and how far it is from the design
+  // grip, in the design module's frame: the shift along its x, y, z (m)
+  // and the rotation vector (rad) of design^-1 * measured.
+  Eigen::Isometry3d module_in_tip = Eigen::Isometry3d::Identity();
+  Eigen::Vector3d offset_shift = Eigen::Vector3d::Zero();
+  Eigen::Vector3d offset_rotation = Eigen::Vector3d::Zero();
+  // Leg 2 checked again with the measured grip: at what margins, how many
+  // configurations, whether all were clear, and the wall time it took.
+  bool rechecked = false;
+  bool recheck_clear = false;
+  double recheck_margin = 0.0;       // m
+  double recheck_self_margin = 0.0;  // m
+  int recheck_samples = 0;
+  double recheck_seconds = 0.0;
+  std::string recheck_hit;  // the first configuration found too close
+  // Leg 2 replanned with the measured grip (only when the recheck failed),
+  // and the wall time and the planner's report of that.
+  bool replanned = false;
+  double replan_seconds = 0.0;
+  MotionPlanReport replan;
+};
+const char* CheckStatusName(CheckReport::Status status);  // "checked", ...
+
 // How a cycle ended, or that it has not yet.
 struct PickPlaceOutcome {
   enum class Status { kNotStarted, kRunning, kPlaced, kFailed };
@@ -483,6 +615,12 @@ struct PickPlaceOutcome {
   double start_time = 0.0;
   double end_time = 0.0;
   CarryReport carry;
+  CheckReport check;
+  // The set down was blocked (the module met the rails early, "blocked, let
+  // go") and the tool let go where it stopped: the cycle counts as placed,
+  // but the script cannot say the module lies in its slot. It is recorded as
+  // ModulePlace::kLetGo.
+  bool placement_unconfirmed = false;
 };
 
 // Where the cell takes a module to be, from what it did itself.
@@ -491,10 +629,22 @@ enum class ModulePlace {
   kHeld,     // gripped by this script
   kOnTube,   // let go by this script in `slot` of the current tube
   kParked,   // was on a tube that this script swapped away
+  // Let go where a blocked set-down stopped, over `slot` of the current
+  // tube: at `pose` (the module's centre and axes in the world, from the
+  // joint angles at the release and the grip the script used), the tube's
+  // slide reading `slide` then. It met the rails, so it is taken to rest on
+  // the tube and move with it; but not to lie squarely in its slot.
+  kLetGo,
+  // Was kLetGo on a tube this script swapped away: it went with the tube if
+  // it lay on it, which the script cannot confirm.
+  kUnaccounted,
 };
 struct KnownModule {
   ModulePlace place = ModulePlace::kOnStack;
-  int slot = -1;  // kOnTube only
+  int slot = -1;  // kOnTube and kLetGo
+  // kLetGo only.
+  Eigen::Isometry3d pose = Eigen::Isometry3d::Identity();
+  double slide = 0.0;
 };
 
 // What the planner's scene for a carry is built from: all of it is what a
@@ -502,8 +652,11 @@ struct KnownModule {
 struct CarrySceneInput {
   int held = -1;  // the module on the tool; -1 for none
   // The design grip's gap: the module hangs at DesignModuleInTip(
-  // kModuleThickness, grip_gap) in the tool tip's frame.
+  // kModuleThickness, grip_gap) in the tool tip's frame...
   double grip_gap = 0.0;
+  // ...unless the grip has been measured (the check after pickup): then
+  // the module hangs here in the tool tip's frame.
+  std::optional<Eigen::Isometry3d> module_in_tip;
   // Where the stack is taken to be: the motion that carries the design's
   // pallet and stack onto the estimate (identity in blind mode).
   Eigen::Isometry3d pallet_shift = Eigen::Isometry3d::Identity();
@@ -522,9 +675,14 @@ struct CarrySceneInput {
 //                record of where it went, is taken to have been carried
 //                away, at ParkingPose, as Cell::ParkModule puts it); on
 //                the tube, its slot's pose at tube_slide; parked, at
-//                ParkingPose;
+//                ParkingPose; let go (kLetGo), at its pose carried along
+//                by the tube from the slide it was let go at to
+//                tube_slide; unaccounted, at ParkingPose, where the cell
+//                puts a swapped tube's modules (the scene must put it
+//                somewhere, and nothing better is known);
 //   tube_slide   as given;
-//   held_module, module_in_tip  the held module at the design grip.
+//   held_module, module_in_tip  the held module at the design grip, or at
+//                the measured one if given.
 // world stays null, so the planner's checker keeps the model's own state
 // for everything not named here: what is fixed by design. No contact is
 // allowed.
@@ -580,12 +738,17 @@ class PickPlace {
   // the script meant. The hook belongs to the caller, which may read the
   // truth; the script itself does not.
   using PlacedHook = std::function<void(int module, int slot)>;
+  // Called right after each check picture has been taken and the finder
+  // run, before anything moves: the place for a scorer to compare the
+  // measured grip with the truth. Also the caller's, as PlacedHook.
+  using CheckHook = std::function<void(const CheckRecord& record)>;
 
   // Keeps a reference to `cell`, which must outlive this object. The arm
   // should be at rest where its motors are commanded, as after Reset.
   explicit PickPlace(Cell& cell, const PickPlaceOptions& options = {});
 
   void set_placed_hook(PlacedHook hook) { placed_hook_ = std::move(hook); }
+  void set_check_hook(CheckHook hook) { check_hook_ = std::move(hook); }
 
   // Starts a cycle for module_<module>: plans every pose of the pick and the
   // carry from the design geometry and starts the first move, at the
@@ -612,16 +775,21 @@ class PickPlace {
   // With the planned carry, flatten, swing and turn are not steps of the
   // cycle and cannot be `first`; with the scripted one, carry cannot.
   // Started at carry, the carry is planned when it begins, from the end of
-  // clear, for `module` as held.
+  // clear, for `module` as held. With check_after_pickup and the scripted
+  // carry the cycle fails at once ("the check after pickup needs the
+  // planned carry"); started after the carry, nothing is checked and the
+  // place is planned with the design grip (CheckReport::Status::kNotRun).
   bool Start(int module, PickPlaceStep first = PickPlaceStep::kIdle);
 
   // Stops the cycle when `step` has finished, before the next one begins,
   // until Resume. The arm holds its pose meanwhile, and Update must still be
   // called. For tests that look at the state a step leaves behind. Applies
-  // to every later cycle too, until cleared with std::nullopt.
-  void set_pause_after(std::optional<PickPlaceStep> step) {
-    pause_after_ = step;
-  }
+  // to every later cycle too, until cleared with std::nullopt. Returns false
+  // and changes nothing for a step that never finishes in this script's
+  // modes (idle, done, failed; the look steps in blind mode; flatten, swing
+  // and turn with the planned carry; carry with the scripted one), which
+  // would otherwise never pause.
+  bool set_pause_after(std::optional<PickPlaceStep> step);
   bool paused() const { return paused_; }
   // Goes on with the next step.
   void Resume();
@@ -659,10 +827,18 @@ class PickPlace {
   const std::vector<Eigen::VectorXd>* Waypoints(PickPlaceStep step) const;
 
   // The tool-tip poses the script aims for, for display and tests: where it
-  // grips, and where it lets go (set once the set-down is planned).
+  // grips, and where it lets go (set once the set-down is planned; with a
+  // measured grip, the corrected tip: CorrectedTipTarget of the module's
+  // release pose, release_module()).
   const Eigen::Isometry3d& grip_tip() const { return grip_tip_; }
   const std::optional<Eigen::Isometry3d>& release_tip() const {
     return release_tip_;
+  }
+  // Where the script means the MODULE to be when it is let go: flat, its
+  // underside release_clearance above the slot's rails, centred on the slot
+  // (set with release_tip).
+  const std::optional<Eigen::Isometry3d>& release_module() const {
+    return release_module_;
   }
 
   // Which way round the module goes on the tube: +1 if its +x ends up
@@ -691,16 +867,26 @@ class PickPlace {
   const std::vector<KnownModule>& known_modules() const { return known_; }
   // Tells the script where module i is, for a scene it did not make itself
   // (cycles run by an earlier script, a test's constructed state). An index
-  // out of range is ignored.
+  // out of range is ignored. Notices a Reset first (see the top of the
+  // file), so a record set after a Reset is kept.
   void set_known_module(int i, const KnownModule& known);
   // The planner's scene for carrying module `held` now (CarryScene), from
   // what the script knows: the stack where the current estimate puts it
   // (camera mode, once the look step has an estimate) or as designed, the
-  // modules it put on the tube or swapped away, and the conveyor's encoder
-  // (its nominal stop while it still moves).
+  // modules it put on the tube or swapped away, the conveyor's encoder
+  // (its nominal stop while it still moves), and the grip as measured by
+  // this cycle's check, once it has been, or the design grip.
   PlanScene CarryPlanScene(int held) const;
   // The current cycle's planned carry, leg by leg; empty until planned.
   const std::vector<CarryLeg>& carry_legs() const { return carry_legs_; }
+
+  // ---------------------------------------------- the check after pickup
+  // This cycle's check pictures, in order, and the grip it measured
+  // (nothing until measured, or if it was not).
+  const std::vector<CheckRecord>& checks() const { return checks_; }
+  const std::optional<Eigen::Isometry3d>& measured_grip() const {
+    return held_in_tip_;
+  }
 
  private:
   // The face the pick side aims at, from the design or from an estimate.
@@ -730,8 +916,28 @@ class PickPlace {
   void BeginCarry();
   // Starts following leg carry_leg_.
   void BeginCarryLeg();
-  // The carry step's progress: legs, dwells. Returns true once it has ended.
+  // The carry step's progress: legs, dwells, the check. Returns true once
+  // it has ended.
   bool CarryFinished();
+  // The check after pickup at the end of the check leg's dwell: the
+  // picture, the finder, and what follows (see the top of the file).
+  enum class CheckNext { kGoOn, kRetake, kFailed };
+  CheckNext RunCheck();
+  // Checks leg `leg` of the carry again with the grip measured (see
+  // PickPlaceOptions::recheck_spacing), and replans it if that fails; on a
+  // failed replan returns false with the reason.
+  bool RecheckLeg(std::size_t leg, std::string* reason);
+  // Joins the legs' paths into carry_ and sums their figures into
+  // outcome_.carry.
+  void JoinCarryLegs();
+  // The grip the script holds the module with: measured, or the design's.
+  Eigen::Isometry3d GripInTip() const;
+  // A Reset of the cell, seen by the clock going back (see the top of the
+  // file): a fresh follower, no look-ahead picture, every record wiped.
+  // Returns true if one was seen.
+  bool NoticeReset();
+  // Whether `step` is not a step of a cycle in this script's modes.
+  bool Skipped(PickPlaceStep step) const;
   // The motion carrying the design's stack onto the estimate, for `held`.
   Eigen::Isometry3d PalletShift(int held) const;
 
@@ -793,6 +999,7 @@ class PickPlace {
   // it to answer a question about joint angles.
   mutable DataPtr scratch_;
   PlacedHook placed_hook_;
+  CheckHook check_hook_;
   double last_time_ = 0.0;
 
   PickPlaceStep step_ = PickPlaceStep::kIdle;
@@ -831,6 +1038,9 @@ class PickPlace {
   double place_x_sign_ = 1.0;
   Eigen::Isometry3d grip_tip_ = Eigen::Isometry3d::Identity();
   std::optional<Eigen::Isometry3d> release_tip_;
+  std::optional<Eigen::Isometry3d> release_module_;
+  // The set down of this cycle stopped short against the rails.
+  bool set_down_blocked_ = false;
 
   // The planned carry. The checker is made on the first plan.
   std::optional<CollisionChecker> checker_;
@@ -842,6 +1052,14 @@ class PickPlace {
   bool carry_dwelling_ = false;         // holding at the end of carry_leg_
   double carry_dwell_end_ = 0.0;
   std::string carry_note_;              // for the carry step's record
+
+  // The check after pickup: the leg whose dwell ends in the picture (none
+  // without the check), this cycle's pictures, the grip measured (from
+  // then on the script's grip), and the check's note for the carry record.
+  std::optional<std::size_t> check_leg_;
+  std::vector<CheckRecord> checks_;
+  std::optional<Eigen::Isometry3d> held_in_tip_;
+  std::string check_note_;
 };
 
 }  // namespace cell
