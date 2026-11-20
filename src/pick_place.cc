@@ -245,8 +245,21 @@ const char* CheckStatusName(CheckReport::Status status) {
       return "refused";
     case CheckReport::Status::kSlipped:
       return "slipped";
+    case CheckReport::Status::kNoPath:
+      return "no path";
   }
   return "?";
+}
+
+double MeasuredTilt(const Eigen::Isometry3d& module_in_tip) {
+  // The module's +z in the tip's frame against the tip's -Z: atan2 keeps
+  // small angles exact.
+  const Eigen::Vector3d z = module_in_tip.linear().col(2);
+  return std::atan2(z.head<2>().norm(), -z.z());
+}
+
+double MeasuredGap(const Eigen::Isometry3d& module_in_tip) {
+  return module_in_tip.translation().z() - 0.5 * kModuleThickness;
 }
 
 PlanScene CarryScene(const PalletBodies& design, const CarrySceneInput& input) {
@@ -597,7 +610,8 @@ bool PickPlace::PlanPlace(std::string* reason) {
   // in camera mode by the error of the estimate the pick aimed at plus how
   // far the approach strayed from it. The script cannot see either, and
   // lays the module down wrong by just that much; the scorer shows it.
-  // With the check after pickup the grip has been measured (held_in_tip_),
+  // With the check after pickup the grip has been measured (held_in_tip_,
+  // on this module),
   // and the tip is sent where that grip puts the MODULE on its release pose
   // (CorrectedTipTarget): the module, not the tool, lands on the slot.
   const Conveyor& conveyor = cell_.conveyor();
@@ -615,8 +629,9 @@ bool PickPlace::PlanPlace(std::string* reason) {
   release_module_ =
       design_release * DesignModuleInTip(kModuleThickness, options_.grip_gap);
   const Eigen::Isometry3d release =
-      held_in_tip_ ? CorrectedTipTarget(*release_module_, *held_in_tip_)
-                   : design_release;
+      held_in_tip_ && held_in_tip_module_ == outcome_.module
+          ? CorrectedTipTarget(*release_module_, *held_in_tip_)
+          : design_release;
   release_tip_ = release;
 
   // Where the arm is: the end of the turn, as planned. In from there at
@@ -681,12 +696,21 @@ bool PickPlace::NoticeReset() {
     known_.assign(cell_.module_count(), KnownModule{});
   }
   last_time_ = now;
+  // A cycle running across it carries on with nothing: its plan, its
+  // estimate and what it holds are of the scene before. Wherever the Reset
+  // is noticed (Update, or set_known_module between two Updates), the
+  // cycle ends here, holding where Reset left the arm.
+  if (reset && step_ != PickPlaceStep::kIdle && !Done()) {
+    paused_ = false;
+    Fail("the cell was reset during the cycle");
+  }
   return reset;
 }
 
-Eigen::Isometry3d PickPlace::GripInTip() const {
-  return held_in_tip_ ? *held_in_tip_
-                      : DesignModuleInTip(kModuleThickness, options_.grip_gap);
+Eigen::Isometry3d PickPlace::GripInTip(int module) const {
+  return held_in_tip_ && held_in_tip_module_ == module
+             ? *held_in_tip_
+             : DesignModuleInTip(kModuleThickness, options_.grip_gap);
 }
 
 Eigen::Isometry3d PickPlace::PalletShift(int held) const {
@@ -702,7 +726,11 @@ PlanScene PickPlace::CarryPlanScene(int held) const {
   CarrySceneInput input;
   input.held = held;
   input.grip_gap = options_.grip_gap;
-  input.module_in_tip = held_in_tip_;
+  // The measured grip is the measured module's only: another module on the
+  // tool hangs at the design grip.
+  if (held_in_tip_ && held_in_tip_module_ == held) {
+    input.module_in_tip = held_in_tip_;
+  }
   input.pallet_shift = PalletShift(held);
   input.modules = known_;
   // The encoder; while the tube still moves, where it is headed (its
@@ -836,7 +864,8 @@ bool PickPlace::RecheckLeg(std::size_t leg, std::string* reason) {
   // down is over (if it was still moving when the carry was planned, the
   // scene has it at its nominal stop, as the plan did). Only the grip
   // changes: the measured one goes on the tool.
-  bool clear = checker_->SetHeldModule(outcome_.module, GripInTip());
+  bool clear =
+      checker_->SetHeldModule(outcome_.module, GripInTip(outcome_.module));
   const double old_margin = checker_->margin();
   const double old_self = checker_->self_margin();
   if (clear) {
@@ -930,6 +959,13 @@ PickPlace::CheckNext PickPlace::RunCheck() {
   if (record.estimate) {
     record.module_in_tip = GripOffsetFromCheck(record.estimate->pose,
                                                record.tip);
+    // The plausibility test (see the top of pick_place.h): the cups hold
+    // the glass flat and near the tip.
+    record.tilt = MeasuredTilt(*record.module_in_tip);
+    record.gap = MeasuredGap(*record.module_in_tip);
+    record.plausible = record.tilt <= options_.max_check_tilt &&
+                       record.gap >= options_.min_check_gap &&
+                       record.gap <= options_.max_check_gap;
   }
   ++check.pictures;
   check.vacuum_holds = record.vacuum_holds;
@@ -939,7 +975,7 @@ PickPlace::CheckNext PickPlace::RunCheck() {
   if (check_hook_) check_hook_(checks_.back());
 
   const HeldFinderDiagnostics& d = record.diagnostics;
-  char text[600];
+  char text[800];
   // The vacuum lost: nothing on the tool to place, whatever the picture
   // shows (a module still falling may be found, or seen far from where it
   // should be). The finder's answer goes into the reason.
@@ -954,8 +990,47 @@ PickPlace::CheckNext PickPlace::RunCheck() {
     return CheckNext::kFailed;
   };
   if (record.estimate && !record.vacuum_holds) return vacuum_lost();
+  if (record.estimate && !record.plausible) {
+    // Found, but where the cups cannot hold a module: the camera's
+    // calibration (a turn across its view tilts every point it sees), or a
+    // picture gone wrong. Treated as a refusal: once more, then a fault.
+    check.failure = HeldFinderFailure::kNone;
+    check.implausible = true;
+    if (record.tilt > options_.max_check_tilt) {
+      std::snprintf(text, sizeof(text),
+                    "the measured module is tilted %.3f deg on the cups, "
+                    "more than %.3f deg: the cups hold the glass flat, so "
+                    "the check camera's calibration is suspect",
+                    record.tilt / kDegree, options_.max_check_tilt / kDegree);
+    } else {
+      std::snprintf(text, sizeof(text),
+                    "the measured module's glass is %.2f mm from the tool "
+                    "tip, outside %.1f .. %.1f mm: the suction grips only "
+                    "near the glass, so the check camera's calibration is "
+                    "suspect",
+                    1e3 * record.gap, 1e3 * options_.min_check_gap,
+                    1e3 * options_.max_check_gap);
+    }
+    check.failure_detail = text;
+    if (check.pictures < 2) return CheckNext::kRetake;
+    check.status = CheckReport::Status::kRefused;
+    char numbers[200];
+    std::snprintf(numbers, sizeof(numbers),
+                  " (the vacuum holds a module; picture %d: tilt %.3f deg, "
+                  "gap %.2f mm; picture 1: %s)",
+                  check.pictures, record.tilt / kDegree, 1e3 * record.gap,
+                  checks_.front().estimate
+                      ? (checks_.front().plausible ? "plausible"
+                                                    : "implausible too")
+                      : HeldFinderFailureName(
+                            checks_.front().diagnostics.failure));
+    Fail(std::string("the check after pickup: check camera fault: ") + text +
+         numbers);
+    return CheckNext::kFailed;
+  }
   if (record.estimate) {
     held_in_tip_ = *record.module_in_tip;
+    held_in_tip_module_ = outcome_.module;
     check.status = CheckReport::Status::kChecked;
     check.retaken = check.pictures > 1;
     check.module_in_tip = *held_in_tip_;
@@ -963,11 +1038,15 @@ PickPlace::CheckNext PickPlace::RunCheck() {
     check.offset_shift = offset.translation();
     const Eigen::AngleAxisd turn(offset.linear());
     check.offset_rotation = turn.angle() * turn.axis();
+    check.tilt = record.tilt;
+    check.gap = record.gap;
     // Leg 2 was planned with the design grip; checked again with the
     // measured one, replanned only if that fails.
     std::string why;
     const std::size_t next = *check_leg_ + 1;
     if (next < carry_legs_.size() && !RecheckLeg(next, &why)) {
+      // Measured, but no way on with it: not a corrected place.
+      check.status = CheckReport::Status::kNoPath;
       Fail("the check after pickup: " + why);
       return CheckNext::kFailed;
     }
@@ -986,23 +1065,27 @@ PickPlace::CheckNext PickPlace::RunCheck() {
                       check.recheck_samples, 1e3 * check.recheck_seconds);
       }
     }
-    char retaken[200] = "";
+    char retaken[400] = "";
     if (check.retaken) {
       std::snprintf(retaken, sizeof(retaken),
                     "; RETAKEN, picture 1 refused: %s",
-                    HeldFinderFailureName(check.failure));
+                    check.implausible ? check.failure_detail.c_str()
+                                      : HeldFinderFailureName(check.failure));
     }
     std::snprintf(text, sizeof(text),
                   "check: grip off the design by %+.2f %+.2f %+.2f mm, %.3f "
-                  "deg (picture %d, finder %.0f ms)%s%s",
+                  "deg; tilt %.4f deg, gap %.2f mm (picture %d, finder %.0f "
+                  "ms)%s%s",
                   1e3 * check.offset_shift.x(), 1e3 * check.offset_shift.y(),
                   1e3 * check.offset_shift.z(),
-                  check.offset_rotation.norm() / kDegree, check.pictures,
+                  check.offset_rotation.norm() / kDegree,
+                  check.tilt / kDegree, 1e3 * check.gap, check.pictures,
                   1e3 * d.seconds_total, retaken, leg);
     check_note_ = text;
     return CheckNext::kGoOn;
   }
   check.failure = d.failure;
+  check.implausible = false;
   check.failure_detail = d.detail;
   if (d.failure == HeldFinderFailure::kFarFromExpected) {
     if (!record.vacuum_holds) return vacuum_lost();
@@ -1156,6 +1239,7 @@ bool PickPlace::Start(int module, PickPlaceStep first) {
   check_leg_.reset();
   checks_.clear();
   held_in_tip_.reset();
+  held_in_tip_module_ = -1;
   check_note_.clear();
   planned_.clear();
   records_.clear();
@@ -1178,6 +1262,16 @@ bool PickPlace::Start(int module, PickPlaceStep first) {
   if (static_cast<int>(first) < static_cast<int>(PickPlaceStep::kLook) ||
       static_cast<int>(first) > static_cast<int>(PickPlaceStep::kReturn)) {
     Fail(std::string("cannot start at ") + StepName(first));
+    return false;
+  }
+  // A cycle that failed holding its module (a refused check, a slip) leaves
+  // it on the tool. The pick would press it into the stack; and the next
+  // grip would take the wrong one, or none. A start after the grip (a
+  // test's constructed state) expects a module held.
+  if (static_cast<int>(first) <= static_cast<int>(PickPlaceStep::kGrip) &&
+      cell_.VacuumHolds()) {
+    Fail("a module is still on the tool (the vacuum holds): let it go "
+         "before the next pick");
     return false;
   }
   const bool planned_carry = options_.carry == CarryMode::kPlanned;
@@ -1401,10 +1495,8 @@ void PickPlace::Update() {
   mjData* data = cell_.data();
   // The clock went back: the cell was Reset under us. The old plan is in
   // the old time, so start again with a fresh follower, holding the
-  // commands Reset left (home).
-  if (NoticeReset() && !Done() && step_ != PickPlaceStep::kIdle) {
-    Fail("the cell was reset during the cycle");
-  }
+  // commands Reset left (home); a running cycle fails (NoticeReset).
+  NoticeReset();
   if (!Done() && !paused_ && step_ != PickPlaceStep::kIdle) Advance();
   follower_.Update(*cell_.model(), data);
 }
@@ -1649,7 +1741,7 @@ void PickPlace::BeginStep(PickPlaceStep step) {
         let_go.slot = outcome_.slot;
         let_go.pose = TipPoseAt(*cell_.model(), scratch_.get(), cell_.arm(),
                                 JointAngles(cell_.arm(), *data)) *
-                      GripInTip();
+                      GripInTip(outcome_.module);
         let_go.slide = cell_.conveyor().SensorPosition(*data);
         set_known_module(outcome_.module, let_go);
         outcome_.placement_unconfirmed = true;

@@ -26,14 +26,27 @@
 //              between the camera and the held one and takes away again
 //              (retaken: placed, corrected); a slip (kFarFromExpected): the
 //              cycle fails at the check, no retake;
+//   plausible  the check camera's calibration turned 0.5 degrees across its
+//              view: the measured module tilted on the cups, refused,
+//              retaken, a "check camera fault"; turned about its axis: not
+//              seen, the grip measured off in yaw (the test's limit);
+//   yaw        a grip turned 0.8 degrees in yaw, placed square in slot 1
+//              after a tube step;
+//   no path    measured, leg 2 neither clear nor replannable with the
+//              measured grip: failed, CheckReport::Status::kNoPath;
 //   options    the check refused with the scripted carry;
 //   cycles     whole camera-mode cycles with the pallet camera's calibration
 //              off by 1 mm and 0.05 degrees, with and without the check, on
 //              the same seeds: placement with the check well inside
-//              placement without it;
+//              placement without it; and with the check camera's
+//              calibration off by as much too: the plausibility test quiet,
+//              placed within 3 mm and 0.15 degrees;
 //   stage 6    the record of a blocked set-down (kLetGo, unconfirmed), one
 //              rule for records across a Reset, and set_pause_after refusing
-//              a step the mode skips.
+//              a step the mode skips;
+//   stage 7    a Reset noticed by set_known_module fails the running cycle;
+//              Start refuses a pick with a module still on the tool; the
+//              measured grip is its module's only.
 //
 // The tests may read the truth (True..., the suction weld's pose) to judge
 // the script; the script does not.
@@ -100,6 +113,12 @@ constexpr double kDegree = kPi / 180.0;
 constexpr double kMm = 1e-3;
 constexpr int kModules = 30;
 constexpr double kCycleLimit = 90.0;  // s of simulation per cycle
+// At the check pose, holding a module, the arm's reported angles are off
+// the commanded ones by a following error under the module's weight; at
+// least this much (measured: 0.070 mrad at the worst joint, the tip
+// 0.124 mm from the commanded check pose's; CheckSteps, picture).
+constexpr double kArmSagAtTheCheckPose = 2e-5;   // rad
+constexpr double kTipSagAtTheCheckPose = 3e-5;   // m
 
 std::optional<Cell> LoadCell(std::string* error) {
   const char* path = std::getenv("MODEL_PATH");
@@ -416,7 +435,13 @@ struct ConstructedRun {
   std::vector<cell::CarryLeg> legs;
   std::vector<cell::CheckRecord> checks;
   std::optional<Isometry3d> measured;
+  int measured_module = -1;
   Eigen::VectorXd check_pose, turn_end;
+  int slot = -1;  // the slot the cycle was for
+  // The tip's pose, by the test's own forward kinematics, at the commanded
+  // check pose and at the angles each picture's record reports.
+  Isometry3d tip_at_check_pose = Isometry3d::Identity();
+  std::vector<Isometry3d> tip_from_record;
   Isometry3d truth_in_tip = Isometry3d::Identity();
   // At each picture: the arm's true angles and the tip's pose from them.
   std::vector<Eigen::VectorXd> arm_at_picture;
@@ -431,6 +456,10 @@ struct ConstructedRun {
   long forbidden = 0;
   std::string forbidden_list;
   bool vacuum_at_end = false;
+  // After the run, the script's planner scene for the module it measured
+  // and for another one (module_1): the measured grip is module_0's only.
+  Isometry3d scene_grip_same = Isometry3d::Identity();
+  Isometry3d scene_grip_other = Isometry3d::Identity();
 };
 
 // What a test does to the cell around the check: the seed and the check
@@ -440,6 +469,13 @@ struct ConstructedRun {
 struct ConstructedSetup {
   std::uint32_t seed = 1;
   double check_camera_shift = 0.0;  // m
+  double check_camera_turn = 0.0;   // rad
+  // Steps the tube makes before the cycle (empty slots go by): the cycle is
+  // for slot `tube_steps`.
+  int tube_steps = 0;
+  // Stop the run once the carry has ended (the check and leg 2 done),
+  // before the place side: for tests about the check alone.
+  bool stop_after_carry = false;
   std::function<void(Cell&)> at_check_pose;
   std::function<void(Cell&, const cell::CheckRecord&)> after_picture;
 };
@@ -454,7 +490,16 @@ ConstructedRun RunConstructed(const Isometry3d& offset,
   cell::Randomization randomization = cell::Randomization::None();
   randomization.camera_noise = true;  // the check camera's pictures too
   randomization.check_camera_shift = setup.check_camera_shift;
+  randomization.check_camera_turn = setup.check_camera_turn;
   cell.Reset(setup.seed, randomization);
+  for (int i = 0; i < setup.tube_steps; ++i) {
+    if (!cell.conveyor().StartStep(*cell.data())) {
+      R.error = "the tube would not step";
+      return R;
+    }
+    while (cell.conveyor().Moving(*cell.data())) cell.Step();
+  }
+  R.slot = cell.conveyor().steps();
   Eigen::VectorXd clear_end;
   {
     PickPlace planner(cell, options);
@@ -468,6 +513,8 @@ ConstructedRun RunConstructed(const Isometry3d& offset,
   R.check_pose = options.check_pose;
   cell.PutArm(clear_end);
   cell::DataPtr scratch(mj_makeData(cell.model()));
+  R.tip_at_check_pose = cell::TipPoseAt(*cell.model(), scratch.get(),
+                                        cell.arm(), options.check_pose);
   const Isometry3d tip =
       cell::TipPoseAt(*cell.model(), scratch.get(), cell.arm(), clear_end);
   cell.TeleportModule(
@@ -488,10 +535,14 @@ ConstructedRun RunConstructed(const Isometry3d& offset,
   });
   script.set_check_hook([&](const cell::CheckRecord& record) {
     R.arm_at_picture.push_back(cell::JointAngles(cell.arm(), *cell.data()));
+    R.tip_from_record.push_back(cell::TipPoseAt(*cell.model(), scratch.get(),
+                                                cell.arm(), record.arm));
     if (setup.after_picture) setup.after_picture(cell, record);
   });
-  if (!script.set_pause_after(Step::kSetDown)) {
-    R.error = "set_pause_after(set down) refused";
+  const Step pause = setup.stop_after_carry ? Step::kCarry : Step::kSetDown;
+  if (!script.set_pause_after(pause)) {
+    R.error = std::string("set_pause_after(") + cell::StepName(pause) +
+              ") refused";
     return R;
   }
   if (!script.Start(0, Step::kCarry)) {
@@ -504,6 +555,7 @@ ConstructedRun RunConstructed(const Isometry3d& offset,
   bool was_moving_leg1 = true;
   const double began = cell.data()->time;
   while (!script.Done() && cell.data()->time - began < kCycleLimit) {
+    if (script.paused() && setup.stop_after_carry) break;
     if (script.paused()) {
       mj_forward(cell.model(), cell.data());
       R.module_at_release = cell.TrueModulePose(0);
@@ -529,6 +581,9 @@ ConstructedRun RunConstructed(const Isometry3d& offset,
   R.legs = script.carry_legs();
   R.checks = script.checks();
   R.measured = script.measured_grip();
+  R.measured_module = script.measured_grip_module();
+  R.scene_grip_same = script.CarryPlanScene(0).module_in_tip;
+  R.scene_grip_other = script.CarryPlanScene(1).module_in_tip;
   R.state_at_end = cell.module_state(0);
   R.arm_at_end = cell::JointAngles(cell.arm(), *cell.data());
   R.vacuum_at_end = cell.VacuumHolds();
@@ -542,16 +597,37 @@ ConstructedRun RunConstructed(const Isometry3d& offset,
 
 // The offset put into the grip: about 3.7 mm and 0.7 degrees, the size a
 // pallet camera off by 1 mm and 0.05 degrees gives (up to 2.7 and 4.0 mm).
+// Turned about all three axes, so that the correction is tried in all
+// three; its tilt (0.36 degrees about the module's x and y) is more than the
+// cups let a real grip have, see ConstructedOptions.
 Isometry3d KnownOffset() {
   return cell::GripOffset(Vector3d(3.0, -2.0, -1.0) * kMm,
                           Vector3d(0.2, -0.3, 0.6) * kDegree);
+}
+
+// A grip offset the cups allow: shifted in the glass's plane and turned
+// about the glass's normal only (yaw), by 0.8 degrees the other way round
+// from KnownOffset's, and a millimetre further from the tip.
+Isometry3d YawOffset() {
+  return cell::GripOffset(Vector3d(-2.5, 1.5, -1.0) * kMm,
+                          Vector3d(0.0, 0.0, -0.8) * kDegree);
+}
+
+// The options for runs with KnownOffset: the plausibility test's tilt limit
+// (PickPlaceOptions::max_check_tilt, 0.2 degrees) raised above its tilt, so
+// that the check measures and corrects it. The limit itself is tried with
+// offsets the cups allow (CheckPlausibility).
+cell::PickPlaceOptions ConstructedOptions() {
+  cell::PickPlaceOptions options = CheckOptions(cell::SensingMode::kBlind);
+  options.max_check_tilt = 1.0 * kDegree;
+  return options;
 }
 
 class CheckSteps : public ::testing::Test {
  protected:
   static void SetUpTestSuite() {
     run_ = new ConstructedRun(
-        RunConstructed(KnownOffset(), CheckOptions(cell::SensingMode::kBlind)));
+        RunConstructed(KnownOffset(), ConstructedOptions()));
   }
   static void TearDownTestSuite() {
     delete run_;
@@ -614,12 +690,25 @@ TEST_F(CheckSteps, PictureAtTheEndOfTheDwellModuleInViewFinderAnswers) {
   EXPECT_EQ(c.arm, R.arm_at_picture[0]);
   EXPECT_LT((c.arm - R.check_pose).cwiseAbs().maxCoeff(),
             cell::ArmFollower::kArrivedAngle);
-  EXPECT_GT((c.arm - R.check_pose).cwiseAbs().maxCoeff(), 0.0)
-      << "reported angles, not the commanded ones";
-  EXPECT_LT(Distance(c.expected,
-                     c.tip * cell::DesignModuleInTip(cell::kModuleThickness,
-                                                     0.002)),
-            1e-12);
+  // The tip from those angles, by the test's own forward kinematics, and
+  // the expected module from that tip.
+  ASSERT_EQ(R.tip_from_record.size(), 1u);
+  EXPECT_LT(Distance(c.tip, R.tip_from_record[0]), 1e-12);
+  EXPECT_LT(Angle(c.tip, R.tip_from_record[0]), 1e-12);
+  const Isometry3d expected =
+      c.tip * cell::DesignModuleInTip(cell::kModuleThickness, 0.002);
+  EXPECT_LT(Distance(c.expected, expected), 1e-12);
+  EXPECT_LT(Angle(c.expected, expected), 1e-12);
+  // ...which is not the tip of the commanded check pose: the arm holds the
+  // module's weight with a following error, and the record must carry that
+  // and not the command.
+  const double off = (c.arm - R.check_pose).cwiseAbs().maxCoeff();
+  const double tip_off = Distance(c.tip, R.tip_at_check_pose);
+  std::printf("reported angles off the commanded check pose by up to %.3g "
+              "mrad; tip %.4f mm from the commanded one\n",
+              1e3 * off, tip_off / kMm);
+  EXPECT_GT(off, kArmSagAtTheCheckPose) << "reported, not commanded, angles";
+  EXPECT_GT(tip_off, kTipSagAtTheCheckPose);
   EXPECT_EQ(R.outcome.check.status, CheckReport::Status::kChecked);
   EXPECT_EQ(R.outcome.check.pictures, 1);
   EXPECT_FALSE(R.outcome.check.retaken);
@@ -708,6 +797,22 @@ TEST_F(CheckSteps, LowerAndSetDownPutTheModuleNotTheToolOnTheSlot) {
   EXPECT_EQ(R.forbidden, 0) << R.forbidden_list;
 }
 
+// The measured grip belongs to module_0, on which it was measured: after the
+// cycle the planner's scene puts it on the tool for module_0 only, and any
+// other module at the design grip.
+TEST_F(CheckSteps, MeasuredGripIsTheMeasuredModulesOnly) {
+  const ConstructedRun& R = *run_;
+  ASSERT_TRUE(R.measured.has_value());
+  EXPECT_EQ(R.measured_module, 0);
+  EXPECT_LT(Distance(R.scene_grip_same, *R.measured), 1e-12);
+  EXPECT_LT(Angle(R.scene_grip_same, *R.measured), 1e-12);
+  const Isometry3d design =
+      cell::DesignModuleInTip(cell::kModuleThickness, 0.002);
+  EXPECT_LT(Distance(R.scene_grip_other, design), 1e-12);
+  EXPECT_LT(Angle(R.scene_grip_other, design), 1e-12);
+  EXPECT_GT(Distance(*R.measured, design), 2.0 * kMm);
+}
+
 // ============================================================== refusals
 
 std::string Pictures(const ConstructedRun& R) {
@@ -749,7 +854,7 @@ TEST(CheckRefusal, ModuleDroppedDuringTheDwellFailsVacuumLost) {
     ASSERT_EQ(cell.Release(), std::optional<int>(0));
   };
   const ConstructedRun R = RunConstructed(
-      KnownOffset(), CheckOptions(cell::SensingMode::kBlind), setup);
+      KnownOffset(), ConstructedOptions(), setup);
   ASSERT_TRUE(R.error.empty()) << R.error << R.phases;
   std::printf("dropped: %s%s\n", R.outcome.reason.c_str(),
               Pictures(R).c_str());
@@ -773,7 +878,7 @@ TEST(CheckRefusal, ModuleGoneFromViewRetakenThenFailsVacuumLost) {
   ConstructedSetup setup;
   setup.at_check_pose = [](Cell& cell) { cell.ParkModule(0); };
   const ConstructedRun R = RunConstructed(
-      KnownOffset(), CheckOptions(cell::SensingMode::kBlind), setup);
+      KnownOffset(), ConstructedOptions(), setup);
   ASSERT_TRUE(R.error.empty()) << R.error << R.phases;
   std::printf("gone: %s%s\n", R.outcome.reason.c_str(), Pictures(R).c_str());
   ASSERT_EQ(R.checks.size(), 2u) << "one retake" << R.phases;
@@ -823,7 +928,7 @@ TEST(CheckRefusal, TooFewPointsWithTheVacuumHoldingFailsCameraFault) {
   ASSERT_NE(setup.seed, 0u);
   setup.check_camera_shift = 0.3;
   const ConstructedRun R = RunConstructed(
-      KnownOffset(), CheckOptions(cell::SensingMode::kBlind), setup);
+      KnownOffset(), ConstructedOptions(), setup);
   ASSERT_TRUE(R.error.empty()) << R.error << R.phases;
   std::printf("seed %u: %s%s\n", setup.seed, R.outcome.reason.c_str(),
               Pictures(R).c_str());
@@ -871,7 +976,7 @@ TEST(CheckRefusal, BlockedOnceRetakenPlacesCorrectedAndCountsRetaken) {
     if (record.attempt == 1) cell.ParkModule(kOccluder);
   };
   const ConstructedRun R = RunConstructed(
-      KnownOffset(), CheckOptions(cell::SensingMode::kBlind), setup);
+      KnownOffset(), ConstructedOptions(), setup);
   ASSERT_TRUE(R.error.empty()) << R.error << R.phases;
   std::printf("blocked once: %s%s%s\n", R.outcome.reason.c_str(),
               Pictures(R).c_str(), R.phases.c_str());
@@ -905,11 +1010,13 @@ TEST(CheckRefusal, BlockedOnceRetakenPlacesCorrectedAndCountsRetaken) {
   std::printf("retaken, placed: %s\n", cell::Describe(*R.placed).c_str());
   EXPECT_LT(std::abs(R.placed->along_tube), 0.4 * kMm);
   EXPECT_LT(std::abs(R.placed->across_tube), 0.4 * kMm);
+  EXPECT_LT(std::abs(R.placed->yaw), 0.03 * kDegree)
+      << "KnownOffset's 0.6 degrees of yaw corrected";
   EXPECT_EQ(R.forbidden, 0) << R.forbidden_list;
 }
 
 TEST(CheckRefusal, SlipFailsTheCycleAtTheCheckWithoutRetake) {
-  cell::PickPlaceOptions options = CheckOptions(cell::SensingMode::kBlind);
+  cell::PickPlaceOptions options = ConstructedOptions();
   // Tolerances far under the offset put in: the module is found, but further
   // from the expected pose than they allow, as one that slipped.
   options.held_finder.position_tolerance = 0.5 * kMm;
@@ -928,6 +1035,187 @@ TEST(CheckRefusal, SlipFailsTheCycleAtTheCheckWithoutRetake) {
   EXPECT_EQ(R.state_at_end, cell::ModuleState::kHeld);
   EXPECT_LT((R.arm_at_end - R.check_pose).cwiseAbs().maxCoeff(),
             cell::ArmFollower::kArrivedAngle);
+}
+
+// ========================================================= plausibility
+
+// The unit direction of the check camera's calibration turn that `seed`
+// draws, in the camera's own frame (+z along its axis), for a turn of
+// `turn` radians and nothing else off (as RunConstructed sets the cell).
+Vector3d CheckTurnDirection(std::uint32_t seed, double turn) {
+  cell::Randomization r = cell::Randomization::None();
+  r.camera_noise = true;
+  r.check_camera_turn = turn;
+  return Cell::DrawScene(seed, r).check_camera_turn / turn;
+}
+
+// The first seed whose drawn check camera turn direction has an axial
+// component (along the camera's axis) of size within [low, high].
+std::uint32_t SeedWithCheckTurnAxial(double turn, double low, double high) {
+  for (std::uint32_t seed = 1; seed < 10000; ++seed) {
+    const double z = std::abs(CheckTurnDirection(seed, turn).z());
+    if (z >= low && z <= high) return seed;
+  }
+  return 0;
+}
+
+// The check camera's calibration off by 0.5 degrees of turn, in a direction
+// nearly across its view (axial component under 0.2): every point it sees
+// is turned about it, and the module measured on the tool comes out tilted
+// by about the turn's component across the axis, 0.49 degrees or more,
+// which the cups do not allow. Refused (the grip has no tilt: YawOffset),
+// retaken, refused again: a check camera fault, the module still held at
+// the check pose, nothing placed.
+TEST(CheckPlausibility, CheckCameraTurnedAcrossItsViewFailsAsCameraFault) {
+  constexpr double kTurn = 0.5 * kDegree;
+  ConstructedSetup setup;
+  setup.seed = SeedWithCheckTurnAxial(kTurn, 0.0, 0.2);
+  ASSERT_NE(setup.seed, 0u);
+  setup.check_camera_turn = kTurn;
+  const Vector3d direction = CheckTurnDirection(setup.seed, kTurn);
+  const double across = kTurn * direction.head<2>().norm();
+  const ConstructedRun R = RunConstructed(
+      YawOffset(), CheckOptions(cell::SensingMode::kBlind), setup);
+  ASSERT_TRUE(R.error.empty()) << R.error << R.phases;
+  std::printf("seed %u, turn direction (%.3f %.3f %.3f), %.3f deg across the "
+              "axis: %s%s\n",
+              setup.seed, direction.x(), direction.y(), direction.z(),
+              across / kDegree, R.outcome.reason.c_str(), Pictures(R).c_str());
+  ASSERT_EQ(R.checks.size(), 2u) << "one retake" << R.phases;
+  for (const cell::CheckRecord& c : R.checks) {
+    ASSERT_TRUE(c.estimate.has_value()) << c.diagnostics.detail;
+    EXPECT_FALSE(c.plausible);
+    EXPECT_TRUE(c.vacuum_holds);
+    std::printf("picture %d: tilt %.4f deg, gap %.2f mm\n", c.attempt,
+                c.tilt / kDegree, c.gap / kMm);
+    // The tilt is the turn's component across the camera's axis.
+    EXPECT_NEAR(c.tilt, across, 0.03 * kDegree);
+  }
+  EXPECT_GE(R.checks[1].time - R.checks[0].time, 0.2 - 1e-9);
+  ExpectFailedAtTheCheckPose(R);
+  for (const char* words :
+       {"check camera fault: the measured module is tilted ",
+        " deg on the cups, more than 0.200 deg: the cups hold the glass "
+        "flat, so the check camera's calibration is suspect",
+        "the vacuum holds a module"}) {
+    EXPECT_NE(R.outcome.reason.find(words), std::string::npos)
+        << "\"" << words << "\" in " << R.outcome.reason;
+  }
+  const CheckReport& c = R.outcome.check;
+  EXPECT_EQ(c.status, CheckReport::Status::kRefused);
+  EXPECT_TRUE(c.implausible);
+  EXPECT_EQ(c.failure, cell::HeldFinderFailure::kNone);
+  EXPECT_TRUE(c.vacuum_holds);
+  EXPECT_EQ(R.state_at_end, cell::ModuleState::kHeld);
+  EXPECT_TRUE(R.vacuum_at_end);
+}
+
+// The limit of the test: a turn about the check camera's own axis (axial
+// component over 0.999, so at most 0.022 degrees across it) turns every
+// point about the vertical through the camera, under the module's centre:
+// the measured module is yawed on the tool, which the cups allow. The check
+// accepts it, and the measured grip is off the true one by about the turn
+// in yaw, and in tilt by no more than the turn's part across the axis and
+// the noise. Only the carry is run.
+TEST(CheckPlausibility, CheckCameraTurnedAboutItsAxisIsNotSeen) {
+  constexpr double kTurn = 0.5 * kDegree;
+  ConstructedSetup setup;
+  setup.seed = SeedWithCheckTurnAxial(kTurn, 0.999, 1.0);
+  ASSERT_NE(setup.seed, 0u);
+  setup.check_camera_turn = kTurn;
+  setup.stop_after_carry = true;
+  const ConstructedRun R = RunConstructed(
+      YawOffset(), CheckOptions(cell::SensingMode::kBlind), setup);
+  ASSERT_TRUE(R.error.empty()) << R.error << R.phases;
+  ASSERT_EQ(R.checks.size(), 1u) << R.outcome.reason << Pictures(R)
+                                 << R.phases;
+  const cell::CheckRecord& p = R.checks[0];
+  EXPECT_TRUE(p.plausible) << "tilt " << p.tilt / kDegree << " deg";
+  EXPECT_EQ(R.outcome.check.status, CheckReport::Status::kChecked)
+      << R.outcome.reason;
+  ASSERT_TRUE(R.measured.has_value());
+  const Eigen::Matrix<double, 6, 1> error =
+      cell::PoseError6(*R.measured, R.truth_in_tip);
+  std::printf("seed %u: measured grip off the truth by %.3f %.3f %.3f mm, "
+              "%.4f %.4f %.4f deg; tilt %.4f deg\n",
+              setup.seed, error[0] / kMm, error[1] / kMm, error[2] / kMm,
+              error[3] / kDegree, error[4] / kDegree, error[5] / kDegree,
+              p.tilt / kDegree);
+  // Yaw: the module's z is the truth's, the glass up, the camera's axis.
+  const Vector3d direction = CheckTurnDirection(setup.seed, kTurn);
+  EXPECT_GT(std::abs(error[5]), 0.45 * kDegree);
+  EXPECT_LT(error.segment<2>(3).norm(), 0.05 * kDegree)
+      << "turn direction (" << direction.transpose() << ")";
+}
+
+// ==================================================== the yaw, corrected
+
+// A whole cycle from the carry on, for slot 1 after a tube step, with a
+// grip turned 0.8 degrees about the glass's normal (YawOffset): the check
+// measures it, the place turns the tip back, and the module lies square in
+// its slot. A wrong-sign correction would leave 1.6 degrees.
+TEST(CheckYaw, GripTurnedInYawIsPlacedSquareInSlotOne) {
+  ConstructedSetup setup;
+  setup.tube_steps = 1;
+  const ConstructedRun R = RunConstructed(
+      YawOffset(), CheckOptions(cell::SensingMode::kBlind), setup);
+  ASSERT_TRUE(R.error.empty()) << R.error << R.phases;
+  EXPECT_EQ(R.slot, 1);
+  ASSERT_EQ(R.outcome.status, PickPlaceOutcome::Status::kPlaced)
+      << R.outcome.reason << R.phases;
+  EXPECT_EQ(R.outcome.slot, 1);
+  const CheckReport& c = R.outcome.check;
+  EXPECT_EQ(c.status, CheckReport::Status::kChecked);
+  EXPECT_NEAR(c.offset_rotation.z(), -0.8 * kDegree, 0.03 * kDegree);
+  ASSERT_TRUE(R.placed.has_value());
+  const cell::PlacementError& e = *R.placed;
+  std::printf("grip yawed %.3f deg, placed: %s\n",
+              c.offset_rotation.z() / kDegree, cell::Describe(e).c_str());
+  EXPECT_LT(std::abs(e.yaw), 0.03 * kDegree);
+  EXPECT_LT(std::hypot(e.along_tube, e.across_tube), 0.5 * kMm);
+  EXPECT_TRUE(e.at_rest);
+  EXPECT_EQ(R.forbidden, 0) << R.forbidden_list;
+}
+
+// ============================================================ no path
+
+// Measured, but leg 2 is not clear with the measured grip and cannot be
+// replanned with it: the cycle fails at the check pose, and the check's
+// status says so, not "checked". Made with the check camera's calibration
+// off by 70 mm along its axis: the module is measured 70 mm lower on the
+// tool than it is (the finder's position tolerance and the gap's range
+// widened to let it through), so that at the end of leg 2, 100 mm over the
+// rails, it would be within the planning margin of them.
+TEST(CheckNoPath, LegTwoNotReplannableWithTheMeasuredGripFailsNoPath) {
+  ConstructedSetup setup;
+  setup.seed = SeedWithCheckShiftAlongTheAxis();
+  ASSERT_NE(setup.seed, 0u);
+  setup.check_camera_shift = 0.07;
+  cell::PickPlaceOptions options = CheckOptions(cell::SensingMode::kBlind);
+  options.held_finder.position_tolerance = 0.1;
+  options.max_check_gap = 0.1;
+  const ConstructedRun R = RunConstructed(YawOffset(), options, setup);
+  ASSERT_TRUE(R.error.empty()) << R.error << R.phases;
+  std::printf("seed %u: %s%s\n", setup.seed, R.outcome.reason.c_str(),
+              Pictures(R).c_str());
+  ASSERT_EQ(R.checks.size(), 1u) << R.phases;
+  EXPECT_TRUE(R.checks[0].plausible) << "gap " << R.checks[0].gap / kMm;
+  const CheckReport& c = R.outcome.check;
+  EXPECT_EQ(c.status, CheckReport::Status::kNoPath);
+  EXPECT_STREQ(cell::CheckStatusName(c.status), "no path");
+  EXPECT_TRUE(c.rechecked);
+  EXPECT_FALSE(c.recheck_clear);
+  EXPECT_TRUE(c.replanned);
+  EXPECT_GT(c.gap, 0.06);
+  EXPECT_EQ(R.outcome.status, PickPlaceOutcome::Status::kFailed);
+  EXPECT_EQ(R.outcome.failed_step, Step::kCarry);
+  EXPECT_NE(R.outcome.reason.find("replanned with the measured grip"),
+            std::string::npos)
+      << R.outcome.reason;
+  EXPECT_LT((R.arm_at_end - R.check_pose).cwiseAbs().maxCoeff(),
+            cell::ArmFollower::kArrivedAngle);
+  EXPECT_FALSE(R.placed.has_value());
+  EXPECT_EQ(R.state_at_end, cell::ModuleState::kHeld);
 }
 
 // =============================================================== options
@@ -956,12 +1244,14 @@ TEST(CheckOptionsTest, RefusedWithTheScriptedCarry) {
 // ================================================= whole cycles, calibrated
 
 // The pallet camera's calibration off by 1 mm and 0.05 degrees (the grip
-// off by a few millimetres), on the same seeds with and without the check.
+// off by a few millimetres), on the same seeds without the check, with it,
+// and with it and the check camera's calibration off by as much too.
 class CheckCycles : public ::testing::Test {
  protected:
   struct Result {
     std::uint32_t seed = 0;
     bool check = false;
+    bool check_camera_off = false;
     PickPlaceOutcome outcome;
     std::string phases;
     std::optional<cell::PlacementError> placed;
@@ -980,11 +1270,18 @@ class CheckCycles : public ::testing::Test {
     randomization.camera_shift = 1.0 * kMm;
     randomization.camera_turn = 0.05 * kDegree;
     for (std::uint32_t seed : kSeeds) {
-      for (bool check : {false, true}) {
+      for (int mode : {0, 1, 2}) {
+        const bool check = mode > 0;
         Result r;
         r.seed = seed;
         r.check = check;
-        cell.Reset(seed, randomization);
+        r.check_camera_off = mode == 2;
+        cell::Randomization this_run = randomization;
+        if (r.check_camera_off) {
+          this_run.check_camera_shift = 1.0 * kMm;
+          this_run.check_camera_turn = 0.05 * kDegree;
+        }
+        cell.Reset(seed, this_run);
         cell::PickPlaceOptions options =
             CheckOptions(cell::SensingMode::kCamera);
         options.check_after_pickup = check;
@@ -1025,8 +1322,9 @@ class CheckCycles : public ::testing::Test {
 };
 
 TEST_F(CheckCycles, EveryCyclePlacedCheckedAndMeasuredWithinTolerance) {
-  ASSERT_EQ(results_->size(), 2 * std::size(kSeeds));
+  ASSERT_EQ(results_->size(), 3 * std::size(kSeeds));
   for (const Result& r : *results_) {
+    if (r.check_camera_off) continue;  // its own test, below
     SCOPED_TRACE("seed " + std::to_string(r.seed) +
                  (r.check ? " with" : " without") + " the check");
     ASSERT_EQ(r.outcome.status, PickPlaceOutcome::Status::kPlaced)
@@ -1043,12 +1341,16 @@ TEST_F(CheckCycles, EveryCyclePlacedCheckedAndMeasuredWithinTolerance) {
     ASSERT_TRUE(r.measured.has_value());
     const Eigen::Matrix<double, 6, 1> error =
         cell::PoseError6(*r.measured, r.truth_in_tip);
-    std::printf("seed %u: grip off the design by %.2f mm, %.3f deg; measured "
-                "to %.3f mm, %.4f deg\n",
+    std::printf("seed %u: grip off the design by %.2f mm, %.3f deg (tilt "
+                "%.4f deg, gap %.2f mm); measured to %.3f mm, %.4f deg\n",
                 r.seed, 1e3 * r.outcome.check.offset_shift.norm(),
                 r.outcome.check.offset_rotation.norm() / kDegree,
+                r.outcome.check.tilt / kDegree, r.outcome.check.gap / kMm,
                 error.head<3>().norm() / kMm,
                 error.tail<3>().norm() / kDegree);
+    EXPECT_FALSE(r.outcome.check.retaken) << r.phases;
+    EXPECT_LT(r.outcome.check.tilt,
+              0.5 * cell::PickPlaceOptions{}.max_check_tilt);
     EXPECT_LT(error.head<3>().norm(), 0.5 * kMm);
     EXPECT_LT(error.tail<3>().norm(), 0.03 * kDegree);
   }
@@ -1058,6 +1360,7 @@ TEST_F(CheckCycles, PlacementWithTheCheckWellInsidePlacementWithout) {
   double worst[2] = {0.0, 0.0};      // mm, along or across, without / with
   double worst_yaw[2] = {0.0, 0.0};  // deg
   for (const Result& r : *results_) {
+    if (r.check_camera_off) continue;
     ASSERT_TRUE(r.placed.has_value()) << r.outcome.reason << r.phases;
     const cell::PlacementError& e = *r.placed;
     const int i = r.check ? 1 : 0;
@@ -1078,6 +1381,42 @@ TEST_F(CheckCycles, PlacementWithTheCheckWellInsidePlacementWithout) {
   EXPECT_LT(worst[1], 0.5);
   EXPECT_LT(worst[1], 0.25 * worst[0]);
   EXPECT_LT(worst_yaw[1], 0.03);
+}
+
+// The check camera's calibration off too, by 1 mm and 0.05 degrees: the
+// plausibility test does not fire (the measured tilt stays a few
+// hundredths of a degree), and the place is off by about what that
+// calibration error moves the module by, a millimetre or two: within 3 mm
+// along and across and 0.15 degrees of yaw (run_cell over 20 seeds: 1.74 mm
+// and 0.055 degrees at worst).
+TEST_F(CheckCycles, CheckCameraAlsoOffPassesThePlausibilityTestAndPlaces) {
+  int rows = 0;
+  for (const Result& r : *results_) {
+    if (!r.check_camera_off) continue;
+    ++rows;
+    SCOPED_TRACE("seed " + std::to_string(r.seed));
+    ASSERT_EQ(r.outcome.status, PickPlaceOutcome::Status::kPlaced)
+        << r.outcome.reason << r.phases;
+    const CheckReport& c = r.outcome.check;
+    EXPECT_EQ(c.status, CheckReport::Status::kChecked) << r.phases;
+    EXPECT_EQ(c.pictures, 1) << r.phases;
+    EXPECT_FALSE(c.implausible) << c.failure_detail;
+    ASSERT_TRUE(r.placed.has_value());
+    const cell::PlacementError& e = *r.placed;
+    std::printf("seed %u, check camera off too: tilt %.4f deg, gap %.2f mm; "
+                "%s\n",
+                r.seed, c.tilt / kDegree, c.gap / kMm,
+                cell::Describe(e).c_str());
+    // At most half the limit: the limit is set at twice the largest tilt
+    // measured with the cameras off by this much (pick_place.h).
+    EXPECT_LT(c.tilt, 0.5 * cell::PickPlaceOptions{}.max_check_tilt);
+    EXPECT_LT(std::abs(e.along_tube), 3.0 * kMm);
+    EXPECT_LT(std::abs(e.across_tube), 3.0 * kMm);
+    EXPECT_LT(std::abs(e.yaw), 0.15 * kDegree);
+    EXPECT_TRUE(e.at_rest);
+    EXPECT_EQ(r.forbidden, 0) << r.forbidden_list;
+  }
+  EXPECT_EQ(rows, static_cast<int>(std::size(kSeeds)));
 }
 
 // =============================================================== stage 6
@@ -1208,7 +1547,7 @@ TEST(Stage6, BlockedSetDownIsRecordedWhereTheToolLetGo) {
   std::printf("let go %.2f mm from where it truly lay after the retreat%s\n",
               Distance(known.pose, *truth_at_release) / kMm,
               Phases(script).c_str());
-  EXPECT_LT(Distance(known.pose, *truth_at_release), 5.0 * kMm);
+  EXPECT_LT(Distance(known.pose, *truth_at_release), 0.5 * kMm);
   // Once the tube has stopped again, the scene has it where the tube took
   // it.
   while (cell.conveyor().Moving(*cell.data())) {
@@ -1223,9 +1562,93 @@ TEST(Stage6, BlockedSetDownIsRecordedWhereTheToolLetGo) {
     found = true;
     std::printf("after the step: scene %.2f mm from the truth\n",
                 Distance(pose, cell.TrueModulePose(0)) / kMm);
-    EXPECT_LT(Distance(pose, cell.TrueModulePose(0)), 5.0 * kMm);
+    EXPECT_LT(Distance(pose, cell.TrueModulePose(0)), 0.5 * kMm);
   }
   EXPECT_TRUE(found);
+}
+
+// =============================================================== stage 7
+
+// A Reset during a running cycle, noticed first by set_known_module (as a
+// caller telling the script where a module is right after its Reset would):
+// the cycle fails there, and does not carry on with its old plan at the
+// next Update. The record set is kept, as after any Reset.
+TEST(Stage7, ResetNoticedBySetKnownModuleFailsTheRunningCycle) {
+  std::string error;
+  std::optional<Cell> loaded = LoadCell(&error);
+  ASSERT_TRUE(loaded) << error;
+  Cell& cell = *loaded;
+  ASSERT_TRUE(cell.Reset(1, cell::Randomization::None()));
+  PickPlace script(cell);
+  ASSERT_TRUE(script.Start(0)) << script.outcome().reason;
+  const double began = cell.data()->time;
+  while (cell.data()->time - began < 1.0) {
+    script.Update();
+    cell.Step();
+  }
+  ASSERT_FALSE(script.Done()) << Phases(script);
+  ASSERT_NE(script.step(), Step::kIdle);
+  ASSERT_TRUE(cell.Reset(2, cell::Randomization::None()));
+  script.set_known_module(3, {ModulePlace::kParked, -1});
+  EXPECT_TRUE(script.Done()) << "failed where the Reset was noticed";
+  EXPECT_EQ(script.outcome().status, PickPlaceOutcome::Status::kFailed);
+  EXPECT_EQ(script.outcome().reason, "the cell was reset during the cycle");
+  EXPECT_EQ(script.known_modules()[3].place, ModulePlace::kParked);
+  // The next Updates hold the arm where Reset left it.
+  const Eigen::VectorXd home = cell::JointAngles(cell.arm(), *cell.data());
+  for (int i = 0; i < 500; ++i) {
+    script.Update();
+    cell.Step();
+  }
+  EXPECT_TRUE(script.Done());
+  EXPECT_EQ(script.outcome().reason, "the cell was reset during the cycle");
+  EXPECT_LT((cell::JointAngles(cell.arm(), *cell.data()) - home)
+                .cwiseAbs()
+                .maxCoeff(),
+            0.01)
+      << "the arm held still";
+}
+
+// After a cycle that failed holding its module, Start refuses a pick until
+// the module is let go; a start after the grip (a constructed state) takes
+// the module held as the one it expects.
+TEST(Stage7, StartWithAModuleStillOnTheToolIsRefused) {
+  std::string error;
+  std::optional<Cell> loaded = LoadCell(&error);
+  ASSERT_TRUE(loaded) << error;
+  Cell& cell = *loaded;
+  ASSERT_TRUE(cell.Reset(1, cell::Randomization::None()));
+  Eigen::VectorXd turned;
+  {
+    PickPlace planner(cell);
+    ASSERT_TRUE(planner.Start(0, Step::kSetDown)) << planner.outcome().reason;
+    turned = planner.Waypoints(Step::kTurn)->back();
+  }
+  cell.PutArm(turned);
+  cell::DataPtr scratch(mj_makeData(cell.model()));
+  const Isometry3d tip =
+      cell::TipPoseAt(*cell.model(), scratch.get(), cell.arm(), turned);
+  cell.TeleportModule(0, tip * cell::DesignModuleInTip(cell::kModuleThickness,
+                                                       0.002));
+  cell::GripFailure failure;
+  ASSERT_EQ(cell.Grip(&failure), std::optional<int>(0)) << failure.message;
+  ASSERT_TRUE(cell.VacuumHolds());
+  for (Step first : {Step::kIdle, Step::kToStandoff, Step::kGrip}) {
+    PickPlace script(cell);
+    EXPECT_FALSE(script.Start(1, first)) << cell::StepName(first);
+    EXPECT_EQ(script.outcome().status, PickPlaceOutcome::Status::kFailed);
+    EXPECT_NE(script.outcome().reason.find("a module is still on the tool "
+                                           "(the vacuum holds)"),
+              std::string::npos)
+        << script.outcome().reason;
+  }
+  PickPlace later(cell);
+  EXPECT_TRUE(later.Start(0, Step::kWaitForConveyor))
+      << later.outcome().reason;
+  // Let go, and a pick may start.
+  ASSERT_EQ(cell.Release(), std::optional<int>(0));
+  PickPlace next(cell);
+  EXPECT_TRUE(next.Start(1)) << next.outcome().reason;
 }
 
 }  // namespace

@@ -151,10 +151,39 @@
 // grip: leg 2 is checked again with the measured module on the tool
 // (DenseSamples along its path, at the margin that keeps the planner's
 // required_margin for samples that dense, see RecheckLeg in the .cc) and
-// replanned with it only if that check fails; the planner's scene
-// (CarryPlanScene) holds the measured grip; and the place is planned with
-// CorrectedTipTarget, so that lower and set down put the MODULE, not the
-// tool, on the slot. All of it is kept in PickPlaceOutcome::check.
+// replanned with it only if that check fails (if the replan fails too, the
+// cycle fails in the carry, CheckReport::Status::kNoPath); the planner's
+// scene (CarryPlanScene) holds the measured grip; and the place is planned
+// with CorrectedTipTarget, so that lower and set down put the MODULE, not
+// the tool, on the slot. All of it is kept in PickPlaceOutcome::check. The
+// measured grip belongs to the module it was measured on (outcome().module
+// then): it is used for that module only, and a Start forgets it.
+//
+// The plausibility test on the measured grip. The cups hold the glass flat
+// and the suction tool grips only near the glass (src/suction.h: within
+// 10 mm), so the module's true pose on the tool is close to the design's in
+// two ways that do not depend on where the pallet camera aimed: its glass
+// is parallel to the tool's plate to within the pallet camera's error in
+// the face's direction (a few hundredths of a degree), and its glass is a
+// few millimetres from the tool tip. A check camera whose calibration is
+// off in turn moves every point it sees rigidly by that turn about itself,
+// and FindHeldModule cannot see it (its step 2); but a turn about an axis
+// across the camera's view TILTS the measured module on the tool, which the
+// cups do not allow. So a measured grip whose tilt (the angle between the
+// module's +z and the tool's -Z: rotation about the tool's two in-plane
+// axes, not about its axis) exceeds max_check_tilt, or whose gap (the glass
+// centre's distance from the tool tip along the tool's axis) lies outside
+// min_check_gap .. max_check_gap, is treated as a refusal (below), with the
+// reason "check camera fault: the measured module is tilted X deg on the
+// cups, ...". The limit of this test: the turn's component about the check
+// camera's own axis (vertical: it looks straight up) is a yaw of the module
+// about the vertical through the camera, which stands under the module's
+// centre at the check pose. That is a yaw of the grip, which the cups
+// allow, and it passes into the place unseen: with the check camera turned
+// 0.5 degrees about its axis the measured grip is off the true one by 0.51
+// degrees of yaw and 0.4 mm (tests/check_cycle_test.cc), and the corrected
+// place turns the module by as much. Only a better calibration of the
+// check camera takes it out.
 //
 // A refusal by the finder. Nothing is ever placed uncorrected: a check that
 // is refused fails the cycle in the carry, the arm holding still at the
@@ -162,18 +191,23 @@
 // did, from the suction tool's vacuum switch (Cell::VacuumHolds, read at
 // every picture). kFarFromExpected means the module has slipped on the
 // cups (src/held_module_finder.h, step 9: "the cycle should stop"): it fails
-// at once (CheckReport::Status::kSlipped). Any other refusal earns one more
-// picture after another check_dwell. If that one is accepted, the cycle
-// carries on corrected and counts as retaken (CheckReport::retaken), so a
-// flaky camera shows as a number. If it is refused too, the cycle fails
-// (kRefused): with the vacuum lost, "no module on the tool: the vacuum is
-// lost (dropped or never picked)"; with it holding and kTooFewPoints, "check
-// camera fault: the vacuum holds a module but the camera sees too few
-// points (n of m expected ...)"; with it holding and any other refusal, the
-// finder's reason and that the vacuum holds. A picture taken with the
-// vacuum lost fails the cycle whatever the finder made of it, except that a
-// refused first picture is still retaken: a module that is not on the tool
-// cannot be placed, and a slip seen while it falls is no slip.
+// at once (CheckReport::Status::kSlipped). Any other refusal, and an answer
+// the plausibility test refuses, earns one more picture after another
+// check_dwell. If that one is accepted, the cycle carries on corrected and
+// counts as retaken (CheckReport::retaken), so a flaky camera shows as a
+// number. If it is refused too, the cycle fails (kRefused): with the vacuum
+// lost, "no module on the tool: the vacuum is lost (dropped or never
+// picked)"; with it holding and kTooFewPoints, "check camera fault: the
+// vacuum holds a module but the camera sees too few points (n of m expected
+// ...)"; with it holding and the plausibility test refusing, "check camera
+// fault: the measured module is tilted ..." (or its gap is off); with it
+// holding and any other refusal, the finder's reason and that the vacuum
+// holds. With the vacuum lost the cycle fails at once, whatever the finder
+// made of the picture, unless the finder refused it for anything but
+// kFarFromExpected and it is the first picture: that one is retaken (a
+// second look costs one dwell, and the reason then rests on both). A module
+// that is not on the tool cannot be placed, and a slip seen while it falls
+// is no slip.
 //
 // Use, once per physics step, with a Cell that has just been Reset:
 //
@@ -185,17 +219,22 @@
 //   }
 //   script.outcome();    // placed, or failed and why
 //
-// Start the next module once Done. The script keeps one ArmFollower across
+// Start the next module once Done, and with nothing on the tool: a cycle
+// that failed holding its module (a refused check, a slip) leaves it there,
+// and Start refuses a cycle that begins with the pick while the vacuum
+// holds. The script keeps one ArmFollower across
 // cycles, whose plan is kept in simulation time, and its records of where
 // each module is (known_modules). One rule for a Cell::Reset: the script
 // notices it when the clock is behind the last time it saw, at the next
 // Start, Update or set_known_module, whichever comes first, and then starts
 // a fresh follower, drops the look-ahead picture and wipes every record
-// (every module on the stack again), before doing what was asked. So
-// records set with set_known_module after a Reset survive into Start, and
-// records from before a Reset never do. A Reset the script cannot see (it
-// has seen no time later than the settled clock since the Reset before)
-// is not noticed: make a new PickPlace after a Reset to be sure.
+// (every module on the stack again), before doing what was asked. A cycle
+// running when it is noticed fails ("the cell was reset during the
+// cycle"), wherever it is noticed. So records set with set_known_module
+// after a Reset survive into Start, and records from before a Reset never
+// do. A Reset the script cannot see (it has seen no time later than the
+// settled clock since the Reset before) is not noticed: make a new
+// PickPlace after a Reset to be sure.
 //
 // Units: metres, radians and simulated seconds. Poses are in the world
 // frame.
@@ -401,6 +440,26 @@ struct PickPlaceOptions {
   // with the edge term for samples this dense, so a path that passes keeps
   // the planner's required_margin as surely as a planned one.
   double recheck_spacing = 0.01;  // m
+  // The plausibility test on the measured grip (see the top of the file).
+  // The most the measured module may be tilted on the tool (the angle
+  // between its +z and the tool's -Z). Measured over 20 seeds of run_cell
+  // --check (camera mode, noisy pictures), the largest tilt was: 0.003
+  // degrees with both cameras exact; 0.051 with the pallet camera's
+  // calibration off by 1 mm and 0.05 degrees (the grip's true tilt: the
+  // pallet camera's error in the face's direction); 0.051 with the check
+  // camera's off by as much; 0.086 with both off. The limit is twice the
+  // last and four times the others. A check camera turned 0.5 degrees
+  // measures about 0.5 degrees times the turn's part across its axis.
+  double max_check_tilt = 0.2 * std::numbers::pi / 180.0;  // rad
+  // The range the measured gap may lie in: the glass centre's distance
+  // from the tool tip along the tool's axis (design: grip_gap, 2 mm). The
+  // cups press the glass by up to touch_tolerance (2 mm) and the suction
+  // grips from up to 10 mm (src/suction.h), each widened by 2 mm for the
+  // measurement. Measured over the same runs: 1.99 .. 2.03 mm exact, -0.02
+  // .. 4.68 with the pallet camera off, 1.04 .. 2.97 with the check
+  // camera off, -0.38 .. 4.04 with both.
+  double min_check_gap = -0.004;  // m
+  double max_check_gap = 0.012;   // m
 
   // ------------------------------------------------------------- the place
   // The lowering comes straight down at speed_carrying to this height above
@@ -564,10 +623,23 @@ struct CheckRecord {
   std::optional<HeldModuleEstimate> estimate;
   HeldFinderDiagnostics diagnostics;
   // With an answer: the module's pose in the tool tip's frame
-  // (GripOffsetFromCheck).
+  // (GripOffsetFromCheck), its tilt on the tool and its gap (MeasuredTilt,
+  // MeasuredGap), and whether the plausibility test passed them
+  // (max_check_tilt, min_check_gap .. max_check_gap).
   std::optional<Eigen::Isometry3d> module_in_tip;
+  double tilt = 0.0;  // rad
+  double gap = 0.0;   // m
+  bool plausible = false;
   double render_seconds = 0.0;  // computer time to take the picture
 };
+
+// The measured grip's tilt: the angle between the module's +z and the tool
+// tip's -Z (zero for the design grip), whatever its yaw about the tool's
+// axis. And its gap: the module's glass centre's distance from the tool tip
+// along the tip's +Z (grip_gap for the design grip; the module's centre is
+// half a thickness further).
+double MeasuredTilt(const Eigen::Isometry3d& module_in_tip);  // rad
+double MeasuredGap(const Eigen::Isometry3d& module_in_tip);   // m
 
 // The check after pickup of one cycle.
 struct CheckReport {
@@ -576,8 +648,11 @@ struct CheckReport {
     kNotRun,     // asked for, but the carry has not reached it (or the
                  // cycle started after the carry, or failed before it)
     kChecked,    // measured; the place is corrected
-    kRefused,    // refused twice, or the vacuum lost: the cycle failed
+    kRefused,    // refused twice (by the finder, or by the plausibility
+                 // test), or the vacuum lost: the cycle failed
     kSlipped,    // the finder says the module slipped: the cycle failed
+    kNoPath,     // measured, but leg 2 is not clear with the measured grip
+                 // and could not be replanned with it: the cycle failed
   };
   Status status = Status::kOff;
   int pictures = 0;
@@ -587,20 +662,25 @@ struct CheckReport {
   // picture.
   bool vacuum_holds = false;
   // kRefused, kSlipped: the last refusal; kChecked with retaken: the first
-  // picture's.
+  // picture's. A refusal by the plausibility test has failure kNone,
+  // implausible set, and the tilt or gap in failure_detail.
   HeldFinderFailure failure = HeldFinderFailure::kNone;
+  bool implausible = false;
   std::string failure_detail;
   // Computer time: the finder (all pictures), and rendering them.
   double finder_seconds = 0.0;
   double render_seconds = 0.0;
 
-  // ------------------------------------------------------ kChecked only
+  // ------------------------------------------- kChecked and kNoPath only
   // The measured grip (module in tip), and how far it is from the design
   // grip, in the design module's frame: the shift along its x, y, z (m)
-  // and the rotation vector (rad) of design^-1 * measured.
+  // and the rotation vector (rad) of design^-1 * measured; its tilt and gap
+  // (MeasuredTilt, MeasuredGap).
   Eigen::Isometry3d module_in_tip = Eigen::Isometry3d::Identity();
   Eigen::Vector3d offset_shift = Eigen::Vector3d::Zero();
   Eigen::Vector3d offset_rotation = Eigen::Vector3d::Zero();
+  double tilt = 0.0;  // rad
+  double gap = 0.0;   // m
   // Leg 2 checked again with the measured grip: at what margins, how many
   // configurations, whether all were clear, and the wall time it took.
   bool rechecked = false;
@@ -773,8 +853,10 @@ class PickPlace {
   // current simulation time. The slot is the one in front of the arm by
   // the script's own count: Conveyor::steps(). Returns false if a cycle is
   // still running (nothing changes), or if the module index is out of
-  // range, the tube is full or the IK finds no solution for a pose; then
-  // the cycle has failed at once and outcome() says why.
+  // range, the tube is full, a module is still on the tool (the vacuum
+  // holds) for a cycle that begins with the pick (`first` up to grip), or
+  // the IK finds no solution for a pose; then the cycle has failed at once
+  // and outcome() says why.
   //
   // `first` starts the cycle later on, for tests that build the state a
   // step expects instead of running every step before it (for example the
@@ -893,18 +975,21 @@ class PickPlace {
   // (camera mode, once the look step has an estimate) or as designed, the
   // modules it put on the tube or swapped away, the conveyor's encoder
   // (its nominal stop while it still moves), and the grip as measured by
-  // this cycle's check, once it has been, or the design grip.
+  // this cycle's check if `held` is the module it was measured on, or the
+  // design grip.
   PlanScene CarryPlanScene(int held) const;
   // The current cycle's planned carry, leg by leg; empty until planned.
   const std::vector<CarryLeg>& carry_legs() const { return carry_legs_; }
 
   // ---------------------------------------------- the check after pickup
   // This cycle's check pictures, in order, and the grip it measured
-  // (nothing until measured, or if it was not).
+  // (nothing until measured, or if it was not), and the module it was
+  // measured on (-1 if none).
   const std::vector<CheckRecord>& checks() const { return checks_; }
   const std::optional<Eigen::Isometry3d>& measured_grip() const {
     return held_in_tip_;
   }
+  int measured_grip_module() const { return held_in_tip_module_; }
 
  private:
   // The face the pick side aims at, from the design or from an estimate.
@@ -948,11 +1033,12 @@ class PickPlace {
   // Joins the legs' paths into carry_ and sums their figures into
   // outcome_.carry.
   void JoinCarryLegs();
-  // The grip the script holds the module with: measured, or the design's.
-  Eigen::Isometry3d GripInTip() const;
+  // The grip the script holds module `module` with: measured, if it was
+  // measured on that module, or the design's.
+  Eigen::Isometry3d GripInTip(int module) const;
   // A Reset of the cell, seen by the clock going back (see the top of the
-  // file): a fresh follower, no look-ahead picture, every record wiped.
-  // Returns true if one was seen.
+  // file): a fresh follower, no look-ahead picture, every record wiped, and
+  // a running cycle failed. Returns true if one was seen.
   bool NoticeReset();
   // Whether `step` is not a step of a cycle in this script's modes.
   bool Skipped(PickPlaceStep step) const;
@@ -1073,10 +1159,12 @@ class PickPlace {
 
   // The check after pickup: the leg whose dwell ends in the picture (none
   // without the check), this cycle's pictures, the grip measured (from
-  // then on the script's grip), and the check's note for the carry record.
+  // then on the script's grip for the module it was measured on), and the
+  // check's note for the carry record.
   std::optional<std::size_t> check_leg_;
   std::vector<CheckRecord> checks_;
   std::optional<Eigen::Isometry3d> held_in_tip_;
+  int held_in_tip_module_ = -1;
   std::string check_note_;
 };
 
