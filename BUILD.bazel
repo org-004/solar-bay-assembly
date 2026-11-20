@@ -680,7 +680,8 @@ cc_binary(
 # BEGIN pick_place
 # The blind pick and place: one module from the front of the stack onto the
 # tube, as a state machine run one physics step at a time. Plans from the
-# design poses only and never reads the truth.
+# design poses only and never reads the truth. The carry is scripted, or
+# planned by the motion planner (CarryMode::kPlanned).
 # Include as "src/pick_place.h".
 cc_library(
     name = "pick_place",
@@ -691,11 +692,14 @@ cc_library(
         ":arm_follower",
         ":camera_model",
         ":cell",
+        ":collision",
         ":conveyor",
         ":depth_camera",
+        ":held_module_finder",
         ":ik",
         ":mj_handles",
         ":module_finder",
+        ":motion_planner",
         ":pallet",
         ":path_timing",
         ":suction",
@@ -725,7 +729,8 @@ cc_library(
 # --pretty as an aligned table. Time it optimized:
 #   bazel run --config=opt //:run_cell -- --pretty --trials 20
 #   bazel run //:run_cell -- [--pretty] [--seed N] [--modules M] [--trials T]
-#       [--nominal] [--blind] [--no-noise] [--calibration MM,DEG] [--verbose]
+#       [--nominal] [--blind] [--no-noise] [--calibration MM,DEG]
+#       [--carry scripted|planned] [--verbose]
 cc_binary(
     name = "run_cell",
     srcs = ["src/run_cell.cc"],
@@ -744,6 +749,7 @@ cc_binary(
 # score of each placement in the corner. Backspace runs the trial again.
 #   bazel run --config=opt //:view_cell -- [--seed N] [--nominal]
 #       [--modules M] [--blind] [--no-noise] [--calibration MM,DEG]
+#       [--carry scripted|planned]
 cc_binary(
     name = "view_cell",
     srcs = ["src/view_cell.cc"],
@@ -1356,3 +1362,63 @@ cc_binary(
     ],
 )
 # END held_module_finder
+
+# BEGIN check_camera_cell
+# The check camera in the real cell: where it stands, and the check after
+# pickup run on Cell::TakeCheckImage with the arm at the check pose.
+#   bazel test --config=opt //:check_camera_cell_test --test_output=all
+cc_test(
+    name = "check_camera_cell_test",
+    size = "medium",
+    srcs = ["tests/check_camera_cell_test.cc"],
+    data = CELL_FILES,
+    env = {"MODEL_PATH": "$(rootpath %s)" % CELL_SCENE},
+    deps = [
+        ":arm",
+        ":camera_model",
+        ":cell",
+        ":check_rig",
+        ":depth_camera",
+        ":held_module_finder",
+        ":ik",
+        ":mj_handles",
+        ":pallet",
+        "@eigen",
+        "@googletest//:gtest_main",
+        "@mujoco",
+    ],
+)
+# END check_camera_cell
+
+# BEGIN planned_carry
+# The planned carry (PickPlaceOptions::carry = CarryMode::kPlanned), one
+# action at a time: the planner's scene from what the cell knows; its start
+# and goal clear of the planning margin at every stack depth and slot; a
+# plan found for the first, middle and last module and for slots 0 and 9;
+# a planning failure failing the cycle in "carry"; and camera-mode cycles
+# in the simulated cell, the carry followed under cycle_check and the
+# modules placed within camera_cycle_test's bounds.
+#   bazel test --config=opt //:planned_carry_test --test_output=all
+cc_test(
+    name = "planned_carry_test",
+    size = "medium",
+    srcs = ["tests/planned_carry_test.cc"],
+    data = CELL_FILES,
+    env = {"MODEL_PATH": "$(rootpath %s)" % CELL_SCENE},
+    deps = [
+        ":arm",
+        ":cell",
+        ":collision",
+        ":conveyor",
+        ":cycle_check",
+        ":held_module_finder",
+        ":motion_planner",
+        ":pallet",
+        ":pick_place",
+        ":score",
+        "@eigen",
+        "@googletest//:gtest_main",
+        "@mujoco",
+    ],
+)
+# END planned_carry

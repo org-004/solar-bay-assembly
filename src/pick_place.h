@@ -63,6 +63,11 @@
 //                 `turn_height`)
 //   turn          joint 6 alone turns the module a quarter turn, long side
 //                 across the tube
+//   carry         planned carry only (PickPlaceOptions::carry), in place of
+//                 flatten, swing and turn: one collision-free move from the
+//                 end of clear to where the turn ends, planned by
+//                 src/motion_planner.h (PlanArmMove) and run with
+//                 ArmFollower::Follow. See "The planned carry" below.
 //   wait conveyor until the tube has stopped; then the slot's pose is read
 //                 from the conveyor's encoder and the set-down planned
 //   lower         straight in toward the arm to above the slot, then
@@ -93,6 +98,41 @@
 // the straight line between its ends by about 2.2e-4 * L^2 mm for a leg L mm
 // long, so the legs are short where straightness matters.
 //
+// The planned carry (CarryMode::kPlanned). The scripted carry is three
+// hand-chosen joint moves; the planned one is a single path found by the
+// motion planner between the same two ends:
+//   start  the end of clear. Not the end of pull back: there the module is
+//          still within the planner's 45 mm planning margin of the stack.
+//   goal   the end of the scripted turn (module flat, long side across the
+//          tube, turn_outboard beyond the slot, turn_height above the
+//          release pose, joint 1 at -180 degrees, round +Y), so wait
+//          conveyor, lower and set down follow unchanged.
+// The planner's scene is built only from what the cell knows (CarryScene):
+// the pallet and the modules still on it where the stack's estimate puts
+// them (the design in blind mode), the modules the cell already took off
+// where it put them (their slots on the current tube, from the conveyor's
+// encoder, or ParkingPose once their tube was swapped away), the tube's
+// slide from the encoder, and the held module at the design grip
+// (DesignModuleInTip with grip_gap). Everything else in the planner's
+// model (the conveyor's bed, the camera's post and stands, the floor) is
+// fixed by design and stays as the model was built.
+//
+// It is planned as soon as the grip has held, at the start of lift: the
+// start is known then, and on a real cell the planning (about 0.3 s of
+// computer time, optimized) runs while the arm lifts, pulls back and clears.
+// Here the simulation waits for it; the wall time it took, the planner's
+// report and whether it fits in the simulated time of those three moves
+// are kept in PickPlaceOutcome::carry and in the carry step's record. If
+// no path is found the cycle fails in the carry step with the planner's
+// reason, the module held at the end of clear; there is no fallback to the
+// scripted carry. The planner's base seed is fixed (PickPlaceOptions::
+// planner), so a cycle is reproducible from the cell's seed.
+//
+// The carry is a list of legs (CarryLeg), each a timed move and a dwell at
+// its end; today there is one leg and no dwell. A via point (a pose to pass
+// through, such as a check pose in front of a camera) is one more leg end
+// and its dwell, planned leg by leg (as PlanThrough does).
+//
 // Use, once per physics step, with a Cell that has just been Reset:
 //
 //   PickPlace script(cell);
@@ -114,6 +154,7 @@
 #ifndef SRC_PICK_PLACE_H_
 #define SRC_PICK_PLACE_H_
 
+#include <cstddef>
 #include <functional>
 #include <optional>
 #include <string>
@@ -124,14 +165,23 @@
 
 #include "src/arm_follower.h"
 #include "src/cell.h"
+#include "src/collision.h"
 #include "src/ik.h"
 #include "src/mj_handles.h"
 #include "src/module_finder.h"
+#include "src/motion_planner.h"
+#include "src/pallet.h"
 
 namespace cell {
 
 // How the script knows where the module to pick is; see the top of the file.
 enum class SensingMode { kBlind, kCamera };
+
+// How the module goes from the end of clear to over the slot: the three
+// scripted joint moves (flatten, swing, turn), or one planned move (carry).
+// See the top of the file.
+enum class CarryMode { kScripted, kPlanned };
+const char* CarryModeName(CarryMode mode);  // "scripted", "planned"
 
 // Every distance, speed and wait the script uses. The defaults are the ones
 // tests/pick_place_test.cc measures the cycle with.
@@ -261,6 +311,16 @@ struct PickPlaceOptions {
   // deviation_far.
   int in_legs = 2;
 
+  // Scripted by default: the stage-3 to stage-5 carry, which the existing
+  // tests measure. Planned: see the top of the file.
+  CarryMode carry = CarryMode::kScripted;
+  // The planned carry's planner settings (src/motion_planner.h), its
+  // defaults those the planner was measured with. Its base_seed is used as
+  // it is for every cycle, so the same cell seed gives the same carry. Its
+  // speed is not used: the carry runs at speed_carrying, as the scripted one
+  // does.
+  MotionPlanOptions planner;
+
   // ------------------------------------------------------------- the place
   // The lowering comes straight down at speed_carrying to this height above
   // the release pose, then at speed_touching for the rest (a 40 mm leg
@@ -359,6 +419,7 @@ enum class PickPlaceStep {
   kFlatten,
   kSwing,
   kTurn,
+  kCarry,           // planned carry only, in place of flatten .. turn
   kWaitForConveyor,
   kLower,
   kSetDown,
@@ -374,6 +435,39 @@ enum class PickPlaceStep {
 // A short name for each step, for display: "touch glass", "swing", ...
 const char* StepName(PickPlaceStep step);
 
+// The carry of one cycle: how long it took and, when planned, how the
+// planning went.
+struct CarryReport {
+  CarryMode mode = CarryMode::kScripted;
+  // Simulated seconds from the end of clear to the end of the turn (or of
+  // the planned carry), dwells included. Zero until the carry has ended.
+  double seconds = 0.0;
+
+  // ------------------------------------------------------- planned only
+  bool attempted = false;  // the planner was run this cycle
+  bool found = false;      // ...and every leg was found and timed
+  // Wall-clock seconds the planning took (scene, search, shortening,
+  // timing, all legs), and the planner's report of each leg in order (the
+  // failing one last). Empty when not attempted.
+  double plan_seconds = 0.0;
+  std::vector<MotionPlanReport> legs;
+  // The simulated time the planning ran alongside: the lift, pull back and
+  // clear moves, if it was planned at the start of lift (zero if it was
+  // planned when the carry began, for a cycle started later than lift).
+  double overlap_seconds = 0.0;
+  bool fits() const { return attempted && plan_seconds <= overlap_seconds; }
+  // Of the found path: the smallest clearance to an obstacle any leg's
+  // report measured (m), and between what; the trajectories' simulated
+  // duration in all (dwells not included).
+  double clearance = 0.0;
+  std::string clearance_between;
+  double trajectory_seconds = 0.0;
+  // The tube was still moving when the carry was planned: the scene put it
+  // where the conveyor was headed (its nominal stop) instead of where the
+  // encoder read.
+  bool tube_moving = false;
+};
+
 // How a cycle ended, or that it has not yet.
 struct PickPlaceOutcome {
   enum class Status { kNotStarted, kRunning, kPlaced, kFailed };
@@ -388,6 +482,59 @@ struct PickPlaceOutcome {
   // home; kFailed: when it failed).
   double start_time = 0.0;
   double end_time = 0.0;
+  CarryReport carry;
+};
+
+// Where the cell takes a module to be, from what it did itself.
+enum class ModulePlace {
+  kOnStack,  // not taken by this script (see CarryScene for which count)
+  kHeld,     // gripped by this script
+  kOnTube,   // let go by this script in `slot` of the current tube
+  kParked,   // was on a tube that this script swapped away
+};
+struct KnownModule {
+  ModulePlace place = ModulePlace::kOnStack;
+  int slot = -1;  // kOnTube only
+};
+
+// What the planner's scene for a carry is built from: all of it is what a
+// real cell knows.
+struct CarrySceneInput {
+  int held = -1;  // the module on the tool; -1 for none
+  // The design grip's gap: the module hangs at DesignModuleInTip(
+  // kModuleThickness, grip_gap) in the tool tip's frame.
+  double grip_gap = 0.0;
+  // Where the stack is taken to be: the motion that carries the design's
+  // pallet and stack onto the estimate (identity in blind mode).
+  Eigen::Isometry3d pallet_shift = Eigen::Isometry3d::Identity();
+  // Every module of the pallet by index: where the cell put it.
+  std::vector<KnownModule> modules;
+  // The conveyor's slide (Conveyor::SensorPosition, or its nominal stop).
+  double tube_slide = 0.0;
+};
+
+// The planner's scene for a carry, from `input` and the design (`design`'s
+// nominal poses, Conveyor::SlotPose, ParkingPose):
+//   pallet       pallet_shift times the design pallet;
+//   modules      every module but the held one: on the stack, pallet_shift
+//                times its design pose, if its index is above the held
+//                one's (one in front of the module being carried, with no
+//                record of where it went, is taken to have been carried
+//                away, at ParkingPose, as Cell::ParkModule puts it); on
+//                the tube, its slot's pose at tube_slide; parked, at
+//                ParkingPose;
+//   tube_slide   as given;
+//   held_module, module_in_tip  the held module at the design grip.
+// world stays null, so the planner's checker keeps the model's own state
+// for everything not named here: what is fixed by design. No contact is
+// allowed.
+PlanScene CarryScene(const PalletBodies& design, const CarrySceneInput& input);
+
+// One leg of a planned carry: the timed move, and how long the arm holds
+// still at its end before the next leg (or before the carry ends).
+struct CarryLeg {
+  TimedMove move;
+  double dwell = 0.0;  // s
 };
 
 // One move the script planned: the step it belongs to, its joint
@@ -461,6 +608,11 @@ class PickPlace {
   // outcome().module says which. Started later than the look step, nothing
   // has been seen, and the pick side is planned from the design as in
   // blind mode. kIdle means the first step of the mode.
+  //
+  // With the planned carry, flatten, swing and turn are not steps of the
+  // cycle and cannot be `first`; with the scripted one, carry cannot.
+  // Started at carry, the carry is planned when it begins, from the end of
+  // clear, for `module` as held.
   bool Start(int module, PickPlaceStep first = PickPlaceStep::kIdle);
 
   // Stops the cycle when `step` has finished, before the next one begins,
@@ -500,7 +652,10 @@ class PickPlace {
   // The joint waypoints planned for a step of the current cycle, or null
   // for a step that does not move the arm. Planned at Start, except lower,
   // set down and retreat, which are planned when lower begins (empty until
-  // then).
+  // then), and carry, the planned carry's path (every leg's, joined; its
+  // first point the end of clear), planned when lift begins. Flatten, swing
+  // and turn are planned in either carry mode: the turn's end is the
+  // planned carry's goal.
   const std::vector<Eigen::VectorXd>* Waypoints(PickPlaceStep step) const;
 
   // The tool-tip poses the script aims for, for display and tests: where it
@@ -529,6 +684,24 @@ class PickPlace {
   // that it is reached round +Y like everything else.
   const Eigen::VectorXd& look_pose() const { return look_pose_; }
 
+  // ----------------------------------------------------- the planned carry
+  // Where the script takes each module to be: what it gripped, let go on
+  // the tube and swapped away since it was made (or since the cell was
+  // last Reset). Every module starts on the stack.
+  const std::vector<KnownModule>& known_modules() const { return known_; }
+  // Tells the script where module i is, for a scene it did not make itself
+  // (cycles run by an earlier script, a test's constructed state). An index
+  // out of range is ignored.
+  void set_known_module(int i, const KnownModule& known);
+  // The planner's scene for carrying module `held` now (CarryScene), from
+  // what the script knows: the stack where the current estimate puts it
+  // (camera mode, once the look step has an estimate) or as designed, the
+  // modules it put on the tube or swapped away, and the conveyor's encoder
+  // (its nominal stop while it still moves).
+  PlanScene CarryPlanScene(int held) const;
+  // The current cycle's planned carry, leg by leg; empty until planned.
+  const std::vector<CarryLeg>& carry_legs() const { return carry_legs_; }
+
  private:
   // The face the pick side aims at, from the design or from an estimate.
   struct Face {
@@ -548,6 +721,19 @@ class PickPlace {
   bool PlanPick(const Face& face, std::string* reason, PickPlaceStep* step);
   // Plans the set-down from the conveyor's encoder.
   bool PlanPlace(std::string* reason);
+  // Plans the carry from the end of clear to the end of the turn for the
+  // module held (outcome_.module), fills outcome_.carry and carry_legs_.
+  // On failure returns false with the planner's reason.
+  bool PlanCarry(std::string* reason);
+  // Begins the carry step: plans it if that has not been done, then starts
+  // its first leg, or fails the cycle.
+  void BeginCarry();
+  // Starts following leg carry_leg_.
+  void BeginCarryLeg();
+  // The carry step's progress: legs, dwells. Returns true once it has ended.
+  bool CarryFinished();
+  // The motion carrying the design's stack onto the estimate, for `held`.
+  Eigen::Isometry3d PalletShift(int held) const;
 
   // Solves the straight line from `from` to `to` (tip poses), the arm
   // starting at `start` (its angles at `from`), and returns the angles at
@@ -645,6 +831,17 @@ class PickPlace {
   double place_x_sign_ = 1.0;
   Eigen::Isometry3d grip_tip_ = Eigen::Isometry3d::Identity();
   std::optional<Eigen::Isometry3d> release_tip_;
+
+  // The planned carry. The checker is made on the first plan.
+  std::optional<CollisionChecker> checker_;
+  std::vector<KnownModule> known_;
+  std::vector<CarryLeg> carry_legs_;
+  std::vector<Eigen::VectorXd> carry_;  // every leg's path, joined
+  std::string carry_failure_;           // why the plan failed
+  std::size_t carry_leg_ = 0;           // the leg running
+  bool carry_dwelling_ = false;         // holding at the end of carry_leg_
+  double carry_dwell_end_ = 0.0;
+  std::string carry_note_;              // for the carry step's record
 };
 
 }  // namespace cell

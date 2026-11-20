@@ -6,9 +6,11 @@
 //   bazel run --config=opt //:run_cell -- --pretty
 //   bazel run --config=opt //:run_cell -- --pretty --trials 20
 //   bazel run --config=opt //:run_cell -- --pretty --blind --trials 20
+//   bazel run --config=opt //:run_cell -- --pretty --trials 20 --carry planned
 //   bazel run //:run_cell -- [--pretty] [--seed N] [--modules M] [--phases]
 //                            [--trials T] [--nominal] [--blind] [--no-noise]
-//                            [--calibration MM,DEG] [--verbose]
+//                            [--calibration MM,DEG] [--carry planned|scripted]
+//                            [--verbose]
 //
 //   --camera     (the default) one depth picture per pick, and the pick aimed
 //                at the module the finder sees there
@@ -22,6 +24,10 @@
 //                the camera's calibration off by a shift of MM millimetres
 //                and a turn of DEG degrees, in directions drawn for each seed
 //                (default 0,0: exact)
+//   --carry scripted|planned
+//                the carry from the end of "clear" to over the slot: the
+//                three scripted joint moves (the default), or one move
+//                planned by the motion planner (src/pick_place.h)
 //
 //   --seed N     the first trial's seed (default 1); trial t uses N + t
 //   --trials T   how many trials (default 1)
@@ -55,7 +61,13 @@
 // error is in the true module's frame: along its glass's normal (+ toward
 // the arm), along its long side, up the lean, the angle between the two
 // glass normals and the turn about the normal; with the finder's own
-// computing time. The ratio of simulated to wall-clock time goes to stderr.
+// computing time. Then the carry: its simulated time (end of clear to the
+// end of the turn or of the planned carry); for the planned carry the
+// planner's wall time, a "*" if that did not fit in the lift, pull back and
+// clear it ran alongside, and the clearance the planner measured along its
+// path; and the highest motor torque during the carry, as a fraction of its
+// limit (from the truth, cycle_check; the whole cycle's in the summary). The ratio of simulated to wall-clock
+// time goes to stderr.
 //
 // The first argument is the cell's model; BUILD.bazel passes it.
 
@@ -103,22 +115,30 @@ struct Row {
   // computing time.
   std::optional<cell::EstimateError> seen;
   double finder_seconds = 0.0;
+  // The carry (PickPlaceOutcome::carry), and the cycle's highest motor
+  // torque over its limit.
+  cell::CarryReport carry;
+  double peak_torque = 0.0;
+  double carry_torque = 0.0;  // the same during the carry's steps only
 };
 
 void PrintHeader(bool pretty) {
   if (pretty) {
     std::printf("%5s %3s | %7s %7s %6s | %-6s %4s | %7s %7s %7s %7s %6s %4s | "
-                "%7s %7s | %6s | %6s %6s %6s %6s %6s %4s | %s\n",
+                "%7s %7s | %6s | %6s %6s %6s %6s %6s %4s | %5s %6s %5s %5s | "
+                "%s\n",
                 "seed", "mod", "dx mm", "dy mm", "yaw d", "result", "slot",
                 "along", "across", "height", "yaw d", "tilt d", "rest",
                 "stack", "turn d", "cycle", "seen n", "long", "up",
-                "face d", "rot d", "ms", "reason");
+                "face d", "rot d", "ms", "carry", "plan", "clr", "ctorq",
+                "reason");
   } else {
     std::printf("seed,module,pallet_dx_mm,pallet_dy_mm,pallet_yaw_deg,outcome,"
                 "slot,along_mm,across_mm,height_mm,yaw_deg,tilt_deg,at_rest,"
                 "stack_moved_mm,stack_turned_deg,cycle_s,seen_normal_mm,"
                 "seen_long_mm,seen_up_mm,seen_face_deg,seen_turn_deg,"
-                "finder_ms,reason\n");
+                "finder_ms,carry_s,plan_ms,plan_fits,plan_clearance_mm,"
+                "carry_torque,peak_torque,reason\n");
   }
 }
 
@@ -144,6 +164,39 @@ std::string Seen(const Row& r, bool pretty) {
   return text;
 }
 
+// The carry's columns: its time, and for a planned carry the planner's wall
+// time (ms, "*" when it did not fit alongside lift, pull back and clear) and
+// its path's clearance (mm); the carry's peak torque fraction (the whole
+// cycle's goes to the summary).
+std::string Carry(const Row& r, bool pretty) {
+  const cell::CarryReport& c = r.carry;
+  char plan[32] = "", fits[8] = "", clearance[32] = "";
+  if (c.attempted) {
+    std::snprintf(plan, sizeof(plan), pretty ? "%5.0f" : "%.1f",
+                  1e3 * c.plan_seconds);
+    std::snprintf(fits, sizeof(fits), "%s",
+                  c.fits() ? (pretty ? " " : "1") : (pretty ? "*" : "0"));
+  } else if (pretty) {
+    std::snprintf(plan, sizeof(plan), "%5s", "-");
+    std::snprintf(fits, sizeof(fits), " ");
+  }
+  if (c.found) {
+    std::snprintf(clearance, sizeof(clearance), pretty ? "%5.0f" : "%.1f",
+                  1e3 * c.clearance);
+  } else if (pretty) {
+    std::snprintf(clearance, sizeof(clearance), "%5s", "-");
+  }
+  char text[160];
+  if (pretty) {
+    std::snprintf(text, sizeof(text), "%5.2f %s%s %s %5.3f", c.seconds, plan,
+                  fits, clearance, r.carry_torque);
+  } else {
+    std::snprintf(text, sizeof(text), "%.3f,%s,%s,%s,%.4f,%.4f", c.seconds,
+                  plan, fits, clearance, r.carry_torque, r.peak_torque);
+  }
+  return text;
+}
+
 void PrintRow(const Row& r, bool pretty) {
   const cell::PlacementError e = r.error.value_or(cell::PlacementError{});
   const bool scored = r.error.has_value();
@@ -160,31 +213,35 @@ void PrintRow(const Row& r, bool pretty) {
                     "-", "-", "-", "-");
     }
     std::printf("%5u %3d | %7.2f %7.2f %6.2f | %-6s %4d | %s | %7.3f %7.4f | "
-                "%6.2f | %s | %s\n",
+                "%6.2f | %s | %s | %s\n",
                 r.seed, r.module, 1e3 * r.dx, 1e3 * r.dy, r.yaw / kDegree,
                 outcome, scored ? e.slot : -1, score,
                 1e3 * r.disturbance.worst_displacement,
                 r.disturbance.worst_rotation / kDegree, r.cycle_time,
-                Seen(r, true).c_str(), r.reason.c_str());
+                Seen(r, true).c_str(), Carry(r, true).c_str(),
+                r.reason.c_str());
   } else {
     // The reason may hold commas; quote it.
     std::string reason = r.reason;
     std::replace(reason.begin(), reason.end(), '"', '\'');
     if (scored) {
       std::printf("%u,%d,%.3f,%.3f,%.4f,%s,%d,%.4f,%.4f,%.4f,%.5f,%.5f,%d,"
-                  "%.4f,%.5f,%.3f,%s,\"%s\"\n",
+                  "%.4f,%.5f,%.3f,%s,%s,\"%s\"\n",
                   r.seed, r.module, 1e3 * r.dx, 1e3 * r.dy, r.yaw / kDegree,
                   outcome, e.slot, 1e3 * e.along_tube, 1e3 * e.across_tube,
                   1e3 * e.height, e.yaw / kDegree, e.tilt / kDegree,
                   e.at_rest ? 1 : 0, 1e3 * r.disturbance.worst_displacement,
                   r.disturbance.worst_rotation / kDegree, r.cycle_time,
-                  Seen(r, false).c_str(), reason.c_str());
+                  Seen(r, false).c_str(), Carry(r, false).c_str(),
+                  reason.c_str());
     } else {
-      std::printf("%u,%d,%.3f,%.3f,%.4f,%s,,,,,,,,%.4f,%.5f,%.3f,%s,\"%s\"\n",
+      std::printf("%u,%d,%.3f,%.3f,%.4f,%s,,,,,,,,%.4f,%.5f,%.3f,%s,%s,"
+                  "\"%s\"\n",
                   r.seed, r.module, 1e3 * r.dx, 1e3 * r.dy, r.yaw / kDegree,
                   outcome, 1e3 * r.disturbance.worst_displacement,
                   r.disturbance.worst_rotation / kDegree, r.cycle_time,
-                  Seen(r, false).c_str(), reason.c_str());
+                  Seen(r, false).c_str(), Carry(r, false).c_str(),
+                  reason.c_str());
     }
   }
 }
@@ -211,14 +268,15 @@ int main(int argc, char** argv) {
   const char* usage =
       "usage: %s <cell.xml> [--pretty] [--seed N] [--modules M] [--trials T] "
       "[--first K] [--nominal] [--xy MM] [--yaw DEG] [--camera | --blind] "
-      "[--noise | --no-noise] [--calibration MM,DEG] [--phases] "
-      "[--verbose]\n";
+      "[--noise | --no-noise] [--calibration MM,DEG] "
+      "[--carry scripted|planned] [--phases] [--verbose]\n";
   if (argc < 2) {
     std::fprintf(stderr, usage, argv[0]);
     return 1;
   }
   bool pretty = false, nominal = false, verbose = false, phases = false;
   bool camera = true, noise = true;
+  cell::CarryMode carry = cell::CarryMode::kScripted;
   double calibration_mm = 0.0, calibration_deg = 0.0;
   long first_seed = 1;
   int modules = 1, trials = 1, first = 0;
@@ -240,6 +298,16 @@ int main(int argc, char** argv) {
     } else if (std::strcmp(argv[i], "--calibration") == 0 && has_value) {
       if (std::sscanf(argv[++i], "%lf,%lf", &calibration_mm,
                       &calibration_deg) != 2) {
+        std::fprintf(stderr, usage, argv[0]);
+        return 1;
+      }
+    } else if (std::strcmp(argv[i], "--carry") == 0 && has_value) {
+      const char* mode = argv[++i];
+      if (std::strcmp(mode, "planned") == 0) {
+        carry = cell::CarryMode::kPlanned;
+      } else if (std::strcmp(mode, "scripted") == 0) {
+        carry = cell::CarryMode::kScripted;
+      } else {
         std::fprintf(stderr, usage, argv[0]);
         return 1;
       }
@@ -288,6 +356,7 @@ int main(int argc, char** argv) {
   cell::PickPlaceOptions options;
   options.sensing =
       camera ? cell::SensingMode::kCamera : cell::SensingMode::kBlind;
+  options.carry = carry;
 
   PrintHeader(pretty);
   std::vector<Row> rows;
@@ -351,6 +420,14 @@ int main(int argc, char** argv) {
         row.reason = outcome.reason;
       }
       row.cycle_time = cell.data()->time - start;
+      row.carry = outcome.carry;
+      row.peak_torque = check.peak_torque().maxCoeff();
+      for (cell::PickPlaceStep s :
+           {cell::PickPlaceStep::kFlatten, cell::PickPlaceStep::kSwing,
+            cell::PickPlaceStep::kTurn, cell::PickPlaceStep::kCarry}) {
+        row.carry_torque =
+            std::max(row.carry_torque, check.peak_torque(s).maxCoeff());
+      }
       if (row.placed) {
         row.error = placement;
         row.disturbance = disturbance;
@@ -416,6 +493,10 @@ int main(int argc, char** argv) {
     double Rms() const { return count ? std::sqrt(sum_squares / count) : 0.0; }
   };
   Stat along, across, height, yaw_error, tilt, stack, cycle;
+  Stat carry_time, plan_time, torque, carry_torque;
+  double clearance = 1e9;
+  std::string clearance_between;
+  int planned = 0, fits = 0;
   Stat seen_normal, seen_long, seen_up, seen_face, seen_turn, finder;
   int placed = 0;
   std::map<std::string, int> failures;
@@ -428,10 +509,22 @@ int main(int argc, char** argv) {
       yaw_error.Add(r.error->yaw / kDegree);
       tilt.Add(r.error->tilt / kDegree);
       cycle.Add(r.cycle_time);
+      carry_time.Add(r.carry.seconds);
     } else if (!r.placed) {
       ++failures[Kind(r.reason)];
     }
     stack.Add(1e3 * r.disturbance.worst_displacement);
+    torque.Add(r.peak_torque);
+    carry_torque.Add(r.carry_torque);
+    if (r.carry.attempted) {
+      ++planned;
+      if (r.carry.fits()) ++fits;
+      plan_time.Add(1e3 * r.carry.plan_seconds);
+    }
+    if (r.carry.found && r.carry.clearance < clearance) {
+      clearance = r.carry.clearance;
+      clearance_between = r.carry.clearance_between;
+    }
     if (r.seen) {
       seen_normal.Add(1e3 * r.seen->normal);
       seen_long.Add(1e3 * r.seen->long_side);
@@ -442,12 +535,14 @@ int main(int argc, char** argv) {
     }
   }
   const char* lead = pretty ? "" : "# ";
-  std::printf("%s%s%d of %zu cycles placed (%s%s%s)\n", pretty ? "\n" : "",
-              lead, placed, rows.size(), camera ? "camera" : "blind",
+  std::printf("%s%s%d of %zu cycles placed (%s%s%s, %s carry)\n",
+              pretty ? "\n" : "", lead, placed, rows.size(),
+              camera ? "camera" : "blind",
               camera ? (noise ? ", noisy pictures" : ", exact pictures") : "",
               calibration_mm > 0.0 || calibration_deg > 0.0
                   ? ", calibration off"
-                  : "");
+                  : "",
+              cell::CarryModeName(carry));
   if (placed > 0) {
     std::printf("%splacement, worst / rms: along %.2f / %.2f mm, across %.2f "
                 "/ %.2f mm, height %.2f / %.2f mm, yaw %.3f / %.3f deg, tilt "
@@ -455,9 +550,24 @@ int main(int argc, char** argv) {
                 lead, along.worst, along.Rms(), across.worst, across.Rms(),
                 height.worst, height.Rms(), yaw_error.worst, yaw_error.Rms(),
                 tilt.worst, tilt.Rms());
-    std::printf("%scycle: mean %.2f s, longest %.2f s\n", lead,
-                cycle.Mean(), cycle.worst);
+    std::printf("%scycle: mean %.2f s, longest %.2f s; carry: mean %.2f s, "
+                "longest %.2f s\n",
+                lead, cycle.Mean(), cycle.worst, carry_time.Mean(),
+                carry_time.worst);
   }
+  if (planned > 0) {
+    std::printf("%splanning (wall): mean %.0f ms, worst %.0f ms; fits in lift, "
+                "pull back and clear: %d of %d\n",
+                lead, plan_time.Mean(), plan_time.worst, fits, planned);
+  }
+  if (clearance < 1e9) {
+    std::printf("%splanned path clearance, smallest: %.1f mm (%s)\n", lead,
+                1e3 * clearance, clearance_between.c_str());
+  }
+  std::printf("%speak torque fraction: whole cycle worst %.3f, mean %.3f; "
+              "carry worst %.3f, mean %.3f\n",
+              lead, torque.worst, torque.Mean(), carry_torque.worst,
+              carry_torque.Mean());
   std::printf("%sstack disturbance, worst / rms: %.3f / %.3f mm\n", lead,
               stack.worst, stack.Rms());
   if (seen_normal.count > 0) {

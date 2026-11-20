@@ -3,6 +3,7 @@
 //
 //   bazel run --config=opt //:view_cell -- [--seed N] [--nominal]
 //       [--modules M] [--blind] [--no-noise] [--calibration MM,DEG]
+//       [--carry scripted|planned]
 //
 //   --camera     (the default) one depth picture per pick; the corner text
 //                shows the look step and what the finder made of the
@@ -16,6 +17,11 @@
 //                stopping exactly; without it the pallet is set down off
 //                nominal as cell::Randomization's defaults allow
 //   --modules M  how many modules to pick, module_0 first (default 1)
+//   --carry scripted|planned
+//                the carry from the end of "clear" to over the slot: the
+//                scripted joint moves (the default), or one planned move
+//                (src/pick_place.h); the corner text then shows how the
+//                planning went
 //
 // The corner text shows the module being picked, its slot, the script's
 // current step, the last picture's outcome (the finder's estimate, and its
@@ -47,7 +53,8 @@
 int main(int argc, char** argv) {
   const char* usage =
       "usage: %s <cell.xml> [--seed N] [--nominal] [--modules M] "
-      "[--camera | --blind] [--noise | --no-noise] [--calibration MM,DEG]\n";
+      "[--camera | --blind] [--noise | --no-noise] [--calibration MM,DEG] "
+      "[--carry scripted|planned]\n";
   if (argc < 2) {
     std::fprintf(stderr, usage, argv[0]);
     return 1;
@@ -56,6 +63,7 @@ int main(int argc, char** argv) {
   bool nominal = false, camera = true, noise = true;
   double calibration_mm = 0.0, calibration_deg = 0.0;
   int modules = 1;
+  cell::CarryMode carry = cell::CarryMode::kScripted;
   for (int i = 2; i < argc; ++i) {
     const bool has_value = i + 1 < argc;
     if (std::strcmp(argv[i], "--nominal") == 0) {
@@ -78,6 +86,16 @@ int main(int argc, char** argv) {
       seed = std::atol(argv[++i]);
     } else if (std::strcmp(argv[i], "--modules") == 0 && has_value) {
       modules = std::atoi(argv[++i]);
+    } else if (std::strcmp(argv[i], "--carry") == 0 && has_value) {
+      const char* mode = argv[++i];
+      if (std::strcmp(mode, "planned") == 0) {
+        carry = cell::CarryMode::kPlanned;
+      } else if (std::strcmp(mode, "scripted") == 0) {
+        carry = cell::CarryMode::kScripted;
+      } else {
+        std::fprintf(stderr, usage, argv[0]);
+        return 1;
+      }
     } else {
       std::fprintf(stderr, usage, argv[0]);
       return 1;
@@ -104,6 +122,7 @@ int main(int argc, char** argv) {
   cell::PickPlaceOptions options;
   options.sensing =
       camera ? cell::SensingMode::kCamera : cell::SensingMode::kBlind;
+  options.carry = carry;
   // The finder's error for the estimate the current pick uses, from the
   // truth, for the corner text.
   std::string seen;
@@ -170,9 +189,11 @@ int main(int argc, char** argv) {
     const cell::PickPlaceOutcome& outcome = script->outcome();
     char text[400];
     std::snprintf(text, sizeof(text),
-                  "seed %ld%s: pallet off by %+.1f, %+.1f mm, %+.2f deg\n"
+                  "seed %ld%s, %s carry: pallet off by %+.1f, %+.1f mm, %+.2f "
+                  "deg\n"
                   "module_%d -> slot %d   step: %s   (%.1f s into the cycle)\n",
-                  seed, nominal ? " (nominal)" : "", 1e3 * scene.pallet_x,
+                  seed, nominal ? " (nominal)" : "",
+                  cell::CarryModeName(carry), 1e3 * scene.pallet_x,
                   1e3 * scene.pallet_y,
                   scene.pallet_yaw * 180.0 / 3.14159265358979, outcome.module,
                   outcome.slot, script->step_name(),
@@ -203,6 +224,26 @@ int main(int argc, char** argv) {
                   "the look pose\n";
       }
       status += seen;
+    }
+    if (outcome.carry.attempted) {
+      // The planned carry of this cycle: how the planning went.
+      char line[400];
+      if (outcome.carry.found) {
+        std::snprintf(line, sizeof(line),
+                      "carry planned in %.0f ms (%s alongside %.2f s of lift, "
+                      "pull back and clear), %.2f s, clearance %.0f mm\n",
+                      1e3 * outcome.carry.plan_seconds,
+                      outcome.carry.overlap_seconds <= 0.0
+                          ? "not yet run"
+                          : (outcome.carry.fits() ? "fits" : "does NOT fit"),
+                      outcome.carry.overlap_seconds,
+                      outcome.carry.trajectory_seconds,
+                      1e3 * outcome.carry.clearance);
+      } else {
+        std::snprintf(line, sizeof(line), "carry NOT planned (%.0f ms)\n",
+                      1e3 * outcome.carry.plan_seconds);
+      }
+      status += line;
     }
     if (outcome.status == cell::PickPlaceOutcome::Status::kFailed) {
       status += "FAILED: " + outcome.reason + "\n";

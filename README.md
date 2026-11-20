@@ -82,7 +82,7 @@ radians.
 ## Status
 
 The cell exists and the cycle picks each module from where the camera sees
-it. The carry between the two sides is still hand-chosen.
+it, and can carry it to the other side along a planned path.
 
 **The cell** (`models/cell.xml`). A KUKA KR 210 R2700-2, converted from the
 vendor's robot description, with a suction tool. A pallet tilted 10 degrees
@@ -134,9 +134,18 @@ into the answer: about 4.4 mm per milliradian of tilt.
 **Planning** (`src/motion_planner.h`). A collision test with the carried
 module counted as part of the arm (`src/collision.h`), RRT-Connect with path
 shortening (`src/rrt.h`), and timing that follows a path of waypoints without
-stopping at each (`src/path_timing.h`). On the cell's real carry it finds a
-path in about a third of a second, a quarter shorter than the hand-chosen
-one, 45 mm clear of everything. The cycle does not use the planner yet.
+stopping at each (`src/path_timing.h`). With `--carry planned` the cycle
+replaces its three hand-chosen carry moves with one planned move. The
+planner's picture of the cell is built from what the cell knows: the stack
+where the camera saw it, the tube where the conveyor's encoder says, and each
+module already moved where the script put it. The path is planned while the
+arm lifts the module off the stack, in about 0.3 s of computing against 5.7 s
+of motion, so it costs no cycle time; if no path is found the cycle stops and
+says why. Over a whole pallet the planned carry takes 5.8 s on average
+against 7.8 s hand-chosen (a cycle 23.9 s against 25.9 s), places the same
+30 of 30 within the same error, and plans every path at least 45 mm clear of
+everything. The hand-chosen carry is still the default.
+`bazel run --config=opt //:run_cell -- --pretty --trials 20 --carry planned`.
 
 **Check after pickup** (`src/held_module_finder.h`). A second depth camera
 looking up finds the held module's underside and from it where the module
@@ -159,5 +168,4 @@ the simulator's own.
 The depth noise numbers are an assumption, not a camera's datasheet, and
 glass is harder for a real depth camera than for this one.
 
-Not done yet: the planner and the check after pickup in the cycle, and the
-gate that runs randomized trials in CI.
+Not done yet: the check after pickup in the cycle, and the gate that runs randomized trials in CI.

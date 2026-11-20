@@ -88,6 +88,13 @@ struct Randomization {
   // each picture from the seed.
   bool camera_noise = true;
 
+  // The check camera's calibration error (CalibratedCheckCamera), as for the
+  // depth camera: a shift and a turn of these sizes in drawn directions, in
+  // the camera's own frame. Zero by default: exact. Its pictures take their
+  // noise from camera_noise too.
+  double check_camera_shift = 0.0;  // m
+  double check_camera_turn = 0.0;   // rad
+
   // No randomness at all: also no camera noise.
   static Randomization None() { return {0.0, 0.0, 0.0, 0.0, 0.0, false}; }
 };
@@ -109,6 +116,13 @@ struct TrueScene {
   // (picture n of a trial uses camera_noise_seed + n).
   bool camera_noise = false;
   std::uint32_t camera_noise_seed = 0;
+
+  // The check camera's calibration error, as camera_turn and camera_shift.
+  Eigen::Vector3d check_camera_turn = Eigen::Vector3d::Zero();   // rad
+  Eigen::Vector3d check_camera_shift = Eigen::Vector3d::Zero();  // m
+  // Its pictures' noise seeds start here (picture n of the trial uses
+  // check_noise_seed + n), apart from the depth camera's.
+  std::uint32_t check_noise_seed = 0;
 };
 
 // Where each module is in the bookkeeping. Changed only by the calls named.
@@ -269,6 +283,17 @@ class Cell {
   // Pictures taken since the last Reset.
   int pictures_taken() const { return pictures_; }
 
+  // ------------------------------------------------------ the check camera
+  // The same for check_camera, the camera on the floor looking up at the
+  // module the arm holds at the check pose (src/held_module_finder.h). Its
+  // own error in Randomization (check_camera_shift, check_camera_turn), its
+  // own picture count, its own noise seeds.
+  DepthImage TakeCheckImage();
+  CameraModel CheckCamera() const;            // where it truly is
+  CameraModel CalibratedCheckCamera() const;  // where it is thought to be
+  int check_camera_id() const { return check_camera_; }
+  int check_pictures_taken() const { return check_pictures_; }
+
   // ------------------------------------------------------------------ truth
   // For setting up scenes, tests and scoring only.
 
@@ -314,6 +339,8 @@ class Cell {
   Eigen::VectorXd arm_home_;  // joint angles, also the motor commands
   Eigen::VectorXd arm_clear_;
   int pictures_ = 0;
+  int check_camera_ = -1;
+  int check_pictures_ = 0;
 
   TrueScene scene_;
   std::vector<ModuleState> state_;

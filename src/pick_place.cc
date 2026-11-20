@@ -3,6 +3,8 @@
 #include <algorithm>
 #include <chrono>
 #include <cmath>
+#include <cstddef>
+#include <cstdint>
 #include <cstdio>
 #include <numbers>
 #include <optional>
@@ -18,11 +20,14 @@
 #include "src/arm_follower.h"
 #include "src/camera_model.h"
 #include "src/cell.h"
+#include "src/collision.h"
 #include "src/conveyor.h"
 #include "src/depth_camera.h"
+#include "src/held_module_finder.h"
 #include "src/ik.h"
 #include "src/mj_handles.h"
 #include "src/module_finder.h"
+#include "src/motion_planner.h"
 #include "src/pallet.h"
 #include "src/suction.h"
 
@@ -33,7 +38,11 @@
 // the camera: Cell::TakeDepthImage (the picture) and Cell::CalibratedCamera
 // (where the calibration says the camera is). Tool poses come from the IK's TipPoseAt on the scratch mjData,
 // never from the simulated one. Nothing here reads a module's or the
-// pallet's pose out of the simulation, or calls a True... accessor.
+// pallet's pose out of the simulation, or calls a True... accessor. The
+// planned carry's scene is built from the same: the estimate (or the
+// design), what the script did itself, ParkingPose (where the cell carries
+// a swapped tube's modules) and the encoder; the planner's own model
+// supplies only what is fixed by design.
 
 namespace cell {
 namespace {
@@ -188,6 +197,8 @@ const char* StepName(PickPlaceStep step) {
       return "swing";
     case PickPlaceStep::kTurn:
       return "turn";
+    case PickPlaceStep::kCarry:
+      return "carry";
     case PickPlaceStep::kWaitForConveyor:
       return "wait conveyor";
     case PickPlaceStep::kLower:
@@ -212,6 +223,54 @@ const char* StepName(PickPlaceStep step) {
   return "?";
 }
 
+const char* CarryModeName(CarryMode mode) {
+  switch (mode) {
+    case CarryMode::kScripted:
+      return "scripted";
+    case CarryMode::kPlanned:
+      return "planned";
+  }
+  return "?";
+}
+
+PlanScene CarryScene(const PalletBodies& design, const CarrySceneInput& input) {
+  PlanScene scene;
+  scene.pallet = input.pallet_shift * FromWorldPose(design.nominal_pallet);
+  const int count = static_cast<int>(design.nominal_modules.size());
+  for (int i = 0; i < count; ++i) {
+    if (i == input.held) continue;
+    const KnownModule known = i < static_cast<int>(input.modules.size())
+                                  ? input.modules[i]
+                                  : KnownModule{};
+    Eigen::Isometry3d pose = Eigen::Isometry3d::Identity();
+    switch (known.place) {
+      case ModulePlace::kOnTube:
+        // Lying in its slot, which the tube has carried along since.
+        pose = Conveyor::SlotPose(known.slot, input.tube_slide);
+        break;
+      case ModulePlace::kParked:
+        pose = ParkingPose(i);
+        break;
+      case ModulePlace::kOnStack:
+      case ModulePlace::kHeld:  // held once, by a cycle that failed: unknown
+        // Behind the module carried: still standing where the estimate puts
+        // the stack. In front of it with no record: taken off before this
+        // script knew (Cell::ParkModule), so carried away.
+        pose = i > input.held ? input.pallet_shift *
+                                    FromWorldPose(design.nominal_modules[i])
+                              : ParkingPose(i);
+        break;
+    }
+    scene.modules.emplace_back(i, pose);
+  }
+  scene.tube_slide = input.tube_slide;
+  if (input.held >= 0) {
+    scene.held_module = input.held;
+    scene.module_in_tip = DesignModuleInTip(kModuleThickness, input.grip_gap);
+  }
+  return scene;
+}
+
 PickPlace::PickPlace(Cell& cell, const PickPlaceOptions& options)
     : cell_(cell),
       options_(options),
@@ -219,7 +278,8 @@ PickPlace::PickPlace(Cell& cell, const PickPlaceOptions& options)
       scratch_(MakeData(*cell.model())),
       last_time_(cell.data()->time),
       prior_(PriorFromDesign(cell.pallet())),
-      look_pose_(cell.arm_clear()) {
+      look_pose_(cell.arm_clear()),
+      known_(cell.module_count()) {
   // arm_clear's joint 1 is +pi, the same pose as -pi; the script keeps to
   // the -pi side, reached round +Y, like the place.
   if (look_pose_[0] > 0.0) look_pose_[0] -= 2.0 * kPi;
@@ -571,14 +631,200 @@ bool PickPlace::PlanPlace(std::string* reason) {
   return true;
 }
 
+void PickPlace::set_known_module(int i, const KnownModule& known) {
+  if (i >= 0 && i < static_cast<int>(known_.size())) known_[i] = known;
+}
+
+Eigen::Isometry3d PickPlace::PalletShift(int held) const {
+  // Camera mode: the stack where the estimate the pick aimed at puts it,
+  // carried from the design pose of the module actually held.
+  if (options_.sensing == SensingMode::kCamera && estimate_) {
+    return EstimatedFace(*estimate_, held).pallet_shift;
+  }
+  return Eigen::Isometry3d::Identity();
+}
+
+PlanScene PickPlace::CarryPlanScene(int held) const {
+  CarrySceneInput input;
+  input.held = held;
+  input.grip_gap = options_.grip_gap;
+  input.pallet_shift = PalletShift(held);
+  input.modules = known_;
+  // The encoder; while the tube still moves, where it is headed (its
+  // nominal stop: the drive's own stopping error is a few millimetres).
+  const Conveyor& conveyor = cell_.conveyor();
+  const mjData& data = *cell_.data();
+  input.tube_slide = conveyor.Moving(data)
+                         ? Conveyor::NominalSlidePosition(conveyor.steps())
+                         : conveyor.SensorPosition(data);
+  return CarryScene(cell_.pallet(), input);
+}
+
+bool PickPlace::PlanCarry(std::string* reason) {
+  CarryReport& report = outcome_.carry;
+  report.attempted = true;
+  report.found = false;
+  report.legs.clear();
+  report.clearance = 0.0;
+  report.clearance_between.clear();
+  report.trajectory_seconds = 0.0;
+  carry_legs_.clear();
+  carry_.clear();
+  const auto begin = std::chrono::steady_clock::now();
+  const bool found = [&]() {
+    if (clear_.empty() || turn_.empty()) {
+      *reason = "the pick side is not planned";
+      return false;
+    }
+    if (!checker_) {
+      std::string error;
+      checker_ = CollisionChecker::Create(*cell_.model(), {}, &error);
+      if (!checker_) {
+        *reason = "no collision checker: " + error;
+        return false;
+      }
+    }
+    const PlanScene scene = CarryPlanScene(outcome_.module);
+    report.tube_moving = cell_.conveyor().Moving(*cell_.data());
+
+    // Where each leg ends, and how long the arm holds still there. One leg
+    // today, to the end of the turn. A via (a later stage's check pose) is
+    // one more entry in front of the goal, with its dwell.
+    struct LegEnd {
+      Eigen::VectorXd q;
+      double dwell = 0.0;
+    };
+    const std::vector<LegEnd> ends = {{turn_.back(), 0.0}};
+
+    Eigen::VectorXd from = clear_.back();
+    for (std::size_t leg = 0; leg < ends.size(); ++leg) {
+      MotionPlanOptions plan = options_.planner;
+      plan.speed = options_.speed_carrying;
+      // Each leg its own seeds, all from the one fixed base seed.
+      plan.base_seed =
+          options_.planner.base_seed + 1000u * static_cast<std::uint32_t>(leg);
+      MotionPlanReport leg_report;
+      std::optional<TimedMove> move =
+          PlanArmMove(*checker_, scene, from, ends[leg].q, cell_.arm().limits,
+                      plan, &leg_report);
+      report.legs.push_back(leg_report);
+      if (!move) {
+        *reason = std::string(ToString(leg_report.status)) + ": " +
+                  leg_report.reason;
+        if (ends.size() > 1) {
+          *reason = "leg " + std::to_string(leg + 1) + " of " +
+                    std::to_string(ends.size()) + ": " + *reason;
+        }
+        return false;
+      }
+      if (leg == 0 || leg_report.clearance < report.clearance) {
+        report.clearance = leg_report.clearance;
+        report.clearance_between = leg_report.clearance_between;
+      }
+      report.trajectory_seconds += move->trajectory.duration();
+      carry_.insert(carry_.end(), move->path.begin() + (leg == 0 ? 0 : 1),
+                    move->path.end());
+      carry_legs_.push_back({std::move(*move), ends[leg].dwell});
+      from = ends[leg].q;
+    }
+    return true;
+  }();
+  report.plan_seconds = std::chrono::duration<double>(
+                            std::chrono::steady_clock::now() - begin)
+                            .count();
+  report.found = found;
+  if (!found) {
+    carry_legs_.clear();
+    carry_.clear();
+  }
+  return found;
+}
+
+void PickPlace::BeginCarry() {
+  Enter(PickPlaceStep::kCarry);
+  CarryReport& report = outcome_.carry;
+  if (!report.attempted) {
+    // Started later than lift: planned now, with nothing to run alongside.
+    std::string why;
+    if (!PlanCarry(&why)) carry_failure_ = why;
+  } else {
+    // Planned at the start of lift: it ran alongside these moves.
+    report.overlap_seconds = 0.0;
+    for (const StepRecord& r : records_) {
+      if (r.step == PickPlaceStep::kLift || r.step == PickPlaceStep::kPullBack ||
+          r.step == PickPlaceStep::kClear) {
+        report.overlap_seconds += r.duration();
+      }
+    }
+  }
+  if (!report.found) {
+    Fail("no planned carry: " + carry_failure_);
+    return;
+  }
+  char text[400];
+  char when[160];
+  if (report.overlap_seconds > 0.0) {
+    std::snprintf(when, sizeof(when),
+                  "during lift, pull back and clear (%.2f s): %s",
+                  report.overlap_seconds,
+                  report.fits() ? "fits" : "does NOT fit");
+  } else {
+    std::snprintf(when, sizeof(when), "when the carry began");
+  }
+  std::snprintf(text, sizeof(text),
+                "planned in %.0f ms %s; %zu waypoints, %.2f s; clearance %.0f "
+                "mm (%s)%s",
+                1e3 * report.plan_seconds, when, carry_.size(),
+                report.trajectory_seconds, 1e3 * report.clearance,
+                report.clearance_between.c_str(),
+                report.tube_moving ? "; tube still moving when planned" : "");
+  carry_note_ = text;
+  carry_leg_ = 0;
+  carry_dwelling_ = false;
+  BeginCarryLeg();
+}
+
+void PickPlace::BeginCarryLeg() {
+  const CarryLeg& leg = carry_legs_[carry_leg_];
+  planned_.push_back(
+      {PickPlaceStep::kCarry, leg.move.path, options_.speed_carrying});
+  std::string reason;
+  if (!follower_.Follow(leg.move.trajectory, *cell_.data(), &reason)) {
+    Fail("the follower refused the planned carry: " + reason);
+    return;
+  }
+  plan_end_ = cell_.data()->time + follower_.TimeLeft(*cell_.data());
+}
+
+bool PickPlace::CarryFinished() {
+  const double now = cell_.data()->time;
+  if (carry_dwelling_) {
+    if (now < carry_dwell_end_) return false;
+    carry_dwelling_ = false;
+  } else {
+    if (MoveFinished(false) != Progress::kFinished) return false;
+    const double dwell = carry_legs_[carry_leg_].dwell;
+    if (dwell > 0.0) {
+      carry_dwelling_ = true;
+      carry_dwell_end_ = now + dwell;
+      return false;
+    }
+  }
+  if (carry_leg_ + 1 >= carry_legs_.size()) return true;
+  ++carry_leg_;
+  BeginCarryLeg();
+  return false;
+}
+
 bool PickPlace::Start(int module, PickPlaceStep first) {
   if (step_ != PickPlaceStep::kIdle && !Done()) return false;
   const mjData& data = *cell_.data();
   if (data.time < last_time_) {
-    // The cell was Reset: a new follower, and the last cycle's picture is
-    // of another scene.
+    // The cell was Reset: a new follower, the last cycle's picture is of
+    // another scene, and every module stands on the pallet again.
     follower_ = ArmFollower(cell_.arm());
     look_ahead_.reset();
+    known_.assign(cell_.module_count(), KnownModule{});
   }
   last_time_ = data.time;
   const bool camera = options_.sensing == SensingMode::kCamera;
@@ -592,6 +838,13 @@ bool PickPlace::Start(int module, PickPlaceStep first) {
   outcome_.module = module;
   outcome_.slot = cell_.conveyor().steps();
   outcome_.start_time = data.time;
+  outcome_.carry.mode = options_.carry;
+  carry_legs_.clear();
+  carry_.clear();
+  carry_failure_.clear();
+  carry_note_.clear();
+  carry_leg_ = 0;
+  carry_dwelling_ = false;
   planned_.clear();
   records_.clear();
   looks_.clear();
@@ -611,6 +864,16 @@ bool PickPlace::Start(int module, PickPlaceStep first) {
   if (static_cast<int>(first) < static_cast<int>(PickPlaceStep::kLook) ||
       static_cast<int>(first) > static_cast<int>(PickPlaceStep::kReturn)) {
     Fail(std::string("cannot start at ") + StepName(first));
+    return false;
+  }
+  const bool planned_carry = options_.carry == CarryMode::kPlanned;
+  const bool scripted_carry_step = first == PickPlaceStep::kFlatten ||
+                                   first == PickPlaceStep::kSwing ||
+                                   first == PickPlaceStep::kTurn;
+  if ((planned_carry && scripted_carry_step) ||
+      (!planned_carry && first == PickPlaceStep::kCarry)) {
+    Fail(std::string("cannot start at ") + StepName(first) + " with the " +
+         CarryModeName(options_.carry) + " carry");
     return false;
   }
   // In camera mode the pick side is planned once the look step has an
@@ -659,6 +922,8 @@ const std::vector<Eigen::VectorXd>* PickPlace::Waypoints(
       return &swing_;
     case PickPlaceStep::kTurn:
       return &turn_;
+    case PickPlaceStep::kCarry:
+      return &carry_;
     case PickPlaceStep::kLower:
       return &lower_;
     case PickPlaceStep::kSetDown:
@@ -698,6 +963,17 @@ void PickPlace::Close(const std::string& result) {
 
 void PickPlace::Finish(const std::string& result) {
   Close(result);
+  if (step_ == PickPlaceStep::kTurn || step_ == PickPlaceStep::kCarry) {
+    // The carry has ended: from the end of clear to here.
+    double seconds = 0.0;
+    for (const StepRecord& r : records_) {
+      if (r.step == PickPlaceStep::kFlatten || r.step == PickPlaceStep::kSwing ||
+          r.step == PickPlaceStep::kTurn || r.step == PickPlaceStep::kCarry) {
+        seconds += r.duration();
+      }
+    }
+    outcome_.carry.seconds = seconds;
+  }
   const PickPlaceStep next = Next(step_);
   if (pause_after_ && *pause_after_ == step_) {
     paused_ = true;
@@ -800,6 +1076,7 @@ void PickPlace::Update() {
   if (data->time < last_time_) {
     follower_ = ArmFollower(cell_.arm());
     look_ahead_.reset();
+    known_.assign(cell_.module_count(), KnownModule{});
     if (!Done() && step_ != PickPlaceStep::kIdle) {
       Fail("the cell was reset during the cycle");
     }
@@ -810,11 +1087,27 @@ void PickPlace::Update() {
 }
 
 PickPlaceStep PickPlace::Next(PickPlaceStep step) const {
-  PickPlaceStep next = static_cast<PickPlaceStep>(static_cast<int>(step) + 1);
-  if (options_.sensing != SensingMode::kCamera &&
-      (next == PickPlaceStep::kLook || next == PickPlaceStep::kLookAhead)) {
+  const bool camera = options_.sensing == SensingMode::kCamera;
+  const bool planned = options_.carry == CarryMode::kPlanned;
+  auto skipped = [&](PickPlaceStep s) {
+    switch (s) {
+      case PickPlaceStep::kLook:
+      case PickPlaceStep::kLookAhead:
+        return !camera;
+      case PickPlaceStep::kFlatten:
+      case PickPlaceStep::kSwing:
+      case PickPlaceStep::kTurn:
+        return planned;
+      case PickPlaceStep::kCarry:
+        return !planned;
+      default:
+        return false;
+    }
+  };
+  PickPlaceStep next = step;
+  do {
     next = static_cast<PickPlaceStep>(static_cast<int>(next) + 1);
-  }
+  } while (skipped(next));
   return next;
 }
 
@@ -959,9 +1252,17 @@ void PickPlace::BeginStep(PickPlaceStep step) {
                ", not module_" + std::to_string(outcome_.module));
         }
       }
+      if (gripped) set_known_module(*gripped, {ModulePlace::kHeld, -1});
       return;
     }
     case PickPlaceStep::kLift:
+      // The grip has held, and the carry's start (the end of clear) is
+      // known: plan the carry now, so that on a real cell it is ready by
+      // the end of clear. A failure shows in the carry step.
+      if (options_.carry == CarryMode::kPlanned) {
+        std::string why;
+        if (!PlanCarry(&why)) carry_failure_ = why;
+      }
       BeginMove(step, lift_, options_.speed_lift_off, options_.deviation_near);
       return;
     case PickPlaceStep::kPullBack:
@@ -975,6 +1276,9 @@ void PickPlace::BeginStep(PickPlaceStep step) {
     case PickPlaceStep::kSwing:
     case PickPlaceStep::kTurn:
       BeginMove(step, *Waypoints(step), options_.speed_carrying);
+      return;
+    case PickPlaceStep::kCarry:
+      BeginCarry();
       return;
     case PickPlaceStep::kWaitForConveyor:
       Enter(step);
@@ -998,6 +1302,8 @@ void PickPlace::BeginStep(PickPlaceStep step) {
     case PickPlaceStep::kRelease:
       Enter(step);
       cell_.Release();
+      // Let go over its slot: the cell knows where it lies from now on.
+      set_known_module(outcome_.module, {ModulePlace::kOnTube, outcome_.slot});
       return;
     case PickPlaceStep::kRetreat:
       BeginMove(step, retreat_, options_.speed_empty, options_.deviation_near);
@@ -1015,7 +1321,17 @@ void PickPlace::BeginStep(PickPlaceStep step) {
       const bool moved = outcome_.slot >= Conveyor::kSlotCount - 1
                              ? cell_.SwapTube()
                              : cell_.conveyor().StartStep(*data);
-      if (!moved) Fail("the conveyor would not move on");
+      if (!moved) {
+        Fail("the conveyor would not move on");
+      } else if (outcome_.slot >= Conveyor::kSlotCount - 1) {
+        // The full tube went away with its modules (Cell::SwapTube parks
+        // them).
+        for (KnownModule& known : known_) {
+          if (known.place == ModulePlace::kOnTube) {
+            known = {ModulePlace::kParked, -1};
+          }
+        }
+      }
       return;
     }
     case PickPlaceStep::kLookAhead:
@@ -1076,6 +1392,10 @@ void PickPlace::Advance() {
       if (p == Progress::kBlocked) result = "blocked, let go: " + Shortfall();
       break;
     }
+    case PickPlaceStep::kCarry:
+      if (!CarryFinished()) return;
+      result = carry_note_;
+      break;
     case PickPlaceStep::kToStandoff:
     case PickPlaceStep::kApproach:
     case PickPlaceStep::kLift:

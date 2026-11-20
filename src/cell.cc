@@ -161,6 +161,12 @@ std::optional<Cell> Cell::Load(const std::string& path, std::string* error,
     return fail("depth_camera is not a perspective camera with square pixels");
   }
 
+  cell.check_camera_ = mj_name2id(&model, mjOBJ_CAMERA, "check_camera");
+  if (cell.check_camera_ < 0) return fail("no camera named check_camera");
+  if (!CameraModelFromMujoco(model, *cell.data_, cell.check_camera_)) {
+    return fail("check_camera is not a perspective camera with square pixels");
+  }
+
   std::optional<Eigen::VectorXd> home = KeyAngles(model, cell.arm_, "arm_home");
   std::optional<Eigen::VectorXd> clear =
       KeyAngles(model, cell.arm_, "arm_clear");
@@ -201,13 +207,19 @@ TrueScene Cell::DrawScene(std::uint32_t seed,
   scene.camera_turn = randomization.camera_turn * direction();
   scene.camera_noise = randomization.camera_noise;
   scene.camera_noise_seed = random();
+  // The check camera's draws come last, for the same reason.
+  scene.check_camera_shift = randomization.check_camera_shift * direction();
+  scene.check_camera_turn = randomization.check_camera_turn * direction();
+  scene.check_noise_seed = random();
   return scene;
 }
 
 bool Cell::Reset(std::uint32_t seed, const Randomization& randomization) {
   for (double figure : {randomization.pallet_xy, randomization.pallet_yaw,
                         randomization.conveyor_stop_error,
-                        randomization.camera_shift, randomization.camera_turn}) {
+                        randomization.camera_shift, randomization.camera_turn,
+                        randomization.check_camera_shift,
+                        randomization.check_camera_turn}) {
     if (!std::isfinite(figure) || figure < 0.0) return false;
   }
   mjModel* model = model_.get();
@@ -228,6 +240,7 @@ bool Cell::Reset(std::uint32_t seed, const Randomization& randomization) {
 
   scene_ = DrawScene(seed, randomization);
   pictures_ = 0;
+  check_pictures_ = 0;
   // Also runs mj_forward.
   PlacePallet(*model, data, pallet_, scene_.pallet_x, scene_.pallet_y,
               scene_.pallet_yaw);
@@ -344,6 +357,27 @@ DepthImage Cell::TakeDepthImage() {
   options.noise.seed = scene_.camera_noise_seed + static_cast<std::uint32_t>(pictures_);
   ++pictures_;
   return RenderDepth(*model_, data_.get(), DepthCamera(), options);
+}
+
+CameraModel Cell::CheckCamera() const {
+  return *CameraModelFromMujoco(*model_, *data_, check_camera_);
+}
+
+DepthImage Cell::TakeCheckImage() {
+  mj_kinematics(model_.get(), data_.get());
+  DepthOptions options;
+  options.noise.depth_noise = scene_.camera_noise;
+  options.noise.edge_effects = scene_.camera_noise;
+  options.noise.quantize = scene_.camera_noise;
+  options.noise.seed =
+      scene_.check_noise_seed + static_cast<std::uint32_t>(check_pictures_);
+  ++check_pictures_;
+  return RenderDepth(*model_, data_.get(), CheckCamera(), options);
+}
+
+CameraModel Cell::CalibratedCheckCamera() const {
+  return Perturbed(CheckCamera(), scene_.check_camera_turn,
+                   scene_.check_camera_shift);
 }
 
 CameraModel Cell::CalibratedCamera() const {
