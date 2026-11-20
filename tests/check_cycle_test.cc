@@ -17,8 +17,15 @@
 //              into the grip), within 0.5 mm and 0.03 degrees, with noise;
 //   place      lower and set down corrected: the MODULE on its release pose
 //              and the placement scored inside a tenth of the offset;
-//   refusals   a refusal twice: placed uncorrected and "unchecked"; a slip
-//              (kFarFromExpected): the cycle fails at the check, no retake;
+//   refusals   a refused check fails the cycle at the check pose, and the
+//              vacuum switch says why: the module let go during the dwell
+//              ("the vacuum is lost"), once falling in view and once gone
+//              from it; the check camera's calibration so far off that its
+//              points miss the crop while the vacuum holds ("check camera
+//              fault"); a picture blocked once by a module the test puts
+//              between the camera and the held one and takes away again
+//              (retaken: placed, corrected); a slip (kFarFromExpected): the
+//              cycle fails at the check, no retake;
 //   options    the check refused with the scripted carry;
 //   cycles     whole camera-mode cycles with the pallet camera's calibration
 //              off by 1 mm and 0.05 degrees, with and without the check, on
@@ -40,6 +47,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
+#include <functional>
 #include <numbers>
 #include <optional>
 #include <string>
@@ -422,17 +430,31 @@ struct ConstructedRun {
   Eigen::VectorXd arm_at_end;
   long forbidden = 0;
   std::string forbidden_list;
+  bool vacuum_at_end = false;
+};
+
+// What a test does to the cell around the check: the seed and the check
+// camera's calibration error (a shift of this length in the direction the
+// seed draws), and what it does, as the truth's hand, when the arm has
+// arrived at the check pose (the dwell begins) and after each picture.
+struct ConstructedSetup {
+  std::uint32_t seed = 1;
+  double check_camera_shift = 0.0;  // m
+  std::function<void(Cell&)> at_check_pose;
+  std::function<void(Cell&, const cell::CheckRecord&)> after_picture;
 };
 
 ConstructedRun RunConstructed(const Isometry3d& offset,
-                              const cell::PickPlaceOptions& options) {
+                              const cell::PickPlaceOptions& options,
+                              const ConstructedSetup& setup = {}) {
   ConstructedRun R;
   std::optional<Cell> loaded = LoadCell(&R.error);
   if (!loaded) return R;
   Cell& cell = *loaded;
   cell::Randomization randomization = cell::Randomization::None();
   randomization.camera_noise = true;  // the check camera's pictures too
-  cell.Reset(1, randomization);
+  randomization.check_camera_shift = setup.check_camera_shift;
+  cell.Reset(setup.seed, randomization);
   Eigen::VectorXd clear_end;
   {
     PickPlace planner(cell, options);
@@ -464,8 +486,9 @@ ConstructedRun RunConstructed(const Isometry3d& offset,
     mj_forward(cell.model(), cell.data());
     R.placed = cell::MeasurePlacement(cell, module, slot);
   });
-  script.set_check_hook([&](const cell::CheckRecord&) {
+  script.set_check_hook([&](const cell::CheckRecord& record) {
     R.arm_at_picture.push_back(cell::JointAngles(cell.arm(), *cell.data()));
+    if (setup.after_picture) setup.after_picture(cell, record);
   });
   if (!script.set_pause_after(Step::kSetDown)) {
     R.error = "set_pause_after(set down) refused";
@@ -497,6 +520,7 @@ ConstructedRun RunConstructed(const Isometry3d& offset,
                 .maxCoeff() < cell::ArmFollower::kArrivedAngle) {
       was_moving_leg1 = false;
       R.leg1_end.push_back(cell.data()->time);
+      if (setup.at_check_pose) setup.at_check_pose(cell);
     }
   }
   R.done = script.Done();
@@ -507,6 +531,7 @@ ConstructedRun RunConstructed(const Isometry3d& offset,
   R.measured = script.measured_grip();
   R.state_at_end = cell.module_state(0);
   R.arm_at_end = cell::JointAngles(cell.arm(), *cell.data());
+  R.vacuum_at_end = cell.VacuumHolds();
   R.forbidden = check.forbidden_count();
   for (const cell::ForbiddenContact& f : check.forbidden()) {
     R.forbidden_list += std::string("\n  ") + cell::StepName(f.step) + ": " +
@@ -597,6 +622,8 @@ TEST_F(CheckSteps, PictureAtTheEndOfTheDwellModuleInViewFinderAnswers) {
             1e-12);
   EXPECT_EQ(R.outcome.check.status, CheckReport::Status::kChecked);
   EXPECT_EQ(R.outcome.check.pictures, 1);
+  EXPECT_FALSE(R.outcome.check.retaken);
+  EXPECT_TRUE(c.vacuum_holds);
 }
 
 TEST_F(CheckSteps, MeasuredGripMatchesTheTrueGripWithNoise) {
@@ -683,36 +710,202 @@ TEST_F(CheckSteps, LowerAndSetDownPutTheModuleNotTheToolOnTheSlot) {
 
 // ============================================================== refusals
 
-TEST(CheckRefusal, RefusedTwicePlacesUncorrectedAndUnchecked) {
-  cell::PickPlaceOptions options = CheckOptions(cell::SensingMode::kBlind);
-  // No picture can hold this many points: every one refused, "too few
-  // points" (not a slip).
-  options.held_finder.min_point_fraction = 1e6;
-  const ConstructedRun R = RunConstructed(KnownOffset(), options);
+std::string Pictures(const ConstructedRun& R) {
+  std::string text;
+  for (const cell::CheckRecord& c : R.checks) {
+    char line[700];
+    std::snprintf(line, sizeof(line),
+                  "\n  picture %d at %.3f s, vacuum %s: %s (%d of %.0f pixels "
+                  "in the crop) %s",
+                  c.attempt, c.time, c.vacuum_holds ? "holds" : "LOST",
+                  c.estimate ? "found" : cell::HeldFinderFailureName(
+                                             c.diagnostics.failure),
+                  c.diagnostics.points_in_crop, c.diagnostics.expected_pixels,
+                  c.diagnostics.detail.c_str());
+    text += line;
+  }
+  return text;
+}
+
+// A refused check: the cycle failed in the carry, the arm holding still at
+// the check pose, nothing let go by the script.
+void ExpectFailedAtTheCheckPose(const ConstructedRun& R) {
+  EXPECT_TRUE(R.done) << R.phases;
+  EXPECT_EQ(R.outcome.status, PickPlaceOutcome::Status::kFailed) << R.phases;
+  EXPECT_EQ(R.outcome.failed_step, Step::kCarry);
+  EXPECT_LT((R.arm_at_end - R.check_pose).cwiseAbs().maxCoeff(),
+            cell::ArmFollower::kArrivedAngle);
+  EXPECT_FALSE(R.measured.has_value());
+  EXPECT_FALSE(R.outcome.check.rechecked);
+  EXPECT_FALSE(R.placed.has_value()) << "nothing placed";
+}
+
+// (a) The module let go by the test as the arm arrives at the check pose:
+// it falls during the dwell. Whatever the pictures show, the vacuum is
+// lost, and the reason says so.
+TEST(CheckRefusal, ModuleDroppedDuringTheDwellFailsVacuumLost) {
+  ConstructedSetup setup;
+  setup.at_check_pose = [](Cell& cell) {
+    ASSERT_EQ(cell.Release(), std::optional<int>(0));
+  };
+  const ConstructedRun R = RunConstructed(
+      KnownOffset(), CheckOptions(cell::SensingMode::kBlind), setup);
   ASSERT_TRUE(R.error.empty()) << R.error << R.phases;
+  std::printf("dropped: %s%s\n", R.outcome.reason.c_str(),
+              Pictures(R).c_str());
+  ASSERT_GE(R.checks.size(), 1u) << R.phases;
+  EXPECT_LE(R.checks.size(), 2u);
+  for (const cell::CheckRecord& c : R.checks) EXPECT_FALSE(c.vacuum_holds);
+  ExpectFailedAtTheCheckPose(R);
+  EXPECT_NE(R.outcome.reason.find("no module on the tool: the vacuum is lost "
+                                  "(dropped or never picked)"),
+            std::string::npos)
+      << R.outcome.reason;
+  EXPECT_EQ(R.outcome.check.status, CheckReport::Status::kRefused);
+  EXPECT_FALSE(R.outcome.check.vacuum_holds);
+  EXPECT_FALSE(R.vacuum_at_end);
+}
+
+// (a) The same, the module gone from the camera's view (parked by the test:
+// dropped and out of sight): "too few points" twice, the retake after
+// another dwell, then the vacuum's reason.
+TEST(CheckRefusal, ModuleGoneFromViewRetakenThenFailsVacuumLost) {
+  ConstructedSetup setup;
+  setup.at_check_pose = [](Cell& cell) { cell.ParkModule(0); };
+  const ConstructedRun R = RunConstructed(
+      KnownOffset(), CheckOptions(cell::SensingMode::kBlind), setup);
+  ASSERT_TRUE(R.error.empty()) << R.error << R.phases;
+  std::printf("gone: %s%s\n", R.outcome.reason.c_str(), Pictures(R).c_str());
   ASSERT_EQ(R.checks.size(), 2u) << "one retake" << R.phases;
-  EXPECT_EQ(R.checks[0].diagnostics.failure,
-            cell::HeldFinderFailure::kTooFewPoints);
+  for (const cell::CheckRecord& c : R.checks) {
+    EXPECT_EQ(c.diagnostics.failure, cell::HeldFinderFailure::kTooFewPoints);
+    EXPECT_FALSE(c.vacuum_holds);
+  }
   EXPECT_EQ(R.checks[1].attempt, 2);
   EXPECT_GE(R.checks[1].time - R.checks[0].time, 0.2 - 1e-9)
       << "after another dwell";
-  EXPECT_EQ(R.outcome.status, PickPlaceOutcome::Status::kPlaced)
-      << R.outcome.reason << R.phases;
-  EXPECT_EQ(R.outcome.check.status, CheckReport::Status::kUnchecked);
+  ExpectFailedAtTheCheckPose(R);
+  EXPECT_NE(R.outcome.reason.find("no module on the tool: the vacuum is lost "
+                                  "(dropped or never picked)"),
+            std::string::npos)
+      << R.outcome.reason;
+  EXPECT_NE(R.outcome.reason.find("too few points"), std::string::npos)
+      << "the finder's answer too: " << R.outcome.reason;
+  EXPECT_EQ(R.outcome.check.status, CheckReport::Status::kRefused);
   EXPECT_EQ(R.outcome.check.failure, cell::HeldFinderFailure::kTooFewPoints);
-  EXPECT_FALSE(R.measured.has_value());
-  EXPECT_FALSE(R.outcome.check.rechecked);
-  // Uncorrected: the tip aimed with the design grip.
+}
+
+// A seed whose check camera calibration error points along the camera's
+// +Z (away from what it looks at, down: the camera looks up), within
+// 10 degrees: the calibrated camera then thinks itself further from the
+// module, so the expected underside stays in the picture, and puts every
+// point lower than it is.
+std::uint32_t SeedWithCheckShiftAlongTheAxis() {
+  cell::Randomization r = cell::Randomization::None();
+  r.camera_noise = true;
+  r.check_camera_shift = 1.0;
+  for (std::uint32_t seed = 1; seed < 10000; ++seed) {
+    if (Cell::DrawScene(seed, r).check_camera_shift.z() >
+        std::cos(10.0 * kDegree)) {
+      return seed;
+    }
+  }
+  return 0;
+}
+
+// (b) The vacuum holds the module, but the check camera's calibration is
+// off by 0.3 m, nearly along its axis: its points come out 0.3 m below the
+// underside, out of the crop (the tolerances reach about 0.15 m), so the
+// camera sees too few points where the module is. Twice: a camera fault.
+TEST(CheckRefusal, TooFewPointsWithTheVacuumHoldingFailsCameraFault) {
+  ConstructedSetup setup;
+  setup.seed = SeedWithCheckShiftAlongTheAxis();
+  ASSERT_NE(setup.seed, 0u);
+  setup.check_camera_shift = 0.3;
+  const ConstructedRun R = RunConstructed(
+      KnownOffset(), CheckOptions(cell::SensingMode::kBlind), setup);
+  ASSERT_TRUE(R.error.empty()) << R.error << R.phases;
+  std::printf("seed %u: %s%s\n", setup.seed, R.outcome.reason.c_str(),
+              Pictures(R).c_str());
+  ASSERT_EQ(R.checks.size(), 2u) << "one retake" << R.phases;
+  for (const cell::CheckRecord& c : R.checks) {
+    EXPECT_EQ(c.diagnostics.failure, cell::HeldFinderFailure::kTooFewPoints)
+        << c.diagnostics.detail;
+    EXPECT_TRUE(c.vacuum_holds);
+  }
+  EXPECT_GE(R.checks[1].time - R.checks[0].time, 0.2 - 1e-9);
+  ExpectFailedAtTheCheckPose(R);
+  EXPECT_NE(R.outcome.reason.find("check camera fault: the vacuum holds a "
+                                  "module but the camera sees too few points"),
+            std::string::npos)
+      << R.outcome.reason;
+  // The finder's numbers: the points it found of the pixels expected.
+  char numbers[80];
+  std::snprintf(numbers, sizeof(numbers), "(%d of %.0f expected",
+                R.checks[1].diagnostics.points_in_crop,
+                R.checks[1].diagnostics.expected_pixels);
+  EXPECT_NE(R.outcome.reason.find(numbers), std::string::npos)
+      << numbers << " in " << R.outcome.reason;
+  EXPECT_EQ(R.outcome.check.status, CheckReport::Status::kRefused);
+  EXPECT_TRUE(R.outcome.check.vacuum_holds);
+  // Holding the module still, at the check pose.
+  EXPECT_EQ(R.state_at_end, cell::ModuleState::kHeld);
+  EXPECT_TRUE(R.vacuum_at_end);
+}
+
+// (c) A transient: the test lays the last module of the stack flat 0.25 m
+// under the held one as the arm arrives (it falls for the dwell, between
+// the camera and the held module, out of the crop), and takes it away
+// (parks it) after the first picture. The first picture is refused ("too
+// few points"), the retake accepted: placed, corrected, counted as
+// retaken.
+TEST(CheckRefusal, BlockedOnceRetakenPlacesCorrectedAndCountsRetaken) {
+  constexpr int kOccluder = kModules - 1;
+  ConstructedSetup setup;
+  setup.at_check_pose = [](Cell& cell) {
+    Isometry3d below = cell.TrueModulePose(0);
+    below.translation().z() -= 0.25;
+    cell.TeleportModule(kOccluder, below);
+  };
+  setup.after_picture = [](Cell& cell, const cell::CheckRecord& record) {
+    if (record.attempt == 1) cell.ParkModule(kOccluder);
+  };
+  const ConstructedRun R = RunConstructed(
+      KnownOffset(), CheckOptions(cell::SensingMode::kBlind), setup);
+  ASSERT_TRUE(R.error.empty()) << R.error << R.phases;
+  std::printf("blocked once: %s%s%s\n", R.outcome.reason.c_str(),
+              Pictures(R).c_str(), R.phases.c_str());
+  ASSERT_EQ(R.checks.size(), 2u) << R.phases;
+  EXPECT_EQ(R.checks[0].diagnostics.failure,
+            cell::HeldFinderFailure::kTooFewPoints)
+      << R.checks[0].diagnostics.detail;
+  EXPECT_TRUE(R.checks[1].estimate.has_value())
+      << R.checks[1].diagnostics.detail;
+  EXPECT_GE(R.checks[1].time - R.checks[0].time, 0.2 - 1e-9);
+  ASSERT_EQ(R.outcome.status, PickPlaceOutcome::Status::kPlaced)
+      << R.outcome.reason << R.phases;
+  const CheckReport& c = R.outcome.check;
+  EXPECT_EQ(c.status, CheckReport::Status::kChecked);
+  EXPECT_TRUE(c.retaken);
+  EXPECT_EQ(c.pictures, 2);
+  EXPECT_EQ(c.failure, cell::HeldFinderFailure::kTooFewPoints)
+      << "the first picture's refusal";
+  EXPECT_NE(R.phases.find("RETAKEN"), std::string::npos) << R.phases;
+  // Corrected with the retake's measurement.
+  ASSERT_TRUE(R.measured.has_value());
+  const Eigen::Matrix<double, 6, 1> error =
+      cell::PoseError6(*R.measured, R.truth_in_tip);
+  EXPECT_LT(error.head<3>().norm(), 0.5 * kMm);
+  EXPECT_LT(error.tail<3>().norm(), 0.03 * kDegree);
   ASSERT_TRUE(R.release_module && R.release_tip);
-  const Isometry3d design_tip =
-      *R.release_module *
-      cell::DesignModuleInTip(cell::kModuleThickness, 0.002).inverse();
-  EXPECT_LT(Distance(*R.release_tip, design_tip), 1e-9);
-  // The carry's record says so.
-  EXPECT_NE(R.phases.find("UNCHECKED"), std::string::npos) << R.phases;
+  const Isometry3d corrected =
+      cell::CorrectedTipTarget(*R.release_module, *R.measured);
+  EXPECT_LT(Distance(*R.release_tip, corrected), 1e-9);
   ASSERT_TRUE(R.placed.has_value());
-  std::printf("unchecked: %s (the offset put in: 3.7 mm, 0.7 deg)%s\n",
-              cell::Describe(*R.placed).c_str(), R.phases.c_str());
+  std::printf("retaken, placed: %s\n", cell::Describe(*R.placed).c_str());
+  EXPECT_LT(std::abs(R.placed->along_tube), 0.4 * kMm);
+  EXPECT_LT(std::abs(R.placed->across_tube), 0.4 * kMm);
+  EXPECT_EQ(R.forbidden, 0) << R.forbidden_list;
 }
 
 TEST(CheckRefusal, SlipFailsTheCycleAtTheCheckWithoutRetake) {
@@ -730,6 +923,7 @@ TEST(CheckRefusal, SlipFailsTheCycleAtTheCheckWithoutRetake) {
   EXPECT_EQ(R.outcome.check.failure,
             cell::HeldFinderFailure::kFarFromExpected);
   ASSERT_EQ(R.checks.size(), 1u) << "no retake after a slip";
+  EXPECT_TRUE(R.outcome.check.vacuum_holds);
   // Holding the module, at the check pose.
   EXPECT_EQ(R.state_at_end, cell::ModuleState::kHeld);
   EXPECT_LT((R.arm_at_end - R.check_pose).cwiseAbs().maxCoeff(),

@@ -1437,7 +1437,7 @@ cc_test(
 # one action at a time: the check pose clear of the planning margin at every
 # depth and slot, and what the via costs; the two-leg carry and its dwell;
 # the picture and the finder; the measured grip against the truth; the
-# corrected lower and set down; the refusals (unchecked, slipped); whole
+# corrected lower and set down; the refusals (refused, slipped, retaken); whole
 # camera cycles with the pallet camera's calibration off, with and without
 # the check; and stage 6's fixes (a blocked set-down's record, records
 # across a Reset, pausing on a skipped step).

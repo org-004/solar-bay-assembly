@@ -76,15 +76,16 @@
 // clear it ran alongside, and the clearance the planner measured along its
 // path; and the highest motor torque during the carry, as a fraction of its
 // limit (from the truth, cycle_check; the whole cycle's in the summary).
-// Then, with --check: how the check went ("ok" measured, "UNC" refused
-// twice and placed unchecked, "SLIP" slipped, failed), the measured grip's
+// Then, with --check: how the check went ("ok" measured, "ok2" measured on
+// the retake after a refused first picture, "REF" refused, "SLIP" slipped;
+// both failed), the measured grip's
 // offset from the design grip (shift and turn, in all), the finder's
 // computing time over its pictures, the measured grip's error against the
 // true grip (the suction weld's pose in the tool tip's frame at the moment
 // of the picture, from the truth, printed only), and "r" if leg 2 was
-// replanned with the measured grip. A cycle placed unchecked shows
-// "unchkd" as its result and counts as placed. The ratio of simulated to
-// wall-clock time goes to stderr.
+// replanned with the measured grip. A retaken cycle's reason names the
+// first picture's refusal. The ratio of simulated to wall-clock time goes
+// to stderr.
 //
 // The first argument is the cell's model; BUILD.bazel passes it.
 
@@ -148,8 +149,9 @@ struct Row {
   bool unconfirmed = false;  // a blocked set-down: placement unconfirmed
 };
 
-bool Unchecked(const Row& r) {
-  return r.placed && r.check.status == cell::CheckReport::Status::kUnchecked;
+bool Retaken(const Row& r) {
+  return r.check.status == cell::CheckReport::Status::kChecked &&
+         r.check.retaken;
 }
 
 void PrintHeader(bool pretty, bool check) {
@@ -192,10 +194,10 @@ std::string Check(const Row& r, bool pretty) {
       status = pretty ? "-" : "not run";
       break;
     case cell::CheckReport::Status::kChecked:
-      status = pretty ? "ok" : "checked";
+      status = pretty ? (c.retaken ? "ok2" : "ok") : "checked";
       break;
-    case cell::CheckReport::Status::kUnchecked:
-      status = pretty ? "UNC" : "unchecked";
+    case cell::CheckReport::Status::kRefused:
+      status = pretty ? "REF" : "refused";
       break;
     case cell::CheckReport::Status::kSlipped:
       status = pretty ? "SLIP" : "slipped";
@@ -304,8 +306,7 @@ std::string Carry(const Row& r, bool pretty) {
 void PrintRow(const Row& r, bool pretty, bool check) {
   const cell::PlacementError e = r.error.value_or(cell::PlacementError{});
   const bool scored = r.error.has_value();
-  const char* outcome =
-      !r.placed ? "failed" : (Unchecked(r) ? "unchkd" : "placed");
+  const char* outcome = !r.placed ? "failed" : "placed";
   // CSV always has the check's columns; the table only with --check.
   const std::string check_columns =
       pretty ? (check ? Check(r, true) + " | " : std::string())
@@ -571,8 +572,8 @@ int main(int argc, char** argv) {
       }
       if (row.placed && row.unconfirmed) {
         row.reason = "set down blocked: placement unconfirmed";
-      } else if (Unchecked(row)) {
-        row.reason = "unchecked: " +
+      } else if (row.placed && Retaken(row)) {
+        row.reason = "check retaken: picture 1 " +
                      std::string(cell::HeldFinderFailureName(
                          row.check.failure)) +
                      ": " + row.check.failure_detail;
@@ -658,7 +659,8 @@ int main(int argc, char** argv) {
   // its time, leg 2's recheck and replans.
   Stat check_shift, check_turn, check_error_shift, check_error_turn;
   Stat check_finder, recheck_time, replan_time;
-  int checked = 0, unchecked = 0, slipped = 0, replanned = 0, rechecked = 0;
+  int checked = 0, retaken = 0, refused = 0, slipped = 0, replanned = 0,
+      rechecked = 0;
   int unconfirmed = 0;
   int placed = 0;
   std::map<std::string, int> failures;
@@ -669,7 +671,8 @@ int main(int argc, char** argv) {
       check_shift.Add(1e3 * c.offset_shift.norm());
       check_turn.Add(c.offset_rotation.norm() / kDegree);
     }
-    if (Unchecked(r)) ++unchecked;
+    if (Retaken(r)) ++retaken;
+    if (c.status == cell::CheckReport::Status::kRefused) ++refused;
     if (c.status == cell::CheckReport::Status::kSlipped) ++slipped;
     if (c.pictures > 0) check_finder.Add(1e3 * c.finder_seconds);
     if (c.rechecked) {
@@ -733,7 +736,7 @@ int main(int argc, char** argv) {
                   ? ", check camera's calibration off"
                   : "");
   if (with_check || unconfirmed > 0) {
-    std::printf("; %d unchecked, %d placement unconfirmed", unchecked,
+    std::printf("; %d retaken, %d placement unconfirmed", retaken,
                 unconfirmed);
   }
   std::printf("\n");
@@ -774,10 +777,11 @@ int main(int argc, char** argv) {
                 finder.worst);
   }
   if (with_check) {
-    std::printf("%scheck after pickup: %d checked, %d unchecked, %d slipped; "
+    std::printf("%scheck after pickup: %d checked (%d retaken), %d refused, "
+                "%d slipped; "
                 "measured grip offset, worst / rms: %.2f / %.2f mm, %.3f / "
                 "%.3f deg; finder %.0f ms at most (all pictures of a cycle)\n",
-                lead, checked, unchecked, slipped, check_shift.worst,
+                lead, checked, retaken, refused, slipped, check_shift.worst,
                 check_shift.Rms(), check_turn.worst, check_turn.Rms(),
                 check_finder.worst);
     if (check_error_shift.count > 0) {

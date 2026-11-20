@@ -156,13 +156,24 @@
 // CorrectedTipTarget, so that lower and set down put the MODULE, not the
 // tool, on the slot. All of it is kept in PickPlaceOutcome::check.
 //
-// A refusal by the finder. kFarFromExpected means the module has slipped on
-// the cups (src/held_module_finder.h, step 9: "the cycle should stop"): the
-// cycle fails in the carry, the arm holding the module at the check pose.
-// Any other refusal earns one more picture after another check_dwell; if
-// that is refused too, the module is placed uncorrected, with the design
-// grip, and the cycle ends placed but "unchecked" (CheckReport::Status::
-// kUnchecked), not failed.
+// A refusal by the finder. Nothing is ever placed uncorrected: a check that
+// is refused fails the cycle in the carry, the arm holding still at the
+// check pose, and the reason says whether the pickup failed or the camera
+// did, from the suction tool's vacuum switch (Cell::VacuumHolds, read at
+// every picture). kFarFromExpected means the module has slipped on the
+// cups (src/held_module_finder.h, step 9: "the cycle should stop"): it fails
+// at once (CheckReport::Status::kSlipped). Any other refusal earns one more
+// picture after another check_dwell. If that one is accepted, the cycle
+// carries on corrected and counts as retaken (CheckReport::retaken), so a
+// flaky camera shows as a number. If it is refused too, the cycle fails
+// (kRefused): with the vacuum lost, "no module on the tool: the vacuum is
+// lost (dropped or never picked)"; with it holding and kTooFewPoints, "check
+// camera fault: the vacuum holds a module but the camera sees too few
+// points (n of m expected ...)"; with it holding and any other refusal, the
+// finder's reason and that the vacuum holds. A picture taken with the
+// vacuum lost fails the cycle whatever the finder made of it, except that a
+// refused first picture is still retaken: a module that is not on the tool
+// cannot be placed, and a slip seen while it falls is no slip.
 //
 // Use, once per physics step, with a Cell that has just been Reset:
 //
@@ -544,6 +555,7 @@ struct CheckRecord {
   double time = 0.0;      // simulation time it was taken
   int attempt = 1;        // 1, or 2 for the retake after a refusal
   Eigen::VectorXd arm;    // the joint angles the arm reported then
+  bool vacuum_holds = false;  // the vacuum switch then (Cell::VacuumHolds)
   // The tool tip's pose from those angles (TipPoseAt), and the module's
   // expected pose: tip times DesignModuleInTip(thickness, grip_gap).
   Eigen::Isometry3d tip = Eigen::Isometry3d::Identity();
@@ -564,12 +576,18 @@ struct CheckReport {
     kNotRun,     // asked for, but the carry has not reached it (or the
                  // cycle started after the carry, or failed before it)
     kChecked,    // measured; the place is corrected
-    kUnchecked,  // refused twice: placed uncorrected, with the design grip
+    kRefused,    // refused twice, or the vacuum lost: the cycle failed
     kSlipped,    // the finder says the module slipped: the cycle failed
   };
   Status status = Status::kOff;
   int pictures = 0;
-  // kUnchecked, kSlipped: the last refusal.
+  // kChecked on the second picture, the first refused.
+  bool retaken = false;
+  // The suction tool's vacuum switch (Cell::VacuumHolds) at the last
+  // picture.
+  bool vacuum_holds = false;
+  // kRefused, kSlipped: the last refusal; kChecked with retaken: the first
+  // picture's.
   HeldFinderFailure failure = HeldFinderFailure::kNone;
   std::string failure_detail;
   // Computer time: the finder (all pictures), and rendering them.

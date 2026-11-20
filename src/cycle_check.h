@@ -17,7 +17,8 @@
 //     deck, while it is still in the stack: until the pull-back is done;
 //   - the picked module on the tube's rails, from the set-down on.
 // Anything else touching the arm, the tool or the picked module is
-// forbidden and recorded.
+// forbidden and recorded: the camera's post and the check camera's stand
+// (check_camera_stand) above all, which nothing may touch in any step.
 //
 // Clearances. Every `clearance_every` steps, the smallest distance between
 // a few groups of geoms (mj_geomDistance, up to 1 m) is measured and the
@@ -53,6 +54,8 @@ enum class Clearance {
                     // and the modules lying there
   kArmPost,         // the arm and tool to the camera's post
   kArmFloor,        // the arm's moving links and tool to the floor
+  kModuleCheckStand,  // the held module to the check camera's stand
+  kArmCheckStand,     // the arm and tool to the check camera's stand
   kCount,
 };
 
@@ -150,6 +153,8 @@ class CycleCheck {
     kOnTube,      // the tube with its rails, or a module let go (on it)
     kBed,         // the conveyor's beams, rollers and legs
     kPost,        // the camera's post and everything on it
+    kCheckStand,  // the check camera's stand on the floor (its base and
+                  // housing): nothing of the cycle may touch it, ever
     kFloor,       // the world: the floor
     kOther,
   };
@@ -165,6 +170,7 @@ class CycleCheck {
   int conveyor_ = -1;
   int tube_ = -1;
   int post_ = -1;
+  int check_stand_ = -1;  // body id, or -1 if the model has none
   std::vector<bool> is_arm_;  // per body: under arm_base, tool excluded
   std::vector<int> module_of_body_;  // per body: module index or -1
   long steps_ = 0;

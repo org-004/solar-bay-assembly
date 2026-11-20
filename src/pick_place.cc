@@ -241,8 +241,8 @@ const char* CheckStatusName(CheckReport::Status status) {
       return "not run";
     case CheckReport::Status::kChecked:
       return "checked";
-    case CheckReport::Status::kUnchecked:
-      return "unchecked";
+    case CheckReport::Status::kRefused:
+      return "refused";
     case CheckReport::Status::kSlipped:
       return "slipped";
   }
@@ -911,6 +911,8 @@ PickPlace::CheckNext PickPlace::RunCheck() {
   // Where the arm says it is, not where it was told to be: the expected
   // pose and the tip the grip is measured against both come from these.
   record.arm = JointAngles(cell_.arm(), *cell_.data());
+  // The vacuum switch at the picture: whether anything is on the tool.
+  record.vacuum_holds = cell_.VacuumHolds();
   record.tip = TipPoseAt(*cell_.model(), scratch_.get(), cell_.arm(),
                          record.arm);
   const Eigen::Isometry3d design_in_tip =
@@ -930,6 +932,7 @@ PickPlace::CheckNext PickPlace::RunCheck() {
                                                record.tip);
   }
   ++check.pictures;
+  check.vacuum_holds = record.vacuum_holds;
   check.finder_seconds += record.diagnostics.seconds_total;
   check.render_seconds += record.render_seconds;
   checks_.push_back(record);
@@ -937,9 +940,24 @@ PickPlace::CheckNext PickPlace::RunCheck() {
 
   const HeldFinderDiagnostics& d = record.diagnostics;
   char text[600];
+  // The vacuum lost: nothing on the tool to place, whatever the picture
+  // shows (a module still falling may be found, or seen far from where it
+  // should be). The finder's answer goes into the reason.
+  auto vacuum_lost = [&]() {
+    check.status = CheckReport::Status::kRefused;
+    Fail(std::string("the check after pickup: no module on the tool: the "
+                     "vacuum is lost (dropped or never picked); picture ") +
+         std::to_string(check.pictures) + ": " +
+         (record.estimate ? std::string("the finder saw a module anyway")
+                          : std::string(HeldFinderFailureName(d.failure)) +
+                                ": " + d.detail));
+    return CheckNext::kFailed;
+  };
+  if (record.estimate && !record.vacuum_holds) return vacuum_lost();
   if (record.estimate) {
     held_in_tip_ = *record.module_in_tip;
     check.status = CheckReport::Status::kChecked;
+    check.retaken = check.pictures > 1;
     check.module_in_tip = *held_in_tip_;
     const Eigen::Isometry3d offset = design_in_tip.inverse() * *held_in_tip_;
     check.offset_shift = offset.translation();
@@ -968,35 +986,55 @@ PickPlace::CheckNext PickPlace::RunCheck() {
                       check.recheck_samples, 1e3 * check.recheck_seconds);
       }
     }
+    char retaken[200] = "";
+    if (check.retaken) {
+      std::snprintf(retaken, sizeof(retaken),
+                    "; RETAKEN, picture 1 refused: %s",
+                    HeldFinderFailureName(check.failure));
+    }
     std::snprintf(text, sizeof(text),
                   "check: grip off the design by %+.2f %+.2f %+.2f mm, %.3f "
-                  "deg (picture %d, finder %.0f ms)%s",
+                  "deg (picture %d, finder %.0f ms)%s%s",
                   1e3 * check.offset_shift.x(), 1e3 * check.offset_shift.y(),
                   1e3 * check.offset_shift.z(),
                   check.offset_rotation.norm() / kDegree, check.pictures,
-                  1e3 * d.seconds_total, leg);
+                  1e3 * d.seconds_total, retaken, leg);
     check_note_ = text;
     return CheckNext::kGoOn;
   }
   check.failure = d.failure;
   check.failure_detail = d.detail;
   if (d.failure == HeldFinderFailure::kFarFromExpected) {
+    if (!record.vacuum_holds) return vacuum_lost();
     // src/held_module_finder.h, step 9: slipped on the cups; stop.
     check.status = CheckReport::Status::kSlipped;
     Fail(std::string("the check after pickup: the module has slipped on the "
-                     "cups: ") +
+                     "cups (the vacuum holds it): ") +
          d.detail);
     return CheckNext::kFailed;
   }
+  // One more picture after another dwell, whatever the vacuum says: a
+  // second look costs one dwell, and the reason below then rests on both.
   if (check.pictures < 2) return CheckNext::kRetake;
-  // Refused twice: placed as gripped by design, and said so.
-  check.status = CheckReport::Status::kUnchecked;
-  std::snprintf(text, sizeof(text),
-                "check: refused twice (%s: %s), placing UNCHECKED with the "
-                "design grip",
-                HeldFinderFailureName(d.failure), d.detail.c_str());
-  check_note_ = text;
-  return CheckNext::kGoOn;
+  if (!record.vacuum_holds) return vacuum_lost();
+  // Refused twice with a module on the tool: the camera's fault, or one the
+  // finder names. Nothing is placed uncorrected.
+  check.status = CheckReport::Status::kRefused;
+  if (d.failure == HeldFinderFailure::kTooFewPoints) {
+    std::snprintf(text, sizeof(text),
+                  "the check after pickup: check camera fault: the vacuum "
+                  "holds a module but the camera sees too few points (%d of "
+                  "%.0f expected, %.0f needed; %d in picture 1)",
+                  d.points_in_crop, d.expected_pixels,
+                  options_.held_finder.min_point_fraction * d.expected_pixels,
+                  checks_.front().diagnostics.points_in_crop);
+    Fail(text);
+  } else {
+    Fail(std::string("the check after pickup: refused twice, the vacuum "
+                     "holding a module: ") +
+         HeldFinderFailureName(d.failure) + ": " + d.detail);
+  }
+  return CheckNext::kFailed;
 }
 
 void PickPlace::BeginCarry() {

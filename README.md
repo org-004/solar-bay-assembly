@@ -147,12 +147,28 @@ against 7.8 s hand-chosen (a cycle 23.9 s against 25.9 s), places the same
 everything. The hand-chosen carry is still the default.
 `bazel run --config=opt //:run_cell -- --pretty --trials 20 --carry planned`.
 
-**Check after pickup** (`src/held_module_finder.h`). A second depth camera
-looking up finds the held module's underside and from it where the module
-sits on the tool, which the first picture cannot know. In a test rig, with
-noise, it recovers that offset within about 0.3 mm and 0.02 degrees
-(`bazel run --config=opt //:print_check -- --pretty --noise`). The camera is
-not in the cell yet and the cycle does not use it.
+**Check after pickup** (`src/held_module_finder.h`). The first picture cannot
+know where the module ends up sitting on the tool: any error in it, above
+all the pallet camera's calibration, is frozen in at the grip and goes
+straight into the placement. With `--check` the planned carry passes over a
+second depth camera on the floor, looking up. The arm holds still for 0.2 s,
+the camera finds the module's underside, and the set-down is corrected so
+that the module, not the tool, lands on the slot. Over 20 pallets:
+
+| Pallet camera | Check | Worst placement, along / across the tube |
+|---|---|---|
+| exact | off | 0.13 mm / 0.60 mm |
+| exact | on | 0.09 mm / 0.21 mm |
+| off by 1 mm and 0.05 degrees | off | 2.68 mm / 4.00 mm |
+| off by 1 mm and 0.05 degrees | on | 0.10 mm / 0.28 mm |
+| the same, and the check camera off by as much | on | 1.74 mm / 1.39 mm |
+
+The check costs 0.6 s a cycle. It removes the pallet camera's error and not
+its own: what remains is the check camera's calibration. If the check camera
+does not see a module where one should be, it looks once more and then the
+cycle stops, saying whether the vacuum still holds a module (a camera fault)
+or not (a failed pick).
+`bazel run --config=opt //:run_cell -- --pretty --trials 20 --check --calibration 1,0.05`.
 
 **Built before the cell.** `src/profile.h` and `src/joint_move.h` time moves
 within velocity, acceleration and jerk limits. `src/plane_fit.h` finds the
@@ -168,4 +184,4 @@ the simulator's own.
 The depth noise numbers are an assumption, not a camera's datasheet, and
 glass is harder for a real depth camera than for this one.
 
-Not done yet: the check after pickup in the cycle, and the gate that runs randomized trials in CI.
+Not done yet: the gate that runs randomized trials in CI.

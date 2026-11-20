@@ -107,6 +107,14 @@ class Suction {
   // The body id of the module held, or nothing.
   std::optional<int> holding() const { return held_; }
 
+  // The vacuum switch: true while the weld is switched on in `data` and
+  // binds a module, as a real suction tool's vacuum switch reads a held
+  // module by the vacuum in its cups. Sensor data: control code may read it
+  // (Cell::VacuumHolds). False once the module is let go, or never gripped.
+  bool VacuumHolds(const mjData& data) const {
+    return held_.has_value() && data.eq_active[weld_] != 0;
+  }
+
   // Body ids of the modules found, in the model's order.
   const std::vector<int>& modules() const { return modules_; }
 

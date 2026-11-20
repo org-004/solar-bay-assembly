@@ -67,6 +67,10 @@ const char* ClearanceName(Clearance clearance) {
       return "arm and tool - camera post and boom";
     case Clearance::kArmFloor:
       return "arm links and tool - floor";
+    case Clearance::kModuleCheckStand:
+      return "held module - check camera stand";
+    case Clearance::kArmCheckStand:
+      return "arm and tool - check camera stand";
     case Clearance::kCount:
       break;
   }
@@ -80,6 +84,7 @@ CycleCheck::CycleCheck(const Cell& cell, const CycleCheckOptions& options)
   conveyor_ = mj_name2id(&model, mjOBJ_BODY, "conveyor");
   tube_ = mj_name2id(&model, mjOBJ_BODY, "tube");
   post_ = mj_name2id(&model, mjOBJ_BODY, "camera_post");
+  check_stand_ = mj_name2id(&model, mjOBJ_BODY, "check_camera_stand");
   const int base = mj_name2id(&model, mjOBJ_BODY, "arm_base");
   is_arm_.assign(model.nbody, false);
   for (int b = 0; b < model.nbody; ++b) {
@@ -121,6 +126,7 @@ CycleCheck::Role CycleCheck::RoleOf(int body, int module) const {
   if (body == tube_) return Role::kOnTube;
   if (body == conveyor_) return Role::kBed;
   if (body == post_) return Role::kPost;
+  if (body == check_stand_) return Role::kCheckStand;
   const int i = module_of_body_[body];
   if (i >= 0) {
     // A parked module (carried away with a full tube) lies far off on the
@@ -228,7 +234,7 @@ void CycleCheck::MeasureClearances(PickPlaceStep step, int module) {
 
   // The colliding geoms of each role, now.
   std::vector<int> arm_geoms, tool_geoms, target_geoms, stack_geoms,
-      conveyor_geoms, post_geoms, floor_geoms;
+      conveyor_geoms, post_geoms, stand_geoms, floor_geoms;
   for (int g = 0; g < model.ngeom; ++g) {
     if (!Collides(model, g)) continue;
     const int body = model.geom_bodyid[g];
@@ -251,6 +257,9 @@ void CycleCheck::MeasureClearances(PickPlaceStep step, int module) {
         break;
       case Role::kPost:
         post_geoms.push_back(g);
+        break;
+      case Role::kCheckStand:
+        stand_geoms.push_back(g);
         break;
       case Role::kFloor:
         floor_geoms.push_back(g);
@@ -312,6 +321,7 @@ void CycleCheck::MeasureClearances(PickPlaceStep step, int module) {
   if (held) {
     measure(Clearance::kModuleArm, target_geoms, arm_geoms);
     measure(Clearance::kModulePost, target_geoms, post_geoms);
+    measure(Clearance::kModuleCheckStand, target_geoms, stand_geoms);
     measure(Clearance::kModuleFloor, target_geoms, floor_geoms);
     if (static_cast<int>(step) >= static_cast<int>(PickPlaceStep::kClear)) {
       measure(Clearance::kModuleStack, target_geoms, stack_geoms);
@@ -324,6 +334,7 @@ void CycleCheck::MeasureClearances(PickPlaceStep step, int module) {
   measure(Clearance::kArmStack, arm_and_tool, stack_geoms);
   measure(Clearance::kArmConveyor, arm_and_tool, conveyor_geoms);
   measure(Clearance::kArmPost, arm_and_tool, post_geoms);
+  measure(Clearance::kArmCheckStand, arm_and_tool, stand_geoms);
   measure(Clearance::kArmFloor, moving_arm, floor_geoms);
 }
 

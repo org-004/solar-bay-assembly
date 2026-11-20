@@ -23,8 +23,9 @@
 //
 //   Allowed      JointAngles (src/arm.h), conveyor().Sensor..., the camera
 //                (TakeDepthImage: its picture; CalibratedCamera: where the
-//                control code believes it is), what the control code did
-//                itself (Grip's result, steps()).
+//                control code believes it is), the suction tool's vacuum
+//                switch (VacuumHolds), what the control code did itself
+//                (Grip's result, steps()).
 //   True...      What really is: where modules and the pallet are, what was
 //                drawn at Reset, which slot a module landed in. For setting up
 //                scenes, for tests and for the scorer (src/score.h) only.
@@ -197,6 +198,12 @@ class Cell {
   // tube, it is recorded as lying in the nearest slot (see TruePlacedSlot).
   // Returns the module's index, or nothing if nothing was held.
   std::optional<int> Release();
+
+  // The suction tool's vacuum switch (Suction::VacuumHolds): true while the
+  // weld is on and holds a module. A sensor, like a real tool's vacuum
+  // switch: control code may read it. It says that something is held, not
+  // where on the tool.
+  bool VacuumHolds() const { return suction_->VacuumHolds(*data_); }
 
   // ------------------------------------------------ carrying modules away
   // Teleports module i to ParkingPose(i), at rest, and marks it parked. If

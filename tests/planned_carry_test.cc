@@ -17,8 +17,8 @@
 //              back and clear, followed with no forbidden contact and no
 //              motor saturated, and both modules placed within the bounds
 //              tests/camera_cycle_test.cc holds the scripted carry to. The
-//              carry's real closest approaches (CycleCheck, and the check
-//              camera's stand, which CycleCheck does not watch) and its
+//              carry's real closest approaches (CycleCheck, the check
+//              camera's stand among them) and its
 //              tracking error are measured on the simulation, and the held
 //              module's pose in the tool is compared with the truth;
 //   swap       eleven blind cycles of the script itself, so that a tube is
@@ -153,47 +153,22 @@ std::vector<Approach> CarryApproaches(const CycleCheck& check) {
   return all;
 }
 
-// What CycleCheck does not do for the carry: the tool and the arm, and the
-// held module, against the check camera's stand (CycleCheck's groups leave
-// that body out), and how far the joints trail the planned trajectory
-// (sum_i w_i |error_i| with the planner's own weights, the measure
-// MotionPlanOptions::tracking_allowance is a bound on).
+// The model has the check camera's stand, which CycleCheck watches
+// (Clearance::kModuleCheckStand, kArmCheckStand).
+bool HasStand(const Cell& cell) {
+  return mj_name2id(cell.model(), mjOBJ_BODY, "check_camera_stand") >= 0;
+}
+
+// What CycleCheck does not do for the carry: how far the joints trail the
+// planned trajectory (sum_i w_i |error_i| with the planner's own weights,
+// the measure MotionPlanOptions::tracking_allowance is a bound on).
 class CarryMeter {
  public:
-  explicit CarryMeter(const Cell& cell) : cell_(cell) {
-    const mjModel& model = *cell.model();
-    const int stand = mj_name2id(&model, mjOBJ_BODY, "check_camera_stand");
-    const int base = mj_name2id(&model, mjOBJ_BODY, "arm_base");
-    for (int g = 0; g < model.ngeom; ++g) {
-      if (model.geom_contype[g] == 0 && model.geom_conaffinity[g] == 0) {
-        continue;
-      }
-      const int body = model.geom_bodyid[g];
-      if (body == stand) stand_geoms_.push_back(g);
-      for (int up = body; up > 0; up = model.body_parentid[up]) {
-        if (up == base) {
-          arm_geoms_.push_back(g);
-          break;
-        }
-      }
-    }
-  }
-  bool has_stand() const { return !stand_geoms_.empty(); }
+  explicit CarryMeter(const Cell& cell) : cell_(cell) {}
 
-  // A new cycle, module `module` to be held.
-  void Begin(int module) {
-    module_geoms_.clear();
-    const mjModel& model = *cell_.model();
-    const int body = cell_.pallet().modules[module];
-    for (int g = 0; g < model.ngeom; ++g) {
-      if (model.geom_bodyid[g] == body && (model.geom_contype[g] != 0 ||
-                                           model.geom_conaffinity[g] != 0)) {
-        module_geoms_.push_back(g);
-      }
-    }
+  // A new cycle.
+  void Begin() {
     start_ = -1.0;
-    steps_ = 0;
-    stand_arm = stand_module = 1.0;
     worst_point = worst_joint = 0.0;
     samples = 0;
   }
@@ -214,33 +189,15 @@ class CarryMeter {
         worst_point, error.dot(script.outcome().carry.legs[0].weights));
     worst_joint = std::max(worst_joint, error.maxCoeff());
     ++samples;
-    if (steps_++ % 10 != 0) return;
-    stand_arm = std::min(stand_arm, Closest(arm_geoms_));
-    stand_module = std::min(stand_module, Closest(module_geoms_));
   }
 
-  double stand_arm = 1.0, stand_module = 1.0;  // m
   double worst_point = 0.0;  // m
   double worst_joint = 0.0;  // rad
   long samples = 0;
 
  private:
-  double Closest(const std::vector<int>& geoms) const {
-    double best = 1.0;
-    for (int g : geoms) {
-      for (int h : stand_geoms_) {
-        best = std::min(best, mj_geomDistance(cell_.model(),
-                                              const_cast<mjData*>(cell_.data()),
-                                              g, h, 1.0, nullptr));
-      }
-    }
-    return best;
-  }
-
   const Cell& cell_;
-  std::vector<int> stand_geoms_, arm_geoms_, module_geoms_;
   double start_ = -1.0;
-  long steps_ = 0;
 };
 
 // The held module's pose in the tool tip, from the truth, against the one
@@ -611,11 +568,10 @@ struct CycleLog {
   std::string carry_result;
   // At the grip: the module's true pose in the tool against the design grip.
   GripError grip;
-  // The carry's tracking error and its distance to the check camera's stand.
+  // The carry's tracking error.
   double carry_point_error = 0.0;  // m, sum_i w_i |error_i|
   double carry_joint_error = 0.0;  // rad
   long carry_samples = 0;
-  double stand_arm = 1.0, stand_module = 1.0;  // m
 };
 
 struct CellLog {
@@ -659,10 +615,10 @@ class PlannedCarryInTheCell : public ::testing::Test {
     script.set_pause_after(Step::kGrip);
     CycleCheck check(cell);
     CarryMeter meter(cell);
-    L.has_stand = meter.has_stand();
+    L.has_stand = HasStand(cell);
     for (int m = 0; m < 2; ++m) {
       CycleLog& C = L.cycles[m];
-      meter.Begin(m);
+      meter.Begin();
       placed = &C.placed;
       if (!script.Start(m)) {
         C.outcome = script.outcome();
@@ -704,8 +660,6 @@ class PlannedCarryInTheCell : public ::testing::Test {
       C.carry_point_error = meter.worst_point;
       C.carry_joint_error = meter.worst_joint;
       C.carry_samples = meter.samples;
-      C.stand_arm = meter.stand_arm;
-      C.stand_module = meter.stand_module;
       if (C.outcome.status != PickPlaceOutcome::Status::kPlaced) break;
     }
     for (const cell::ForbiddenContact& f : check.forbidden()) {
@@ -804,8 +758,7 @@ TEST_F(PlannedCarryInTheCell, CarryPlannedDuringLiftPullBackAndClear) {
   }
 }
 
-void ExpectCarryKeepsClear(const std::vector<Approach>& approaches,
-                           const CycleLog& a, const CycleLog& b) {
+void ExpectCarryKeepsClear(const std::vector<Approach>& approaches) {
   // The simulation's own closest approach in the carry, against the
   // required margin the planner only promises (its report.clearance is the
   // planner's own number, true by construction).
@@ -818,19 +771,11 @@ void ExpectCarryKeepsClear(const std::vector<Approach>& approaches,
   for (const Clearance which :
        {Clearance::kModuleArm, Clearance::kModuleStack,
         Clearance::kModuleConveyor, Clearance::kModulePost,
-        Clearance::kArmStack, Clearance::kArmConveyor, Clearance::kArmPost}) {
+        Clearance::kArmStack, Clearance::kArmConveyor, Clearance::kArmPost,
+        Clearance::kModuleCheckStand, Clearance::kArmCheckStand}) {
     const Approach& c = approaches[static_cast<int>(which)];
     EXPECT_TRUE(c.measured) << c.name;
     EXPECT_GE(c.distance, kRequiredMargin) << c.name << ": " << c.between;
-  }
-  std::printf("carry closest, check camera stand: arm and tool %.1f mm, "
-              "held module %.1f mm\n",
-              1e3 * std::min(a.stand_arm, b.stand_arm),
-              1e3 * std::min(a.stand_module, b.stand_module));
-  for (const CycleLog* C : {&a, &b}) {
-    EXPECT_GE(C->stand_arm, kRequiredMargin) << "arm and tool, check camera stand";
-    EXPECT_GE(C->stand_module, kRequiredMargin)
-        << "held module, check camera stand";
   }
 }
 
@@ -854,7 +799,7 @@ TEST_F(PlannedCarryInTheCell, CarryFollowedWithoutContactOrSaturation) {
     EXPECT_LT(C.carry_point_error, MotionPlanOptions{}.tracking_allowance)
         << "cycle " << m;
   }
-  ExpectCarryKeepsClear(L.carry_approaches, L.cycles[0], L.cycles[1]);
+  ExpectCarryKeepsClear(L.carry_approaches);
   EXPECT_EQ(L.forbidden_carry, 0) << L.forbidden_list;
   EXPECT_EQ(L.saturated, 0);
   EXPECT_EQ(L.out_of_range, 0);
@@ -914,8 +859,6 @@ struct SwapLog {
   GripError grip;
   // The carries, module 10's alone (fresh meter and check) and all eleven.
   std::vector<Approach> carry_last, carry_all;
-  double stand_arm_last = 1.0, stand_module_last = 1.0;
-  double stand_arm_all = 1.0, stand_module_all = 1.0;
   double point_last = 0.0, point_all = 0.0, joint_all = 0.0;
   long forbidden_last = 0, saturated_last = 0, forbidden_all = 0;
   int placed_slot_last = -1;
@@ -938,12 +881,12 @@ class PlannedCarryAcrossATubeSwap : public ::testing::Test {
     script.set_pause_after(Step::kGrip);
     CycleCheck all_check(cell);
     CarryMeter meter(cell);
-    L.has_stand = meter.has_stand();
+    L.has_stand = HasStand(cell);
     L.all_placed = true;
     for (int m = 0; m < kSwapCycles && L.all_placed; ++m) {
       const bool last = m == kSwapCycles - 1;
       CycleCheck last_check(cell);
-      meter.Begin(m);
+      meter.Begin();
       if (!script.Start(m)) {
         L.all_placed = false;
         L.failure = script.outcome().reason;
@@ -981,14 +924,10 @@ class PlannedCarryAcrossATubeSwap : public ::testing::Test {
       }
       L.point_all = std::max(L.point_all, meter.worst_point);
       L.joint_all = std::max(L.joint_all, meter.worst_joint);
-      L.stand_arm_all = std::min(L.stand_arm_all, meter.stand_arm);
-      L.stand_module_all = std::min(L.stand_module_all, meter.stand_module);
       if (m == 9) L.after_swap = script.known_modules();
       if (last) {
         L.after_last = script.known_modules();
         L.carry_last = CarryApproaches(last_check);
-        L.stand_arm_last = meter.stand_arm;
-        L.stand_module_last = meter.stand_module;
         L.point_last = meter.worst_point;
         L.forbidden_last = last_check.forbidden_count();
         L.saturated_last = last_check.saturated_steps();
@@ -1101,21 +1040,18 @@ TEST_F(PlannedCarryAcrossATubeSwap, CarryAfterTheSwapKeepsClearAndTracks) {
                 c.name.c_str(), c.distance / kMm, c.between.c_str(),
                 c.measured ? "" : " (not measured)");
   }
-  std::printf("module_10 carry closest, check camera stand: arm and tool "
-              "%.1f mm, held module %.1f mm\n",
-              1e3 * L.stand_arm_last, 1e3 * L.stand_module_last);
   std::printf("worst tracking sum w|e|: module_10 %.2f mm, all eleven %.2f mm "
               "(worst joint %.3f mrad); closest over all eleven: ",
               L.point_last / kMm, L.point_all / kMm, 1e3 * L.joint_all);
   for (const Approach& c : L.carry_all) {
     std::printf("%s %.1f  ", c.name.c_str(), c.distance / kMm);
   }
-  std::printf("stand %.1f / %.1f mm\n", 1e3 * L.stand_arm_all,
-              1e3 * L.stand_module_all);
+  std::printf("\n");
   for (const Clearance which :
        {Clearance::kModuleArm, Clearance::kModuleStack,
         Clearance::kModuleConveyor, Clearance::kModulePost,
-        Clearance::kArmStack, Clearance::kArmConveyor, Clearance::kArmPost}) {
+        Clearance::kArmStack, Clearance::kArmConveyor, Clearance::kArmPost,
+        Clearance::kModuleCheckStand, Clearance::kArmCheckStand}) {
     const Approach& last = L.carry_last[static_cast<int>(which)];
     EXPECT_TRUE(last.measured) << last.name;
     EXPECT_GE(last.distance, kRequiredMargin)
@@ -1124,10 +1060,6 @@ TEST_F(PlannedCarryAcrossATubeSwap, CarryAfterTheSwapKeepsClearAndTracks) {
     EXPECT_GE(every.distance, kRequiredMargin)
         << "all eleven: " << every.name << ": " << every.between;
   }
-  EXPECT_GE(L.stand_arm_last, kRequiredMargin);
-  EXPECT_GE(L.stand_module_last, kRequiredMargin);
-  EXPECT_GE(L.stand_arm_all, kRequiredMargin);
-  EXPECT_GE(L.stand_module_all, kRequiredMargin);
   EXPECT_LT(L.point_last, MotionPlanOptions{}.tracking_allowance);
   EXPECT_LT(L.point_all, MotionPlanOptions{}.tracking_allowance);
   EXPECT_EQ(L.forbidden_last, 0);
