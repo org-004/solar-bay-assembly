@@ -1,0 +1,144 @@
+<!--
+  The conveyor and the torque tube it carries.
+
+  A torque tube lies on a roller conveyor on the -X side of the arm, running
+  along world Y with its axis at x = -2.0. Mounting rails sit across the top
+  of the tube, along world X, two for every module. The arm lays each module
+  flat on a pair of rails, glass up, long side along X. Nothing holds the
+  module down but its weight: it rides along with the tube by friction.
+
+  After each placement the conveyor moves the tube toward -Y by one step,
+  1.12 m: a module's short side, 1.1 m, plus a 0.02 m gap between modules.
+  The next empty pair of rails then lies at the same spot in front of the arm,
+  the placement spot, where a placed module's centre is at
+  (-2.0, 0, 0.8175): the rails' top surface is at 0.80 m and the module is
+  0.035 m thick. Filled tube leaves toward -Y, empty tube arrives from +Y.
+
+  The slots: slot k is the k-th pair of rails, k = 0 .. 9, centred on
+  tube-frame y = 1.12 k. Its rails are at y = 1.12 k - 0.4 and 1.12 k + 0.4.
+  With the slide at 0, slot 0 is at the placement spot; after n steps the
+  slide is at -1.12 n and slot n is there. src/conveyor.h holds the same
+  numbers for the code; tests/conveyor_test.cc checks that they agree.
+
+  The tube's frame (body "tube"): origin at the centre of slot 0 at the height
+  of the rails' top surface, axes along the world's.
+
+  The tube holds 10 modules, as a real torque tube section does. A pallet's
+  30 modules fill three tubes. When a tube is full, the cell carries its
+  modules away and Conveyor::SwapTube in src/conveyor.cc puts the slide back
+  at the start: an empty tube in place of the full one. The swap is a reset,
+  not simulated handling, so one body stands for every tube.
+
+  The bed below spans the whole travel, from y = -12.5 to y = 11.5, so the
+  tube is on rollers wherever it is. Everything here stays at x <= -1.0, well
+  outside the arm's working circle. Contact between the bed and the tube is
+  turned off: the slide joint carries the tube, and the rollers are for looks.
+
+  Part file: loaded only through a scene that includes common.xml first.
+-->
+<mujoco>
+  <default>
+    <default class="conveyor">
+      <!-- The bed: steel frame and rollers. -->
+      <geom type="box" rgba="0.25 0.3 0.4 1"/>
+      <default class="conveyor_tube">
+        <!-- Galvanised steel. -->
+        <geom rgba="0.62 0.64 0.66 1"/>
+      </default>
+      <default class="conveyor_rail">
+        <!--
+          The surface modules rest on. A module's aluminium frame on a steel
+          rail grips at about 0.4 to 0.6. MuJoCo uses the larger of the two
+          surfaces' friction, so this is the least a module gets. The move
+          accelerates at most 1 m/s^2, which needs only 0.1 to hold.
+        -->
+        <geom type="box" size="1.0 0.025 0.02" mass="4" friction="0.5 0.005 0.0001"
+              rgba="0.75 0.77 0.8 1"/>
+      </default>
+    </default>
+  </default>
+
+  <worldbody>
+    <body name="conveyor" childclass="conveyor">
+      <!-- Two side beams, 0.5 m apart, the full length of the bed. -->
+      <geom name="conveyor_beam_a" size="0.03 12.0 0.05" pos="-2.25 -0.5 0.56"/>
+      <geom name="conveyor_beam_b" size="0.03 12.0 0.05" pos="-1.75 -0.5 0.56"/>
+
+      <!-- Rollers every 2 m, axis along X, tops at 0.63 where the tube's
+           underside is. -->
+      <replicate count="13" offset="0 2 0">
+        <geom name="conveyor_roller" type="cylinder" size="0.035 0.22"
+              pos="-2.0 -12.5 0.595" euler="0 1.5707963 0" rgba="0.5 0.5 0.5 1"/>
+      </replicate>
+
+      <!-- A pair of legs every 4 m. -->
+      <replicate count="7" offset="0 4 0">
+        <geom name="conveyor_leg_a" size="0.03 0.03 0.255" pos="-2.25 -12.5 0.255"/>
+        <geom name="conveyor_leg_b" size="0.03 0.03 0.255" pos="-1.75 -12.5 0.255"/>
+      </replicate>
+
+      <!--
+        The tube and its rails: one rigid body on one slide joint. Its frame
+        is at the centre of slot 0 on the rails' top surface.
+      -->
+      <body name="tube" pos="-2.0 0 0.80" childclass="conveyor_tube">
+        <!--
+          Range: from 0.5 m back from the start to 11.6 m ahead: room for 10
+          steps of 1.12 m (11.2 m) plus the stopping error, but not for an
+          11th step (12.32 m), so a full tube cannot be moved on.
+        -->
+        <joint name="conveyor_slide" type="slide" axis="0 1 0" range="-11.6 0.5"/>
+
+        <!--
+          0.13 m square, 11.6 m long, from tube-frame y = -0.76 to 10.84:
+          slot 0 at y = 0 to slot 9 at y = 10.08, with 0.21 m to spare past
+          each end module. About 20 kg/m.
+        -->
+        <geom name="tube" type="box" size="0.065 5.8 0.065" pos="0 5.04 -0.105"
+              mass="237"/>
+
+        <!--
+          The rails: 2.0 m long across the tube (x from -3.0 to -1.0 in the
+          world), 0.05 m wide, 0.04 m tall, sitting on the tube. A placed
+          module overhangs them by 0.15 m at each end and each side.
+          rail_a is on the -Y side of its slot, rail_b on the +Y side. The
+          number of the slot is appended to the name, padded to the digits
+          of the count: rail_a00 .. rail_a09.
+        -->
+        <replicate count="10" offset="0 1.12 0">
+          <geom name="rail_a" class="conveyor_rail" pos="0 -0.4 -0.02"/>
+          <geom name="rail_b" class="conveyor_rail" pos="0 0.4 -0.02"/>
+        </replicate>
+      </body>
+    </body>
+  </worldbody>
+
+  <contact>
+    <exclude name="conveyor_bed_tube" body1="conveyor" body2="tube"/>
+  </contact>
+
+  <actuator>
+    <!--
+      The conveyor's drive, as a position servo: ctrl is where the slide
+      should be, in metres. src/conveyor.cc feeds it a smooth S-curve
+      setpoint, so it never sees a jump.
+
+      The moving mass is about 320 kg empty (tube 237 kg, rails 80 kg) and
+      620 kg with 10 modules on it. kv is chosen for critical damping at the
+      full load, sqrt(kp m) * 2 = 3.15e4; at less load the servo is
+      overdamped, so it never overshoots a target. The cost is that it lags
+      the setpoint by kv / kp * speed, about 4 cm at full speed, and catches
+      up within a fraction of a second after the setpoint stops.
+
+      5 kN is ample: the move needs at most 620 kg * 1 m/s^2.
+    -->
+    <position name="conveyor_motor" joint="conveyor_slide" kp="4e5" kv="3.15e4"
+              ctrlrange="-11.6 0.5" forcerange="-5000 5000"/>
+  </actuator>
+
+  <sensor>
+    <!-- What the control code sees of the conveyor: the drive's encoder. -->
+    <jointpos name="conveyor_position" joint="conveyor_slide"/>
+    <jointvel name="conveyor_velocity" joint="conveyor_slide"/>
+  </sensor>
+</mujoco>

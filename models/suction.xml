@@ -1,0 +1,35 @@
+<!--
+  The suction grip, for any scene that has the tool (models/tool.xml) in it.
+  Include it once at the top level of the scene, next to the other parts:
+
+    <include file="suction.xml"/>
+
+  It cannot live in tool.xml, which is included inside a body, where MuJoCo
+  does not allow an <equality> section.
+
+  MuJoCo has no suction cup. The stand-in is one weld constraint between the
+  tool and a module. It starts switched off and with no module: its second
+  body is the world, which never matters while it is off. Suction::Grip
+  (src/suction.h) writes the module's id and the relative pose the two have
+  at that moment into the model's copy of this weld and switches it on;
+  Suction::Release switches it off. One weld serves every module, so the
+  pallet needs nothing for it.
+
+  solref and solimp set how stiff the weld is: a time constant of 5 ms and
+  an impedance of 0.99 at any stretch. Measured by tests/suction_test.cc, a
+  30 kg module held still sags by 0.004 mm and turns by less than 0.001
+  degrees, standing or flat, and does not creep; during a brisk carry
+  (7.5 m/s^2) it strays at most 0.07 mm and 0.02 degrees and comes back.
+  MuJoCo raises the time constant to twice the timestep if the timestep is
+  ever made larger than 2.5 ms.
+
+  torquescale weighs turning against sliding. It is a length: think of it as
+  the size of the patch of glue that the weld stands for. 1 m is about the
+  size of the cup pattern.
+-->
+<mujocoinclude>
+  <equality>
+    <weld name="suction" body1="tool" active="false" torquescale="1"
+          solref="0.005 1" solimp="0.99 0.99 0.001 0.5 2"/>
+  </equality>
+</mujocoinclude>

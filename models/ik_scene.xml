@@ -1,0 +1,23 @@
+<!--
+  The arm, with a free-floating box defined before it, for tests/ik_test.cc.
+
+  The box comes first, so its free joint takes qpos 0 to 6 and qvel 0 to 5,
+  and the arm's joints come after: code that assumed the arm's joints are
+  the first in the model would read the box instead. It also gives the
+  solver a model whose Jacobian has more columns than the arm's six.
+
+  Only the kinematics are used; this scene is never simulated (the box
+  would fall).
+-->
+<mujoco model="ik scene">
+  <include file="common.xml"/>
+
+  <worldbody>
+    <body name="ik_box" pos="3 2 0.5">
+      <freejoint name="ik_box_free"/>
+      <geom name="ik_box" type="box" size="0.2 0.2 0.2" mass="10" rgba="0.2 0.4 0.8 1"/>
+    </body>
+  </worldbody>
+
+  <include file="arm.xml"/>
+</mujoco>

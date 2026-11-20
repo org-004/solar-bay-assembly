@@ -17,3 +17,11 @@ build --output_filter=^//
 # note is turned off for this repository's own files only; changing the
 # options of the dependencies would compile MuJoCo again.
 build --per_file_copt=^(src|tests)/.*\.cc$@-Wno-psabi
+
+# An optimized build, for measuring speed:
+#   bazel run --config=opt //:print_pallet
+# With optimization on, GCC warns that a variable in one of MuJoCo's files may
+# be used before it is set, and MuJoCo's build turns warnings into errors, so
+# plain `-c opt` fails. This config turns that one error back into a warning.
+build:opt -c opt
+build:opt --per_file_copt=^external/mujoco.*@-Wno-error=maybe-uninitialized

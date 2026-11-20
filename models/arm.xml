@@ -1,0 +1,258 @@
+<!--
+  The arm: a KUKA KR 210 R2700-2 (KR QUANTEC-2 family), 210 kg payload,
+  2.7 m reach to the wrist centre.
+
+  Converted by hand from the vendor description in
+  github.com/kroshu/kuka_robot_descriptions (Apache 2.0), package
+  kuka_quantec_support, files urdf/kr210_r2700_2_macro.xacro and
+  config/kr210_r2700_2_joint_limits.yaml, at the commit pinned in
+  MODULE.bazel. The xacro was expanded to plain URDF once and every number
+  below was copied from that URDF: link frames, masses, inertias, joint
+  ranges and torque limits. Only the motor gains, damping and armature are
+  ours; each is explained where it is set.
+
+  The meshes are not stored in this repository. Bazel downloads them at the
+  pinned commit and copies them next to this file, into
+  kuka_kr210_r2700_2/visual/ and kuka_kr210_r2700_2/collision/ (see the arm
+  section of BUILD.bazel). MuJoCo looks for mesh files relative to the
+  top-level scene file, so a scene that includes this file has to sit in
+  this same directory.
+
+  This is a part file: it holds no compiler settings and is only loaded
+  through a scene that includes common.xml first (see arm_scene.xml).
+
+  Frames. Each body's frame is the frame of the URDF link of the same number,
+  so the vendor meshes and inertias go in unchanged. The base sits on the
+  floor at the world origin. At all joint angles zero the arm is stretched
+  out horizontally toward +X: the upper arm and the forearm both level, the
+  flange pointing along +X, its centre at (2.915, 0, 0.760).
+
+  Joint zero and signs are KUKA's, as in the vendor URDF (A1 to A6 on the
+  teach pendant read the same as arm_joint_1 to arm_joint_6):
+    joint 1  vertical axis. Positive turns the arm clockwise seen from above
+             (from +X toward -Y): the axis points down, along world -Z.
+    joint 2  horizontal axis along world +Y at joint 1 = 0. Negative lifts
+             the upper arm; -pi/2 is the upper arm straight up. Zero itself
+             is 5 degrees outside the vendor range (-140 to -5 degrees).
+    joint 3  parallel to joint 2. Zero is the forearm in line with the upper
+             arm; +pi/2 with the upper arm vertical puts the forearm level.
+    joint 4  along the forearm. Rolls the wrist.
+    joint 5  bends the wrist. With joints 1 to 4 at zero, positive turns the
+             flange from +X toward -Z (down).
+    joint 6  along the flange's +Z. Turns the tool.
+-->
+<mujoco>
+  <default>
+    <default class="arm">
+      <!--
+        Sizes come from the vendor model; masses come from each body's
+        <inertial>, so the geoms add no mass of their own.
+      -->
+      <geom type="mesh" density="0"/>
+      <!-- Drawn only. Never touches anything. -->
+      <default class="arm_visual">
+        <geom contype="0" conaffinity="0" group="2" material="arm_orange"/>
+      </default>
+      <!--
+        Used for contact only, not drawn by default (group 3 is hidden in
+        the viewer). MuJoCo collides the convex hull of a mesh, so these are
+        a little fatter than the real links.
+      -->
+      <default class="arm_collision">
+        <geom group="3"/>
+      </default>
+    </default>
+  </default>
+
+  <asset>
+    <material name="arm_orange" rgba="0.97 0.45 0.05 1" specular="0.3" shininess="0.4"/>
+    <material name="arm_dark" rgba="0.15 0.15 0.15 1" specular="0.3" shininess="0.4"/>
+
+    <!--
+      Vendor meshes, in metres and in the frame of their link. The visual
+      meshes are the detailed ones (link_1, the largest, has about 95,000
+      triangles, under MuJoCo's limit of 200,000 per mesh).
+    -->
+    <mesh name="arm_base_visual" file="kuka_kr210_r2700_2/visual/base_link.stl"/>
+    <mesh name="arm_link_1_visual" file="kuka_kr210_r2700_2/visual/link_1.stl"/>
+    <mesh name="arm_link_2_visual" file="kuka_kr210_r2700_2/visual/link_2.stl"/>
+    <mesh name="arm_link_3_visual" file="kuka_kr210_r2700_2/visual/link_3.stl"/>
+    <mesh name="arm_link_4_visual" file="kuka_kr210_r2700_2/visual/link_4.stl"/>
+    <mesh name="arm_link_5_visual" file="kuka_kr210_r2700_2/visual/link_5.stl"/>
+    <mesh name="arm_link_6_visual" file="kuka_kr210_r2700_2/visual/link_6.stl"/>
+    <mesh name="arm_base_collision" file="kuka_kr210_r2700_2/collision/base_link.stl"/>
+    <mesh name="arm_link_1_collision" file="kuka_kr210_r2700_2/collision/link_1.stl"/>
+    <mesh name="arm_link_2_collision" file="kuka_kr210_r2700_2/collision/link_2.stl"/>
+    <mesh name="arm_link_3_collision" file="kuka_kr210_r2700_2/collision/link_3.stl"/>
+    <mesh name="arm_link_4_collision" file="kuka_kr210_r2700_2/collision/link_4.stl"/>
+    <mesh name="arm_link_5_collision" file="kuka_kr210_r2700_2/collision/link_5.stl"/>
+    <mesh name="arm_link_6_collision" file="kuka_kr210_r2700_2/collision/link_6.stl"/>
+  </asset>
+
+  <worldbody>
+    <!--
+      Bolted to the floor: no joint, so it does not move. Its mass counts
+      toward the arm's weight but not toward anything the motors carry.
+    -->
+    <body name="arm_base" childclass="arm">
+      <inertial pos="-0.059489 0.002156 0.203251" quat="0.723534 -0.017718 -0.018266 0.68982"
+                mass="225.96" diaginertia="12.8309 9.012 14.2959"/>
+      <geom name="arm_base_visual" class="arm_visual" mesh="arm_base_visual" material="arm_dark"/>
+      <geom name="arm_base_collision" class="arm_collision" mesh="arm_base_collision"/>
+
+      <!--
+        Joint 1 is at the base origin. The vendor flips link 1's frame upside
+        down (half a turn about x), which is why joint 1's axis, +z of this
+        frame, points down in the world.
+      -->
+      <body name="arm_link_1" axisangle="1 0 0 3.141592653589793">
+        <inertial pos="0.028787 0.011875 -0.234028" quat="0.586643 0.801018 -0.056277 -0.105136"
+                  mass="363.07" diaginertia="13.208859 31.494985 33.883891"/>
+        <!--
+          Armature is the inertia of the motor's rotor seen through the
+          gearbox (rotor inertia times gear ratio squared). The vendor data
+          has none, so these are estimates for motors of this size: about
+          0.008 kg m^2 through a ratio of about 220 for the main axes. It is
+          part of the real robot, and it also keeps the joint's inertia from
+          getting small in folded poses, which keeps the stiff motors stable
+          at the 2 ms timestep.
+          Damping stands in for gearbox friction. The motors do most of the
+          damping (see the actuators).
+        -->
+        <joint name="arm_joint_1" axis="0 0 1" range="-3.22885912 3.22885912"
+               armature="400" damping="200"/>
+        <geom name="arm_link_1_visual" class="arm_visual" mesh="arm_link_1_visual"/>
+        <geom name="arm_link_1_collision" class="arm_collision" mesh="arm_link_1_collision"/>
+
+        <!-- Joint 2: 0.330 m forward of joint 1 and 0.645 m up. -->
+        <body name="arm_link_2" pos="0.33 0 -0.645" axisangle="1 0 0 1.5707963267948966">
+          <inertial pos="0.486871 -0.001903 -0.117637" quat="0.442012 -0.595428 -0.556184 -0.375167"
+                    mass="232.06" diaginertia="57.79571 5.63273 58.559846"/>
+          <joint name="arm_joint_2" axis="0 0 1" range="-2.44346095 -0.08726646"
+                 armature="400" damping="200"/>
+          <geom name="arm_link_2_visual" class="arm_visual" mesh="arm_link_2_visual"/>
+          <geom name="arm_link_2_collision" class="arm_collision" mesh="arm_link_2_collision"/>
+
+          <!-- Joint 3: the end of the 1.150 m upper arm. -->
+          <body name="arm_link_3" pos="1.15 0 0" axisangle="0 0 1 -1.5707963267948966">
+            <inertial pos="0.173772 -0.075963 0.136185" quat="0.461847 0.885951 -0.038844 0.016751"
+                      mass="190.33" diaginertia="3.469954 21.171301 22.206775"/>
+            <joint name="arm_joint_3" axis="0 0 1" range="-2.09439510 2.93215314"
+                   armature="300" damping="200"/>
+            <geom name="arm_link_3_visual" class="arm_visual" mesh="arm_link_3_visual"/>
+            <geom name="arm_link_3_collision" class="arm_collision" mesh="arm_link_3_collision"/>
+
+            <!--
+              Joint 4: 0.115 m above joint 3 (the forearm's offset), on the
+              forearm's axis.
+            -->
+            <body name="arm_link_4" pos="0.115 0 0" axisangle="1 0 0 1.5707963267948966">
+              <inertial pos="-0.000008 0.019202 -0.197889" quat="0.705503 0.047306 -0.705539 -0.04735"
+                        mass="42.4118" diaginertia="0.161324 1.364514 1.391581"/>
+              <!-- Wrist motors are smaller: about 0.0015 kg m^2 through about 160. -->
+              <joint name="arm_joint_4" axis="0 0 1" range="-6.10865238 6.10865238"
+                     armature="40" damping="20"/>
+              <geom name="arm_link_4_visual" class="arm_visual" mesh="arm_link_4_visual"/>
+              <geom name="arm_link_4_collision" class="arm_collision" mesh="arm_link_4_collision"/>
+
+              <!--
+                Joint 5, the wrist centre: 1.220 m along the forearm. Joints
+                4, 5 and 6 cross here.
+              -->
+              <body name="arm_link_5" pos="0 0 -1.22" axisangle="1 0 0 -1.5707963267948966">
+                <inertial pos="0.062236 0.000303 -0.065753" quat="0.640763 0.639874 -0.300764 0.299208"
+                          mass="16.9917" diaginertia="0.200112 0.120554 0.220956"/>
+                <joint name="arm_joint_5" axis="0 0 1" range="-2.18166156 2.18166156"
+                       armature="40" damping="20"/>
+                <geom name="arm_link_5_visual" class="arm_visual" mesh="arm_link_5_visual"/>
+                <geom name="arm_link_5_collision" class="arm_collision" mesh="arm_link_5_collision"/>
+
+                <!-- Joint 6, also at the wrist centre. -->
+                <body name="arm_link_6" axisangle="1 0 0 1.5707963267948966">
+                  <inertial pos="0 0 -0.0065" mass="6.6" diaginertia="0.0114565 0.0114565 0.014535"/>
+                  <joint name="arm_joint_6" axis="0 0 1" range="-6.10865238 6.10865238"
+                         armature="10" damping="10"/>
+                  <geom name="arm_link_6_visual" class="arm_visual" mesh="arm_link_6_visual"
+                        material="arm_dark"/>
+                  <geom name="arm_link_6_collision" class="arm_collision" mesh="arm_link_6_collision"/>
+
+                  <!--
+                    The flange face, 0.215 m from the wrist centre. This is
+                    the URDF's tool0 frame: origin at the centre of the face,
+                    +Z pointing out of the flange. The tool is bolted here.
+                  -->
+                  <body name="arm_flange" pos="0 0 -0.215" axisangle="0 1 0 3.141592653589793">
+                    <include file="tool.xml"/>
+                  </body>
+                </body>
+              </body>
+            </body>
+          </body>
+        </body>
+      </body>
+    </body>
+  </worldbody>
+
+  <!--
+    MuJoCo skips contacts between a body and its parent, except when the
+    parent is fixed to the world, as the base is. The convex hulls of the
+    base and link 1 overlap where the real parts only turn against each
+    other, so that pair is left out by hand. No other pair of links touches
+    anywhere in the joint ranges (checked over a few hundred random poses).
+  -->
+  <contact>
+    <exclude body1="arm_base" body2="arm_link_1"/>
+  </contact>
+
+  <!--
+    One position motor per joint: ctrl is the wanted joint angle in radians,
+    within the joint's range (inheritrange copies it). The motor pushes with
+    kp times the angle error minus kv times the joint's speed, and never
+    more than the vendor's torque limit for that joint (the URDF's effort,
+    in N m). dampratio="1" sets kv for critical damping at the inertia of
+    the zero pose, the largest the arm has; folded poses have less inertia
+    and are damped more than critically, so the arm never rings.
+
+    kp is chosen so that the arm sags very little under gravity. Holding the
+    tool and a 30 kg module at full reach, joint 2 carries about 5700 N m
+    and bends by 5700 / 1e7 = 0.57 mrad; the tool tip ends up about 2.5 mm
+    low. Stiffness is only stable at the 2 ms timestep while
+    sqrt(kp / inertia) * timestep stays well under 1; with the armature
+    above, the worst pose gives about 0.23.
+
+    Two things a controller has to know:
+    - The damping acts on the joint's speed, not on the speed error, so a
+      joint following a moving ctrl lags behind it by kv / kp seconds of
+      motion: 0.035 s on joint 1, 0.018 to 0.025 s on the others. Sending
+      ctrl = wanted angle + (kv / kp) * wanted speed removes most of it.
+    - A large jump in ctrl drives the joint at full torque, and it
+      overshoots by a long way before settling (joint 1 asked to jump 2 rad
+      swings past 3 rad). Moves should come from the motion planner, within
+      the vendor's speed and acceleration limits, not as steps.
+  -->
+  <actuator>
+    <position name="arm_motor_1" class="arm" joint="arm_joint_1" inheritrange="1"
+              kp="5e6" dampratio="1" forcerange="-7290 7290"/>
+    <position name="arm_motor_2" class="arm" joint="arm_joint_2" inheritrange="1"
+              kp="1e7" dampratio="1" forcerange="-8910 8910"/>
+    <position name="arm_motor_3" class="arm" joint="arm_joint_3" inheritrange="1"
+              kp="5e6" dampratio="1" forcerange="-6988.84717 6988.84717"/>
+    <position name="arm_motor_4" class="arm" joint="arm_joint_4" inheritrange="1"
+              kp="3e5" dampratio="1" forcerange="-2274.29199 2274.29199"/>
+    <position name="arm_motor_5" class="arm" joint="arm_joint_5" inheritrange="1"
+              kp="3e5" dampratio="1" forcerange="-1398.30298 1398.30298"/>
+    <position name="arm_motor_6" class="arm" joint="arm_joint_6" inheritrange="1"
+              kp="1e5" dampratio="1" forcerange="-781.554626 781.554626"/>
+  </actuator>
+
+  <!--
+    Home: KUKA's usual home with the tool facing down. Upper arm straight up,
+    forearm level and pointing toward +X, wrist bent so the flange faces the
+    floor. The flange centre is then at (1.550, 0, 1.695).
+  -->
+  <keyframe>
+    <key name="arm_home"
+         qpos="0 -1.5707963267948966 1.5707963267948966 0 1.5707963267948966 0"
+         ctrl="0 -1.5707963267948966 1.5707963267948966 0 1.5707963267948966 0"/>
+  </keyframe>
+</mujoco>

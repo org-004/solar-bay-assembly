@@ -1,0 +1,131 @@
+<!--
+  The whole cell: the arm with its suction tool, the pallet with its stack of
+  30 modules, the conveyor with its torque tube, and a depth camera on a post.
+
+    bazel run //:viewer_cell
+
+  src/cell.h loads this file and owns what it builds. Every part keeps its
+  own file and its own conventions (see the comment at the top of each); this
+  file only puts them together and adds the camera.
+
+  Order matters. arm.xml comes first among the parts, so the arm's six
+  joints are the first entries of qpos and qvel and its six motors the first
+  of ctrl. Its keyframe arm_home, and arm_clear below, give only those first
+  six numbers; MuJoCo fills the rest from where everything was built, which
+  puts the pallet, the stack and the tube at their nominal places. With any
+  other part first those six numbers would land on a module's free joint.
+  src/cell.cc does not rely on the order itself: it copies the keyframes'
+  numbers through the arm's own indices.
+
+  Layout, in the world frame of common.xml (origin on the floor under the
+  arm's base, +X toward the pallet, conveyor on -X, +Z up):
+    arm        base at the origin
+    pallet     front module's glass centre at about (1.95, 0, 0.75), facing -X
+               (pallet.xml sets it; nothing here or in src/cell.* repeats it)
+    conveyor   tube along Y at x = -2.0, placement spot (-2.0, 0, 0.8175)
+    camera     at (0, 0, 4.0), on a boom from a post standing at (0, -3.8)
+    parking    modules carried away lie on the floor at x 0.85 to 13.55,
+               y 11.45 to 19.55 (src/cell.h, ParkingPose)
+
+  Names: every part prefixes its own (arm_, pallet, module_, conveyor_, tube,
+  rail_, tool, suction); the camera's are camera_. Nothing clashes.
+-->
+<mujoco model="cell">
+  <include file="common.xml"/>
+  <include file="arm.xml"/>
+  <include file="pallet.xml"/>
+  <include file="conveyor.xml"/>
+  <include file="suction.xml"/>
+
+  <worldbody>
+    <!--
+      The depth camera and what holds it.
+
+      Where: 4.0 m above the floor, straight above the arm's base, looking
+      forward and down at the pallet. It has to see the whole glass face of
+      the front module, which starts at about (1.95, 0, 0.75) with a full
+      pallet and ends about 1 m further back, at (2.95, 0, 0.57), when only
+      the last module is left, wherever the pallet was set down. If the
+      pallet moves again, re-aim the camera and run tests/cell_test.cc,
+      which checks this view against the pallet as pallet.xml builds it.
+
+      Why so high: the arm stands between the camera and the pallet, and a
+      camera lower down in front of the pallet would sit where the arm works.
+      The tool tip cannot get higher than 3.53 m, even with the arm stretched
+      straight up; the corners of the tool's plate, with the wrist bent, a
+      little higher. At 4.0 m nothing the arm does reaches the camera, its
+      housing or its boom: tests/cell_test.cc tries a few thousand poses
+      across all the joint ranges and finds the arm never nearer than about
+      0.25 m. The price is a slanting view: the camera sees module_0's glass
+      about 49 degrees off square and module_29's about 39 degrees.
+
+      The post stands on the floor at (0, -3.8), beyond the 3.22 m the tool
+      tip can reach sideways, and on neither the pallet's nor the conveyor's
+      side. A boom runs from its top along +Y to above the base, and the
+      camera hangs under its end. All of it collides, so an arm path that
+      hits it shows up as a contact rather than passing through.
+
+      The arm at arm_home blocks the view: the forearm and the tool hang in
+      front of the stack. At arm_clear (below) the arm faces the conveyor and
+      nothing is in the way; tests/cell_test.cc proves it with rays.
+    -->
+    <body name="camera_post" pos="0 -3.8 0">
+      <geom name="camera_post_column" type="box" size="0.075 0.075 2.125"
+            pos="0 0 2.125" rgba="0.35 0.35 0.38 1"/>
+      <geom name="camera_post_boom" type="box" size="0.05 1.975 0.05"
+            pos="0 1.975 4.2" rgba="0.35 0.35 0.38 1"/>
+      <geom name="camera_hanger" type="cylinder" size="0.015"
+            fromto="-0.0405 3.8 4.1 -0.0405 3.8 4.15" rgba="0.35 0.35 0.38 1"/>
+      <!--
+        The housing sits wholly behind the lens: its front face is 0.02 m
+        behind the camera's position, along the camera's +Z. So it is never
+        in the picture, and a ray cast from the camera's position starts
+        outside it.
+      -->
+      <geom name="camera_housing" type="box" size="0.06 0.04 0.05"
+            pos="-0.040527 3.8 4.057075" xyaxes="0 -1 0 0.815360 0 0.578954"
+            rgba="0.1 0.1 0.1 1"/>
+
+      <!--
+        The camera's frame, as for every MuJoCo camera: it looks along its
+        own -Z, +Y is up in the image and +X is to the right. Here +X is
+        world -Y (right, as seen from the arm looking at the pallet), and -Z
+        points at (2.40, 0, 0.62), 54.6 degrees below the horizontal, the
+        middle of the region the front glass can be in.
+
+        fovy is the vertical field of view in degrees (MuJoCo reads it in
+        degrees whatever the compiler's angle setting). With 640 x 480 square
+        pixels the horizontal field is 51.8 degrees and the focal length
+        240 / tan(20 deg) = 659.4 pixels. The principal point is the image
+        centre. A pixel is about 5.7 mm across at module_0's glass and 6.9 mm
+        at module_29's, seen square to the line of sight; the slant stretches
+        that to about 9 mm along the glass's short side. The face's corners
+        stay at least 80 pixels inside the image's edges (the left and right
+        edges are the tight ones) for every pallet pose Reset can draw.
+
+        The offscreen buffer is 640 x 480 by default, the same as this, so
+        rendering at full resolution needs no <visual> setting. Rendering
+        the depth image is the next stage; nothing here renders.
+      -->
+      <camera name="depth_camera" pos="0 3.8 4.0" xyaxes="0 -1 0 0.815360 0 0.578954"
+              fovy="40" resolution="640 480"/>
+    </body>
+  </worldbody>
+
+  <!--
+    The arm's pose for taking a picture: arm_home turned half a turn about
+    joint 1, so it faces the conveyor instead of the pallet, the tool hanging
+    over the tube's side of the cell at (-1.55, 0, 1.395). The arm is then
+    all on the conveyor's side of the camera or close under it, well below
+    it, while every line of sight runs forward toward the pallet and steeply
+    down, so nothing of the arm is in the way (tests/cell_test.cc casts the
+    rays). It is also close to where the arm is after
+    laying a module down, so a picture can be taken on the way back. Joint 1 is then 0.087 rad (5 degrees)
+    inside its limit.
+  -->
+  <keyframe>
+    <key name="arm_clear"
+         qpos="3.141592653589793 -1.5707963267948966 1.5707963267948966 0 1.5707963267948966 0"
+         ctrl="3.141592653589793 -1.5707963267948966 1.5707963267948966 0 1.5707963267948966 0"/>
+  </keyframe>
+</mujoco>

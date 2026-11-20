@@ -58,3 +58,35 @@ menagerie_model(
     model = "universal_robots_ur10e",
     target_name = "ur10e",
 )
+
+# The arm of the cell: KUKA KR 210 R2700-2. Only its meshes and the vendor's
+# license are downloaded; the model itself is models/arm.xml, converted by
+# hand from the vendor's URDF at this same commit. Paths below
+# kuka_quantec_support/meshes/kr210_r2700_2/ land at visual/... and
+# collision/... in @kuka_kr210_r2700_2. To self-host, copy the files elsewhere
+# and set base_url.
+kuka_description = use_repo_rule("//bazel:kuka.bzl", "kuka_description")
+
+kuka_description(
+    name = "kuka_kr210_r2700_2",
+    commit = "d2fa4377b77b7370cdcf6e52b430fc514a0eef19",
+    files = {
+        "LICENSE": "b246743db2810348d271c24bbfb2824bb37543bc97ddbe52216e40a30c9e9f05",
+        "kuka_quantec_support/meshes/kr210_r2700_2/collision/base_link.stl": "7539e2940d1c85f3a222485d5c4a6656436a64fbdaf6cc6ea904e5c5ad5f9493",
+        "kuka_quantec_support/meshes/kr210_r2700_2/collision/link_1.stl": "b7ee1f6a8951f89ca41f56dce477f7b31a31fbbf4b6ac3a3b3304281120f537f",
+        "kuka_quantec_support/meshes/kr210_r2700_2/collision/link_2.stl": "f7930a884ae44d3d944b6d734ef23af351d84cc05b5b3c907a887030be26b1a0",
+        "kuka_quantec_support/meshes/kr210_r2700_2/collision/link_3.stl": "6de94f5b2a1b0b22a0392aedd2781e7be143deb62950972dc9f4ad0203143b3d",
+        "kuka_quantec_support/meshes/kr210_r2700_2/collision/link_4.stl": "c97eba9a82d7c8c99c0a0e4a86da6901657eb537e150914264aca0d3374a01bf",
+        "kuka_quantec_support/meshes/kr210_r2700_2/collision/link_5.stl": "05cd593e9bf2946ea5684311503506fc70ddd9551932c93651bc287efbe80c15",
+        "kuka_quantec_support/meshes/kr210_r2700_2/collision/link_6.stl": "502d95fb0d1ed0a76b698cb85dea42df8f47d4281cc30ed271cce245e8d320b1",
+        "kuka_quantec_support/meshes/kr210_r2700_2/visual/base_link.stl": "b0f389dfdecc457c8292dad973d6c9f91eb58c5c56b1a927fdc0000550f82b0c",
+        "kuka_quantec_support/meshes/kr210_r2700_2/visual/link_1.stl": "5587939a9e4f09125091ae998cea2acd4548ca742c3984b70d94e51e33bc5923",
+        "kuka_quantec_support/meshes/kr210_r2700_2/visual/link_2.stl": "0f2eb22f082bb51fb6c5a80eae8104d95de7a1414f8e6098e1ae7a1260dc68f1",
+        "kuka_quantec_support/meshes/kr210_r2700_2/visual/link_3.stl": "bced5ec150a32ad55cb9a77745118f04a35b8b8a269f243e8f646d1a43280ae5",
+        "kuka_quantec_support/meshes/kr210_r2700_2/visual/link_4.stl": "e6a5d73b9139b8599d4fe1b62d4a29fa2961bef21644af1a4e6b03d79781fb3a",
+        "kuka_quantec_support/meshes/kr210_r2700_2/visual/link_5.stl": "1a5211c018eb1562a8790330d12d2dd692ab6511ee8d210958bbd9c6b162aa69",
+        "kuka_quantec_support/meshes/kr210_r2700_2/visual/link_6.stl": "47704d8b30bef58e8af8c9077fb001fc898a954c8aa49b881146c30d13fd2c5e",
+    },
+    strip_prefix = "kuka_quantec_support/meshes/kr210_r2700_2",
+    target_name = "kr210_r2700_2",
+)

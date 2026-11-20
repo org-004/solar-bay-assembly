@@ -1,0 +1,45 @@
+<!--
+  Settings shared by every scene in this repository: units, the physics
+  options, the floor and the lighting.
+
+  A scene file includes this first and then the parts it needs:
+
+    <mujoco model="arm scene">
+      <include file="common.xml"/>
+      <include file="arm.xml"/>
+    </mujoco>
+
+  The part files (arm.xml, pallet.xml, conveyor.xml) hold no settings of
+  their own, so that a part behaves the same in every scene. They cannot be
+  loaded by themselves: without this file their angles would be read as
+  degrees.
+
+  The world frame: the origin is on the floor under the centre of the arm's
+  base. +Z is up. +X points from the arm toward the pallet, and the conveyor
+  is on the -X side. +Y is to the left when facing the pallet. Lengths are
+  metres, masses kilograms, angles radians.
+-->
+<mujoco>
+  <compiler angle="radian" autolimits="true"/>
+
+  <option timestep="0.002" integrator="implicitfast"/>
+
+  <visual>
+    <headlight diffuse="0.6 0.6 0.6" ambient="0.3 0.3 0.3" specular="0 0 0"/>
+    <global azimuth="140" elevation="-20"/>
+  </visual>
+
+  <statistic center="0 0 1" extent="5"/>
+
+  <asset>
+    <texture name="floor_grid" type="2d" builtin="checker" rgb1="0.82 0.82 0.82"
+             rgb2="0.76 0.76 0.76" width="512" height="512"/>
+    <material name="floor" texture="floor_grid" texrepeat="1 1" texuniform="true"
+              reflectance="0"/>
+  </asset>
+
+  <worldbody>
+    <light name="overhead" pos="0 0 6" dir="0 0 -1" directional="true"/>
+    <geom name="floor" type="plane" size="0 0 0.05" material="floor"/>
+  </worldbody>
+</mujoco>

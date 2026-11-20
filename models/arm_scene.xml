@@ -1,0 +1,9 @@
+<!--
+  The arm by itself, with the tool on its flange.
+
+    bazel run //:viewer_arm
+-->
+<mujoco model="arm scene">
+  <include file="common.xml"/>
+  <include file="arm.xml"/>
+</mujoco>

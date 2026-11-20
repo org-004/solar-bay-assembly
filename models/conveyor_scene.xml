@@ -1,0 +1,34 @@
+<!--
+  The conveyor by itself, with three stand-in modules already on the tube,
+  for tests/conveyor_test.cc and for looking at.
+
+    bazel run //:viewer_conveyor
+
+  test_module_0 .. 2 lie on slots 0, 1 and 2, as the arm would leave them:
+  centre 0.0175 above the rails' top surface, long side along X, glass up.
+  Each is 2.3 x 1.1 x 0.035 m and 30 kg, the size and weight of the real
+  modules. Their friction, 0.5, is the same as the rails', so the rails set
+  the grip, as they would for a real module with a lower friction.
+-->
+<mujoco model="conveyor scene">
+  <include file="common.xml"/>
+  <include file="conveyor.xml"/>
+
+  <worldbody>
+    <body name="test_module_0" pos="-2.0 0 0.8175">
+      <freejoint name="test_module_0"/>
+      <geom name="test_module_0" type="box" size="1.15 0.55 0.0175" mass="30"
+            friction="0.5 0.005 0.0001" rgba="0.1 0.15 0.35 1"/>
+    </body>
+    <body name="test_module_1" pos="-2.0 1.12 0.8175">
+      <freejoint name="test_module_1"/>
+      <geom name="test_module_1" type="box" size="1.15 0.55 0.0175" mass="30"
+            friction="0.5 0.005 0.0001" rgba="0.1 0.15 0.35 1"/>
+    </body>
+    <body name="test_module_2" pos="-2.0 2.24 0.8175">
+      <freejoint name="test_module_2"/>
+      <geom name="test_module_2" type="box" size="1.15 0.55 0.0175" mass="30"
+            friction="0.5 0.005 0.0001" rgba="0.1 0.15 0.35 1"/>
+    </body>
+  </worldbody>
+</mujoco>

@@ -1,0 +1,119 @@
+<!--
+  A test bench for the suction grip, without the arm.
+
+  The tool (models/tool.xml) is mounted exactly as the arm will mount it, by
+  an include inside a body, but on a simple carriage instead of the arm: three
+  slides (X, Y, Z), then a yaw hinge about Z and a pitch hinge about Y, all
+  turning about one point, the centre of the flange. Each joint has a stiff
+  position servo, so a test steers the tool by writing joint targets to ctrl.
+
+  With every joint at 0 the flange centre is at (0, 0, 0.55), the tool points
+  along +X with its long side along +Y, and tool_tip is 0.30 m further along
+  +X. Pitching by +pi/2 points the tool straight down.
+
+  Three modules, 2.3 m x 1.1 m x 0.035 m and 30 kg, stand on their long
+  edges with the glass facing -X, toward the carriage, leaning back by 5
+  degrees like the pallet's stack:
+    module_1 leans on a fixed backrest at y = 0,
+    module_0 leans on module_1, in front of it,
+    module_2 leans on the backrest by itself at y = 2.8.
+  Each starts 1 mm clear of what it leans on and settles in the first moments.
+
+  Behind the carriage, at x = -1.5, two rails along Y with their tops at
+  z = 0.3 form the rest a module is laid on, glass up: room for two modules
+  side by side, at y = -1.25 and y = +1.25.
+
+  Everything in this file other than the modules is named rig_.
+-->
+<mujoco model="suction scene">
+  <include file="common.xml"/>
+  <include file="suction.xml"/>
+
+  <default>
+    <!-- The carriage's own shapes are for looking at only: nothing collides
+         with them, so they cannot disturb a test. -->
+    <default class="rig">
+      <geom contype="0" conaffinity="0" rgba="0.5 0.55 0.6 1"/>
+      <joint armature="0.1" damping="10"/>
+    </default>
+    <default class="module">
+      <geom type="box" size="1.15 0.55 0.0175" mass="30" friction="0.8 0.005 0.0001"
+            rgba="0.1 0.15 0.35 1"/>
+    </default>
+  </default>
+
+  <worldbody>
+    <!-- The carriage. Its bodies have gravity compensation so that the
+         servos only have to carry the tool and whatever it holds. -->
+    <body name="rig_base" pos="0 0 0.55" childclass="rig">
+      <body name="rig_x" gravcomp="1">
+        <joint name="rig_x" type="slide" axis="1 0 0" range="-2.5 2.5"/>
+        <geom name="rig_x_block" type="box" size="0.15 0.15 0.05" pos="0 0 1.25" mass="20"/>
+        <body name="rig_y" gravcomp="1">
+          <joint name="rig_y" type="slide" axis="0 1 0" range="-3 4"/>
+          <geom name="rig_y_block" type="box" size="0.1 0.1 0.05" pos="0 0 1.15" mass="10"/>
+          <body name="rig_z" gravcomp="1">
+            <joint name="rig_z" type="slide" axis="0 0 1" range="-0.5 1"/>
+            <geom name="rig_post" type="capsule" fromto="0 0 0.05 0 0 1.1" size="0.03" mass="10"/>
+            <body name="rig_yaw" gravcomp="1">
+              <joint name="rig_yaw" type="hinge" axis="0 0 1" range="-1.6 1.6"/>
+              <geom name="rig_yaw_hub" type="sphere" size="0.05" mass="5"/>
+              <body name="rig_pitch" gravcomp="1">
+                <joint name="rig_pitch" type="hinge" axis="0 1 0" range="-0.6 2"/>
+                <geom name="rig_pitch_hub" type="cylinder" fromto="0 -0.08 0 0 0.08 0"
+                      size="0.04" mass="5"/>
+                <!-- The flange: tool Z along +X, tool X along +Y. The tool
+                     goes back to the default class, so that it collides
+                     as it will on the arm. -->
+                <body name="rig_mount" xyaxes="0 1 0 0 0 1" childclass="main">
+                  <include file="tool.xml"/>
+                </body>
+              </body>
+            </body>
+          </body>
+        </body>
+      </body>
+    </body>
+
+    <!-- The backrest, leaning back by 5 degrees. Its front face meets the
+         floor along x = 1.5. -->
+    <geom name="rig_backrest" type="box" size="2.7 0.65 0.025"
+          pos="1.5815561 1.4 0.6453477" xyaxes="0 -1 0 0.0871557 0 0.9961947"
+          rgba="0.55 0.45 0.35 1"/>
+
+    <!-- The rest: two rails along Y. -->
+    <geom name="rig_rail_near" type="box" size="0.04 2.7 0.15" pos="-1.1 0 0.15"
+          rgba="0.6 0.6 0.65 1"/>
+    <geom name="rig_rail_far" type="box" size="0.04 2.7 0.15" pos="-1.9 0 0.15"
+          rgba="0.6 0.6 0.65 1"/>
+
+    <!-- Module frame: +x along the long side (here -Y), +y along the short
+         side (up the lean), +z out of the glass (toward -X, tipped up by
+         5 degrees). -->
+    <body name="module_0" pos="1.4948666 0 0.5504322"
+          xyaxes="0 -1 0 0.0871557 0 0.9961947">
+      <freejoint name="module_0"/>
+      <geom name="module_0" class="module"/>
+    </body>
+    <body name="module_1" pos="1.5305022 0 0.5504323"
+          xyaxes="0 -1 0 0.0871557 0 0.9961947">
+      <freejoint name="module_1"/>
+      <geom name="module_1" class="module"/>
+    </body>
+    <body name="module_2" pos="1.5305022 2.8 0.5504323"
+          xyaxes="0 -1 0 0.0871557 0 0.9961947">
+      <freejoint name="module_2"/>
+      <geom name="module_2" class="module"/>
+    </body>
+  </worldbody>
+
+  <!-- Stiff position servos, one per carriage joint, critically damped or
+       a little more with a module on the tool. -->
+  <actuator>
+    <position name="rig_x" joint="rig_x" kp="400000" kv="13000"/>
+    <position name="rig_y" joint="rig_y" kp="400000" kv="13000"/>
+    <position name="rig_z" joint="rig_z" kp="400000" kv="13000"/>
+    <position name="rig_yaw" joint="rig_yaw" kp="200000" kv="4000"/>
+    <position name="rig_pitch" joint="rig_pitch" kp="200000" kv="2500"/>
+  </actuator>
+</mujoco>

@@ -1,0 +1,151 @@
+<!--
+  The pallet and the solar modules standing on it.
+
+  The modules stand on edge, side by side like books on a shelf: each rests
+  on one long side, its glass facing the arm (-X). The whole pallet is tilted
+  back by 10 degrees, deck and back rest together: the deck slopes down away
+  from the arm and the back rest stands at right angles to it. Each module
+  stands square on the deck and so leans back by the same 10 degrees, against
+  the module behind it; the last one leans on the back rest.
+
+  Why tilt the whole pallet rather than lean the modules on a level deck: on
+  the tilted deck gravity pulls every module down the slope, into the stack
+  and the back rest, so the stack stands on normal forces alone. No friction
+  has to carry a steady load. That matters in MuJoCo, where friction is soft:
+  a contact under a steady sideways load slips slowly, so a stack held by
+  friction creeps. A level deck would need friction under every bottom edge
+  to stop the leaning modules kicking out at the foot.
+
+  The pallet body is a mocap body: the physics holds it fixed, but its pose
+  is in mjData (mocap_pos, mocap_quat), so a scene generator can move it for
+  each trial without changing the model (see src/pallet.h). Its origin is on
+  the floor, directly under the centre of the front module's glass face.
+
+  Where the pallet stands: 1.95 m from the arm along +X. That number is
+  written once, in the frame that holds both the pallet and the modules
+  below; everything inside that frame is relative to the pallet origin.
+  (The modules have free joints, so they cannot be children of the pallet
+  body; a frame is only a shift applied when the model is built, so they
+  stay children of the world.)
+
+  The modules are module_0 (front, nearest the arm) to module_29 (back). Each
+  is a rigid box with its origin at its centre: +x along the long side, +y
+  along the short side, +z out of the glass. The glass is the +z face, at
+  z = +0.0175. Standing on the pallet, +x points to world -Y (to the right as
+  seen from the arm), +y points up the lean and +z toward the arm.
+
+  Numbers, relative to the pallet origin (s = sin 10 deg = 0.173648,
+  c = cos 10 deg = 0.984808):
+    module_0 glass centre          (0, 0, 0.75); in the world (1.95, 0, 0.75)
+    pitch from module to module    0.035, one thickness: they are built
+                                   touching, so there is no gap to close
+    bottom edge of module_0 glass  (-0.55 s, 0, 0.75 - 0.55 c)
+                                   = (-0.095506, 0, 0.208356); the deck
+                                   surface passes through this line
+
+  Contact settings, the same for pallet and modules:
+    solref 0.005 1   A contact pushes back with a time constant of 5 ms
+                     (MuJoCo's default is 20 ms). The stiffer contacts let
+                     the stack find its rest within a second; with 20 ms it
+                     was still settling 0.7 mm and 1 mrad further between
+                     1 s and 15 s. 5 ms is 2.5 timesteps, just above the 2
+                     that MuJoCo needs.
+    solimp 0.95 0.99 0.001
+                     How much of that stiffness acts: 95 % at first touch,
+                     99 % beyond 1 mm. Firmer than the default 0.9 0.95 and
+                     what took the remaining drift down to under a micron.
+    friction         Sliding friction only matters (condim 3, the default:
+                     no torsional or rolling friction). Where two geoms meet
+                     MuJoCo uses the larger of their two values.
+-->
+<mujoco>
+  <default>
+    <!-- Pallet steel. A module's aluminium frame on it: 0.6. Only the deck
+         and the back rest touch the modules. -->
+    <default class="pallet">
+      <geom type="box" friction="0.6 0.005 0.0001" solref="0.005 1"
+            solimp="0.95 0.99 0.001" rgba="0.45 0.35 0.25 1"/>
+      <!-- Drawn only: touches nothing. -->
+      <default class="pallet_visual">
+        <geom contype="0" conaffinity="0" rgba="0.35 0.27 0.2 1"/>
+      </default>
+    </default>
+
+    <!-- One module: 30 kg, 2.3 x 1.1 x 0.035 m (size is half of each), dark
+         blue. One module's back on the next one's glass: friction 0.4. -->
+    <default class="module">
+      <geom type="box" size="1.15 0.55 0.0175" mass="30" friction="0.4 0.005 0.0001"
+            solref="0.005 1" solimp="0.95 0.99 0.001" rgba="0.12 0.16 0.35 1"/>
+    </default>
+  </default>
+
+  <asset>
+    <!-- The stand under the deck. Seen from the side a right triangle: as
+         tall as the deck at the front, nothing at the back. Its top is 1 mm
+         under the deck so the two do not flicker where they meet. -->
+    <mesh name="pallet_stand"
+          vertex="-0.1966 -1.2 0        -0.1966 1.2 0
+                  -0.1966 -1.2 0.2099   -0.1966 1.2 0.2099
+                   0.9753 -1.2 0         0.9753 1.2 0
+                   0.9753 -1.2 0.0033    0.9753 1.2 0.0033"/>
+  </asset>
+
+  <worldbody>
+    <!-- The pallet origin: the one place that says how far from the arm the
+         pallet stands. -->
+    <frame pos="1.95 0 0">
+      <body name="pallet" pos="0 0 0" mocap="true" childclass="pallet">
+        <geom name="pallet_stand" class="pallet_visual" type="mesh" mesh="pallet_stand"/>
+
+        <!-- The deck frame: origin on the deck surface under the bottom edge
+             of module_0's glass, x down the slope (away from the arm), z out
+             of the deck. Tilted 10 degrees (0.174533 rad) about Y. -->
+        <frame pos="-0.095506 0 0.208356" euler="0 0.174533 0">
+          <!-- A 15 mm plate, its top at z = 0, from 0.10 in front of module_0
+               to the back of the back rest. -->
+          <geom name="pallet_deck" size="0.595 1.25 0.0075" pos="0.495 0 -0.0075"/>
+          <!-- 40 mm thick and 1.0 m tall. Its front face touches the back of
+               module_29, at 30 x 0.035 = 1.05. -->
+          <geom name="pallet_back" size="0.02 1.25 0.5" pos="1.07 0 0.5"/>
+        </frame>
+      </body>
+
+      <!-- The modules. The frame is module_0: its centre is half a thickness
+           behind the glass centre (0, 0, 0.75), and xyaxes gives its +x and +y
+           in world coordinates: +x = -Y, +y = (s, 0, c). Each next module is
+           one pitch further back, along -z. -->
+      <frame pos="0.017234 0 0.746961" xyaxes="0 -1 0 0.173648 0 0.984808">
+        <body name="module_0" pos="0 0 0.000"><freejoint/><geom class="module"/></body>
+        <body name="module_1" pos="0 0 -0.035"><freejoint/><geom class="module"/></body>
+        <body name="module_2" pos="0 0 -0.070"><freejoint/><geom class="module"/></body>
+        <body name="module_3" pos="0 0 -0.105"><freejoint/><geom class="module"/></body>
+        <body name="module_4" pos="0 0 -0.140"><freejoint/><geom class="module"/></body>
+        <body name="module_5" pos="0 0 -0.175"><freejoint/><geom class="module"/></body>
+        <body name="module_6" pos="0 0 -0.210"><freejoint/><geom class="module"/></body>
+        <body name="module_7" pos="0 0 -0.245"><freejoint/><geom class="module"/></body>
+        <body name="module_8" pos="0 0 -0.280"><freejoint/><geom class="module"/></body>
+        <body name="module_9" pos="0 0 -0.315"><freejoint/><geom class="module"/></body>
+        <body name="module_10" pos="0 0 -0.350"><freejoint/><geom class="module"/></body>
+        <body name="module_11" pos="0 0 -0.385"><freejoint/><geom class="module"/></body>
+        <body name="module_12" pos="0 0 -0.420"><freejoint/><geom class="module"/></body>
+        <body name="module_13" pos="0 0 -0.455"><freejoint/><geom class="module"/></body>
+        <body name="module_14" pos="0 0 -0.490"><freejoint/><geom class="module"/></body>
+        <body name="module_15" pos="0 0 -0.525"><freejoint/><geom class="module"/></body>
+        <body name="module_16" pos="0 0 -0.560"><freejoint/><geom class="module"/></body>
+        <body name="module_17" pos="0 0 -0.595"><freejoint/><geom class="module"/></body>
+        <body name="module_18" pos="0 0 -0.630"><freejoint/><geom class="module"/></body>
+        <body name="module_19" pos="0 0 -0.665"><freejoint/><geom class="module"/></body>
+        <body name="module_20" pos="0 0 -0.700"><freejoint/><geom class="module"/></body>
+        <body name="module_21" pos="0 0 -0.735"><freejoint/><geom class="module"/></body>
+        <body name="module_22" pos="0 0 -0.770"><freejoint/><geom class="module"/></body>
+        <body name="module_23" pos="0 0 -0.805"><freejoint/><geom class="module"/></body>
+        <body name="module_24" pos="0 0 -0.840"><freejoint/><geom class="module"/></body>
+        <body name="module_25" pos="0 0 -0.875"><freejoint/><geom class="module"/></body>
+        <body name="module_26" pos="0 0 -0.910"><freejoint/><geom class="module"/></body>
+        <body name="module_27" pos="0 0 -0.945"><freejoint/><geom class="module"/></body>
+        <body name="module_28" pos="0 0 -0.980"><freejoint/><geom class="module"/></body>
+        <body name="module_29" pos="0 0 -1.015"><freejoint/><geom class="module"/></body>
+      </frame>
+    </frame>
+  </worldbody>
+</mujoco>

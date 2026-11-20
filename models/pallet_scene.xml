@@ -1,0 +1,4 @@
+<mujoco model="pallet scene">
+  <include file="common.xml"/>
+  <include file="pallet.xml"/>
+</mujoco>

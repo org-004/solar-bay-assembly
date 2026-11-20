@@ -176,6 +176,490 @@ cc_binary(
     ],
 )
 
+# ---------------------------------------------------------------- the cell
+# Model files live in models/. A scene includes common.xml and then its parts.
+MODELS_COMMON = ["models/common.xml"]
+
+# BEGIN arm
+# The KUKA KR 210 R2700-2. models/arm.xml is ours; its meshes come from
+# @kuka_kr210_r2700_2 (declared in MODULE.bazel). MuJoCo looks for mesh files
+# relative to the top-level scene file, so the meshes are copied to
+# models/kuka_kr210_r2700_2/, where arm.xml names them. In the runfiles tree
+# they then sit next to every scene in models/.
+ARM_MESH_FILES = [
+    "%s/%s.stl" % (kind, link)
+    for kind in ["visual", "collision"]
+    for link in ["base_link", "link_1", "link_2", "link_3", "link_4", "link_5", "link_6"]
+] + ["LICENSE"]
+
+genrule(
+    name = "arm_meshes",
+    srcs = ["@kuka_kr210_r2700_2//:%s" % f for f in ARM_MESH_FILES],
+    outs = ["models/kuka_kr210_r2700_2/%s" % f for f in ARM_MESH_FILES],
+    cmd = "\n".join([
+        "cp $(location @kuka_kr210_r2700_2//:{f}) $(location models/kuka_kr210_r2700_2/{f})".format(f = f)
+        for f in ARM_MESH_FILES
+    ]),
+)
+
+# Everything a scene needs to include arm.xml: the arm, the tool on its
+# flange, and the meshes. A scene adds MODELS_COMMON and itself.
+filegroup(
+    name = "arm_model",
+    srcs = [
+        "models/arm.xml",
+        "models/tool.xml",
+        ":arm_meshes",
+    ],
+)
+
+ARM_SCENE = "models/arm_scene.xml"
+
+ARM_SCENE_FILES = MODELS_COMMON + [
+    ARM_SCENE,
+    ":arm_model",
+]
+
+# The arm alone: names, vendor numbers, holding a pose, the flange's place.
+#   bazel test //:arm_test
+cc_test(
+    name = "arm_test",
+    size = "small",
+    srcs = ["tests/arm_test.cc"],
+    data = ARM_SCENE_FILES,
+    env = {"MODEL_PATH": "$(rootpath %s)" % ARM_SCENE},
+    deps = [
+        ":mj_handles",
+        "@googletest//:gtest_main",
+        "@mujoco",
+    ],
+)
+
+# Draws the arm alone in a window. It starts at the keyframe arm_home.
+#   bazel run //:viewer_arm
+cc_binary(
+    name = "viewer_arm",
+    srcs = ["src/viewer.cc"],
+    args = ["$(rootpath %s)" % ARM_SCENE],
+    data = ARM_SCENE_FILES,
+    deps = [
+        ":mj_handles",
+        ":viewer_lib",
+        "@mujoco",
+    ],
+)
+# END arm
+
+# BEGIN pallet
+# The pallet with its stack of 30 modules, in a scene of its own.
+PALLET_SCENE = "models/pallet_scene.xml"
+
+PALLET_SCENE_FILES = MODELS_COMMON + [
+    "models/pallet.xml",
+    PALLET_SCENE,
+]
+
+# Finds the pallet and the modules in a loaded scene, moves the pallet with
+# its stack for each trial, and reads back where everything is.
+# Include as "src/pallet.h".
+cc_library(
+    name = "pallet",
+    srcs = ["src/pallet.cc"],
+    hdrs = ["src/pallet.h"],
+    deps = [
+        "@eigen",
+        "@mujoco",
+    ],
+)
+
+# The stack stands still when left alone, still does when the pallet is
+# moved, and the front module can be pulled off without dragging the next.
+# Simulates about a minute of stack in all, which takes about 30 s in the
+# default unoptimized build: medium, so a busy machine does not hit the 60 s
+# limit of small.
+cc_test(
+    name = "pallet_test",
+    size = "medium",
+    srcs = ["tests/pallet_test.cc"],
+    data = PALLET_SCENE_FILES,
+    env = {"MODEL_PATH": "$(rootpath %s)" % PALLET_SCENE},
+    deps = [
+        ":mj_handles",
+        ":pallet",
+        "@eigen",
+        "@googletest//:gtest_main",
+        "@mujoco",
+    ],
+)
+
+# Leaves the stack alone and prints how far each module moves, and how fast
+# the scene simulates. Time it optimized:
+#   bazel run --config=opt //:print_pallet
+#   bazel run --config=opt //:print_pallet -- <seconds> <x> <y> <yaw>
+cc_binary(
+    name = "print_pallet",
+    srcs = ["src/print_pallet.cc"],
+    args = ["$(rootpath %s)" % PALLET_SCENE],
+    data = PALLET_SCENE_FILES,
+    deps = [
+        ":mj_handles",
+        ":pallet",
+        "@eigen",
+        "@mujoco",
+    ],
+)
+
+# Draws the pallet scene in a window.
+#   bazel run //:viewer_pallet
+cc_binary(
+    name = "viewer_pallet",
+    srcs = ["src/viewer.cc"],
+    args = ["$(rootpath %s)" % PALLET_SCENE],
+    data = PALLET_SCENE_FILES,
+    deps = [
+        ":mj_handles",
+        ":viewer_lib",
+        "@mujoco",
+    ],
+)
+# END pallet
+
+# BEGIN conveyor
+# The conveyor, the torque tube on it with its rails, and the scene that has
+# just them and three stand-in modules.
+CONVEYOR_SCENE = "models/conveyor_scene.xml"
+
+CONVEYOR_SCENE_FILES = MODELS_COMMON + [
+    "models/conveyor.xml",
+    CONVEYOR_SCENE,
+]
+
+# Moves the tube on by one step and says where it is.
+# Include as "src/conveyor.h".
+cc_library(
+    name = "conveyor",
+    srcs = ["src/conveyor.cc"],
+    hdrs = ["src/conveyor.h"],
+    deps = [
+        ":profile",
+        "@eigen",
+        "@mujoco",
+    ],
+)
+
+#   bazel test //:conveyor_test
+cc_test(
+    name = "conveyor_test",
+    # Medium: the tests simulate about 30 steps in all, some 120 s of
+    # simulated time.
+    size = "medium",
+    srcs = ["tests/conveyor_test.cc"],
+    data = CONVEYOR_SCENE_FILES,
+    env = {"MODEL_PATH": "$(rootpath %s)" % CONVEYOR_SCENE},
+    deps = [
+        ":conveyor",
+        ":mj_handles",
+        "@eigen",
+        "@googletest//:gtest_main",
+        "@mujoco",
+    ],
+)
+
+# Draws the conveyor scene in a window. Nothing drives the conveyor here, so
+# the tube holds still.
+#   bazel run //:viewer_conveyor
+cc_binary(
+    name = "viewer_conveyor",
+    srcs = ["src/viewer.cc"],
+    args = ["$(rootpath %s)" % CONVEYOR_SCENE],
+    data = CONVEYOR_SCENE_FILES,
+    deps = [
+        ":mj_handles",
+        ":viewer_lib",
+        "@mujoco",
+    ],
+)
+# END conveyor
+
+# BEGIN suction
+# The suction tool and its test bench. A scene with the tool includes
+# tool.xml inside the body it is mounted on, and suction.xml (the weld that
+# stands in for suction) at the top level.
+SUCTION_SCENE = "models/suction_scene.xml"
+
+SUCTION_SCENE_FILES = MODELS_COMMON + [
+    SUCTION_SCENE,
+    "models/suction.xml",
+    "models/tool.xml",
+]
+
+# Gripping and releasing a module with the weld.
+# Include as "src/suction.h".
+cc_library(
+    name = "suction",
+    srcs = ["src/suction.cc"],
+    hdrs = ["src/suction.h"],
+    deps = [
+        "@eigen",
+        "@mujoco",
+    ],
+)
+
+# Grips that must fail, grips that must pick the right module, a held module
+# keeping its pose through a full carry, and clean releases. Simulates about
+# three minutes on the test bench, in a few seconds.
+#   bazel test //:suction_test
+cc_test(
+    name = "suction_test",
+    size = "small",
+    srcs = ["tests/suction_test.cc"],
+    data = SUCTION_SCENE_FILES,
+    env = {"MODEL_PATH": "$(rootpath %s)" % SUCTION_SCENE},
+    deps = [
+        ":joint_move",
+        ":mj_handles",
+        ":suction",
+        "@eigen",
+        "@googletest//:gtest_main",
+        "@mujoco",
+    ],
+)
+
+# Draws the suction test bench in a window.
+#   bazel run //:viewer_suction
+cc_binary(
+    name = "viewer_suction",
+    srcs = ["src/viewer.cc"],
+    args = ["$(rootpath %s)" % SUCTION_SCENE],
+    data = SUCTION_SCENE_FILES,
+    deps = [
+        ":mj_handles",
+        ":viewer_lib",
+        "@mujoco",
+    ],
+)
+# END suction
+
+# Where the arm's joints, motors and tool are in a loaded model, and its
+# limits. Include as "src/arm.h".
+cc_library(
+    name = "arm",
+    srcs = ["src/arm.cc"],
+    hdrs = ["src/arm.h"],
+    deps = [
+        ":joint_move",
+        "@eigen",
+        "@mujoco",
+    ],
+)
+
+# BEGIN follower
+# Drives the arm's motors along planned joint moves.
+# Include as "src/arm_follower.h".
+cc_library(
+    name = "arm_follower",
+    srcs = ["src/arm_follower.cc"],
+    hdrs = ["src/arm_follower.h"],
+    deps = [
+        ":arm",
+        ":joint_move",
+        "@eigen",
+        "@mujoco",
+    ],
+)
+
+# The arm following planned moves in models/arm_scene.xml, with and without
+# a module's weight at the tool; and FindArm and TipPose from src/arm.h.
+# About a minute of simulated motion, 5 s in the default build. Add
+# --test_output=all to see the measured numbers.
+#   bazel test //:arm_follower_test
+cc_test(
+    name = "arm_follower_test",
+    size = "small",
+    srcs = ["tests/arm_follower_test.cc"],
+    data = ARM_SCENE_FILES,
+    env = {"MODEL_PATH": "$(rootpath %s)" % ARM_SCENE},
+    deps = [
+        ":arm",
+        ":arm_follower",
+        ":joint_move",
+        ":mj_handles",
+        "@eigen",
+        "@googletest//:gtest_main",
+        "@mujoco",
+    ],
+)
+# END follower
+
+# BEGIN ik
+# Inverse kinematics: joint angles that put the tool tip at a wanted pose,
+# by damped least squares on MuJoCo's Jacobians; also the tip pose that
+# grips a face (GripPose) and straight lines of poses (StraightLine).
+# Include as "src/ik.h".
+cc_library(
+    name = "ik",
+    srcs = ["src/ik.cc"],
+    hdrs = ["src/ik.h"],
+    deps = [
+        ":arm",
+        "@eigen",
+        "@mujoco",
+    ],
+)
+
+# The arm with a free-floating box defined before it, so that the arm's
+# joints are not the first in the model.
+IK_SCENE = "models/ik_scene.xml"
+
+# Round trips, far seeds, the cell's own poses, every module picked (grip,
+# lift, 0.4 m pull-back) across the pallet's placement tolerance, unreachable
+# and singular targets, straight-line paths, the pose helpers, and the box
+# scene. The cell layout is at the top of the test file. Prints accuracy,
+# success rate, the cell poses' angles and margins, and the time per solve;
+# time it optimized:
+#   bazel test --config=opt //:ik_test --test_output=all
+cc_test(
+    name = "ik_test",
+    size = "small",
+    srcs = ["tests/ik_test.cc"],
+    data = ARM_SCENE_FILES + [IK_SCENE],
+    env = {
+        "MODEL_PATH": "$(rootpath %s)" % ARM_SCENE,
+        "IK_SCENE_PATH": "$(rootpath %s)" % IK_SCENE,
+    },
+    deps = [
+        ":arm",
+        ":ik",
+        ":mj_handles",
+        "@eigen",
+        "@googletest//:gtest_main",
+        "@mujoco",
+    ],
+)
+# END ik
+
+# BEGIN cell
+# The whole cell in one scene: arm and tool, pallet and stack, conveyor and
+# tube, the suction weld, and the depth camera on its post.
+CELL_SCENE = "models/cell.xml"
+
+# Everything a target needs to load models/cell.xml.
+CELL_FILES = MODELS_COMMON + [
+    CELL_SCENE,
+    "models/pallet.xml",
+    "models/conveyor.xml",
+    "models/suction.xml",
+    ":arm_model",
+]
+
+# Loads the cell, finds its parts, and sets up a scene for each trial; holds
+# the bookkeeping of which module is where. Include as "src/cell.h".
+cc_library(
+    name = "cell",
+    srcs = ["src/cell.cc"],
+    hdrs = ["src/cell.h"],
+    deps = [
+        ":arm",
+        ":conveyor",
+        ":mj_handles",
+        ":pallet",
+        ":suction",
+        "@eigen",
+        "@mujoco",
+    ],
+)
+
+# Scores a run from the truth: placement errors on the tube, and how much
+# the stack was disturbed. Include as "src/score.h".
+cc_library(
+    name = "score",
+    srcs = ["src/score.cc"],
+    hdrs = ["src/score.h"],
+    deps = [
+        ":cell",
+        "@eigen",
+    ],
+)
+
+# The parts together: names and counts, the stack still at rest with
+# everything present, repeatable scenes, the camera's view, no stray
+# contacts, the scorer, parking and swapping the tube. Simulates about 30 s
+# of the whole cell, which takes about 20 s in the default unoptimized
+# build: medium, like pallet_test, so a busy machine does not hit the 60 s
+# limit of small.
+#   bazel test //:cell_test
+cc_test(
+    name = "cell_test",
+    size = "medium",
+    srcs = ["tests/cell_test.cc"],
+    # The arm's scene too, to check that loading a scene without a pallet
+    # says so.
+    data = CELL_FILES + [ARM_SCENE],
+    env = {
+        "MODEL_PATH": "$(rootpath %s)" % CELL_SCENE,
+        "ARM_SCENE_PATH": "$(rootpath %s)" % ARM_SCENE,
+    },
+    deps = [
+        ":arm",
+        ":cell",
+        ":conveyor",
+        ":pallet",
+        ":score",
+        "@eigen",
+        "@googletest//:gtest_main",
+        "@mujoco",
+    ],
+)
+
+# Loads and resets the cell, prints what touches what, where everything is,
+# and how fast it simulates. Time it optimized:
+#   bazel run --config=opt //:print_cell
+#   bazel run --config=opt //:print_cell -- <seed> <seconds>
+cc_binary(
+    name = "print_cell",
+    srcs = ["src/print_cell.cc"],
+    args = ["$(rootpath %s)" % CELL_SCENE],
+    data = CELL_FILES,
+    deps = [
+        ":arm",
+        ":cell",
+        ":pallet",
+        ":score",
+        "@eigen",
+        "@mujoco",
+    ],
+)
+
+# Draws the whole cell in a window, starting with the arm at arm_home.
+# Nothing drives the arm or the conveyor here, so both hold still.
+#   bazel run //:viewer_cell
+cc_binary(
+    name = "viewer_cell",
+    srcs = ["src/viewer.cc"],
+    args = ["$(rootpath %s)" % CELL_SCENE],
+    data = CELL_FILES,
+    deps = [
+        ":mj_handles",
+        ":viewer_lib",
+        "@mujoco",
+    ],
+)
+# END cell
+
+# The window, mouse, keys and real-time loop shared by every viewer below and
+# by programs that drive a simulation in a window. Include as
+# "src/viewer_lib.h".
+cc_library(
+    name = "viewer_lib",
+    srcs = ["src/viewer_lib.cc"],
+    hdrs = ["src/viewer_lib.h"],
+    deps = [
+        ":mj_handles",
+        "@glfw",
+        "@mujoco",
+    ],
+)
+
 # Draws the arm in a window.
 #   bazel run //:viewer
 cc_binary(
@@ -185,7 +669,112 @@ cc_binary(
     data = UR10E_FILES,
     deps = [
         ":mj_handles",
-        "@glfw",
+        ":viewer_lib",
         "@mujoco",
     ],
 )
+
+# BEGIN pick_place
+# The blind pick and place: one module from the front of the stack onto the
+# tube, as a state machine run one physics step at a time. Plans from the
+# design poses only and never reads the truth.
+# Include as "src/pick_place.h".
+cc_library(
+    name = "pick_place",
+    srcs = ["src/pick_place.cc"],
+    hdrs = ["src/pick_place.h"],
+    deps = [
+        ":arm",
+        ":arm_follower",
+        ":cell",
+        ":conveyor",
+        ":ik",
+        ":mj_handles",
+        ":pallet",
+        ":suction",
+        "@eigen",
+        "@mujoco",
+    ],
+)
+
+# Watches a cycle from the truth: forbidden contacts, closest approaches,
+# motor torques, joint ranges. For tests and the runner only.
+# Include as "src/cycle_check.h".
+cc_library(
+    name = "cycle_check",
+    srcs = ["src/cycle_check.cc"],
+    hdrs = ["src/cycle_check.h"],
+    deps = [
+        ":arm",
+        ":cell",
+        ":pick_place",
+        "@eigen",
+        "@mujoco",
+    ],
+)
+
+# Runs the pick and place headless and prints the score of every cycle as
+# CSV, or with --pretty as an aligned table. Time it optimized:
+#   bazel run --config=opt //:run_cell -- --pretty --trials 10
+#   bazel run //:run_cell -- [--pretty] [--seed N] [--modules M] [--trials T]
+#                            [--nominal] [--verbose]
+cc_binary(
+    name = "run_cell",
+    srcs = ["src/run_cell.cc"],
+    args = ["$(rootpath %s)" % CELL_SCENE],
+    data = CELL_FILES,
+    deps = [
+        ":cell",
+        ":cycle_check",
+        ":pick_place",
+        ":score",
+        "@mujoco",
+    ],
+)
+
+# The same pick and place in a window, with the score of each placement in
+# the corner. Backspace runs the trial again.
+#   bazel run //:view_cell -- [--seed N] [--nominal] [--modules M]
+cc_binary(
+    name = "view_cell",
+    srcs = ["src/view_cell.cc"],
+    args = ["$(rootpath %s)" % CELL_SCENE],
+    data = CELL_FILES,
+    deps = [
+        ":cell",
+        ":pick_place",
+        ":score",
+        ":viewer_lib",
+        "@mujoco",
+    ],
+)
+
+# Each phase of the nominal cycle against its own postcondition, the whole
+# cycle end to end, two modules in a row, the script's blindness, the place
+# side from a constructed state, and a few randomized pallets. Simulates
+# the nominal cycle once for the whole suite (about 70 s of the cell in
+# all), which takes about 70 s in the default unoptimized build and 13 s
+# optimized: medium, so a busy machine does not hit the limit.
+#   bazel test //:pick_place_test
+#   bazel test --config=opt //:pick_place_test --test_output=all
+cc_test(
+    name = "pick_place_test",
+    size = "medium",
+    srcs = ["tests/pick_place_test.cc"],
+    data = CELL_FILES,
+    env = {"MODEL_PATH": "$(rootpath %s)" % CELL_SCENE},
+    deps = [
+        ":arm",
+        ":cell",
+        ":conveyor",
+        ":cycle_check",
+        ":pallet",
+        ":pick_place",
+        ":score",
+        ":suction",
+        "@eigen",
+        "@googletest//:gtest_main",
+        "@mujoco",
+    ],
+)
+# END pick_place
