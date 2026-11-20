@@ -1,6 +1,7 @@
 #include "src/pick_place.h"
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <cstdio>
 #include <numbers>
@@ -15,18 +16,22 @@
 
 #include "src/arm.h"
 #include "src/arm_follower.h"
+#include "src/camera_model.h"
 #include "src/cell.h"
 #include "src/conveyor.h"
+#include "src/depth_camera.h"
 #include "src/ik.h"
 #include "src/mj_handles.h"
+#include "src/module_finder.h"
 #include "src/pallet.h"
 #include "src/suction.h"
 
 // What this file may read, and does: the design poses in PalletBodies
 // (nominal_pallet, nominal_modules), the conveyor's fixed layout and its
 // encoder (Conveyor::PlacementPose, SlotPose, SensorPosition, Moving,
-// steps), the arm's keyframe arm_home, and the joint angles through the
-// follower. Tool poses come from the IK's TipPoseAt on the scratch mjData,
+// steps), the arm's keyframes, the joint angles through the follower, and
+// the camera: Cell::TakeDepthImage (the picture) and Cell::CalibratedCamera
+// (where the calibration says the camera is). Tool poses come from the IK's TipPoseAt on the scratch mjData,
 // never from the simulated one. Nothing here reads a module's or the
 // pallet's pose out of the simulation, or calls a True... accessor.
 
@@ -63,9 +68,24 @@ const Eigen::VectorXd kPickSeed = Degrees(0, -78, 132, 0, -44, 90);
 // always uses -180 and so always swings the same way.
 const Eigen::VectorXd kPlaceSeed = Degrees(-180, -65, 85, 0, 70, 0);
 
+// Flat over the pallet, tool straight down: the answer for the nominal
+// pallet (tests/pick_place_test.cc's plan), joint 4 at 0 and joint 5 bent
+// down. The flatten turns the wrist from bent up (joint 5 about -30
+// degrees, at the clear pose) to bent down through joint 5 = 0, the wrist's
+// singular line. Seeded from the clear pose, the IK must cross it, and with
+// the pallet turned a degree or two (the tool's X then a little off the
+// arm's plane, joint 4 no longer exactly 0) it can come out on the other
+// side with joint 4 at 180 and joint 5 bent up the other way: the same tool
+// pose, but a joint move there swings the wrist half a turn with the module
+// on it. Seeding from this pose keeps the answer on the intended branch.
+const Eigen::VectorXd kOverPalletSeed = Degrees(0, -90.6, 80.9, 0, 99.8, 90);
+
 // Joint 1 must be at least this far round (negative) at the slot, or the IK
 // found the other way round.
 constexpr double kSwungJoint1 = -0.5 * kPi;
+
+// The arm counts as at the look pose with every joint within this of it.
+constexpr double kAtLookPose = 0.01;  // rad
 
 // The joint-4 = 0 wrist at the pallet: joint 4 within this of 0.
 constexpr double kWristBranch = 45.0 * kDegree;
@@ -88,6 +108,24 @@ Eigen::Isometry3d Interpolate(const Eigen::Isometry3d& from,
   const Eigen::Quaterniond b(to.linear());
   pose.linear() = a.slerp(t, b).toRotationMatrix();
   return pose;
+}
+
+// `pose` turned about the vertical through its own origin so that its X,
+// seen from above, lies square to the line from the arm's base axis (the
+// world's Z axis) out to it, keeping X's sense. A tool pose so turned has
+// its X along joint 5's axis with joint 4 at zero, the arm "facing" it.
+Eigen::Isometry3d SquaredToArm(const Eigen::Isometry3d& pose) {
+  const Eigen::Vector2d bearing = pose.translation().head<2>().normalized();
+  Eigen::Vector2d x = pose.linear().col(0).head<2>();
+  Eigen::Vector2d square(-bearing.y(), bearing.x());
+  if (square.dot(x) < 0.0) square = -square;
+  const double angle = std::atan2(x.x() * square.y() - x.y() * square.x(),
+                                  x.dot(square));
+  Eigen::Isometry3d turned = pose;
+  turned.linear() =
+      Eigen::AngleAxisd(angle, Eigen::Vector3d::UnitZ()).toRotationMatrix() *
+      pose.linear();
+  return turned;
 }
 
 // `pose` moved by `offset`, world axes; orientation unchanged.
@@ -128,6 +166,8 @@ const char* StepName(PickPlaceStep step) {
   switch (step) {
     case PickPlaceStep::kIdle:
       return "idle";
+    case PickPlaceStep::kLook:
+      return "look";
     case PickPlaceStep::kToStandoff:
       return "to standoff";
     case PickPlaceStep::kApproach:
@@ -160,6 +200,8 @@ const char* StepName(PickPlaceStep step) {
       return "retreat";
     case PickPlaceStep::kConveyor:
       return "conveyor";
+    case PickPlaceStep::kLookAhead:
+      return "look ahead";
     case PickPlaceStep::kReturn:
       return "return";
     case PickPlaceStep::kDone:
@@ -175,7 +217,13 @@ PickPlace::PickPlace(Cell& cell, const PickPlaceOptions& options)
       options_(options),
       follower_(cell.arm()),
       scratch_(MakeData(*cell.model())),
-      last_time_(cell.data()->time) {}
+      last_time_(cell.data()->time),
+      prior_(PriorFromDesign(cell.pallet())),
+      look_pose_(cell.arm_clear()) {
+  // arm_clear's joint 1 is +pi, the same pose as -pi; the script keeps to
+  // the -pi side, reached round +Y, like the place.
+  if (look_pose_[0] > 0.0) look_pose_[0] -= 2.0 * kPi;
+}
 
 std::optional<Eigen::VectorXd> PickPlace::SolvePose(
     const Eigen::Isometry3d& target, const Eigen::VectorXd& seed,
@@ -192,7 +240,7 @@ std::optional<std::vector<Eigen::VectorXd>> PickPlace::SolveLine(
     const Eigen::Isometry3d& to, const std::vector<double>& stops,
     std::string* reason) {
   const double length = (to.translation() - from.translation()).norm();
-  std::vector<Eigen::VectorXd> ends;
+  std::vector<Eigen::VectorXd> kept;
   Eigen::VectorXd q = start;
   double done = 0.0;
   for (double stop : stops) {
@@ -214,54 +262,117 @@ std::optional<std::vector<Eigen::VectorXd>> PickPlace::SolveLine(
       *reason = text;
       return std::nullopt;
     }
+    if (options_.blend_lines) {
+      // Every waypoint but the first, which is where the arm already is.
+      kept.insert(kept.end(), path->begin() + 1, path->end());
+    } else {
+      kept.push_back(path->back());
+    }
     q = path->back();
-    ends.push_back(q);
     done = stop;
   }
-  return ends;
+  if (kept.empty()) kept.push_back(q);  // a line of no length
+  return kept;
 }
 
-bool PickPlace::PlanPick(int module, std::string* reason, PickPlaceStep* step) {
-  const PalletBodies& pallet = cell_.pallet();
+PickPlace::Face PickPlace::DesignFace(int module) const {
   // Module k's glass as designed: the front face of the stack once modules
   // 0 .. k-1 have been taken, k thicknesses behind module_0's.
-  const Eigen::Isometry3d design = FromWorldPose(pallet.nominal_modules[module]);
-  const Eigen::Vector3d normal = design.linear().col(2);     // out of the glass
-  const Eigen::Vector3d long_side = design.linear().col(0);  // module's +x
-  const Eigen::Vector3d up = design.linear().col(1);         // up the lean
-  const Eigen::Vector3d glass =
-      design.translation() + 0.5 * kModuleThickness * normal;
+  const Eigen::Isometry3d design =
+      FromWorldPose(cell_.pallet().nominal_modules[module]);
+  Face face;
+  face.normal = design.linear().col(2);
+  face.long_side = design.linear().col(0);
+  face.up = design.linear().col(1);
+  face.glass = design.translation() + 0.5 * kModuleThickness * face.normal;
+  return face;
+}
+
+PickPlace::Face PickPlace::EstimatedFace(const ModuleEstimate& estimate,
+                                         int module) const {
+  Face face;
+  face.glass = estimate.glass_centre;
+  face.normal = estimate.glass_normal.normalized();
+  // The estimate's axes are those of the module's own frame, as the
+  // design's are.
+  face.long_side = estimate.pose.linear().col(0);
+  face.up = estimate.pose.linear().col(1);
+  // The pallet as the estimate places it: the design's pose of the module
+  // the pick count expects, carried onto the estimate. The pallet is one
+  // rigid piece with its stack, so the same motion carries every design
+  // pose near it. Only the carry's over-the-pallet pose uses it.
+  const int k = std::clamp(module, 0, cell_.module_count() - 1);
+  face.pallet_shift =
+      estimate.pose *
+      FromWorldPose(cell_.pallet().nominal_modules[k]).inverse();
+  return face;
+}
+
+bool PickPlace::PlanPick(const Face& face, std::string* reason,
+                         PickPlaceStep* step) {
+  const PalletBodies& pallet = cell_.pallet();
+  const Eigen::Vector3d& normal = face.normal;
+  const Eigen::Vector3d& long_side = face.long_side;
+  const Eigen::Vector3d& up = face.up;
 
   // The tool square to the glass, its X along the module's +x, the tip
-  // `distance` in front of the glass centre.
+  // `distance` in front of the glass centre. In camera mode these are the
+  // estimate's glass and axes, so every pick-side pose below, the lift
+  // along the glass and the pull-back along its normal included, follows
+  // the module wherever the pallet was set down.
   auto facing = [&](double distance) {
-    return *GripPose(glass + distance * normal, normal, long_side);
+    return *GripPose(face.glass + distance * normal, normal, long_side);
   };
   const Eigen::Isometry3d standoff = facing(options_.standoff);
+  const Eigen::Isometry3d slow_from =
+      facing(std::max(options_.approach_slow, options_.grip_gap));
   grip_tip_ = facing(options_.grip_gap);
   const Eigen::Isometry3d lifted =
       Shifted(grip_tip_, options_.lift * up + options_.lift_back * normal);
   const double lift_length = std::hypot(options_.lift, options_.lift_back);
   const Eigen::Isometry3d pulled =
       Shifted(lifted, options_.pull_back * normal);
-  const Eigen::Isometry3d clear =
+  // The clear pose also turns the module about the vertical until it
+  // squarely faces the arm (SquaredToArm). With the pallet set down turned,
+  // the module, and so the tool, is turned with it, and the wrist holds it
+  // with joint 4 off zero (14 degrees for a pallet turned 2.8 degrees and
+  // shifted 3 cm). The flatten that follows swings joint 5 through about
+  // 130 degrees; with joint 4 off zero that is no longer a turn about the
+  // module's long side, and its 1.15 m ends swept sideways into the next
+  // module. Squared to the arm, joint 4 is zero and the flatten turns the
+  // module about its own long side, as at nominal. The turn (up to about 4
+  // degrees: the pallet's 3 and the bearing's 1) is spread along the 0.45 m
+  // back-off, so the module's ends move toward the stack by at most an
+  // eighth of how far the tool has backed off.
+  const Eigen::Isometry3d clear = SquaredToArm(
       Shifted(lifted, (options_.clear_back - options_.grip_gap -
                        options_.lift_back) * normal +
-                          options_.clear_up * up);
+                          options_.clear_up * up));
 
   // Flat over the pallet: tool straight down, its X still along the
-  // module's +x, which keeps the module's long side along the pallet.
+  // module's +x, which keeps the module's long side along the pallet. The
+  // point is given in the pallet's frame, and moves with the pallet as
+  // estimated, so the module turned flat keeps the same distance from the
+  // stack wherever the pallet stands.
   const Eigen::Isometry3d nominal_pallet = FromWorldPose(pallet.nominal_pallet);
   const Eigen::Vector3d down_face = Eigen::Vector3d::UnitZ();  // glass up
-  const Eigen::Isometry3d over_pallet =
-      *GripPose(nominal_pallet * options_.over_pallet, down_face, long_side);
+  // Squared to the arm, like the clear pose, so the flatten is a turn of
+  // joint 5 alone.
+  const Eigen::Isometry3d over_pallet = SquaredToArm(*GripPose(
+      face.pallet_shift * nominal_pallet * options_.over_pallet, down_face,
+      long_side));
+  // Ready stays where it was designed: 0.8 m from the stack, a few
+  // centimetres of pallet offset do not matter there, and the arm comes
+  // back to the same pose every cycle.
+  const Eigen::Vector3d design_long_side =
+      FromWorldPose(pallet.nominal_modules[0]).linear().col(0);
   const Eigen::Isometry3d ready =
-      *GripPose(nominal_pallet * options_.ready, down_face, long_side);
+      *GripPose(nominal_pallet * options_.ready, down_face, design_long_side);
 
-  // High over the slot, from the fixed placement pose (the encoder's
-  // correction of a few millimetres is left to the lowering). First with
-  // the long side along the tube: the pallet's long-side direction carried
-  // half a turn about the vertical by joint 1, as the swing does.
+  // Over the slot, from the fixed placement pose (the encoder's correction
+  // of a few millimetres is left to the lowering). First with the long
+  // side along the tube: the pallet's long-side direction carried half a
+  // turn about the vertical by joint 1, as the swing does.
   const Eigen::Isometry3d place = Conveyor::PlacementPose();
   const Eigen::Vector3d place_up = place.linear().col(2);
   const Eigen::Vector3d release_glass =
@@ -275,8 +386,11 @@ bool PickPlace::PlanPick(int module, std::string* reason, PickPlaceStep* step) {
   const Eigen::Vector3d over_slot_tip =
       release_glass + (options_.grip_gap + options_.turn_height) * place_up +
       options_.turn_outboard * outward;
+  Eigen::Vector3d level_long_side = long_side;
+  level_long_side.z() = 0.0;
   const Eigen::Vector3d swung_long_side =
-      Eigen::AngleAxisd(kPi, Eigen::Vector3d::UnitZ()) * long_side;
+      Eigen::AngleAxisd(kPi, Eigen::Vector3d::UnitZ()) *
+      level_long_side.normalized();
   const Eigen::Isometry3d over_slot_along =
       *GripPose(over_slot_tip, place_up, swung_long_side);
 
@@ -299,14 +413,17 @@ bool PickPlace::PlanPick(int module, std::string* reason, PickPlaceStep* step) {
     return fail(PickPlaceStep::kToStandoff, "the wrist came out flipped");
   }
 
-  // Straight in: a long leg, then the slow short one.
-  const double in = options_.standoff - options_.grip_gap;
-  const double fast = std::max(0.0, options_.standoff - options_.approach_slow);
+  // Straight in: the long part at speed_empty, then the slow short one.
+  const double fast =
+      (slow_from.translation() - standoff.translation()).norm();
   std::optional<std::vector<Eigen::VectorXd>> line =
-      SolveLine(*q_standoff, standoff, grip_tip_, {fast, in}, &why);
+      SolveLine(*q_standoff, standoff, slow_from, {fast}, &why);
   if (!line) return fail(PickPlaceStep::kApproach, why);
-  approach_ = {(*line)[0]};
-  touch_ = {(*line)[1]};
+  approach_ = *line;
+  const double slow = (grip_tip_.translation() - slow_from.translation()).norm();
+  line = SolveLine(approach_.back(), slow_from, grip_tip_, {slow}, &why);
+  if (!line) return fail(PickPlaceStep::kTouchGlass, why);
+  touch_ = *line;
 
   line = SolveLine(touch_.back(), grip_tip_, lifted, {lift_length}, &why);
   if (!line) return fail(PickPlaceStep::kLift, why);
@@ -316,25 +433,38 @@ bool PickPlace::PlanPick(int module, std::string* reason, PickPlaceStep* step) {
   if (!line) return fail(PickPlaceStep::kPullBack, why);
   pull_back_ = *line;
 
-  // One leg, solved along its line so the answer stays on this branch.
+  // Solved along its line so the answer stays on this branch.
   const double clear_length =
       (clear.translation() - pulled.translation()).norm();
   line = SolveLine(pull_back_.back(), pulled, clear, {clear_length}, &why);
   if (!line) return fail(PickPlaceStep::kClear, why);
   clear_ = *line;
 
-  // Flat over the pallet, seeded from the clear pose so the wrist stays as
-  // it is (joint 4 near 0; joint 5 goes from bent up to bent down). The
-  // tool's X lies along joint 5's axis in both, so joint 6 hardly changes.
+  // Flat over the pallet, seeded on the intended wrist branch (see
+  // kOverPalletSeed), joint 1 turned toward it and joint 6 as at the clear
+  // pose: the tool's X lies along joint 5's axis in both, so joint 6 hardly
+  // changes.
+  Eigen::VectorXd flat_seed = kOverPalletSeed;
+  flat_seed[0] = std::clamp(-std::atan2(over_pallet.translation().y(),
+                                        over_pallet.translation().x()),
+                            cell_.arm().lower[0], cell_.arm().upper[0]);
+  flat_seed[5] = clear_.back()[5];
   std::optional<Eigen::VectorXd> q_over_pallet =
-      SolvePose(over_pallet, clear_.back(), &why);
+      SolvePose(over_pallet, flat_seed, &why);
   if (!q_over_pallet) return fail(PickPlaceStep::kFlatten, why);
+  if (std::abs((*q_over_pallet)[3]) > kWristBranch) {
+    return fail(PickPlaceStep::kFlatten, "the wrist came out flipped");
+  }
   flatten_ = {*q_over_pallet};
 
-  // The ready pose has the same orientation as over_pallet and lies near
-  // it, so it is seeded from there.
+  // The ready pose has nearly the same orientation as over_pallet and lies
+  // near it, so it is seeded from there.
   std::optional<Eigen::VectorXd> q_ready = SolvePose(ready, *q_over_pallet, &why);
   if (!q_ready) return fail(PickPlaceStep::kToStandoff, "ready pose: " + why);
+  if (std::abs((*q_ready)[3]) > kWristBranch) {
+    return fail(PickPlaceStep::kToStandoff, "ready pose: the wrist came out "
+                                            "flipped");
+  }
   to_standoff_ = {*q_ready, *q_standoff};
   return_ = {*q_ready};
 
@@ -373,6 +503,16 @@ bool PickPlace::PlanPlace(std::string* reason) {
   // Where the slot really is, as far as the encoder says: the slot's pose
   // for the slide position it reads now. This takes out the conveyor's
   // stopping error.
+  //
+  // What the place side assumes about the grip: that the module hangs from
+  // the tool exactly as the pick planned it, its glass grip_gap below the
+  // tip, centred, square and with its long side along the tool's X. In
+  // blind mode that is wrong by however far the pallet is off its design;
+  // in camera mode by the error of the estimate the pick aimed at plus how
+  // far the approach strayed from it. The script cannot see either, and
+  // lays the module down wrong by just that much; the scorer shows it. A
+  // look at the module in the tool after the pick (stage 7) would measure
+  // the actual grip and take it out here.
   const Conveyor& conveyor = cell_.conveyor();
   const Eigen::Isometry3d slot = Conveyor::SlotPose(
       outcome_.slot, conveyor.SensorPosition(*cell_.data()));
@@ -412,7 +552,7 @@ bool PickPlace::PlanPlace(std::string* reason) {
     *reason = std::string("no IK solution for lower (down): ") + why;
     return false;
   }
-  lower_.push_back(line->back());
+  lower_.insert(lower_.end(), line->begin(), line->end());
   line = SolveLine(lower_.back(), above, release, {options_.set_down_slow},
                    &why);
   if (!line) {
@@ -434,8 +574,18 @@ bool PickPlace::PlanPlace(std::string* reason) {
 bool PickPlace::Start(int module, PickPlaceStep first) {
   if (step_ != PickPlaceStep::kIdle && !Done()) return false;
   const mjData& data = *cell_.data();
-  if (data.time < last_time_) follower_ = ArmFollower(cell_.arm());
+  if (data.time < last_time_) {
+    // The cell was Reset: a new follower, and the last cycle's picture is
+    // of another scene.
+    follower_ = ArmFollower(cell_.arm());
+    look_ahead_.reset();
+  }
   last_time_ = data.time;
+  const bool camera = options_.sensing == SensingMode::kCamera;
+  if (first == PickPlaceStep::kIdle) {
+    first = camera ? PickPlaceStep::kLook : PickPlaceStep::kToStandoff;
+  }
+  if (!camera && first == PickPlaceStep::kLook) first = PickPlaceStep::kToStandoff;
 
   outcome_ = PickPlaceOutcome{};
   outcome_.status = PickPlaceOutcome::Status::kRunning;
@@ -444,6 +594,8 @@ bool PickPlace::Start(int module, PickPlaceStep first) {
   outcome_.start_time = data.time;
   planned_.clear();
   records_.clear();
+  looks_.clear();
+  estimate_.reset();
   release_tip_.reset();
   paused_ = false;
   step_ = PickPlaceStep::kIdle;
@@ -456,25 +608,29 @@ bool PickPlace::Start(int module, PickPlaceStep first) {
     Fail("the tube is full");
     return false;
   }
-  if (static_cast<int>(first) < static_cast<int>(PickPlaceStep::kToStandoff) ||
+  if (static_cast<int>(first) < static_cast<int>(PickPlaceStep::kLook) ||
       static_cast<int>(first) > static_cast<int>(PickPlaceStep::kReturn)) {
     Fail(std::string("cannot start at ") + StepName(first));
     return false;
   }
-  std::string reason;
-  PickPlaceStep failed = PickPlaceStep::kIdle;
-  if (!PlanPick(module, &reason, &failed)) {
-    step_ = failed;
-    Fail(reason);
-    return false;
-  }
-  // Starting later in the cycle (a test's constructed state): the place
-  // side is planned on entering `lower`, so a start after that plans it
-  // now.
-  if (static_cast<int>(first) > static_cast<int>(PickPlaceStep::kLower) &&
-      !PlanPlace(&reason)) {
-    Fail(reason);
-    return false;
+  // In camera mode the pick side is planned once the look step has an
+  // estimate; started after it, from the design.
+  if (first != PickPlaceStep::kLook) {
+    std::string reason;
+    PickPlaceStep failed = PickPlaceStep::kIdle;
+    if (!PlanPick(DesignFace(module), &reason, &failed)) {
+      step_ = failed;
+      Fail(reason);
+      return false;
+    }
+    // Starting later in the cycle (a test's constructed state): the place
+    // side is planned on entering `lower`, so a start after that plans it
+    // now.
+    if (static_cast<int>(first) > static_cast<int>(PickPlaceStep::kLower) &&
+        !PlanPlace(&reason)) {
+      Fail(reason);
+      return false;
+    }
   }
   BeginStep(first);
   return !Done();
@@ -483,6 +639,8 @@ bool PickPlace::Start(int module, PickPlaceStep first) {
 const std::vector<Eigen::VectorXd>* PickPlace::Waypoints(
     PickPlaceStep step) const {
   switch (step) {
+    case PickPlaceStep::kLook:
+      return &look_;
     case PickPlaceStep::kToStandoff:
       return &to_standoff_;
     case PickPlaceStep::kApproach:
@@ -538,15 +696,33 @@ void PickPlace::Close(const std::string& result) {
   records_.back().result = result;
 }
 
+void PickPlace::Finish(const std::string& result) {
+  Close(result);
+  const PickPlaceStep next = Next(step_);
+  if (pause_after_ && *pause_after_ == step_) {
+    paused_ = true;
+    pending_ = next;
+    return;
+  }
+  BeginStep(next);
+}
+
 void PickPlace::BeginMove(PickPlaceStep step,
                           const std::vector<Eigen::VectorXd>& waypoints,
-                          double speed) {
+                          double speed, std::optional<double> deviation) {
   Enter(step);
   planned_.push_back({step, waypoints, speed});
   MoveOptions move;
   move.speed = speed;
   std::string reason;
-  if (!follower_.MoveThrough(waypoints, *cell_.data(), move, &reason)) {
+  bool started = false;
+  if (deviation && options_.blend_lines) {
+    move.max_deviation = *deviation;
+    started = follower_.MoveAlong(waypoints, *cell_.data(), move, &reason);
+  } else {
+    started = follower_.MoveThrough(waypoints, *cell_.data(), move, &reason);
+  }
+  if (!started) {
     Fail("the follower refused the move: " + reason);
     return;
   }
@@ -582,7 +758,9 @@ std::string PickPlace::Shortfall(double* distance) const {
 PickPlace::Progress PickPlace::MoveFinished(bool may_be_blocked) {
   const mjData& data = *cell_.data();
   // Held up on the way: a joint far behind the plan means the arm has run
-  // into something. Only the joint angles are needed to see it.
+  // into something. Only the joint angles are needed to see it, and it
+  // works the same for a blended move as for one that stops at each
+  // waypoint: the plan says where the arm should be at every instant.
   const bool held_up =
       follower_.TrackingError(data).cwiseAbs().maxCoeff() >
       options_.blocked_tracking_error;
@@ -621,6 +799,7 @@ void PickPlace::Update() {
   // commands Reset left (home).
   if (data->time < last_time_) {
     follower_ = ArmFollower(cell_.arm());
+    look_ahead_.reset();
     if (!Done() && step_ != PickPlaceStep::kIdle) {
       Fail("the cell was reset during the cycle");
     }
@@ -630,8 +809,99 @@ void PickPlace::Update() {
   follower_.Update(*cell_.model(), data);
 }
 
-PickPlaceStep PickPlace::NextStep(PickPlaceStep step) {
-  return static_cast<PickPlaceStep>(static_cast<int>(step) + 1);
+PickPlaceStep PickPlace::Next(PickPlaceStep step) const {
+  PickPlaceStep next = static_cast<PickPlaceStep>(static_cast<int>(step) + 1);
+  if (options_.sensing != SensingMode::kCamera &&
+      (next == PickPlaceStep::kLook || next == PickPlaceStep::kLookAhead)) {
+    next = static_cast<PickPlaceStep>(static_cast<int>(next) + 1);
+  }
+  return next;
+}
+
+LookRecord PickPlace::TakeLook(PickPlaceStep step) {
+  LookRecord look;
+  look.time = cell_.data()->time;
+  look.step = step;
+  look.arm = JointAngles(cell_.arm(), *cell_.data());
+  const auto begin = std::chrono::steady_clock::now();
+  const DepthImage image = cell_.TakeDepthImage();
+  look.render_seconds = std::chrono::duration<double>(
+                            std::chrono::steady_clock::now() - begin)
+                            .count();
+  // The camera as calibrated: where the control code believes it is.
+  look.estimate = FindFrontModule(image, cell_.CalibratedCamera(), prior_,
+                                  options_.finder, &look.diagnostics);
+  return look;
+}
+
+void PickPlace::UseLook(const LookRecord& look) {
+  const FinderDiagnostics& d = look.diagnostics;
+  char text[400];
+  if (look.estimate) {
+    estimate_ = look.estimate;
+    // The sanity check against the face the pick count expects: how far
+    // along the design's glass normal the estimate is from module k's
+    // design glass, against what the pallet's placement tolerance can
+    // explain there (a shift of up to sqrt(2) times the tolerance, and the
+    // turn about the pallet's vertical axis times the glass's distance from
+    // it).
+    const Face design = DesignFace(outcome_.module);
+    const double off = (estimate_->glass_centre - design.glass).dot(design.normal);
+    Eigen::Vector3d from_axis = design.glass - prior_.pallet_origin;
+    from_axis.z() = 0.0;
+    const double explained =
+        std::sqrt(2.0) * prior_.placement_tolerance +
+        prior_.placement_yaw_tolerance * from_axis.norm() +
+        options_.face_check_margin;
+    std::snprintf(text, sizeof(text),
+                  "%sfound module, %+.1f mm from module_%d's design face "
+                  "along its normal%s (finder %.0f ms)",
+                  look_note_.c_str(), 1e3 * off, outcome_.module,
+                  std::abs(off) > explained
+                      ? ", MORE than the pallet's tolerance explains: another "
+                        "module in front?"
+                      : "",
+                  1e3 * d.seconds_total);
+    std::string reason;
+    PickPlaceStep failed = PickPlaceStep::kIdle;
+    if (!PlanPick(EstimatedFace(*estimate_, outcome_.module), &reason,
+                  &failed)) {
+      Fail(reason);
+      return;
+    }
+    Finish(text);
+    return;
+  }
+  // Where the picture was taken from. Away from the look pose the arm may
+  // be in the picture, and then any step of the finder can be the one that
+  // refuses: at arm_home the tool hides part of the glass's outline and
+  // the rectangle fit refuses before the view check is reached. So a
+  // refusal there earns one more picture from the look pose, where nothing
+  // of the arm is in the view; a refusal from the look pose is the scene's.
+  const bool at_look_pose =
+      (look.arm - look_pose_).cwiseAbs().maxCoeff() < kAtLookPose;
+  if (!look_moved_ &&
+      (d.failure == FinderFailure::kViewBlocked || !at_look_pose)) {
+    look_moved_ = true;
+    look_moving_ = true;
+    look_note_ = std::string(FinderFailureName(d.failure)) +
+                 " where the arm stood, taken again from the look pose: ";
+    look_ = {look_pose_};
+    planned_.push_back({PickPlaceStep::kLook, look_, options_.speed_empty});
+    MoveOptions move;
+    move.speed = options_.speed_empty;
+    std::string reason;
+    if (!follower_.MoveThrough(look_, *cell_.data(), move, &reason)) {
+      Fail("the follower refused the move to the look pose: " + reason);
+      return;
+    }
+    plan_end_ = cell_.data()->time + follower_.TimeLeft(*cell_.data());
+    return;
+  }
+  std::snprintf(text, sizeof(text), "%sthe finder refused: %s: %s",
+                look_note_.c_str(), FinderFailureName(d.failure),
+                d.detail.c_str());
+  Fail(text);
 }
 
 // What each step does when it begins. Steps that move start their move;
@@ -639,31 +909,68 @@ PickPlaceStep PickPlace::NextStep(PickPlaceStep step) {
 void PickPlace::BeginStep(PickPlaceStep step) {
   mjData* data = cell_.data();
   switch (step) {
+    case PickPlaceStep::kLook:
+      Enter(step);
+      look_moving_ = false;
+      look_moved_ = false;
+      look_note_.clear();
+      look_.clear();
+      if (look_ahead_) {
+        // Taken at the end of the last cycle, for this one.
+        const LookRecord look = *look_ahead_;
+        look_ahead_.reset();
+        look_note_ = "picture from the last cycle's look ahead: ";
+        looks_.push_back(look);
+        UseLook(look);
+        return;
+      }
+      // Otherwise a picture from where the arm stands, once it has held
+      // still for look_time.
+      look_hold_start_ = data->time;
+      return;
     case PickPlaceStep::kToStandoff:
+      BeginMove(step, to_standoff_, options_.speed_empty);
+      return;
     case PickPlaceStep::kApproach:
-      BeginMove(step, *Waypoints(step), options_.speed_empty);
+      BeginMove(step, approach_, options_.speed_empty, options_.deviation_far);
       return;
     case PickPlaceStep::kTouchGlass:
-      BeginMove(step, touch_, options_.speed_touching);
+      BeginMove(step, touch_, options_.speed_touching, options_.deviation_near);
       return;
     case PickPlaceStep::kGrip: {
       Enter(step);
+      grip_note_.clear();
       GripFailure failure;
       const std::optional<int> gripped = cell_.Grip(&failure);
       if (!gripped) {
         Fail("grip refused: " + failure.message);
       } else if (*gripped != outcome_.module) {
-        // Whatever was gripped stays held; the cycle stops here.
-        Fail("gripped module_" + std::to_string(*gripped) + ", not module_" +
-             std::to_string(outcome_.module));
+        if (options_.sensing == SensingMode::kCamera) {
+          // The camera found the front face, whichever module that is; the
+          // grip says which one it was. Picked is picked: carry on, and say
+          // so.
+          grip_note_ = "gripped module_" + std::to_string(*gripped) +
+                       ", where the pick count expected module_" +
+                       std::to_string(outcome_.module);
+          outcome_.module = *gripped;
+        } else {
+          // Whatever was gripped stays held; the cycle stops here.
+          Fail("gripped module_" + std::to_string(*gripped) +
+               ", not module_" + std::to_string(outcome_.module));
+        }
       }
       return;
     }
     case PickPlaceStep::kLift:
+      BeginMove(step, lift_, options_.speed_lift_off, options_.deviation_near);
+      return;
     case PickPlaceStep::kPullBack:
-      BeginMove(step, *Waypoints(step), options_.speed_lift_off);
+      BeginMove(step, pull_back_, options_.speed_lift_off,
+                options_.deviation_near);
       return;
     case PickPlaceStep::kClear:
+      BeginMove(step, clear_, options_.speed_carrying, options_.deviation_far);
+      return;
     case PickPlaceStep::kFlatten:
     case PickPlaceStep::kSwing:
     case PickPlaceStep::kTurn:
@@ -681,19 +988,22 @@ void PickPlace::BeginStep(PickPlaceStep step) {
         Fail(reason);
         return;
       }
-      BeginMove(step, lower_, options_.speed_carrying);
+      BeginMove(step, lower_, options_.speed_carrying, options_.deviation_far);
       return;
     }
     case PickPlaceStep::kSetDown:
-      BeginMove(step, set_down_, options_.speed_touching);
+      BeginMove(step, set_down_, options_.speed_touching,
+                options_.deviation_near);
       return;
     case PickPlaceStep::kRelease:
       Enter(step);
       cell_.Release();
       return;
     case PickPlaceStep::kRetreat:
+      BeginMove(step, retreat_, options_.speed_empty, options_.deviation_near);
+      return;
     case PickPlaceStep::kReturn:
-      BeginMove(step, *Waypoints(step), options_.speed_empty);
+      BeginMove(step, return_, options_.speed_empty);
       return;
     case PickPlaceStep::kConveyor: {
       Enter(step);
@@ -708,6 +1018,10 @@ void PickPlace::BeginStep(PickPlaceStep step) {
       if (!moved) Fail("the conveyor would not move on");
       return;
     }
+    case PickPlaceStep::kLookAhead:
+      Enter(step);
+      look_hold_start_ = data->time;
+      return;
     case PickPlaceStep::kDone:
       outcome_.status = PickPlaceOutcome::Status::kPlaced;
       outcome_.end_time = data->time;
@@ -726,16 +1040,19 @@ void PickPlace::Advance() {
   const double now = data.time;
   std::string result = "done";
   switch (step_) {
-    case PickPlaceStep::kSetDown: {
-      // If the module hangs lower than designed, it lands on the rails
-      // before the end and the arm stops short, pressing. Let go anyway.
-      const Progress p = MoveFinished(true);
-      if (p == Progress::kRunning) return;
-      if (p == Progress::kBlocked) result = "blocked, let go: " + Shortfall();
-      break;
-    }
+    case PickPlaceStep::kLook:
+      if (look_moving_) {
+        if (MoveFinished(false) != Progress::kFinished) return;
+        look_moving_ = false;
+        look_hold_start_ = now;
+        return;
+      }
+      if (now - look_hold_start_ < options_.look_time) return;
+      looks_.push_back(TakeLook(PickPlaceStep::kLook));
+      UseLook(looks_.back());
+      return;  // UseLook finishes the step, or fails it, or moves
     case PickPlaceStep::kTouchGlass: {
-      // If the glass is nearer than designed, or turned, the cups meet it
+      // If the glass is nearer than planned, or turned, the cups meet it
       // early and the arm stops short. A little short is harmless, and the
       // grip decides; further short would press the module into the stack.
       const Progress p = MoveFinished(true);
@@ -749,6 +1066,14 @@ void PickPlace::Advance() {
         }
         result = "met the glass early: " + how;
       }
+      break;
+    }
+    case PickPlaceStep::kSetDown: {
+      // If the module hangs lower than planned, it lands on the rails
+      // before the end and the arm stops short, pressing. Let go anyway.
+      const Progress p = MoveFinished(true);
+      if (p == Progress::kRunning) return;
+      if (p == Progress::kBlocked) result = "blocked, let go: " + Shortfall();
       break;
     }
     case PickPlaceStep::kToStandoff:
@@ -769,6 +1094,7 @@ void PickPlace::Advance() {
     case PickPlaceStep::kGrip:
       if (now - step_start_ < options_.grip_dwell) return;
       result = "held module_" + std::to_string(outcome_.module);
+      if (!grip_note_.empty()) result += " (" + grip_note_ + ")";
       break;
     case PickPlaceStep::kWaitForConveyor:
       if (cell_.conveyor().Moving(data)) {
@@ -785,19 +1111,31 @@ void PickPlace::Advance() {
       result = outcome_.slot >= Conveyor::kSlotCount - 1 ? "tube swapped"
                                                          : "step started";
       break;
+    case PickPlaceStep::kLookAhead: {
+      if (now - look_hold_start_ < options_.look_time) return;
+      looks_.push_back(TakeLook(PickPlaceStep::kLookAhead));
+      look_ahead_ = looks_.back();
+      const FinderDiagnostics& d = look_ahead_->diagnostics;
+      char text[300];
+      if (look_ahead_->estimate) {
+        std::snprintf(text, sizeof(text),
+                      "picture for the next pick: module found (finder %.0f "
+                      "ms)",
+                      1e3 * d.seconds_total);
+      } else {
+        std::snprintf(text, sizeof(text),
+                      "picture for the next pick: %s (%s)",
+                      FinderFailureName(d.failure), d.detail.c_str());
+      }
+      result = text;
+      break;
+    }
     case PickPlaceStep::kIdle:
     case PickPlaceStep::kDone:
     case PickPlaceStep::kFailed:
       return;
   }
-  Close(result);
-  const PickPlaceStep next = NextStep(step_);
-  if (pause_after_ && *pause_after_ == step_) {
-    paused_ = true;
-    pending_ = next;
-    return;
-  }
-  BeginStep(next);
+  Finish(result);
 }
 
 }  // namespace cell

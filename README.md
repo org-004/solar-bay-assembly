@@ -81,7 +81,8 @@ radians.
 
 ## Status
 
-The cell exists and one cycle runs in it without a camera.
+The cell exists and the cycle picks each module from where the camera sees
+it. The carry between the two sides is still hand-chosen.
 
 **The cell** (`models/cell.xml`). A KUKA KR 210 R2700-2, converted from the
 vendor's robot description, with a suction tool. A pallet tilted 10 degrees
@@ -100,12 +101,23 @@ inverse kinematics (`src/ik.h`), and the motors follow S-curve joint moves
 (`src/arm_follower.h`) at 90% of KUKA's speed limits. A cycle takes about 25
 simulated seconds.
 
-The script is blind: it assumes the pallet is exactly where the drawing says.
-With the pallet there, a module lands within 0.1 mm of its slot, for all 30
-modules of a pallet. With the pallet set down up to 30 mm and 3 degrees off,
-none of 10 trials placed a module: the cups meet the glass early, or the
-glass is out of the grip's 10 mm reach. With 5 mm and 0.3 degrees, 8 of 10
-placed, each about as far off as the pallet was.
+Without a camera the script assumes the pallet is exactly where the drawing
+says. With the pallet there, a module lands within 0.1 mm of its slot, for
+all 30 modules of a pallet. With the pallet set down up to 30 mm and
+3 degrees off, none of 20 trials placed a module: the cups meet the glass
+early, or the glass is out of the grip's 10 mm reach.
+
+With the camera, one depth picture per pick gives the front module's pose and
+the pick is built from that. The picture for the next pick is taken while the
+conveyor steps, so it adds 0.3 s to a cycle. Over 20 pallets set down up to
+30 mm and 3 degrees off, with noisy pictures, 20 of 20 modules were placed,
+at worst 0.13 mm along the tube, 0.60 mm across it and 0.012 degrees off.
+A whole pallet of 30 was placed onto three tubes within 0.23 mm, 0.62 mm and
+0.016 degrees, 25.9 s a cycle on average. With the camera's calibration
+off by 1 mm and 0.05 degrees, 20 of 20 were still placed, but up to 2.7 mm
+along and 4.0 mm across from the slot: the script cannot see that error.
+`bazel run --config=opt //:run_cell -- --pretty --trials 20` prints the
+table; add `--calibration 1,0.05` or `--blind` for the other two.
 
 **Finding the module** (`src/module_finder.h`). The camera's depth image is
 made by casting one ray per pixel (`src/depth_camera.h`), with an optional
@@ -117,8 +129,7 @@ Over 100 pictures of pallets set down up to 30 mm and 3 degrees off, at four
 stack depths and with the noise on, the found pose was never more than 0.8 mm
 or 0.03 degrees from the true one, and it refuses when the arm is in the
 way or the pallet is empty. A camera calibration that is off passes straight
-into the answer: about 4.4 mm per milliradian of tilt. The cycle does not
-use the finder yet.
+into the answer: about 4.4 mm per milliradian of tilt.
 
 **Planning** (`src/motion_planner.h`). A collision test with the carried
 module counted as part of the arm (`src/collision.h`), RRT-Connect with path
@@ -126,6 +137,13 @@ shortening (`src/rrt.h`), and timing that follows a path of waypoints without
 stopping at each (`src/path_timing.h`). On the cell's real carry it finds a
 path in about a third of a second, a quarter shorter than the hand-chosen
 one, 45 mm clear of everything. The cycle does not use the planner yet.
+
+**Check after pickup** (`src/held_module_finder.h`). A second depth camera
+looking up finds the held module's underside and from it where the module
+sits on the tool, which the first picture cannot know. In a test rig, with
+noise, it recovers that offset within about 0.3 mm and 0.02 degrees
+(`bazel run --config=opt //:print_check -- --pretty --noise`). The camera is
+not in the cell yet and the cycle does not use it.
 
 **Built before the cell.** `src/profile.h` and `src/joint_move.h` time moves
 within velocity, acceleration and jerk limits. `src/plane_fit.h` finds the
@@ -141,5 +159,5 @@ the simulator's own.
 The depth noise numbers are an assumption, not a camera's datasheet, and
 glass is harder for a real depth camera than for this one.
 
-Not done yet: using the found pose and the planner in the cycle, and the
+Not done yet: the planner and the check after pickup in the cycle, and the
 gate that runs randomized trials in CI.

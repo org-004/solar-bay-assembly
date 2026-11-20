@@ -563,6 +563,7 @@ cc_library(
         ":arm",
         ":camera_model",
         ":conveyor",
+        ":depth_camera",
         ":mj_handles",
         ":pallet",
         ":suction",
@@ -688,11 +689,15 @@ cc_library(
     deps = [
         ":arm",
         ":arm_follower",
+        ":camera_model",
         ":cell",
         ":conveyor",
+        ":depth_camera",
         ":ik",
         ":mj_handles",
+        ":module_finder",
         ":pallet",
+        ":path_timing",
         ":suction",
         "@eigen",
         "@mujoco",
@@ -715,11 +720,12 @@ cc_library(
     ],
 )
 
-# Runs the pick and place headless and prints the score of every cycle as
-# CSV, or with --pretty as an aligned table. Time it optimized:
-#   bazel run --config=opt //:run_cell -- --pretty --trials 10
+# Runs the pick and place headless (camera mode by default; --blind for the
+# stage-3 baseline) and prints the score of every cycle as CSV, or with
+# --pretty as an aligned table. Time it optimized:
+#   bazel run --config=opt //:run_cell -- --pretty --trials 20
 #   bazel run //:run_cell -- [--pretty] [--seed N] [--modules M] [--trials T]
-#                            [--nominal] [--verbose]
+#       [--nominal] [--blind] [--no-noise] [--calibration MM,DEG] [--verbose]
 cc_binary(
     name = "run_cell",
     srcs = ["src/run_cell.cc"],
@@ -734,9 +740,10 @@ cc_binary(
     ],
 )
 
-# The same pick and place in a window, with the score of each placement in
-# the corner. Backspace runs the trial again.
-#   bazel run //:view_cell -- [--seed N] [--nominal] [--modules M]
+# The same pick and place in a window, with the pictures' outcomes and the
+# score of each placement in the corner. Backspace runs the trial again.
+#   bazel run --config=opt //:view_cell -- [--seed N] [--nominal]
+#       [--modules M] [--blind] [--no-noise] [--calibration MM,DEG]
 cc_binary(
     name = "view_cell",
     srcs = ["src/view_cell.cc"],
@@ -744,6 +751,8 @@ cc_binary(
     data = CELL_FILES,
     deps = [
         ":cell",
+        ":cycle_check",
+        ":module_finder",
         ":pick_place",
         ":score",
         ":viewer_lib",
@@ -770,6 +779,39 @@ cc_test(
         ":cell",
         ":conveyor",
         ":cycle_check",
+        ":pallet",
+        ":pick_place",
+        ":score",
+        ":suction",
+        "@eigen",
+        "@googletest//:gtest_main",
+        "@mujoco",
+    ],
+)
+# Camera mode: the look and every phase after it on a pallet set down well
+# off nominal, whole cycles on three more randomized pallets, what a
+# calibration error does to the placement, the finder's refusals (an empty
+# pallet), and that the script's source reads no truth. Pictures cost about
+# 2 s each unoptimized, and the suite simulates about 3 minutes of cell.
+#   bazel test //:camera_cycle_test
+#   bazel test --config=opt //:camera_cycle_test --test_output=all
+cc_test(
+    name = "camera_cycle_test",
+    size = "large",
+    srcs = ["tests/camera_cycle_test.cc"],
+    data = CELL_FILES + ["src/pick_place.cc"],
+    env = {
+        "MODEL_PATH": "$(rootpath %s)" % CELL_SCENE,
+        "SCRIPT_SOURCE": "$(rootpath src/pick_place.cc)",
+    },
+    deps = [
+        ":arm",
+        ":camera_model",
+        ":cell",
+        ":conveyor",
+        ":cycle_check",
+        ":depth_camera",
+        ":module_finder",
         ":pallet",
         ":pick_place",
         ":score",
@@ -1197,3 +1239,120 @@ cc_binary(
     ],
 )
 # END motion_planner
+
+# BEGIN held_module_finder
+# The check after pickup: where the held module really sits on the tool,
+# from one depth image of its underside taken by a camera on the floor
+# looking up, and the frame algebra that turns it into a corrected set-down
+# target. Include as "src/held_module_finder.h".
+cc_library(
+    name = "held_module_finder",
+    srcs = ["src/held_module_finder.cc"],
+    hdrs = ["src/held_module_finder.h"],
+    deps = [
+        ":camera_model",
+        ":depth_camera",
+        ":module_finder",
+        ":pallet",
+        ":plane_fit",
+        ":rectangle_fit",
+        "@eigen",
+    ],
+)
+
+# The check's test rig: the tool on a mocap carriage, a module held under it
+# by the suction weld at a chosen grip offset, and check_camera on the floor
+# looking up.
+CHECK_SCENE = "models/check_scene.xml"
+
+CHECK_SCENE_FILES = MODELS_COMMON + [
+    CHECK_SCENE,
+    "models/suction.xml",
+    "models/tool.xml",
+]
+
+# Takes shots on the rig: grip at an offset, settle, render, with the truth.
+# For the test and the table only. Include as "src/check_rig.h".
+cc_library(
+    name = "check_rig",
+    srcs = ["src/check_rig.cc"],
+    hdrs = ["src/check_rig.h"],
+    deps = [
+        ":camera_model",
+        ":depth_camera",
+        ":held_module_finder",
+        ":mj_handles",
+        ":suction",
+        "@eigen",
+        "@mujoco",
+    ],
+)
+
+# The recovered grip offset against the truth over seeded offsets, exact,
+# with the camera's noise and with a calibration error; no bias from the
+# edges; the frame algebra; refusals; determinism; and the placement with
+# and without the check. Add --test_output=all to see the measured figures.
+#   bazel test //:held_module_finder_test
+#   bazel test --config=opt //:held_module_finder_test --test_output=all
+cc_test(
+    name = "held_module_finder_test",
+    size = "medium",
+    srcs = ["tests/held_module_finder_test.cc"],
+    data = CHECK_SCENE_FILES,
+    env = {"MODEL_PATH": "$(rootpath %s)" % CHECK_SCENE},
+    deps = [
+        ":camera_model",
+        ":check_rig",
+        ":depth_camera",
+        ":held_module_finder",
+        ":module_finder",
+        "@eigen",
+        "@googletest//:gtest_main",
+        "@mujoco",
+    ],
+)
+
+# The stage's table: recovered grip offsets against the truth on the rig.
+# Run it optimized:
+#   bazel run --config=opt //:print_check -- --pretty
+#   bazel run --config=opt //:print_check -- --pretty --noise --trials 100
+#   bazel run --config=opt //:print_check -- --pretty --noise --calibration 1,0.05
+# And the placement study for the real cell (src/check_placement.h): where
+# check_camera should stand and the arm's check pose above it, searched on
+# models/cell.xml (read only), or verified on a copy that has the camera:
+#   bazel run --config=opt //:print_check -- --study
+#   bazel run --config=opt //:print_check -- --study --cell /path/to/copy.xml
+cc_binary(
+    name = "print_check",
+    srcs = [
+        "src/check_placement.cc",
+        "src/check_placement.h",
+        "src/print_check.cc",
+    ],
+    args = [
+        "$(rootpath %s)" % CHECK_SCENE,
+        "--cell",
+        "$(rootpath %s)" % CELL_SCENE,
+    ],
+    # CELL_FILES already holds common.xml, suction.xml and the tool.
+    data = CELL_FILES + [CHECK_SCENE],
+    deps = [
+        ":arm",
+        ":camera_model",
+        ":check_rig",
+        ":collision",
+        ":depth_camera",
+        ":held_module_finder",
+        ":ik",
+        ":joint_move",
+        ":mj_handles",
+        ":motion_planner",
+        ":pallet",
+        ":path_timing",
+        ":rrt",
+        ":suction",
+        "@eigen",
+        "@mujoco",
+    ],
+)
+# END held_module_finder

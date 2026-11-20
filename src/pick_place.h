@@ -2,20 +2,46 @@
 // stack, carry it round to the conveyor, lay it on the rails of the empty
 // slot, and move the tube on.
 //
-// "Blind" means the script has no camera. It assumes the pallet stands
-// exactly where it was designed to (PalletBodies::nominal_modules, the
-// DESIGN poses, not where the modules truly are), and that each pick moves
-// the front face back by one module thickness, which is what those design
-// poses say: module k's glass is k thicknesses behind module_0's. What it
-// may read while running is what a real cell knows: the arm's joint angles
-// (through the follower), the conveyor's encoder, and what it did itself
-// (Grip's result). It never reads where a module or the pallet truly is.
+// Two ways of knowing where the module is (PickPlaceOptions::sensing):
+//
+//   Blind    No camera. The script assumes the pallet stands exactly where it
+//            was designed to (PalletBodies::nominal_modules, the DESIGN
+//            poses, not where the modules truly are), and that each pick
+//            moves the front face back by one module thickness, which is
+//            what those design poses say: module k's glass is k thicknesses
+//            behind module_0's. The baseline: what blindness costs.
+//   Camera   One depth picture per pick (Cell::TakeDepthImage), turned into
+//            the front module's pose by src/module_finder.h with the camera
+//            the control code believes in (Cell::CalibratedCamera). Every
+//            tool pose of the pick side is then built from that estimate
+//            instead of the design.
+//
+// What the script may read while running is what a real cell knows: the
+// arm's joint angles (through the follower), the conveyor's encoder, the
+// camera's picture and its calibration, and what it did itself (Grip's
+// result). It never reads where a module or the pallet truly is.
 // pick_place.cc does not call any True... accessor and reads no body pose
 // out of the simulation; that is what makes the score of a run (src/score.h)
-// a fair measure of what blindness costs.
+// a fair measure of what each way of sensing costs.
 //
 // One cycle, in the order the steps run (StepName gives each its name):
 //
+//   look          camera only. The picture of the stack, and the front
+//                 module's pose from it. The arm must be out of the camera's
+//                 view. Usually the picture was already taken at the end of
+//                 the cycle before (look ahead, below), and this step only
+//                 uses it. Otherwise (the first cycle, after a Reset) a
+//                 picture is taken where the arm stands. If the finder
+//                 refuses it, the arm goes to the look pose (arm_clear,
+//                 reached round +Y, where nothing of it is in the view) and
+//                 the picture is taken again, once: away from the look pose
+//                 the arm may be in the picture, and then any step of the
+//                 finder can be the one that refuses (at arm_home, whose
+//                 tool hangs in front of the stack, it is the rectangle
+//                 fit). A refusal from the look pose (no module there, the
+//                 wrong size: an empty or wrong pallet) ends the cycle with
+//                 the finder's reason, the arm holding still. Then the pick
+//                 is planned from the estimate.
 //   to standoff   joint moves from where the arm is (home, or ready after
 //                 the cycle before) through `ready`, well back from the
 //                 stack, to a pose square to module k's nominal glass,
@@ -48,15 +74,24 @@
 //   conveyor      calls the placed hook (a scorer measures here), then
 //                 starts the conveyor's step, or swaps the tube if this was
 //                 its last slot
+//   look ahead    camera only. The arm holds still at the end of the
+//                 retreat, over the tube on the far side of the base from
+//                 the pallet and below the camera's lines of sight to the
+//                 stack, and the picture for the NEXT pick is taken there,
+//                 while the tube moves: no extra arm motion, and only
+//                 look_time added. The next cycle's look step uses it.
 //   return        joint move back to `ready`, while the tube moves
 //
 // The straight moves are lists of joint waypoints solved by the IK
-// (src/ik.h) along the straight line, each leg a joint move of the follower
-// (src/arm_follower.h). A joint move strays from the straight line between
-// its ends by about 2.2e-4 * L^2 mm for a leg L mm long, so legs are short
-// where straightness matters (touching the glass, lifting along it, the
-// last centimetres onto the rails) and long elsewhere. The follower stops at
-// the end of each leg.
+// (src/ik.h) every centimetre along the straight line. With blend_lines (the
+// default) the follower runs the whole list in one motion
+// (ArmFollower::MoveAlong), rounding the corners between waypoints within a
+// set joint-space distance: deviation_near (tip within about 0.06 mm of the
+// line) where the tool is at the glass or the module at the rails,
+// deviation_far elsewhere. Without it, as at first, only the ends of a few
+// legs are kept and the follower stops at each; a joint move strays from
+// the straight line between its ends by about 2.2e-4 * L^2 mm for a leg L mm
+// long, so the legs are short where straightness matters.
 //
 // Use, once per physics step, with a Cell that has just been Reset:
 //
@@ -91,12 +126,34 @@
 #include "src/cell.h"
 #include "src/ik.h"
 #include "src/mj_handles.h"
+#include "src/module_finder.h"
 
 namespace cell {
+
+// How the script knows where the module to pick is; see the top of the file.
+enum class SensingMode { kBlind, kCamera };
 
 // Every distance, speed and wait the script uses. The defaults are the ones
 // tests/pick_place_test.cc measures the cycle with.
 struct PickPlaceOptions {
+  // ---------------------------------------------------------- sensing
+  // Blind by default: the baseline, and what the stage-3 tests measure.
+  SensingMode sensing = SensingMode::kBlind;
+  // How long the arm holds still for a picture: the camera's exposure and
+  // the readout and processing (the finder itself takes about 12 ms
+  // optimized). The picture is taken at the end of this time.
+  double look_time = 0.3;  // s
+  // The finder's settings (src/module_finder.h); its defaults are the ones
+  // it was measured with.
+  FinderOptions finder;
+  // The estimate is checked against the face the pick count expects (module
+  // k's design glass): it may be off along the glass's normal by what the
+  // pallet's placement tolerance allows (the shift, and the turn about the
+  // pallet's vertical axis), plus this. Half a module thickness: more than
+  // that and it may be another module. Only noted in the look step's
+  // record, never acted on: the finder sees the front face, wherever it is.
+  double face_check_margin = 0.5 * kModuleThickness;  // m
+
   // ------------------------------------------------------------ the pick
   // The ready pose, where a cycle starts its approach and where it returns
   // to: tool pointing straight down, its X along the pallet (as for the
@@ -163,14 +220,17 @@ struct PickPlaceOptions {
   // The carry is two hand-chosen poses, joined by joint moves.
   //
   // over_pallet: the tool tip pointing straight down, the module flat under
-  // it, glass up, its long side still along the pallet (world Y), the tip
-  // at this point given in the NOMINAL pallet's frame (origin on the floor
-  // under module_0's glass centre, axes along the world's). The default is
-  // 0.45 m toward the arm from module_0's glass and 1.6 m up, so the
-  // module's underside is about 0.27 m above the stack's highest edge
-  // (module_0's top edge, 1.29 m), and the arm, reaching only 1.5 m out,
-  // holds its forearm well above the module's inner edge.
-  Eigen::Vector3d over_pallet{-0.45, 0.0, 1.60};  // m, nominal pallet frame
+  // it, glass up, its long side square to the arm (about world Y), the tip
+  // at this point given in the pallet's frame (origin on the floor under
+  // module_0's glass centre, axes along the world's): the NOMINAL pallet in
+  // blind mode, the pallet as the estimate places it in camera mode, so
+  // the module turned flat keeps its distance from the stack wherever the
+  // pallet was set down. The default is 0.45 m toward the arm from
+  // module_0's glass and 1.6 m up, so the module's underside is about
+  // 0.27 m above the stack's highest edge (module_0's top edge, 1.29 m),
+  // and the arm, reaching only 1.5 m out, holds its forearm well above the
+  // module's inner edge.
+  Eigen::Vector3d over_pallet{-0.45, 0.0, 1.60};  // m, pallet frame
   // The place side. The swing from over_pallet turns joint 1 half a turn
   // round the +Y side (the camera's post stands on -Y) and keeps the
   // module's long side along the arm's circle, as it was at the pallet, so
@@ -193,10 +253,12 @@ struct PickPlaceOptions {
   // that leans out.
   double turn_outboard = 0.35;  // m, along the tube's cross direction
   double turn_height = 0.10;    // m, above the release pose
-  // The way in, from the turn to above the slot at turn_height, is cut into
-  // this many straight legs (each 0.35 m / legs long; 0.175 m strays by
-  // about 7 mm), so the module, only centimetres above the rails, does not
-  // sag onto them in the middle of one long leg.
+  // Without blend_lines: the way in, from the turn to above the slot at
+  // turn_height, is cut into this many straight legs (each 0.35 m / legs
+  // long; 0.175 m strays by about 7 mm), so the module, only centimetres
+  // above the rails, does not sag onto them in the middle of one long leg.
+  // With blend_lines the way in is one straight line, followed within
+  // deviation_far.
   int in_legs = 2;
 
   // ------------------------------------------------------------- the place
@@ -208,8 +270,9 @@ struct PickPlaceOptions {
   // top surface. A module released tilted, or pressed onto the rails, rocks
   // and shifts as it settles; 1 mm lets it drop flat.
   double release_clearance = 0.001;  // m
-  // After the release the tool goes straight up by retreat_short (so the
-  // cups leave the glass along its normal) and then on to retreat.
+  // After the release the tool goes straight up by `retreat`. Without
+  // blend_lines in two legs, the first retreat_short long, so the cups
+  // leave the glass along its normal.
   double retreat_short = 0.03;  // m
   double retreat = 0.25;        // m
 
@@ -265,11 +328,27 @@ struct PickPlaceOptions {
   // about 0.02 rad per centimetre).
   double line_spacing = 0.01;    // m
   double max_joint_step = 0.05;  // rad
+
+  // Run straight moves as one blended motion through every IK waypoint
+  // (ArmFollower::MoveAlong) instead of stopping at the ends of a few legs.
+  bool blend_lines = true;
+  // How far a blended move may stray from the polyline through its
+  // waypoints, in radians of joint-space distance (MoveOptions::
+  // max_deviation). Near: where the tool is on the glass or the module just
+  // above the rails or just off the stack (touch glass, lift, pull back,
+  // set down, retreat): on 0.3 m lines solved every centimetre the tip kept
+  // within about 0.06 mm of the line (src/path_timing.h). Far: approach,
+  // clear and lower, with centimetres to spare: about 0.5 mm at the tip,
+  // and at most about 15 mm anywhere on the arm and module in the worst
+  // case.
+  double deviation_near = 2e-4;  // rad
+  double deviation_far = PathTimingOptions::kDefaultMaxDeviation;  // rad
 };
 
 // The script's steps, in the order they run.
 enum class PickPlaceStep {
   kIdle,            // not started
+  kLook,            // camera only
   kToStandoff,
   kApproach,
   kTouchGlass,
@@ -286,6 +365,7 @@ enum class PickPlaceStep {
   kRelease,
   kRetreat,
   kConveyor,
+  kLookAhead,       // camera only
   kReturn,
   kDone,            // placed, and back at ready
   kFailed,          // stopped; the arm holds where it is
@@ -317,6 +397,18 @@ struct PlannedMove {
   PickPlaceStep step = PickPlaceStep::kIdle;
   std::vector<Eigen::VectorXd> waypoints;
   double speed = 0.0;
+};
+
+// One picture and what the finder made of it.
+struct LookRecord {
+  double time = 0.0;            // simulation time it was taken
+  PickPlaceStep step = PickPlaceStep::kIdle;  // look or look ahead
+  Eigen::VectorXd arm;          // joint angles it was taken from
+  // The estimate, or nothing if the finder refused; then diagnostics.failure
+  // and diagnostics.detail say why.
+  std::optional<ModuleEstimate> estimate;
+  FinderDiagnostics diagnostics;
+  double render_seconds = 0.0;  // computer time to take the picture
 };
 
 // What became of one step of a cycle: when it ran, in simulation seconds,
@@ -362,7 +454,14 @@ class PickPlace {
   // whole cycle is still planned; the arm must already be where the step
   // before `first` leaves it (Waypoints(that step).back()), and the module
   // as that step leaves it.
-  bool Start(int module, PickPlaceStep first = PickPlaceStep::kToStandoff);
+  //
+  // In camera mode the cycle starts with the look step, and `module` is
+  // only the module the pick count expects (for the estimate's sanity
+  // check): the module actually picked is the one the grip reports, and
+  // outcome().module says which. Started later than the look step, nothing
+  // has been seen, and the pick side is planned from the design as in
+  // blind mode. kIdle means the first step of the mode.
+  bool Start(int module, PickPlaceStep first = PickPlaceStep::kIdle);
 
   // Stops the cycle when `step` has finished, before the next one begins,
   // until Resume. The arm holds its pose meanwhile, and Update must still be
@@ -420,21 +519,55 @@ class PickPlace {
   const PickPlaceOptions& options() const { return options_; }
   const ArmFollower& follower() const { return follower_; }
 
+  // Camera mode: the pictures of the current cycle, in order (the look
+  // step's one or two, and the look ahead's), and the estimate the pick
+  // side was planned from (nothing in blind mode, or before the look step
+  // has succeeded).
+  const std::vector<LookRecord>& looks() const { return looks_; }
+  const std::optional<ModuleEstimate>& estimate() const { return estimate_; }
+  // The joint angles of the look pose: arm_clear, with joint 1 at -pi so
+  // that it is reached round +Y like everything else.
+  const Eigen::VectorXd& look_pose() const { return look_pose_; }
+
  private:
-  // Plans the pick and the carry for module_<module>. On failure returns
-  // false with the reason and the step it was for.
-  bool PlanPick(int module, std::string* reason, PickPlaceStep* step);
+  // The face the pick side aims at, from the design or from an estimate.
+  struct Face {
+    Eigen::Vector3d glass;      // centre of the glass
+    Eigen::Vector3d normal;     // out of the glass, unit
+    Eigen::Vector3d long_side;  // the module's +x, unit
+    Eigen::Vector3d up;         // the module's +y, up the lean, unit
+    // Where the pallet is taken to be: its nominal pose moved as the
+    // estimate says the module moved (identity when from the design).
+    Eigen::Isometry3d pallet_shift = Eigen::Isometry3d::Identity();
+  };
+  Face DesignFace(int module) const;
+  Face EstimatedFace(const ModuleEstimate& estimate, int module) const;
+
+  // Plans the pick and the carry for `face`. On failure returns false with
+  // the reason and the step it was for.
+  bool PlanPick(const Face& face, std::string* reason, PickPlaceStep* step);
   // Plans the set-down from the conveyor's encoder.
   bool PlanPlace(std::string* reason);
 
   // Solves the straight line from `from` to `to` (tip poses), the arm
   // starting at `start` (its angles at `from`), and returns the angles at
   // each of `stops`, distances from `from` along the line in increasing
-  // order, the last being the whole length.
+  // order, the last being the whole length. With blend_lines, every
+  // waypoint solved along the line instead (all but `from`'s), for
+  // MoveAlong.
   std::optional<std::vector<Eigen::VectorXd>> SolveLine(
       const Eigen::VectorXd& start, const Eigen::Isometry3d& from,
       const Eigen::Isometry3d& to, const std::vector<double>& stops,
       std::string* reason);
+
+  // Camera mode: takes a picture now and runs the finder on it.
+  LookRecord TakeLook(PickPlaceStep step);
+  // The look step's verdict on a picture: plans the pick from its estimate
+  // and ends the step, or moves to the look pose to take it again, or
+  // fails the cycle.
+  void UseLook(const LookRecord& look);
+  // The step after `step` in this mode (blind skips the look steps).
+  PickPlaceStep Next(PickPlaceStep step) const;
   // Solves one pose from `seed`; on failure says why in `reason`.
   std::optional<Eigen::VectorXd> SolvePose(const Eigen::Isometry3d& target,
                                            const Eigen::VectorXd& seed,
@@ -444,12 +577,16 @@ class PickPlace {
   void Enter(PickPlaceStep step);
   // Closes the current step's record with `result`.
   void Close(const std::string& result);
+  // Closes the current step with `result` and begins the next, or pauses
+  // before it.
+  void Finish(const std::string& result);
   // Begins `step`: starts its move, or does what it does.
   void BeginStep(PickPlaceStep step);
-  static PickPlaceStep NextStep(PickPlaceStep step);
-  // Enters `step` and starts its move through `waypoints` at `speed`.
+  // Enters `step` and starts its move through `waypoints` at `speed`:
+  // stopping at each, or, if `deviation` is set and blend_lines is on, in
+  // one blended motion within that joint-space distance.
   void BeginMove(PickPlaceStep step, const std::vector<Eigen::VectorXd>& waypoints,
-                 double speed);
+                 double speed, std::optional<double> deviation = std::nullopt);
   // Whether the current move has ended. If the arm has not arrived
   // arrive_timeout after the plan ended, it is blocked: that fails the
   // cycle (and returns kRunning), unless `may_be_blocked`.
@@ -484,6 +621,21 @@ class PickPlace {
 
   // The current cycle's plan, joint angles. Each list is one step's
   // waypoints.
+  // Camera mode.
+  PalletPrior prior_;
+  Eigen::VectorXd look_pose_;
+  std::vector<Eigen::VectorXd> look_;     // the move to the look pose
+  std::vector<LookRecord> looks_;         // this cycle's pictures
+  std::optional<LookRecord> look_ahead_;  // taken last cycle, for this one
+  std::optional<ModuleEstimate> estimate_;
+  // Inside the look step: moving to the look pose; then holding still for
+  // the picture since look_hold_start_.
+  bool look_moving_ = false;
+  bool look_moved_ = false;  // the retake from the look pose has begun
+  double look_hold_start_ = 0.0;
+  std::string look_note_;    // what the look step found, for its record
+  std::string grip_note_;    // a grip of another module than expected
+
   std::vector<Eigen::VectorXd> to_standoff_, approach_, touch_, lift_,
       pull_back_, clear_, flatten_, swing_, turn_, lower_, set_down_,
       retreat_, return_;

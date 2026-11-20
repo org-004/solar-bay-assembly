@@ -1,7 +1,9 @@
 #include "src/cell.h"
 
+#include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <numbers>
 #include <optional>
 #include <random>
 #include <string>
@@ -15,6 +17,7 @@
 #include "src/arm.h"
 #include "src/camera_model.h"
 #include "src/conveyor.h"
+#include "src/depth_camera.h"
 #include "src/mj_handles.h"
 #include "src/pallet.h"
 #include "src/suction.h"
@@ -184,12 +187,27 @@ TrueScene Cell::DrawScene(std::uint32_t seed,
   scene.pallet_y = Uniform(random, randomization.pallet_xy);
   scene.pallet_yaw = Uniform(random, randomization.pallet_yaw);
   scene.conveyor_seed = random();
+  // The camera's draws come after the four above, so adding them left every
+  // earlier seed's scene as it was. The calibration error's directions:
+  // uniform over the sphere, from a uniform height and a uniform angle
+  // round (Archimedes' hat-box theorem).
+  auto direction = [&random]() {
+    const double z = Uniform(random, 1.0);
+    const double angle = Uniform(random, std::numbers::pi);
+    const double r = std::sqrt(std::max(0.0, 1.0 - z * z));
+    return Eigen::Vector3d(r * std::cos(angle), r * std::sin(angle), z);
+  };
+  scene.camera_shift = randomization.camera_shift * direction();
+  scene.camera_turn = randomization.camera_turn * direction();
+  scene.camera_noise = randomization.camera_noise;
+  scene.camera_noise_seed = random();
   return scene;
 }
 
 bool Cell::Reset(std::uint32_t seed, const Randomization& randomization) {
   for (double figure : {randomization.pallet_xy, randomization.pallet_yaw,
-                        randomization.conveyor_stop_error}) {
+                        randomization.conveyor_stop_error,
+                        randomization.camera_shift, randomization.camera_turn}) {
     if (!std::isfinite(figure) || figure < 0.0) return false;
   }
   mjModel* model = model_.get();
@@ -209,6 +227,7 @@ bool Cell::Reset(std::uint32_t seed, const Randomization& randomization) {
   }
 
   scene_ = DrawScene(seed, randomization);
+  pictures_ = 0;
   // Also runs mj_forward.
   PlacePallet(*model, data, pallet_, scene_.pallet_x, scene_.pallet_y,
               scene_.pallet_yaw);
@@ -313,6 +332,22 @@ void Cell::RebaselineStack() {
 CameraModel Cell::DepthCamera() const {
   // Load checked that this camera can be described.
   return *CameraModelFromMujoco(*model_, *data_, camera_);
+}
+
+DepthImage Cell::TakeDepthImage() {
+  // After mj_step the positions are from before its last integration.
+  mj_kinematics(model_.get(), data_.get());
+  DepthOptions options;
+  options.noise.depth_noise = scene_.camera_noise;
+  options.noise.edge_effects = scene_.camera_noise;
+  options.noise.quantize = scene_.camera_noise;
+  options.noise.seed = scene_.camera_noise_seed + static_cast<std::uint32_t>(pictures_);
+  ++pictures_;
+  return RenderDepth(*model_, data_.get(), DepthCamera(), options);
+}
+
+CameraModel Cell::CalibratedCamera() const {
+  return Perturbed(DepthCamera(), scene_.camera_turn, scene_.camera_shift);
 }
 
 Eigen::Isometry3d Cell::TrueModulePose(int i) const {

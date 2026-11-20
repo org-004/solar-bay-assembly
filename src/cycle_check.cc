@@ -33,6 +33,20 @@ bool Between(PickPlaceStep step, PickPlaceStep first, PickPlaceStep last) {
 
 }  // namespace
 
+EstimateError EstimateErrorOf(const Eigen::Isometry3d& estimate,
+                              const Eigen::Isometry3d& truth) {
+  EstimateError e;
+  const Eigen::Vector3d d =
+      truth.linear().transpose() * (estimate.translation() - truth.translation());
+  e.long_side = d.x();
+  e.up_lean = d.y();
+  e.normal = d.z();
+  const Eigen::Matrix3d r = truth.linear().transpose() * estimate.linear();
+  e.face_angle = std::acos(std::clamp(r(2, 2), -1.0, 1.0));
+  e.in_plane = std::atan2(r(1, 0), r(0, 0));
+  return e;
+}
+
 const char* ClearanceName(Clearance clearance) {
   switch (clearance) {
     case Clearance::kModuleArm:

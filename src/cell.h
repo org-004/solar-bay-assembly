@@ -22,7 +22,8 @@
 // are. Here everything is in mjData, so the line is drawn by name:
 //
 //   Allowed      JointAngles (src/arm.h), conveyor().Sensor..., the camera
-//                (DepthCamera: calibration, fixed), what the control code did
+//                (TakeDepthImage: its picture; CalibratedCamera: where the
+//                control code believes it is), what the control code did
 //                itself (Grip's result, steps()).
 //   True...      What really is: where modules and the pallet are, what was
 //                drawn at Reset, which slot a module landed in. For setting up
@@ -51,6 +52,7 @@
 #include "src/arm.h"
 #include "src/camera_model.h"
 #include "src/conveyor.h"
+#include "src/depth_camera.h"
 #include "src/mj_handles.h"
 #include "src/pallet.h"
 #include "src/suction.h"
@@ -72,8 +74,22 @@ struct Randomization {
   // from a normal distribution itself.
   double conveyor_stop_error = 0.002;  // m
 
-  // No randomness at all.
-  static Randomization None() { return {0.0, 0.0, 0.0}; }
+  // The depth camera's calibration: where control code believes the camera
+  // is (CalibratedCamera) is off from where it truly is by a shift of this
+  // length and a turn of this angle, each in a direction drawn for the seed
+  // (uniformly over all directions, in the camera's own frame). Not drawn
+  // in size: a calibration is off by some amount, and tests want to say by
+  // how much. Zero by default: the calibration is exact.
+  double camera_shift = 0.0;  // m
+  double camera_turn = 0.0;   // rad
+
+  // The depth camera's own errors in every picture (DepthNoise: depth
+  // noise, edge effects, readings in whole millimetres), drawn afresh for
+  // each picture from the seed.
+  bool camera_noise = true;
+
+  // No randomness at all: also no camera noise.
+  static Randomization None() { return {0.0, 0.0, 0.0, 0.0, 0.0, false}; }
 };
 
 // What Reset drew for one seed. Truth: control code must not read it.
@@ -83,6 +99,16 @@ struct TrueScene {
   double pallet_y = 0.0;    // m, along world Y
   double pallet_yaw = 0.0;  // rad, turned about the vertical
   std::uint32_t conveyor_seed = 0;  // seeds the conveyor's stopping errors
+
+  // The calibration error: CalibratedCamera() is DepthCamera() moved by
+  // Perturbed(camera, camera_turn, camera_shift), both in the camera's own
+  // frame (see src/camera_model.h). Zero when exact.
+  Eigen::Vector3d camera_turn = Eigen::Vector3d::Zero();   // rad, axis * angle
+  Eigen::Vector3d camera_shift = Eigen::Vector3d::Zero();  // m
+  // Whether pictures are noisy, and the seed their noise starts from
+  // (picture n of a trial uses camera_noise_seed + n).
+  bool camera_noise = false;
+  std::uint32_t camera_noise_seed = 0;
 };
 
 // Where each module is in the bookkeeping. Changed only by the calls named.
@@ -212,9 +238,36 @@ class Cell {
   const Eigen::VectorXd& arm_home() const { return arm_home_; }
   const Eigen::VectorXd& arm_clear() const { return arm_clear_; }
 
-  // The depth camera, as of the last mj_forward or mj_step (it never moves).
+  // The depth camera where it truly is, as of the last mj_forward or mj_step
+  // (it never moves). Truth when the calibration is off: control code uses
+  // CalibratedCamera.
   CameraModel DepthCamera() const;
   int depth_camera_id() const { return camera_; }
+
+  // ------------------------------------------------------------ the camera
+  // The two things perception may use. The picture comes from the camera
+  // where it truly is; what the control code believes about where the
+  // camera is comes from its calibration, which may be off (Randomization::
+  // camera_shift, camera_turn). A real cell is the same: the scene is seen
+  // from where the camera is, and turned into points with where it is
+  // thought to be.
+
+  // A depth picture of the cell as it is now (src/depth_camera.h), from the
+  // true camera, with the trial's camera noise if switched on: picture n of
+  // the trial (counted from Reset) gets noise seed camera_noise_seed + n, so
+  // a run repeats exactly. Brings the bodies' positions up to date first
+  // (mj_kinematics), which changes nothing about the simulation's state.
+  // About 0.15 s of computer time optimized, 1 s unoptimized; no simulated
+  // time passes.
+  DepthImage TakeDepthImage();
+
+  // The camera as the control code's calibration has it: the true camera
+  // moved by the trial's calibration error. Equal to DepthCamera() when the
+  // calibration is exact.
+  CameraModel CalibratedCamera() const;
+
+  // Pictures taken since the last Reset.
+  int pictures_taken() const { return pictures_; }
 
   // ------------------------------------------------------------------ truth
   // For setting up scenes, tests and scoring only.
@@ -260,6 +313,7 @@ class Cell {
   int camera_ = -1;  // camera id
   Eigen::VectorXd arm_home_;  // joint angles, also the motor commands
   Eigen::VectorXd arm_clear_;
+  int pictures_ = 0;
 
   TrueScene scene_;
   std::vector<ModuleState> state_;

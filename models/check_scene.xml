@@ -1,0 +1,125 @@
+<!--
+  A test rig for the check after pickup (src/held_module_finder.h), without
+  the arm.
+
+  The tool (models/tool.xml) is mounted by an include inside a body, as the
+  arm mounts it, but on a carriage instead of the arm: rig_carriage, a mocap
+  body, which a test puts exactly where it wants by writing mocap_pos and
+  mocap_quat. Its frame is the flange's: +Z out of the flange, toward the
+  module. As built it points straight down, the tool's X along world +X, so
+  tool_tip is at (0, 0, 1.585) with its +Z pointing down. Being mocap it
+  does not give under the module's weight: its pose is known exactly, as the
+  arm's tool tip is known from the joint angles.
+
+  module_0, 2.3 m x 1.1 m x 0.035 m and 30 kg, hangs under the tool, glass
+  up, its long side along world X, held by the real suction weld
+  (models/suction.xml, src/suction.h): a test teleports it to the grip
+  offset it wants and calls Suction::Grip, which holds it there. As built
+  it is at the design grip, the cups on the middle of its glass: its
+  underside at 1.55 m. The cups and the module do not collide here
+  (<contact> below): a grip offset 10 mm "into" the glass or tilted 1.5
+  degrees would otherwise put the end cups through the glass and push the
+  module off the pose the test chose; on the real tool the cups' bellows
+  give.
+
+  check_camera stands on the floor under the module and looks straight up.
+  Why there and so: see the comment at the camera.
+
+  rig_ceiling, a mocap plate 4 m up, is a roof over the rig: with it every
+  pixel beyond the module's edges reads something, so with the noise model
+  on every edge has flying pixels as well as dropped ones. Moved away (a
+  test sets its mocap_pos far off), the camera sees nothing beyond the
+  edges and they only drop out.
+
+  module_1, of another size (2.0 m x 1.0 m), lies on the floor out of view
+  until a test grips it in module_0's place.
+
+  Everything in this file other than the modules and the camera is named
+  rig_.
+-->
+<mujoco model="check scene">
+  <include file="common.xml"/>
+  <include file="suction.xml"/>
+
+  <default>
+    <!-- The carriage, the roof and the camera's housing are for looking at
+         only: nothing collides with them. -->
+    <default class="rig">
+      <geom contype="0" conaffinity="0" rgba="0.5 0.55 0.6 1"/>
+    </default>
+    <default class="module">
+      <geom type="box" size="1.15 0.55 0.0175" mass="30" friction="0.8 0.005 0.0001"
+            rgba="0.1 0.15 0.35 1"/>
+    </default>
+  </default>
+
+  <worldbody>
+    <!-- The carriage: the flange 0.30 m above tool_tip, pointing down. -->
+    <body name="rig_carriage" mocap="true" pos="0 0 1.885" xyaxes="1 0 0 0 -1 0"
+          childclass="rig">
+      <geom name="rig_carriage_block" type="box" size="0.12 0.12 0.1" pos="0 0 -0.1"/>
+      <!-- The tool goes back to the default class, so that it is as it is
+           on the arm. -->
+      <body name="rig_mount" childclass="main">
+        <include file="tool.xml"/>
+      </body>
+    </body>
+
+    <body name="rig_ceiling" mocap="true" pos="0 0 4.0" childclass="rig">
+      <geom name="rig_ceiling" type="box" size="4 4 0.05" rgba="0.8 0.8 0.78 1"/>
+    </body>
+
+    <!--
+      The check camera. MuJoCo's camera looks along its own -Z with +Y up
+      in the image, so looking straight up is -Z = world +Z; here its +X
+      (the image's rows) is world +X turned 5 degrees about the vertical,
+      and its +Y is world -Y turned the same.
+
+      Where and how wide: the module's underside 1.40 m above the lens
+      (underside at 1.55 m, lens at 0.15 m). The underside has to be in view
+      whole, with room for the module being up to 5 cm and 3 degrees off
+      the design grip: its corners then reach 0.117 m further out, so 2.53
+      m x 1.33 m, which turned 5 degrees in the image needs 2.64 m x 1.55
+      m. fovy 61 degrees with 848 x 480 square pixels gives a focal length
+      of 240 / tan(30.5 deg) = 407.5 pixels and a horizontal field of 92.2
+      degrees: 2.91 m x 1.65 m at the underside, 3.43 mm per pixel there,
+      about 215,000 pixels on the underside. Nearer and wider would give
+      finer pixels but a lens no real depth camera has; higher would take
+      the module above where the carry passes anyway (over the pallet the
+      script holds it with its underside at 1.565 m).
+
+      Why turned 5 degrees: square-on, a pixel grid whose rows run exactly
+      along an edge leaves that edge anywhere in the gap beyond the last
+      row, up to half a pixel either way, which FitRectangle's dot counting
+      cannot see (src/rectangle_fit.h). Turned, each long side crosses the
+      rows about 60 times and the counting averages that out.
+
+      Its housing is below the lens, wholly behind it, so it is never in the
+      picture.
+    -->
+    <geom name="rig_camera_housing" class="rig" type="box" size="0.06 0.045 0.06"
+          pos="0 0 0.07" rgba="0.1 0.1 0.1 1"/>
+    <camera name="check_camera" pos="0 0 0.15"
+            xyaxes="0.9961947 0.0871557 0 0.0871557 -0.9961947 0"
+            fovy="61" resolution="848 480"/>
+
+    <!-- At the design grip under the tool. -->
+    <body name="module_0" pos="0 0 1.5675">
+      <freejoint name="module_0"/>
+      <geom name="module_0" class="module"/>
+    </body>
+
+    <!-- A module of another product, 2.0 m x 1.0 m, lying on the floor far
+         out of the camera's view until a test grips it instead: the wrong
+         size. -->
+    <body name="module_1" pos="20 3 0.0175">
+      <freejoint name="module_1"/>
+      <geom name="module_1" class="module" size="1.0 0.5 0.0175" mass="26"/>
+    </body>
+  </worldbody>
+
+  <contact>
+    <exclude body1="tool" body2="module_0"/>
+    <exclude body1="tool" body2="module_1"/>
+  </contact>
+</mujoco>

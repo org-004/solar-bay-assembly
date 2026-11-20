@@ -31,6 +31,7 @@
 #include <vector>
 
 #include <Eigen/Core>
+#include <Eigen/Geometry>
 
 #include "src/cell.h"
 #include "src/pick_place.h"
@@ -76,6 +77,21 @@ struct CycleCheckOptions {
   // are soft, so a joint pressed against one goes a hair past it.
   double range_slack = 1e-3;  // rad
 };
+
+// How far an estimate of a module's pose is from where the module truly
+// is, in the TRUE module's own frame: its centre's offset along the long
+// side (x), up the lean (y) and along the glass's normal (z), the angle
+// between the two glass normals, and the turn about the normal (the long
+// sides' angle seen square to the glass). Truth: for tests and the runner.
+struct EstimateError {
+  double long_side = 0.0;  // m
+  double up_lean = 0.0;    // m
+  double normal = 0.0;     // m, + toward the arm
+  double face_angle = 0.0;  // rad
+  double in_plane = 0.0;    // rad, counterclockwise seen from the arm
+};
+EstimateError EstimateErrorOf(const Eigen::Isometry3d& estimate,
+                              const Eigen::Isometry3d& truth);
 
 class CycleCheck {
  public:
