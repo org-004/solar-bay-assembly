@@ -51,11 +51,16 @@ bazel run //:print_profile     # a trapezoid and an S-curve as CSV
 bazel run //:print_plane_fit   # plane-fit error over made-up pallet views
 bazel run //:print_points      # one made-up pallet view as CSV
 bazel run //:print_cell        # what is in the cell, contacts, speed
+bazel run //:print_depth       # one depth image from the cell's camera
+bazel run //:print_perception  # found module pose against the true one
+bazel run //:print_plan        # planned carries: time, length, clearance
+bazel run //:print_rrt         # the planner on a 2D toy world, as CSV
 bazel run //:print_pallet      # how still the untouched stack stands
 bazel run //:viewer_arm        # also _pallet, _conveyor, _suction
 ```
 
-Add `-- --pretty` to the first two for an aligned table. For speed
+Add `-- --pretty` to `print_profile`, `print_plane_fit`, `print_perception`
+and `print_plan` for an aligned table. For speed
 measurements build optimized with `--config=opt`; plain `-c opt` fails inside
 MuJoCo's own code.
 
@@ -100,8 +105,27 @@ With the pallet there, a module lands within 0.1 mm of its slot, for all 30
 modules of a pallet. With the pallet set down up to 30 mm and 3 degrees off,
 none of 10 trials placed a module: the cups meet the glass early, or the
 glass is out of the grip's 10 mm reach. With 5 mm and 0.3 degrees, 8 of 10
-placed, each about as far off as the pallet was. Finding the module with the
-camera is the next stage.
+placed, each about as far off as the pallet was.
+
+**Finding the module** (`src/module_finder.h`). The camera's depth image is
+made by casting one ray per pixel (`src/depth_camera.h`), with an optional
+noise model: depth noise that grows with distance, and dropped or blurred
+pixels at depth edges. The finder turns the image into 3D points, crops to
+where the stack can be, fits the plane of the front glass, flattens its
+points onto that plane and fits the module's outline (`src/rectangle_fit.h`).
+Over 100 pictures of pallets set down up to 30 mm and 3 degrees off, at four
+stack depths and with the noise on, the found pose was never more than 0.8 mm
+or 0.03 degrees from the true one, and it refuses when the arm is in the
+way or the pallet is empty. A camera calibration that is off passes straight
+into the answer: about 4.4 mm per milliradian of tilt. The cycle does not
+use the finder yet.
+
+**Planning** (`src/motion_planner.h`). A collision test with the carried
+module counted as part of the arm (`src/collision.h`), RRT-Connect with path
+shortening (`src/rrt.h`), and timing that follows a path of waypoints without
+stopping at each (`src/path_timing.h`). On the cell's real carry it finds a
+path in about a third of a second, a quarter shorter than the hand-chosen
+one, 45 mm clear of everything. The cycle does not use the planner yet.
 
 **Built before the cell.** `src/profile.h` and `src/joint_move.h` time moves
 within velocity, acceleration and jerk limits. `src/plane_fit.h` finds the
@@ -114,5 +138,8 @@ inertia and gearbox friction are estimates; KUKA publishes neither. A welded
 grip never slips. The module is rigid. The follower's model of the arm is
 the simulator's own.
 
-Not written yet: depth images and finding the module in them, planning a
-path around obstacles, and the gate that runs randomized trials in CI.
+The depth noise numbers are an assumption, not a camera's datasheet, and
+glass is harder for a real depth camera than for this one.
+
+Not done yet: using the found pose and the planner in the cycle, and the
+gate that runs randomized trials in CI.

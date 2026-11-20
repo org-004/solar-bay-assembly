@@ -4,8 +4,17 @@
 #include <optional>
 #include <string>
 #include <utility>
+#include <variant>
 
 namespace cell {
+
+double ArmFollower::Leg::duration() const {
+  return std::visit([](const auto& m) { return m.duration(); }, move);
+}
+
+JointSample ArmFollower::Leg::At(double t) const {
+  return std::visit([t](const auto& m) { return m.At(t); }, move);
+}
 
 ArmFollower::ArmFollower(const Arm& arm, const FollowerSettings& settings)
     : arm_(arm), settings_(settings) {}
@@ -96,6 +105,71 @@ bool ArmFollower::MoveThrough(const std::vector<Eigen::VectorXd>& waypoints,
   return true;
 }
 
+bool ArmFollower::MoveAlong(const std::vector<Eigen::VectorXd>& waypoints,
+                            const mjData& data, const MoveOptions& options,
+                            std::string* reason) {
+  auto refuse = [reason](std::string why) {
+    if (reason != nullptr) *reason = std::move(why);
+    return false;
+  };
+
+  if (waypoints.empty()) return refuse("no waypoints");
+  if (!(options.speed > 0.0 && options.speed <= 1.0)) {
+    return refuse("speed " + std::to_string(options.speed) +
+                  " is not in (0, 1]");
+  }
+  if (!(options.max_deviation >= 0.0)) {
+    return refuse("max_deviation " + std::to_string(options.max_deviation) +
+                  " is not zero or more");
+  }
+  if (TimeLeft(data) > 0.0) return refuse("a move is still running");
+  for (size_t k = 0; k < waypoints.size(); ++k) {
+    const std::string why = CheckGoal(waypoints[k]);
+    if (!why.empty()) {
+      return refuse("waypoint " + std::to_string(k) + ": " + why);
+    }
+  }
+
+  // From where the arm is commanded to be now, as MoveThrough's first leg.
+  std::vector<Eigen::VectorXd> path = {Goal(data)};
+  path.insert(path.end(), waypoints.begin(), waypoints.end());
+  std::optional<Trajectory> trajectory = Trajectory::Plan(
+      path, arm_.limits,
+      {.max_deviation = options.max_deviation, .speed = options.speed});
+  if (!trajectory) return refuse("could not plan");
+  return Follow(*trajectory, data, reason);
+}
+
+bool ArmFollower::Follow(const Trajectory& trajectory, const mjData& data,
+                         std::string* reason) {
+  auto refuse = [reason](std::string why) {
+    if (reason != nullptr) *reason = std::move(why);
+    return false;
+  };
+
+  if (TimeLeft(data) > 0.0) return refuse("a move is still running");
+  // Checking the waypoints is enough: the path's straight parts and blends
+  // lie between them, so inside the box of joint ranges if they are.
+  const std::vector<Eigen::VectorXd>& waypoints = trajectory.waypoints();
+  for (size_t k = 0; k < waypoints.size(); ++k) {
+    const std::string why = CheckGoal(waypoints[k]);
+    if (!why.empty()) {
+      return refuse("waypoint " + std::to_string(k) + ": " + why);
+    }
+  }
+  const double gap = (waypoints.front() - Goal(data)).cwiseAbs().maxCoeff();
+  if (gap > 1e-9) {
+    return refuse("the trajectory starts " + std::to_string(gap) +
+                  " rad from the commanded pose");
+  }
+
+  Adopt(data);
+  held_ = waypoints.back();
+  legs_.clear();
+  legs_.push_back({trajectory, data.time});
+  return true;
+}
+
 void ArmFollower::Hold(const mjData& data) {
   adopted_ = true;
   held_ = JointAngles(arm_, data);
@@ -145,14 +219,14 @@ bool ArmFollower::Done(const mjData& data) const {
 double ArmFollower::TimeLeft(const mjData& data) const {
   if (legs_.empty()) return 0.0;
   const Leg& last = legs_.back();
-  const double end = last.start_time + last.move.duration();
+  const double end = last.start_time + last.duration();
   return data.time < end ? end - data.time : 0.0;
 }
 
 JointSample ArmFollower::Planned(const mjData& data) const {
   for (const Leg& leg : legs_) {
-    if (data.time < leg.start_time + leg.move.duration()) {
-      return leg.move.At(data.time - leg.start_time);
+    if (data.time < leg.start_time + leg.duration()) {
+      return leg.At(data.time - leg.start_time);
     }
   }
   const Eigen::VectorXd zero = Eigen::VectorXd::Zero(Arm::kJoints);

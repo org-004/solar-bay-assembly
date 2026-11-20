@@ -463,6 +463,7 @@ cc_library(
     deps = [
         ":arm",
         ":joint_move",
+        ":path_timing",
         "@eigen",
         "@mujoco",
     ],
@@ -560,6 +561,7 @@ cc_library(
     hdrs = ["src/cell.h"],
     deps = [
         ":arm",
+        ":camera_model",
         ":conveyor",
         ":mj_handles",
         ":pallet",
@@ -778,3 +780,420 @@ cc_test(
     ],
 )
 # END pick_place
+
+# ---------------------------------------------------------- perception
+# BEGIN depth_camera
+# A camera as a pinhole: projecting world points into the image, the ray
+# through a pixel, a camera read from a MuJoCo model, and a calibration
+# error. Include as "src/camera_model.h".
+cc_library(
+    name = "camera_model",
+    srcs = ["src/camera_model.cc"],
+    hdrs = ["src/camera_model.h"],
+    deps = [
+        "@eigen",
+        "@mujoco",
+    ],
+)
+
+# The depth image, by casting a ray through every pixel; a model of a real
+# camera's errors; and the image back to 3D points.
+# Include as "src/depth_camera.h".
+cc_library(
+    name = "depth_camera",
+    srcs = ["src/depth_camera.cc"],
+    hdrs = ["src/depth_camera.h"],
+    deps = [
+        ":camera_model",
+        ":plane_fit",
+        "@eigen",
+        "@mujoco",
+    ],
+)
+
+# The pinhole's round trip, the image against the true geometry of the
+# cell, the noise model's statistics, calibration errors and misses. Renders
+# the full 640 x 480 image a handful of times. Prints the time per image;
+# time it optimized:
+#   bazel test //:depth_camera_test
+#   bazel test --config=opt //:depth_camera_test --test_output=all
+cc_test(
+    name = "depth_camera_test",
+    size = "medium",
+    srcs = ["tests/depth_camera_test.cc"],
+    data = CELL_FILES,
+    env = {"MODEL_PATH": "$(rootpath %s)" % CELL_SCENE},
+    deps = [
+        ":camera_model",
+        ":cell",
+        ":depth_camera",
+        ":mj_handles",
+        ":pallet",
+        ":plane_fit",
+        "@eigen",
+        "@googletest//:gtest_main",
+        "@mujoco",
+    ],
+)
+
+# Resets the cell, puts the arm at arm_clear, takes a depth image and prints
+# its statistics, writes it as a PGM, or prints its points as CSV.
+#   bazel run //:print_depth -- [--seed N] [--nominal] [--noise]
+#                               [--pgm FILE] [--pgm8 FILE] [--points]
+cc_binary(
+    name = "print_depth",
+    srcs = ["src/print_depth.cc"],
+    args = ["$(rootpath %s)" % CELL_SCENE],
+    data = CELL_FILES,
+    deps = [
+        ":camera_model",
+        ":cell",
+        ":depth_camera",
+        "@eigen",
+        "@mujoco",
+    ],
+)
+# END depth_camera
+
+# BEGIN rectangle_fit
+# The module's rectangle in the flattened dots of its face: strays dropped,
+# convex hull and smallest-area rectangle as a first guess, then a line
+# fitted to each side, and a check against the known size.
+# Include as "src/rectangle_fit.h".
+cc_library(
+    name = "rectangle_fit",
+    srcs = ["src/rectangle_fit.cc"],
+    hdrs = ["src/rectangle_fit.h"],
+    deps = ["@eigen"],
+)
+
+# Hull and smallest rectangle on hand-checked inputs; the whole fit on
+# made-up pixel grids at every rotation, with ragged edges, missing and
+# flying edge dots, strays and bites; refusals. Prints the accuracy of the
+# first guess and of the refined fit. Add --test_output=all to see it.
+#   bazel test //:rectangle_fit_test
+cc_test(
+    name = "rectangle_fit_test",
+    size = "small",
+    srcs = ["tests/rectangle_fit_test.cc"],
+    deps = [
+        ":rectangle_fit",
+        "@eigen",
+        "@googletest//:gtest_main",
+    ],
+)
+# END rectangle_fit
+
+# BEGIN module_finder
+# The front module's pose from one depth image: points in the arm's frame,
+# crop from the design, the glass's plane, its outline, a clear-view check
+# and the pose. Include as "src/module_finder.h".
+cc_library(
+    name = "module_finder",
+    srcs = ["src/module_finder.cc"],
+    hdrs = ["src/module_finder.h"],
+    deps = [
+        ":camera_model",
+        ":depth_camera",
+        ":pallet",
+        ":plane_fit",
+        ":rectangle_fit",
+        "@eigen",
+    ],
+)
+
+# Each step alone (prior, crop, glass plane, flattening, pose), then the
+# whole estimate against the truth over 3 pallets x 4 stack depths: exact,
+# with the camera's noise, and with a calibration error, which must pass
+# straight through; the refusals (arm in the way, no module left, wrong size,
+# wrong lean, bad input); determinism. Renders 15 images and settles the cell
+# for each: about 80 s in the default unoptimized build (a fit takes about
+# 1 s there, 14 ms optimized), 6 s optimized. Large: on a machine busy with
+# other builds the unoptimized run has come close to medium's 300 s.
+#   bazel test //:module_finder_test
+#   bazel test --config=opt //:module_finder_test --test_output=all
+cc_test(
+    name = "module_finder_test",
+    size = "large",
+    srcs = ["tests/module_finder_test.cc"],
+    data = CELL_FILES,
+    env = {"MODEL_PATH": "$(rootpath %s)" % CELL_SCENE},
+    deps = [
+        ":camera_model",
+        ":cell",
+        ":depth_camera",
+        ":module_finder",
+        ":pallet",
+        ":plane_fit",
+        ":rectangle_fit",
+        "@eigen",
+        "@googletest//:gtest_main",
+        "@mujoco",
+    ],
+)
+
+# The stage's table: estimated front-module pose against the truth over
+# randomized pallets and stack depths. Run it optimized:
+#   bazel run --config=opt //:print_perception -- --pretty
+#   bazel run --config=opt //:print_perception -- --pretty --noise
+#       --calibration-error 1,0.05 --trials 20 --depths 0,10,20,29
+cc_binary(
+    name = "print_perception",
+    srcs = ["src/print_perception.cc"],
+    args = ["$(rootpath %s)" % CELL_SCENE],
+    data = CELL_FILES,
+    deps = [
+        ":camera_model",
+        ":cell",
+        ":depth_camera",
+        ":module_finder",
+        "@eigen",
+        "@mujoco",
+    ],
+)
+# END module_finder
+
+# ------------------------------------------------------------ planning
+# BEGIN collision
+# Is the arm, with its tool and the module it carries, clear of everything
+# at given joint angles? MuJoCo's collision detection on a private copy of
+# the model with margins set, and its own scratch state; also straight
+# joint-space segments and the step to check them at.
+# Include as "src/collision.h".
+cc_library(
+    name = "collision",
+    srcs = ["src/collision.cc"],
+    hdrs = ["src/collision.h"],
+    deps = [
+        ":arm",
+        ":mj_handles",
+        ":pallet",
+        "@eigen",
+        "@mujoco",
+    ],
+)
+
+# Free poses, poses that collide naming the right pair, the scripted
+# cycle's own waypoints and the simulated cycle against cycle_check,
+# margins, segments, the fast private model against a plain one, and
+# obstacle updates. Prints the clearances along the scripted cycle and the
+# time per query. About 50 s in the default unoptimized build (a simulated
+# cycle and some 16,000 queries comparing the two models), 10 s optimized:
+# medium. Time it optimized:
+#   bazel test --config=opt //:collision_test --test_output=all
+cc_test(
+    name = "collision_test",
+    size = "medium",
+    srcs = ["tests/collision_test.cc"],
+    data = CELL_FILES,
+    env = {"MODEL_PATH": "$(rootpath %s)" % CELL_SCENE},
+    deps = [
+        ":arm",
+        ":cell",
+        ":collision",
+        ":cycle_check",
+        ":ik",
+        ":mj_handles",
+        ":pallet",
+        ":pick_place",
+        "@eigen",
+        "@googletest//:gtest_main",
+        "@mujoco",
+    ],
+)
+# END collision
+
+# BEGIN rrt
+# RRT-Connect in joint space, path shortening, and path helpers, against an
+# abstract collision check. Include as "src/rrt.h".
+cc_library(
+    name = "rrt",
+    srcs = ["src/rrt.cc"],
+    hdrs = ["src/rrt.h"],
+    deps = ["@eigen"],
+)
+
+# Made-up worlds with known answers for the planner: 2D points among circles
+# and boxes, and a 6-joint box shaped like the cell. Include as
+# "src/rrt_worlds.h".
+cc_library(
+    name = "rrt_worlds",
+    srcs = ["src/rrt_worlds.cc"],
+    hdrs = ["src/rrt_worlds.h"],
+    deps = [
+        ":rrt",
+        "@eigen",
+    ],
+)
+
+# Paths found and free in the 2D worlds, failures reported with the right
+# reason, the 6-joint world over 100 seeds, shortening, determinism, and the
+# edge check order. Add --test_output=all to see the measured numbers; time
+# them optimized:
+#   bazel test //:rrt_test
+#   bazel test --config=opt //:rrt_test --test_output=all
+cc_test(
+    name = "rrt_test",
+    size = "small",
+    srcs = ["tests/rrt_test.cc"],
+    deps = [
+        ":rrt",
+        ":rrt_worlds",
+        "@eigen",
+        "@googletest//:gtest_main",
+    ],
+)
+
+# One plan in a 2D world as CSV for plotting (obstacles, both trees, raw and
+# shortened paths), or statistics over seeds. Time it optimized:
+#   bazel run //:print_rrt -- [<world>] [<seed>]
+#   bazel run --config=opt //:print_rrt -- --stats
+#   bazel run --config=opt //:print_rrt -- --sweep
+#   bazel run --config=opt //:print_rrt -- --nn
+cc_binary(
+    name = "print_rrt",
+    srcs = ["src/print_rrt.cc"],
+    deps = [
+        ":rrt",
+        ":rrt_worlds",
+        "@eigen",
+    ],
+)
+# END rrt
+
+# BEGIN path_timing
+# Timing along a path: one motion through joint waypoints that rounds the
+# corners instead of stopping at each, within velocity, acceleration and
+# jerk limits and a bound on how far it strays from the waypoints' polyline.
+# Include as "src/path_timing.h".
+cc_library(
+    name = "path_timing",
+    srcs = ["src/path_timing.cc"],
+    hdrs = ["src/path_timing.h"],
+    deps = [
+        ":joint_move",
+        ":profile",
+        "@eigen",
+    ],
+)
+
+# The guarantees by dense sampling, on random polylines in six joints and on
+# the awkward cases; prints the time against stopping at every waypoint and
+# against lower bounds:
+#   bazel test //:path_timing_test --test_output=all
+cc_test(
+    name = "path_timing_test",
+    size = "small",
+    srcs = ["tests/path_timing_test.cc"],
+    deps = [
+        ":joint_move",
+        ":path_timing",
+        ":profile",
+        "@eigen",
+        "@googletest//:gtest_main",
+    ],
+)
+
+# The arm in models/arm_scene.xml following blended trajectories
+# (ArmFollower::MoveAlong and Follow), with and without a module at the
+# tool, against stopping at every waypoint; and a straight tool-tip line
+# solved every centimetre, run as one motion. To see the numbers:
+#   bazel test //:path_follow_test --test_output=all
+cc_test(
+    name = "path_follow_test",
+    size = "small",
+    srcs = ["tests/path_follow_test.cc"],
+    data = ARM_SCENE_FILES,
+    env = {"MODEL_PATH": "$(rootpath %s)" % ARM_SCENE},
+    deps = [
+        ":arm",
+        ":arm_follower",
+        ":ik",
+        ":mj_handles",
+        ":path_timing",
+        "@eigen",
+        "@googletest//:gtest_main",
+        "@mujoco",
+    ],
+)
+# END path_timing
+
+# BEGIN motion_planner
+# The motion planner for this cell: RRT-Connect and shortening (src/rrt.h)
+# set up for the arm and its module against the MuJoCo collision check
+# (src/collision.h), with the margin budget that keeps the timed path
+# (src/path_timing.h) sound. Include as "src/motion_planner.h".
+cc_library(
+    name = "motion_planner",
+    srcs = ["src/motion_planner.cc"],
+    hdrs = ["src/motion_planner.h"],
+    deps = [
+        ":arm",
+        ":collision",
+        ":joint_move",
+        ":path_timing",
+        ":rrt",
+        "@eigen",
+        "@mujoco",
+    ],
+)
+
+# The cell's real carry (modules 0, 15 and 29, the tube empty and nearly
+# full) and return, planned and re-checked finely at the required margin;
+# determinism; statistics over 50 base seeds against the scripted path; the
+# rounded trajectory checked densely; and one planned carry executed in the
+# simulated cell under cycle_check. Run it optimized for the timings:
+#   bazel test //:motion_planner_test
+#   bazel test --config=opt //:motion_planner_test --test_output=all
+cc_test(
+    name = "motion_planner_test",
+    size = "large",
+    # The statistics, the execution and the rest in separate shards, run in
+    # parallel: the suite is a few minutes of planning unoptimized.
+    shard_count = 4,
+    srcs = ["tests/motion_planner_test.cc"],
+    data = CELL_FILES,
+    env = {"MODEL_PATH": "$(rootpath %s)" % CELL_SCENE},
+    deps = [
+        ":arm",
+        ":arm_follower",
+        ":cell",
+        ":collision",
+        ":conveyor",
+        ":cycle_check",
+        ":joint_move",
+        ":motion_planner",
+        ":path_timing",
+        ":pick_place",
+        ":rrt",
+        "@eigen",
+        "@googletest//:gtest_main",
+        "@mujoco",
+    ],
+)
+
+# Plans the carry or the return for many base seeds and prints each plan
+# and a summary against the scripted path. Time it optimized:
+#   bazel run --config=opt //:print_plan -- --pretty
+#   bazel run //:print_plan -- [--pretty] [--module K] [--seeds N] [--return]
+#                              [--slot S] [--both-ways] [--other-way]
+cc_binary(
+    name = "print_plan",
+    srcs = ["src/print_plan.cc"],
+    args = ["$(rootpath %s)" % CELL_SCENE],
+    data = CELL_FILES,
+    deps = [
+        ":arm",
+        ":cell",
+        ":collision",
+        ":conveyor",
+        ":joint_move",
+        ":motion_planner",
+        ":path_timing",
+        ":pick_place",
+        ":rrt",
+        "@eigen",
+        "@mujoco",
+    ],
+)
+# END motion_planner

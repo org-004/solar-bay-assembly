@@ -15,6 +15,11 @@
 // and, whenever the arm should go somewhere and the last move has ended,
 // follower.MoveTo(goal, *data). Done(*data) says when it has got there.
 //
+// Through several poses: MoveThrough stops at each; MoveAlong goes through
+// them in one motion, rounding the corners within a set distance of the
+// straight lines between them (src/path_timing.h). Follow runs a
+// Trajectory planned elsewhere.
+//
 // Planned and measured. The follower keeps its own idea of where the arm
 // should be: the plan. Moves start from the plan, not from the measured
 // angles, so one move takes over exactly where the last one ended and the
@@ -37,6 +42,7 @@
 #define SRC_ARM_FOLLOWER_H_
 
 #include <string>
+#include <variant>
 #include <vector>
 
 #include <Eigen/Core>
@@ -44,6 +50,7 @@
 
 #include "src/arm.h"
 #include "src/joint_move.h"
+#include "src/path_timing.h"
 
 namespace cell {
 
@@ -65,6 +72,12 @@ struct MoveOptions {
   double speed = kDefaultSpeed;
 
   ProfileShape shape = ProfileShape::kSCurve;
+
+  // MoveAlong only: how far the path may stray from the straight lines
+  // between the waypoints, in radians of joint-space distance. See
+  // PathTimingOptions::max_deviation for how to choose it from a collision
+  // margin. MoveAlong always limits jerk, whatever `shape` says.
+  double max_deviation = PathTimingOptions::kDefaultMaxDeviation;
 };
 
 // What goes into the command besides the planned angle. Both are on in use;
@@ -127,6 +140,29 @@ class ArmFollower {
                    const mjData& data, const MoveOptions& options = {},
                    std::string* reason = nullptr);
 
+  // Goes through every waypoint in one motion, starting at data.time from
+  // the commanded pose: a Trajectory (src/path_timing.h) through the
+  // commanded pose and the waypoints, within the arm's limits played at
+  // options.speed, rounding each corner within options.max_deviation and
+  // slowing at a corner only as much as it needs. It ends at rest exactly
+  // on the last waypoint. Same refusals as MoveThrough, plus a
+  // max_deviation that is negative or not a number.
+  //
+  // The arm passes near, not through, the waypoints between the first and
+  // the last: within max_deviation of the straight lines between them.
+  bool MoveAlong(const std::vector<Eigen::VectorXd>& waypoints,
+                 const mjData& data, const MoveOptions& options = {},
+                 std::string* reason = nullptr);
+
+  // Runs `trajectory` from data.time. It must start where the arm is
+  // commanded to be (Goal(), to within 1e-9 rad), so that the command does
+  // not jump, and have been planned within the arm's limits (arm().limits,
+  // scaled by a speed no more than 1). Refused, as MoveTo is, if a move is
+  // still running or a waypoint has the wrong length or is outside a
+  // joint's range; and if it starts elsewhere.
+  bool Follow(const Trajectory& trajectory, const mjData& data,
+              std::string* reason = nullptr);
+
   // Drops any plan and holds the measured angles from now on. Meant for an
   // arm at rest. On a moving arm it is an emergency stop: the command stops
   // dead and the motors brake at full torque.
@@ -166,10 +202,15 @@ class ArmFollower {
   const Arm& arm() const { return arm_; }
 
  private:
-  // One leg of a plan, starting at `start_time` in simulation time.
+  // One leg of a plan, starting at `start_time` in simulation time: a
+  // joint move (MoveTo, MoveThrough) or a whole trajectory (MoveAlong,
+  // Follow).
   struct Leg {
-    JointMove move;
+    std::variant<JointMove, Trajectory> move;
     double start_time;
+
+    double duration() const;
+    JointSample At(double t) const;  // t from the leg's start
   };
 
   // Takes ctrl as the held pose if nothing has been adopted yet.

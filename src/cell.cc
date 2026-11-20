@@ -13,6 +13,7 @@
 #include <mujoco/mujoco.h>
 
 #include "src/arm.h"
+#include "src/camera_model.h"
 #include "src/conveyor.h"
 #include "src/mj_handles.h"
 #include "src/pallet.h"
@@ -20,8 +21,6 @@
 
 namespace cell {
 namespace {
-
-constexpr double kPi = 3.14159265358979323846;
 
 // The parking grid: columns along X, rows along Y. A module lying flat is
 // 2.3 m along X and 1.1 m along Y; 0.3 m between neighbours.
@@ -96,16 +95,6 @@ std::optional<Eigen::VectorXd> KeyAngles(const mjModel& model, const Arm& arm,
 
 }  // namespace
 
-std::optional<Eigen::Vector2d> Project(const CameraModel& camera,
-                                       const Eigen::Vector3d& world) {
-  const Eigen::Vector3d p = camera.pose.inverse() * world;
-  if (p.z() >= 0.0) return std::nullopt;  // behind: the camera looks along -Z
-  const double depth = -p.z();
-  // +X right is +u; +Y up is -v, since v counts down from the top.
-  return Eigen::Vector2d(camera.cx + camera.focal * p.x() / depth,
-                         camera.cy - camera.focal * p.y() / depth);
-}
-
 Eigen::Isometry3d ParkingPose(int i) {
   Eigen::Isometry3d pose = Eigen::Isometry3d::Identity();
   pose.translation() =
@@ -165,6 +154,9 @@ std::optional<Cell> Cell::Load(const std::string& path, std::string* error,
 
   cell.camera_ = mj_name2id(&model, mjOBJ_CAMERA, "depth_camera");
   if (cell.camera_ < 0) return fail("no camera named depth_camera");
+  if (!CameraModelFromMujoco(model, *cell.data_, cell.camera_)) {
+    return fail("depth_camera is not a perspective camera with square pixels");
+  }
 
   std::optional<Eigen::VectorXd> home = KeyAngles(model, cell.arm_, "arm_home");
   std::optional<Eigen::VectorXd> clear =
@@ -319,21 +311,8 @@ void Cell::RebaselineStack() {
 }
 
 CameraModel Cell::DepthCamera() const {
-  CameraModel camera;
-  camera.pose.translation() =
-      Eigen::Map<const Eigen::Vector3d>(data_->cam_xpos + 3 * camera_);
-  // Row-major, columns are the camera's axes in the world.
-  camera.pose.linear() =
-      Eigen::Map<const Eigen::Matrix<double, 3, 3, Eigen::RowMajor>>(
-          data_->cam_xmat + 9 * camera_);
-  camera.width = model_->cam_resolution[2 * camera_];
-  camera.height = model_->cam_resolution[2 * camera_ + 1];
-  // MuJoCo keeps fovy in degrees.
-  camera.fovy = model_->cam_fovy[camera_] * kPi / 180.0;
-  camera.focal = 0.5 * camera.height / std::tan(0.5 * camera.fovy);
-  camera.cx = 0.5 * camera.width;
-  camera.cy = 0.5 * camera.height;
-  return camera;
+  // Load checked that this camera can be described.
+  return *CameraModelFromMujoco(*model_, *data_, camera_);
 }
 
 Eigen::Isometry3d Cell::TrueModulePose(int i) const {

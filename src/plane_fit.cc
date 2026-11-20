@@ -112,6 +112,23 @@ std::optional<RansacResult> FitPlaneRansac(const Points& points,
     return std::nullopt;
   }
 
+  // The direction constraint, if any, as the smallest |cos| a sample's
+  // normal may have with the expected one.
+  // (A NaN component compares unequal to zero, so it counts as set and is
+  // then refused.)
+  const bool constrained = (options.expected_normal.array() != 0.0).any();
+  Eigen::Vector3d expected = Eigen::Vector3d::Zero();
+  double min_cosine = 0.0;
+  if (constrained) {
+    if (!options.expected_normal.allFinite() ||
+        !(options.max_normal_angle > 0.0 &&
+          options.max_normal_angle <= std::acos(0.0))) {
+      return std::nullopt;
+    }
+    expected = options.expected_normal.normalized();
+    min_cosine = std::cos(options.max_normal_angle);
+  }
+
   std::mt19937 rng(options.seed);
   std::uniform_int_distribution<int> pick(0, n - 1);
 
@@ -133,6 +150,13 @@ std::optional<RansacResult> FitPlaneRansac(const Points& points,
     const Eigen::Vector3d edge2 = points[k] - points[i];
     const Eigen::Vector3d normal = edge1.cross(edge2);
     if (!(normal.norm() > 1e-12 * edge1.norm() * edge2.norm())) continue;
+
+    // Facing the wrong way: not worth counting. Cheap, so a constrained
+    // search spends its time on the planes it could accept.
+    if (constrained &&
+        std::abs(expected.dot(normal)) < min_cosine * normal.norm()) {
+      continue;
+    }
 
     const Plane candidate = PlaneThrough(normal, points[i]);
     const int count = CountInliers(points, candidate, limit);

@@ -49,6 +49,7 @@
 #include <mujoco/mujoco.h>
 
 #include "src/arm.h"
+#include "src/camera_model.h"
 #include "src/conveyor.h"
 #include "src/mj_handles.h"
 #include "src/pallet.h"
@@ -92,30 +93,8 @@ enum class ModuleState {
   kParked,    // carried away (ParkModule, SwapTube)
 };
 
-// The depth camera as a pinhole: where it is and how it maps the world onto
-// its pixels. Fixed, like a calibrated real camera, so control code may use
-// it.
-//
-// Frame: MuJoCo's camera convention. The camera looks along its own -Z; +X is
-// to the right in the image and +Y up. Pixels: u to the right and v down,
-// from the top-left corner of the image, so the top-left pixel covers
-// [0, 1) x [0, 1) and its centre is (0.5, 0.5). mjr_readPixels returns rows
-// bottom first; flip them to get this v.
-struct CameraModel {
-  Eigen::Isometry3d pose = Eigen::Isometry3d::Identity();  // camera in world
-  int width = 0;        // pixels
-  int height = 0;
-  double fovy = 0.0;    // rad, vertical field of view
-  double focal = 0.0;   // pixels, the same along u and v
-  double cx = 0.0;      // principal point, pixels: the image centre
-  double cy = 0.0;
-};
-
-// Where a world point lands in the image, or nothing if it is behind the
-// camera (or level with it). The result may lie outside the image; check
-// against width and height.
-std::optional<Eigen::Vector2d> Project(const CameraModel& camera,
-                                       const Eigen::Vector3d& world);
+// The depth camera as a pinhole (CameraModel, Project and the rest) is in
+// src/camera_model.h, so that perception code can use it without the cell.
 
 // Where module i is put by ParkModule: flat on the floor, glass up, long
 // side along X, in a grid of 5 along X by 6 along Y far off in +Y, x 0.85 to

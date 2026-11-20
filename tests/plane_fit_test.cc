@@ -398,6 +398,56 @@ TEST(RansacTest, SameSeedGivesTheSameAnswer) {
   EXPECT_EQ(first->inliers, second->inliers);
 }
 
+// A floor with twice the face's points wins an unconstrained fit, as the
+// header warns. Told roughly which way the face looks (here 5 degrees off,
+// within a limit of 10), the fit never considers the floor and finds the
+// face within the stated error.
+TEST(RansacTest, ExpectedNormalRejectsABiggerPlaneFacingElsewhere) {
+  for (std::uint32_t seed = 1; seed <= 20; ++seed) {
+    SCOPED_TRACE(testing::Message() << "seed " << seed);
+    std::mt19937 rng(seed);
+    PalletViewOptions scene;
+    scene.noise = kNoise;
+    scene.floor_points = 2 * scene.face_points;
+    const PalletView view = cell::MakePalletView(scene, rng);
+    const Plane face = view.face.plane();
+
+    const std::optional<RansacResult> free =
+        FitPlaneRansac(view.points, Options(seed));
+    ASSERT_TRUE(free.has_value());
+    EXPECT_GT(AngleBetween(free->plane, face), 45.0 * kDegree);
+
+    // Turned 5 degrees about the face's long side, and pointing back toward
+    // the camera: the sign of the expected normal does not matter.
+    const Vector3d guess =
+        -(Eigen::AngleAxisd(5.0 * kDegree, view.face.axes.col(0)) *
+          face.normal);
+    RansacOptions options = Options(seed);
+    options.expected_normal = guess;
+    options.max_normal_angle = 10.0 * kDegree;
+    const std::optional<RansacResult> fit =
+        FitPlaneRansac(view.points, options);
+    ASSERT_TRUE(fit.has_value());
+    EXPECT_NEAR(fit->plane.distance, face.distance, kDistanceTolerance);
+    EXPECT_LT(AngleBetween(fit->plane, face), kAngleTolerance);
+  }
+}
+
+// Nothing faces the expected way: nothing is found.
+TEST(RansacTest, ExpectedNormalWithNoSuchPlaneGivesNothing) {
+  std::mt19937 rng(8);
+  const Points wall =
+      cell::SampleRectangle(FaceWithNormal(Vector3d::UnitX()), 1000, kNoise,
+                            rng);
+  RansacOptions options = Options();
+  options.min_inliers = 100;
+  options.expected_normal = Vector3d::UnitZ();
+  options.max_normal_angle = 20.0 * kDegree;
+  EXPECT_FALSE(FitPlaneRansac(wall, options).has_value());
+  options.expected_normal = Vector3d(-3.0, 0.0, 0.1);  // any length
+  EXPECT_TRUE(FitPlaneRansac(wall, options).has_value());
+}
+
 TEST(RansacTest, TooLittleSupportGivesNothing) {
   // Clutter only: no plane holds more than a few of these points.
   std::mt19937 rng(6);
@@ -438,6 +488,19 @@ TEST(RansacTest, BadInputGivesNothing) {
     options.confidence = confidence;
     EXPECT_FALSE(FitPlaneRansac(good, options).has_value());
   }
+
+  // A direction constraint needs an angle in (0, pi/2] and a finite
+  // direction.
+  for (double angle : {0.0, -0.1, 2.0, nan}) {
+    options = Options();
+    options.expected_normal = Vector3d::UnitX();
+    options.max_normal_angle = angle;
+    EXPECT_FALSE(FitPlaneRansac(good, options).has_value());
+  }
+  options = Options();
+  options.expected_normal = Vector3d(nan, 0.0, 1.0);
+  options.max_normal_angle = 0.1;
+  EXPECT_FALSE(FitPlaneRansac(good, options).has_value());
 
   // Too few points, and points that fix no plane.
   const Vector3d a(0, 0, 0), b(1, 0, 0);

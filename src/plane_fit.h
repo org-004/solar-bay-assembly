@@ -95,6 +95,22 @@ struct RansacOptions {
 
   // Seeds the random draws, so the same input gives the same answer.
   std::uint32_t seed = 1;
+
+  // Only planes facing about the expected way, if set. When the caller knows
+  // roughly which way the wanted plane faces, a three-point sample whose
+  // plane is turned more than max_normal_angle from `expected_normal`
+  // (either way along it: the sign does not matter) is skipped before its
+  // supporters are counted, so a larger surface facing another way, such as
+  // the floor under a leaning face, cannot win however many points it has.
+  // The zero vector, the default, accepts any direction. When set,
+  // max_normal_angle must be above 0 and at most pi/2.
+  //
+  // Skipped samples still count toward max_iterations. Only the samples are
+  // checked. The least-squares refinement on the
+  // winner's supporters may turn the plane a little further than
+  // max_normal_angle; it is still the plane those points lie on.
+  Eigen::Vector3d expected_normal = Eigen::Vector3d::Zero();
+  double max_normal_angle = 0.0;
 };
 
 struct RansacResult {
@@ -115,7 +131,9 @@ struct RansacResult {
 //
 // The most supported plane wins, whatever it is. If the floor has more
 // points than the face being looked for, the floor is the answer; the caller
-// has to hand over a cloud in which the wanted plane is the largest.
+// has to hand over a cloud in which the wanted plane is the largest, or say
+// which way it faces (options.expected_normal) so that bigger planes facing
+// elsewhere are never considered.
 std::optional<RansacResult> FitPlaneRansac(const Points& points,
                                            const RansacOptions& options);
 
