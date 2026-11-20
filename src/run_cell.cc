@@ -60,6 +60,17 @@
 //                it stopped.
 //   --verbose    on stderr: how long each step took and what the cycle
 //                check saw (contacts, clearances, torques) for each cycle
+//   --save-failures DIR
+//                judge each trial (src/trial_runner.h: PlacementTolerance,
+//                3 mm in the rails' plane, 0.15 degrees of yaw and of tilt)
+//                and write one file per trial that does not pass into DIR,
+//                named for its seed and first bad module, with what reruns
+//                it; a line on stderr for each
+//   --replay FILE
+//                rerun the trial of a file --save-failures (or the gate)
+//                wrote, up to its first bad cycle, print its table, and say
+//                whether it failed the same way, bit for bit (exit status 2
+//                if not). Replaces the trial flags.
 //
 // A trial stops at its first failed cycle: with the front module still on
 // the pallet, nothing behind it can be picked.
@@ -112,42 +123,15 @@
 #include "src/pick_place.h"
 #include "src/score.h"
 #include "src/suction.h"
+#include "src/trial_runner.h"
 
 namespace {
 
 constexpr double kDegree = std::numbers::pi / 180.0;
 
-// A cycle that has not ended after this much simulated time has hung.
-constexpr double kCycleLimit = 120.0;  // s
-
-// After a failed cycle the stack is left this long before it is measured,
-// so a module knocked loose has come to rest.
-constexpr double kSettleAfterFailure = 1.0;  // s
-
-struct Row {
-  std::uint32_t seed = 0;
-  int module = -1;
-  double dx = 0.0, dy = 0.0, yaw = 0.0;  // true pallet offset
-  bool placed = false;
-  std::string reason;
-  std::optional<cell::PlacementError> error;
-  cell::StackDisturbance disturbance;
-  double cycle_time = 0.0;
-  // Camera mode: the finder's error for the estimate the pick used, and its
-  // computing time.
-  std::optional<cell::EstimateError> seen;
-  double finder_seconds = 0.0;
-  // The carry (PickPlaceOutcome::carry), and the cycle's highest motor
-  // torque over its limit.
-  cell::CarryReport carry;
-  double peak_torque = 0.0;
-  double carry_torque = 0.0;  // the same during the carry's steps only
-  // The check after pickup, and the measured grip's error against the true
-  // grip (shift in m, turn in rad), from the truth at the accepted picture.
-  cell::CheckReport check;
-  std::optional<double> check_error_shift, check_error_turn;
-  bool unconfirmed = false;  // a blocked set-down: placement unconfirmed
-};
+// One row of the table: one cycle of a trial, as the trial runner
+// (src/trial_runner.h) returns it.
+using Row = cell::CycleResult;
 
 bool Retaken(const Row& r) {
   return r.check.status == cell::CheckReport::Status::kChecked &&
@@ -184,7 +168,8 @@ void PrintHeader(bool pretty, bool check) {
 // (in all), the finder's time, its error against the truth, replanned.
 std::string Check(const Row& r, bool pretty) {
   const cell::CheckReport& c = r.check;
-  const bool measured = c.status == cell::CheckReport::Status::kChecked;
+  const bool measured = c.status == cell::CheckReport::Status::kChecked ||
+                        c.status == cell::CheckReport::Status::kNoPath;
   const char* status = "-";
   switch (c.status) {
     case cell::CheckReport::Status::kOff:
@@ -197,7 +182,12 @@ std::string Check(const Row& r, bool pretty) {
       status = pretty ? (c.retaken ? "ok2" : "ok") : "checked";
       break;
     case cell::CheckReport::Status::kRefused:
-      status = pretty ? "REF" : "refused";
+      // IMPL: a measurement the cups could not have produced (tilt, gap).
+      status = pretty ? (c.implausible ? "IMPL" : "REF")
+                      : (c.implausible ? "implausible" : "refused");
+      break;
+    case cell::CheckReport::Status::kNoPath:
+      status = pretty ? "NOP" : "no path";
       break;
     case cell::CheckReport::Status::kSlipped:
       status = pretty ? "SLIP" : "slipped";
@@ -372,6 +362,50 @@ std::string Kind(const std::string& reason) {
   return reason.substr(0, reason.find(':'));
 }
 
+// After each cycle: with --verbose its steps, planned waypoints and check
+// on stderr; its row; its steps after the row with --phases (always for a
+// failed cycle with --pretty).
+void PrintCycle(const Row& row, const cell::PickPlace& script,
+                const cell::CycleCheck& check, bool pretty, bool with_check,
+                bool phases, bool verbose) {
+  if (verbose) {
+    std::fprintf(stderr, "seed %u module %d: %s%s%s\n", row.seed, row.module,
+                 row.placed ? "placed" : "failed",
+                 row.reason.empty() ? "" : ": ", row.reason.c_str());
+    PrintPhases(script, stderr);
+    std::fprintf(stderr, "  planned waypoints, degrees, joints 1 to 6:\n");
+    for (const cell::PlannedMove& move : script.planned()) {
+      for (const Eigen::VectorXd& q : move.waypoints) {
+        std::fprintf(stderr,
+                     "    %-14s %8.2f %8.2f %8.2f %8.2f %8.2f %8.2f  "
+                     "speed %.2f\n",
+                     cell::StepName(move.step), q[0] / kDegree,
+                     q[1] / kDegree, q[2] / kDegree, q[3] / kDegree,
+                     q[4] / kDegree, q[5] / kDegree, move.speed);
+      }
+    }
+    std::fprintf(stderr, "%s", check.Report(true).c_str());
+    if (row.error) {
+      std::fprintf(stderr, "  %s\n", cell::Describe(*row.error).c_str());
+    }
+  }
+  PrintRow(row, pretty, with_check);
+  if (phases || (pretty && !row.placed)) {
+    PrintPhases(script, stdout, pretty ? "        " : "# ");
+  }
+  std::fflush(stdout);
+}
+
+// A path given on the command line, relative to where `bazel run` was
+// started (it runs the program in its runfiles).
+std::string FromWorkingDirectory(const std::string& path) {
+  const char* cwd = std::getenv("BUILD_WORKING_DIRECTORY");
+  if (path.empty() || path[0] == '/' || cwd == nullptr || *cwd == '\0') {
+    return path;
+  }
+  return std::string(cwd) + "/" + path;
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -380,7 +414,7 @@ int main(int argc, char** argv) {
       "[--first K] [--nominal] [--xy MM] [--yaw DEG] [--camera | --blind] "
       "[--noise | --no-noise] [--calibration MM,DEG] "
       "[--carry scripted|planned] [--check] [--check-calibration MM,DEG] "
-      "[--phases] [--verbose]\n";
+      "[--phases] [--verbose] [--save-failures DIR] [--replay FILE]\n";
   if (argc < 2) {
     std::fprintf(stderr, usage, argv[0]);
     return 1;
@@ -393,6 +427,7 @@ int main(int argc, char** argv) {
   long first_seed = 1;
   int modules = 1, trials = 1, first = 0;
   std::optional<double> xy, yaw;  // ranges, mm and degrees
+  std::string save_failures, replay;  // directory, file
   for (int i = 2; i < argc; ++i) {
     const bool has_value = i + 1 < argc;
     if (std::strcmp(argv[i], "--pretty") == 0) {
@@ -447,10 +482,41 @@ int main(int argc, char** argv) {
       yaw = std::atof(argv[++i]);
     } else if (std::strcmp(argv[i], "--trials") == 0 && has_value) {
       trials = std::atoi(argv[++i]);
+    } else if (std::strcmp(argv[i], "--save-failures") == 0 && has_value) {
+      save_failures = FromWorkingDirectory(argv[++i]);
+    } else if (std::strcmp(argv[i], "--replay") == 0 && has_value) {
+      replay = FromWorkingDirectory(argv[++i]);
     } else {
       std::fprintf(stderr, usage, argv[0]);
       return 1;
     }
+  }
+
+  // A replay takes the trial from the file, whatever the flags said.
+  std::optional<cell::FailureRecord> replayed;
+  if (!replay.empty()) {
+    std::string load_error;
+    replayed = cell::LoadFailure(replay, &load_error);
+    if (!replayed) {
+      std::fprintf(stderr, "%s\n", load_error.c_str());
+      return 1;
+    }
+    const cell::TrialSettings s = cell::ReplaySettings(*replayed);
+    first_seed = s.seed;
+    trials = 1;
+    modules = s.modules;
+    first = s.first;
+    nominal = s.nominal;
+    xy = s.xy_mm;
+    yaw = s.yaw_deg;
+    camera = s.camera;
+    noise = s.noise;
+    calibration_mm = s.calibration_mm;
+    calibration_deg = s.calibration_deg;
+    carry = s.carry;
+    with_check = s.check;
+    check_calibration_mm = s.check_calibration_mm;
+    check_calibration_deg = s.check_calibration_deg;
   }
 
   std::string error;
@@ -466,169 +532,64 @@ int main(int argc, char** argv) {
     std::fprintf(stderr, usage, argv[0]);
     return 1;
   }
-  cell::Randomization randomization =
-      nominal ? cell::Randomization::None() : cell::Randomization{};
-  if (xy) randomization.pallet_xy = *xy * 1e-3;
-  if (yaw) randomization.pallet_yaw = *yaw * kDegree;
-  randomization.camera_noise = camera && noise;
-  randomization.camera_shift = calibration_mm * 1e-3;
-  randomization.camera_turn = calibration_deg * kDegree;
-  randomization.check_camera_shift = check_calibration_mm * 1e-3;
-  randomization.check_camera_turn = check_calibration_deg * kDegree;
+  cell::TrialSettings settings;
+  settings.modules = modules;
+  settings.first = first;
+  settings.nominal = nominal;
+  settings.xy_mm = xy;
+  settings.yaw_deg = yaw;
+  settings.camera = camera;
+  settings.noise = noise;
+  settings.calibration_mm = calibration_mm;
+  settings.calibration_deg = calibration_deg;
+  settings.carry = carry;
+  settings.check = with_check;
+  settings.check_calibration_mm = check_calibration_mm;
+  settings.check_calibration_deg = check_calibration_deg;
   // The check after pickup needs the planned carry.
   if (with_check) carry = cell::CarryMode::kPlanned;
-  cell::PickPlaceOptions options;
-  options.sensing =
-      camera ? cell::SensingMode::kCamera : cell::SensingMode::kBlind;
-  options.carry = carry;
-  options.check_after_pickup = with_check;
 
   PrintHeader(pretty, with_check);
   std::vector<Row> rows;
   double simulated = 0.0;
   const auto wall_start = std::chrono::steady_clock::now();
+  std::vector<std::string> replay_lines;
+  bool replay_same = false;
 
   for (int t = 0; t < trials; ++t) {
-    const auto seed = static_cast<std::uint32_t>(first_seed + t);
-    if (!cell.Reset(seed, randomization)) {
-      std::fprintf(stderr,
-                   "--xy, --yaw and --calibration must not be negative\n");
+    settings.seed = static_cast<std::uint32_t>(first_seed + t);
+    const cell::TrialResult trial = cell::RunTrial(
+        cell, settings,
+        [&](const Row& row, const cell::PickPlace& script,
+            const cell::CycleCheck& check) {
+          PrintCycle(row, script, check, pretty, with_check, phases, verbose);
+        });
+    if (!trial.error.empty()) {
+      std::fprintf(stderr, "%s\n", trial.error.c_str());
       return 1;
     }
-    if (first > 0) {
-      for (int i = 0; i < first; ++i) cell.ParkModule(i);
-      cell.StepFor(cell::Cell::kSettleTime);
-      mj_forward(cell.model(), cell.data());
-      cell.RebaselineStack();
+    rows.insert(rows.end(), trial.cycles.begin(), trial.cycles.end());
+    simulated += trial.simulated_seconds;
+    if (!save_failures.empty() || replayed) {
+      const cell::TrialVerdict verdict = cell::JudgeTrial(trial);
+      if (!save_failures.empty() && !verdict.passed) {
+        std::string save_error;
+        const std::optional<std::string> path = cell::SaveFailure(
+            save_failures, cell::MakeFailureRecord(trial, verdict),
+            &save_error);
+        if (path) {
+          std::fprintf(stderr, "seed %u did not pass (%s): saved %s\n",
+                       settings.seed, verdict.why.c_str(), path->c_str());
+        } else {
+          std::fprintf(stderr, "%s\n", save_error.c_str());
+        }
+      }
+      if (replayed) {
+        replay_lines =
+            cell::CompareFailure(*replayed, cell::MakeFailureRecord(trial, verdict));
+        replay_same = replay_lines.empty();
+      }
     }
-    const cell::TrueScene& scene = cell.true_scene();
-    cell::PickPlace script(cell, options);
-    std::optional<cell::PlacementError> placement;
-    cell::StackDisturbance disturbance;
-    script.set_placed_hook([&](int module, int slot) {
-      // Score as the module lies now, before the tube moves on.
-      mj_forward(cell.model(), cell.data());
-      placement = cell::MeasurePlacement(cell, module, slot);
-      disturbance = cell::MeasureStackDisturbance(cell);
-      cell.RebaselineStack();
-    });
-    // The measured grip against the true one, at the picture: the suction
-    // weld's pose in the tool tip's frame, from the positions the picture
-    // brought up to date.
-    std::optional<double> check_error_shift, check_error_turn;
-    script.set_check_hook([&](const cell::CheckRecord& record) {
-      if (!record.module_in_tip) return;
-      const std::optional<cell::Pose> held =
-          cell.suction().HeldPoseInTip(*cell.data());
-      if (!held) return;
-      Eigen::Isometry3d truth = Eigen::Isometry3d::Identity();
-      truth.translation() = held->position;
-      truth.linear() = held->rotation.normalized().toRotationMatrix();
-      const Eigen::Isometry3d error = truth.inverse() * *record.module_in_tip;
-      check_error_shift = error.translation().norm();
-      check_error_turn = Eigen::AngleAxisd(error.linear()).angle();
-    });
-
-    for (int m = first; m < first + modules; ++m) {
-      Row row;
-      check_error_shift.reset();
-      check_error_turn.reset();
-      row.seed = seed;
-      row.module = m;
-      row.dx = scene.pallet_x;
-      row.dy = scene.pallet_y;
-      row.yaw = scene.pallet_yaw;
-      placement.reset();
-      cell::CycleCheck check(cell);
-      const double start = cell.data()->time;
-      script.Start(m);
-      while (!script.Done() && cell.data()->time - start < kCycleLimit) {
-        script.Update();
-        cell.Step();
-        check.Observe(script.step(), m);
-        // The finder's error, from the truth, as soon as the pick has its
-        // estimate: the module still stands where it was seen.
-        if (!row.seen && script.estimate()) {
-          row.seen = cell::EstimateErrorOf(script.estimate()->pose,
-                                           cell.TrueModulePose(m));
-          row.finder_seconds =
-              script.estimate()->diagnostics.seconds_total;
-        }
-      }
-      const cell::PickPlaceOutcome& outcome = script.outcome();
-      row.placed = outcome.status == cell::PickPlaceOutcome::Status::kPlaced;
-      if (!script.Done()) {
-        row.reason = std::string("timed out in ") + script.step_name();
-      } else if (!row.placed) {
-        row.reason = outcome.reason;
-      }
-      row.cycle_time = cell.data()->time - start;
-      row.carry = outcome.carry;
-      row.check = outcome.check;
-      row.unconfirmed = outcome.placement_unconfirmed;
-      if (row.check.status == cell::CheckReport::Status::kChecked) {
-        row.check_error_shift = check_error_shift;
-        row.check_error_turn = check_error_turn;
-      }
-      if (row.placed && row.unconfirmed) {
-        row.reason = "set down blocked: placement unconfirmed";
-      } else if (row.placed && Retaken(row)) {
-        row.reason = "check retaken: picture 1 " +
-                     std::string(cell::HeldFinderFailureName(
-                         row.check.failure)) +
-                     ": " + row.check.failure_detail;
-      }
-      row.peak_torque = check.peak_torque().maxCoeff();
-      for (cell::PickPlaceStep s :
-           {cell::PickPlaceStep::kFlatten, cell::PickPlaceStep::kSwing,
-            cell::PickPlaceStep::kTurn, cell::PickPlaceStep::kCarry}) {
-        row.carry_torque =
-            std::max(row.carry_torque, check.peak_torque(s).maxCoeff());
-      }
-      if (row.placed) {
-        row.error = placement;
-        row.disturbance = disturbance;
-      } else {
-        // Let things come to rest, the arm holding, then see what the
-        // failed attempt did to the stack.
-        const double until = cell.data()->time + kSettleAfterFailure;
-        while (cell.data()->time < until) {
-          script.Update();
-          cell.Step();
-        }
-        mj_forward(cell.model(), cell.data());
-        row.disturbance = cell::MeasureStackDisturbance(cell);
-      }
-      if (verbose) {
-        std::fprintf(stderr, "seed %u module %d: %s%s%s\n", seed, m,
-                     row.placed ? "placed" : "failed",
-                     row.reason.empty() ? "" : ": ", row.reason.c_str());
-        PrintPhases(script, stderr);
-        std::fprintf(stderr, "  planned waypoints, degrees, joints 1 to 6:\n");
-        for (const cell::PlannedMove& move : script.planned()) {
-          for (const Eigen::VectorXd& q : move.waypoints) {
-            std::fprintf(stderr,
-                         "    %-14s %8.2f %8.2f %8.2f %8.2f %8.2f %8.2f  "
-                         "speed %.2f\n",
-                         cell::StepName(move.step), q[0] / kDegree,
-                         q[1] / kDegree, q[2] / kDegree, q[3] / kDegree,
-                         q[4] / kDegree, q[5] / kDegree, move.speed);
-          }
-        }
-        std::fprintf(stderr, "%s", check.Report(true).c_str());
-        if (row.error) {
-          std::fprintf(stderr, "  %s\n", cell::Describe(*row.error).c_str());
-        }
-      }
-      PrintRow(row, pretty, with_check);
-      if (phases || (pretty && !row.placed)) {
-        PrintPhases(script, stdout, pretty ? "        " : "# ");
-      }
-      std::fflush(stdout);
-      rows.push_back(row);
-      if (!row.placed) break;
-    }
-    simulated += cell.data()->time;
   }
 
   // Summary.
@@ -661,6 +622,7 @@ int main(int argc, char** argv) {
   Stat check_finder, recheck_time, replan_time;
   int checked = 0, retaken = 0, refused = 0, slipped = 0, replanned = 0,
       rechecked = 0;
+  int implausible = 0, no_path = 0;
   int unconfirmed = 0;
   int placed = 0;
   std::map<std::string, int> failures;
@@ -673,6 +635,10 @@ int main(int argc, char** argv) {
     }
     if (Retaken(r)) ++retaken;
     if (c.status == cell::CheckReport::Status::kRefused) ++refused;
+    if (c.status == cell::CheckReport::Status::kRefused && c.implausible) {
+      ++implausible;
+    }
+    if (c.status == cell::CheckReport::Status::kNoPath) ++no_path;
     if (c.status == cell::CheckReport::Status::kSlipped) ++slipped;
     if (c.pictures > 0) check_finder.Add(1e3 * c.finder_seconds);
     if (c.rechecked) {
@@ -777,11 +743,12 @@ int main(int argc, char** argv) {
                 finder.worst);
   }
   if (with_check) {
-    std::printf("%scheck after pickup: %d checked (%d retaken), %d refused, "
-                "%d slipped; "
+    std::printf("%scheck after pickup: %d checked (%d retaken), %d refused "
+                "(%d implausible), %d slipped, %d no path; "
                 "measured grip offset, worst / rms: %.2f / %.2f mm, %.3f / "
                 "%.3f deg; finder %.0f ms at most (all pictures of a cycle)\n",
-                lead, checked, retaken, refused, slipped, check_shift.worst,
+                lead, checked, retaken, refused, implausible, slipped, no_path,
+                check_shift.worst,
                 check_shift.Rms(), check_turn.worst, check_turn.Rms(),
                 check_finder.worst);
     if (check_error_shift.count > 0) {
@@ -801,5 +768,15 @@ int main(int argc, char** argv) {
   }
   std::fprintf(stderr, "simulated %.1f s in %.1f s of wall time: %.2fx real time\n",
                simulated, wall, wall > 0.0 ? simulated / wall : 0.0);
+  if (replayed) {
+    std::printf("%sreplay of %s: %s\n", lead, replay.c_str(),
+                replay_same ? "the same failure, bit-identical (module, slot, "
+                              "step, reason, verdict and every number)"
+                            : "NOT the same failure");
+    for (const std::string& line : replay_lines) {
+      std::printf("%s  %s\n", lead, line.c_str());
+    }
+    return replay_same ? 0 : 2;
+  }
   return 0;
 }

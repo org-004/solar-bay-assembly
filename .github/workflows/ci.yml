@@ -25,5 +25,7 @@ jobs:
           disk-cache: ${{ github.workflow }}
           repository-cache: true
 
+      # Optimized: the tests that run whole cycles take 5 to 70 times longer
+      # unoptimized (motion_planner_test alone about 4 minutes).
       - name: Build and test
-        run: bazel test //...
+        run: bazel test --config=opt //...

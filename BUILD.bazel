@@ -746,6 +746,7 @@ cc_binary(
         ":pick_place",
         ":score",
         ":suction",
+        ":trial_runner",
         "@eigen",
         "@mujoco",
     ],
@@ -1475,3 +1476,79 @@ cc_test(
     ],
 )
 # END check_cycle
+
+# BEGIN gate
+# The trial runner under run_cell: a trial's settings, RunTrial (one
+# randomized pallet, its cycles scored from the truth), RunTrials on
+# threads, the placement tolerance and verdict, and failure records to
+# save and replay. Reads the truth: for run_cell, the gate and tests.
+# Include as "src/trial_runner.h".
+cc_library(
+    name = "trial_runner",
+    srcs = ["src/trial_runner.cc"],
+    hdrs = ["src/trial_runner.h"],
+    deps = [
+        ":cell",
+        ":cycle_check",
+        ":held_module_finder",
+        ":pick_place",
+        ":score",
+        ":suction",
+        "@eigen",
+        "@mujoco",
+    ],
+)
+
+# The verdict at the tolerance's edges, a failure record saved and loaded
+# back, and one short camera trial replayed bit for bit, alone and on two
+# threads (4 cycles of the cell, about 25 s optimized).
+#   bazel test --config=opt //:trial_runner_test --test_output=all
+cc_test(
+    name = "trial_runner_test",
+    size = "medium",
+    srcs = ["tests/trial_runner_test.cc"],
+    data = CELL_FILES,
+    env = {"MODEL_PATH": "$(rootpath %s)" % CELL_SCENE},
+    deps = [
+        ":cell",
+        ":pick_place",
+        ":score",
+        ":trial_runner",
+        "@googletest//:gtest_main",
+    ],
+)
+
+# The gate: kGateTrials whole pallets (src/trial_runner.h, docs/gate.md)
+# with the camera, noise, the planned carry, the check after pickup and
+# both calibrations off, failing on any placement out of tolerance. Each
+# shard runs two whole pallets, about 4 minutes; the four shards together
+# about 4 minutes on 4 cores. Failure files land in each shard's
+# outputs.zip under bazel-testlogs/gate_test/; by hand, in a directory:
+#   bazel test --config=opt //:gate_test --test_output=all
+#   bazel run --config=opt --test_sharding_strategy=disabled //:gate_test \
+#       -- --save-failures /tmp/gate
+cc_test(
+    name = "gate_test",
+    size = "large",
+    srcs = ["tests/gate_test.cc"],
+    data = CELL_FILES,
+    env = {"MODEL_PATH": "$(rootpath %s)" % CELL_SCENE},
+    shard_count = 4,
+    tags = ["gate"],
+    deps = [
+        ":trial_runner",
+        "@googletest//:gtest",
+    ],
+)
+
+# The gate by hand, a larger batch on threads, failures saved for replay:
+#   bazel run --config=opt //:run_gate -- --trials 40 --save-failures /tmp/f
+#   bazel run --config=opt //:run_cell -- --pretty --replay /tmp/f/<file>
+cc_binary(
+    name = "run_gate",
+    srcs = ["src/run_gate.cc"],
+    args = ["$(rootpath %s)" % CELL_SCENE],
+    data = CELL_FILES,
+    deps = [":trial_runner"],
+)
+# END gate

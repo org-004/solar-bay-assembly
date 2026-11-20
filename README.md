@@ -4,6 +4,13 @@ A simulated factory cell in which a 6-axis KUKA arm with a suction tool moves
 solar modules from a pallet onto the rails of a torque tube. Perception,
 motion planning and control are hand-written in C++ against MuJoCo.
 
+![One cycle in the simulated cell, at twice real speed](docs/cycle.gif)
+
+One cycle at twice real speed: the camera finds the front module, the arm
+grips it and lifts it off the stack, carries it over the check camera and
+sets it on the rails. The pallet here was set down 26 mm and 1.25 degrees
+off, and the camera's calibration is off by 1 mm and 0.05 degrees.
+
 ## Task
 
 1. **Pick.** Modules stand on edge on the pallet, side by side, with their
@@ -170,6 +177,18 @@ cycle stops, saying whether the vacuum still holds a module (a camera fault)
 or not (a failed pick).
 `bazel run --config=opt //:run_cell -- --pretty --trials 20 --check --calibration 1,0.05`.
 
+**The gate** (`tests/gate_test.cc`, [docs/gate.md](docs/gate.md)). Part of
+`bazel test --config=opt //...`, and so of CI. Eight whole pallets, 240
+modules, each pallet set down up to 30 mm and 3 degrees off, with noisy
+pictures and both cameras' calibrations off by 1 mm and 0.05 degrees. It
+fails if any module is not placed, or lands more than 3 mm or 0.15 degrees
+from its slot. That tolerance is an assumption, not a tracker maker's
+figure. On this tree all 240 are in tolerance, at worst 1.95 mm and
+0.059 degrees, in about four minutes. A change that skips the correction
+after the check turns it red. Every failure is saved with the command that
+reruns it, and a rerun gives the same numbers bit for bit.
+`bazel run --config=opt //:run_gate -- --trials 40` runs a larger batch.
+
 **Built before the cell.** `src/profile.h` and `src/joint_move.h` time moves
 within velocity, acceleration and jerk limits. `src/plane_fit.h` finds the
 plane most of a cloud of 3D points lies on, by RANSAC; on made-up clouds with
@@ -184,4 +203,4 @@ the simulator's own.
 The depth noise numbers are an assumption, not a camera's datasheet, and
 glass is harder for a real depth camera than for this one.
 
-Not done yet: the gate that runs randomized trials in CI.
+Not done: a comparison of the hand-written planner with OMPL.
