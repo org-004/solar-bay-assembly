@@ -10,6 +10,8 @@
 #include <unordered_map>
 #include <utility>
 
+#include "src/portable_random.h"
+
 namespace cell {
 namespace {
 
@@ -248,7 +250,9 @@ std::optional<Line> RansacLine(const std::vector<EdgeDot>& dots,
                                double tolerance, std::mt19937& rng) {
   const int m = static_cast<int>(candidates.size());
   if (m < 2) return std::nullopt;
-  std::uniform_int_distribution<int> pick(0, m - 1);
+  // UniformIndex, not std::uniform_int_distribution, so that a seed picks
+  // the same pairs with every standard library.
+  auto pick = [m](std::mt19937& r) { return UniformIndex(r, m); };
   Line best;
   int best_count = 0;
   int iterations = 300;

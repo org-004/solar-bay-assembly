@@ -7,6 +7,7 @@
 //   bazel test //:rectangle_fit_test
 //   bazel test //:rectangle_fit_test --test_output=all   (to see the numbers)
 
+#include <algorithm>
 #include <cmath>
 #include <cstdio>
 #include <functional>
@@ -20,6 +21,7 @@
 #include <Eigen/Core>
 #include <gtest/gtest.h>
 
+#include "src/portable_random.h"
 #include "src/rectangle_fit.h"
 
 namespace {
@@ -38,6 +40,8 @@ using cell::RectangleFitOptions;
 using cell::RectangleRefusal;
 using cell::RefineOptions;
 using cell::RefineRectangle;
+using cell::UniformReal;
+using cell::UniformUnit;
 using Eigen::Vector2d;
 
 constexpr double kPi = std::numbers::pi;
@@ -111,8 +115,12 @@ struct Scene {
 
 Vector2d Perp(const Vector2d& v) { return {-v.y(), v.x()}; }
 
+// The scenes are the same on every platform: the draws come from
+// src/portable_random.h, not the library's distributions, and each is taken
+// in a statement of its own, never two as arguments of one call, whose order
+// the compiler chooses.
 Points2d MakeDots(const Scene& scene, std::mt19937& rng) {
-  std::uniform_real_distribution<double> unit(0.0, 1.0);
+  auto unit = [](std::mt19937& r) { return UniformUnit(r); };
   const Vector2d a = scene.Axis();
   const Vector2d b = Perp(a);
   const Grid& g = scene.grid;
@@ -200,14 +208,16 @@ Points2d MakeDots(const Scene& scene, std::mt19937& rng) {
 // A module anywhere within a metre of the origin, at any rotation, seen
 // through a grid at any rotation and phase.
 Scene RandomScene(std::mt19937& rng, double spacing_a, double spacing_b) {
-  std::uniform_real_distribution<double> unit(0.0, 1.0);
   Scene scene;
-  scene.centre = Vector2d(2.0 * unit(rng) - 1.0, 2.0 * unit(rng) - 1.0);
-  scene.angle = 2.0 * kPi * unit(rng);
+  // One draw per statement: see MakeDots.
+  scene.centre.x() = 2.0 * UniformUnit(rng) - 1.0;
+  scene.centre.y() = 2.0 * UniformUnit(rng) - 1.0;
+  scene.angle = 2.0 * kPi * UniformUnit(rng);
   scene.grid.spacing_a = spacing_a;
   scene.grid.spacing_b = spacing_b;
-  scene.grid.angle = 2.0 * kPi * unit(rng);
-  scene.grid.phase = Vector2d(spacing_a * unit(rng), spacing_b * unit(rng));
+  scene.grid.angle = 2.0 * kPi * UniformUnit(rng);
+  scene.grid.phase.x() = spacing_a * UniformUnit(rng);
+  scene.grid.phase.y() = spacing_b * UniformUnit(rng);
   return scene;
 }
 
@@ -252,6 +262,37 @@ struct Stats {
   double Mean() const { return sum / count; }
 };
 
+// Every value of a quantity over many scenes, for its median, a high
+// percentile and its worst, and the seed that gave the worst.
+struct Spread {
+  std::vector<double> values;
+  double worst = -std::numeric_limits<double>::infinity();
+  int worst_seed = 0;
+
+  void Add(double x, int seed) {
+    values.push_back(x);
+    if (x > worst) {
+      worst = x;
+      worst_seed = seed;
+    }
+  }
+  // The value that a fraction `p` of the others do not exceed.
+  double Quantile(double p) const {
+    std::vector<double> sorted = values;
+    std::sort(sorted.begin(), sorted.end());
+    const size_t k = static_cast<size_t>(
+        std::ceil(p * static_cast<double>(sorted.size())));
+    return sorted[std::min(sorted.size(), std::max<size_t>(k, 1)) - 1];
+  }
+  void Print(const char* name, double unit, const char* unit_name) const {
+    std::printf(
+        "%s over %zu scenes, %s: median %.3f, 99th percentile %.3f, worst "
+        "%.3f (seed %d)\n",
+        name, values.size(), unit_name, Quantile(0.5) / unit,
+        Quantile(0.99) / unit, worst / unit, worst_seed);
+  }
+};
+
 struct Accuracy {
   Stats centre, angle, length, width;
   void Add(const Errors& e) {
@@ -278,6 +319,30 @@ void PrintRow(const std::string& name, const char* fit, const Accuracy& a) {
       a.angle.Rms() / kDegree, a.length.Mean() / kMillimetre,
       a.length.Rms() / kMillimetre, a.width.Mean() / kMillimetre,
       a.width.Rms() / kMillimetre);
+}
+
+// ------------------------------------------------- the scenes' random draws
+
+// The draws the scenes are made from give these numbers on every platform:
+// they were printed once, on 64-bit ARM, and match libstdc++'s
+// distributions there bit for bit. The normal draws go through std::log,
+// which may differ in the last bit between math libraries.
+TEST(PortableRandomTest, SameDrawsEverywhere) {
+  std::mt19937 rng(42);
+  EXPECT_EQ(UniformUnit(rng), 0x1.97d47b66bfc3cp-1);
+  EXPECT_EQ(UniformUnit(rng), 0x1.77aca8779b102p-3);
+  EXPECT_EQ(UniformUnit(rng), 0x1.8f33a88f76c7fp-1);
+  EXPECT_EQ(UniformReal(rng, -2.0, 3.0), 0x1.f7efb8cdfc90ep-1);
+  EXPECT_EQ(UniformReal(rng, -2.0, 3.0), 0x1.d553d2ee3da1cp-3);
+  EXPECT_EQ(cell::UniformIndex(rng, 1000), 155);
+  EXPECT_EQ(cell::UniformIndex(rng, 1000), 99);
+  EXPECT_EQ(cell::UniformIndex(rng, 1000), 58);
+  EXPECT_EQ(cell::UniformIndex(rng, 1000), 459);
+  cell::NormalDraw normal(1.0, 0.5);
+  EXPECT_NEAR(normal(rng), 0.5573848333118554, 1e-15);
+  EXPECT_NEAR(normal(rng), 0.79390576512471278, 1e-15);
+  EXPECT_NEAR(normal(rng), 0.75869061194450604, 1e-15);
+  EXPECT_EQ(rng(), 4165731073u);
 }
 
 // ----------------------------------------------------------- convex hull
@@ -374,14 +439,15 @@ TEST(MinAreaRectangleTest, TriangleAndSquare) {
 // for the hull's quick pre-pass to throw most points out.
 TEST(MinAreaRectangleTest, MatchesBruteForce) {
   std::mt19937 rng(11);
-  std::uniform_real_distribution<double> unit(-1.0, 1.0);
   for (int trial = 0; trial < 300; ++trial) {
     SCOPED_TRACE(testing::Message() << "trial " << trial);
     const int n = trial % 10 == 9 ? 400 : 3 + trial % 40;
     const double squash = trial % 7 == 0 ? 1e-3 : 1.0;
     Points2d points;
     for (int i = 0; i < n; ++i) {
-      points.emplace_back(unit(rng), squash * unit(rng));
+      const double x = UniformReal(rng, -1.0, 1.0);
+      const double y = squash * UniformReal(rng, -1.0, 1.0);
+      points.emplace_back(x, y);
       if (i % 5 == 0) points.push_back(points.back());
     }
     const std::optional<OrientedRectangle> r = MinAreaRectangle(points);
@@ -488,8 +554,14 @@ TEST(DotSpacingTest, IsTheSmallerGridSpacing) {
 //   with the same allowance.
 //   Rotation: for rows along a side, the edge can be anywhere in the gap
 //   beyond the outermost row, at each end of the side independently: a tilt
-//   of up to one spacing over the module's length. 0.6 of that is never
-//   reached; on a slanted grid the error is several times smaller still.
+//   of up to one spacing over the module's length. On a slanted grid the
+//   error is several times smaller, except on one whose rows drift by about
+//   a spacing over the length (slanted by about 0.45 degrees on the coarse
+//   grid), which the scenes below with rows along a side do not try. There
+//   0.6 of a spacing is sometimes exceeded: by 24 of 10000 clean random
+//   scenes on the 12 x 18 mm grid (the first in RaggedScene), at worst 0.44
+//   degrees, 0.98 of a spacing over the length. The fixed seeds below do not
+//   draw one.
 double CentreTolerance(const Grid& g) { return 0.6 * g.Larger(); }
 double SizeTolerance(const Grid& g) { return 1.2 * g.Larger(); }
 double AngleTolerance(const Grid& g) { return 0.6 * g.Larger() / kLength; }
@@ -705,12 +777,11 @@ TEST(FitRectangleTest, StraysAreIgnored) {
     messy.damage.strays = 40;
     messy.damage.patches = 4;
     Points2d dots = MakeDots(messy, again);
-    std::uniform_real_distribution<double> unit(0.0, 1.0);
     const Vector2d a = scene.Axis();
     const Vector2d b = Perp(a);
     for (int k = 0; k < 20; ++k) {
-      const double out = 0.02 + 0.025 * unit(rng);
-      const double along = unit(rng) - 0.5;
+      const double out = 0.02 + 0.025 * UniformUnit(rng);
+      const double along = UniformUnit(rng) - 0.5;
       dots.push_back(k % 2 == 0
                          ? Vector2d(scene.centre + along * kLength * a +
                                     (0.5 * kWidth + out) * b)
@@ -742,27 +813,49 @@ TEST(FitRectangleTest, StraysAreIgnored) {
   }
 }
 
+// How many random scenes the tests of a bound over many scenes run. The
+// bounds were set from the worst of 10000 (seeds 1 to 10000); these are the
+// first of them. Seeds 1 to 3 alone, which the tests below once ran, passed
+// a bound on the turn that 58% of scenes exceed.
+constexpr int kManyScenes = 500;
+
+// A module on the coarse grid, its dots clean, and the same module and grid
+// with its edges damaged worse than Typical(): a third of the edge dots
+// missing, a tenth flying.
+struct RaggedScene {
+  Scene scene;
+  std::optional<RectangleFit> clean;
+  std::optional<RectangleFit> damaged;
+};
+
+RaggedScene MakeRaggedScene(int seed) {
+  std::mt19937 rng(300 + seed);
+  RaggedScene r;
+  r.scene = RandomScene(rng, 12 * kMillimetre, 18 * kMillimetre);
+  r.clean = Fit(MakeDots(r.scene, rng));
+  Scene damaged = r.scene;
+  damaged.damage.ragged = 1.0;
+  damaged.damage.missing = 0.3;
+  damaged.damage.flying = 0.1;
+  r.damaged = Fit(MakeDots(damaged, rng));
+  return r;
+}
+
 TEST(FitRectangleTest, RaggedEdgesAndMissingEdgeDotsMoveItLittle) {
   for (int seed = 1; seed <= 3; ++seed) {
     SCOPED_TRACE(testing::Message() << "seed " << seed);
-    std::mt19937 rng(300 + seed);
-    const Scene scene = RandomScene(rng, 12 * kMillimetre, 18 * kMillimetre);
-    const std::optional<RectangleFit> clean = Fit(MakeDots(scene, rng));
-    ASSERT_TRUE(clean.has_value());
-
-    // Worse than Typical(): a third of the edge dots missing, a tenth
-    // flying.
-    Scene damaged = scene;
-    damaged.damage.ragged = 1.0;
-    damaged.damage.missing = 0.3;
-    damaged.damage.flying = 0.1;
-    const std::optional<RectangleFit> fit = Fit(MakeDots(damaged, rng));
-    ASSERT_TRUE(fit.has_value());
+    const RaggedScene r = MakeRaggedScene(seed);
+    const Scene& scene = r.scene;
+    ASSERT_TRUE(r.clean.has_value());
+    ASSERT_TRUE(r.damaged.has_value());
+    const RectangleFit* clean = &*r.clean;
+    const RectangleFit* fit = &*r.damaged;
     ExpectWithin(ErrorsOf(fit->rectangle, scene), scene.grid);
     EXPECT_LT((fit->rectangle.centre - clean->rectangle.centre).norm(),
               0.2 * scene.grid.Larger());
-    EXPECT_LT(LineAngle(fit->rectangle.Angle(), clean->rectangle.Angle()),
-              0.05 * kDegree);
+    // How far the damage turns it is checked over many scenes, in the next
+    // test.
+
     // Missing edge dots make the face look smaller by their share of the
     // edge: about 0.3 of a spacing each side here.
     EXPECT_NEAR(fit->rectangle.length, clean->rectangle.length,
@@ -776,6 +869,27 @@ TEST(FitRectangleTest, RaggedEdgesAndMissingEdgeDotsMoveItLittle) {
       EXPECT_GT(side.support, 0.8);
     }
   }
+}
+
+// The damage turns the fit by the scatter of the edge dots it rests on, one
+// per strip three spacings wide, some 57 along a long side: a few hundredths
+// of a degree typically, and over 10000 scenes up to 0.567 degrees (seed
+// 6091). The bound is about 1.25 times that worst. Half the scenes exceed
+// the 0.05 degrees once claimed here. On a scene of rows nearly along a side
+// part of the difference is the clean fit's own error.
+TEST(FitRectangleTest, RaggedEdgesTurnItLittleOverManyScenes) {
+  Spread turn;
+  for (int seed = 1; seed <= kManyScenes; ++seed) {
+    SCOPED_TRACE(testing::Message() << "seed " << seed);
+    const RaggedScene r = MakeRaggedScene(seed);
+    ASSERT_TRUE(r.clean.has_value());
+    ASSERT_TRUE(r.damaged.has_value());
+    const double angle =
+        LineAngle(r.damaged->rectangle.Angle(), r.clean->rectangle.Angle());
+    EXPECT_LT(angle, 0.7 * kDegree);
+    turn.Add(angle, seed);
+  }
+  turn.Print("ragged edges: turn from the clean fit", kDegree, "deg");
 }
 
 TEST(FitRectangleTest, WrongSizesAreRefused) {
@@ -931,28 +1045,71 @@ TEST(FitRectangleTest, AHiddenEndIsRefusedOrPlacedFromTheKnownSize) {
   }
 }
 
-TEST(FitRectangleTest, SidesOwnLinesMeetNearTheSquareCorners) {
+// A module on the coarse grid with Typical() damage, fitted with square
+// corners and with each side's own line.
+struct OwnLinesScene {
+  Scene scene;
+  std::optional<RectangleFit> square;
+  std::optional<RectangleFit> own;
+};
+
+OwnLinesScene MakeOwnLinesScene(int seed) {
+  std::mt19937 rng(700 + seed);
+  OwnLinesScene r;
+  r.scene = RandomScene(rng, 12 * kMillimetre, 18 * kMillimetre);
+  r.scene.damage = Typical();
+  const Points2d dots = MakeDots(r.scene, rng);
   RectangleFitOptions own;
   own.refine.square_corners = false;
+  r.square = Fit(dots);
+  r.own = Fit(dots, own);
+  return r;
+}
+
+// The farthest the corners where the sides' own lines meet are from the
+// square fit's corners. The two fits can come back in opposite half turns
+// for a long side close to the y axis (see OrientedRectangle), and then
+// corner k of one is corner k + 2 of the other.
+double FarthestCorner(const RectangleFit& own, const RectangleFit& square) {
+  const int shift =
+      own.rectangle.axis.dot(square.rectangle.axis) < 0.0 ? 2 : 0;
+  double farthest = 0.0;
+  for (int k = 0; k < 4; ++k) {
+    farthest = std::max(
+        farthest, (own.corners[k] - square.corners[(k + shift) % 4]).norm());
+  }
+  return farthest;
+}
+
+TEST(FitRectangleTest, SidesOwnLinesMeetNearTheSquareCorners) {
   for (int seed = 1; seed <= 3; ++seed) {
     SCOPED_TRACE(testing::Message() << "seed " << seed);
-    std::mt19937 rng(700 + seed);
-    Scene scene = RandomScene(rng, 12 * kMillimetre, 18 * kMillimetre);
-    scene.damage = Typical();
-    const Points2d dots = MakeDots(scene, rng);
-    const std::optional<RectangleFit> square = Fit(dots);
-    const std::optional<RectangleFit> fit = Fit(dots, own);
-    ASSERT_TRUE(square.has_value());
-    ASSERT_TRUE(fit.has_value());
-    ExpectFinite(*fit);
-    ExpectWithin(ErrorsOf(fit->rectangle, scene), scene.grid);
-    for (int k = 0; k < 4; ++k) {
-      // A side's own direction is off the shared one by a few hundredths
-      // of a degree, which over half a side is a few millimetres.
-      EXPECT_LT((fit->corners[k] - square->corners[k]).norm(),
-                0.3 * scene.grid.Larger());
-    }
+    const OwnLinesScene r = MakeOwnLinesScene(seed);
+    ASSERT_TRUE(r.square.has_value());
+    ASSERT_TRUE(r.own.has_value());
+    ExpectFinite(*r.own);
+    ExpectWithin(ErrorsOf(r.own->rectangle, r.scene), r.scene.grid);
   }
+}
+
+// A side's own direction is off the shared one by a few hundredths of a
+// degree typically, which over half a side is a few millimetres: over 10000
+// scenes a median of 3.8 mm and at worst 12.9 mm (seed 8437), 0.72 of the
+// larger spacing. The bound, 0.9 of it, is about 1.25 times that worst. A
+// fifth of the scenes exceed the 0.3 of a spacing once claimed here.
+TEST(FitRectangleTest, SidesOwnLinesMeetNearTheSquareCornersOverManyScenes) {
+  Spread farthest;
+  for (int seed = 1; seed <= kManyScenes; ++seed) {
+    SCOPED_TRACE(testing::Message() << "seed " << seed);
+    const OwnLinesScene r = MakeOwnLinesScene(seed);
+    ASSERT_TRUE(r.square.has_value());
+    ASSERT_TRUE(r.own.has_value());
+    const double d = FarthestCorner(*r.own, *r.square);
+    EXPECT_LT(d, 0.9 * r.scene.grid.Larger());
+    farthest.Add(d, seed);
+  }
+  farthest.Print("own lines: farthest corner from the square fit's",
+                 kMillimetre, "mm");
 }
 
 TEST(RefineRectangleTest, ConvergesFromAPoorGuess) {
@@ -1031,9 +1188,10 @@ TEST(FitRectangleTest, BadInputIsRefusedWithAReason) {
   refused(Points2d(2000, Vector2d(1.0, 2.0)), RectangleFitFailure::kDegenerate);
   // Dots scattered at random over a disc: no straight edges.
   Points2d scatter;
-  std::uniform_real_distribution<double> unit(-1.0, 1.0);
   while (scatter.size() < 3000) {
-    const Vector2d p(unit(rng), unit(rng));
+    const double x = UniformReal(rng, -1.0, 1.0);
+    const double y = UniformReal(rng, -1.0, 1.0);
+    const Vector2d p(x, y);
     if (p.norm() < 1.0) scatter.push_back(p);
   }
   {

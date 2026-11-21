@@ -922,7 +922,18 @@ cc_library(
     name = "rectangle_fit",
     srcs = ["src/rectangle_fit.cc"],
     hdrs = ["src/rectangle_fit.h"],
-    deps = ["@eigen"],
+    deps = [
+        ":portable_random",
+        "@eigen",
+    ],
+)
+
+# Uniform, integer and normal draws on std::mt19937's raw outputs, the same
+# on every platform, unlike the library's distributions.
+# Include as "src/portable_random.h".
+cc_library(
+    name = "portable_random",
+    hdrs = ["src/portable_random.h"],
 )
 
 # Hull and smallest rectangle on hand-checked inputs; the whole fit on
@@ -935,6 +946,7 @@ cc_test(
     size = "small",
     srcs = ["tests/rectangle_fit_test.cc"],
     deps = [
+        ":portable_random",
         ":rectangle_fit",
         "@eigen",
         "@googletest//:gtest_main",

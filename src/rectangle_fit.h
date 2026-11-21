@@ -206,8 +206,12 @@ struct RefineOptions {
 
   // A side whose own direction differs from the shared one by more than
   // this, plus four times its own standard error, is not square with the
-  // others and is not used. Long sides come out within a few hundredths of a
-  // degree; short or partly hidden ones within a few tenths.
+  // others and is not used. On the cell's 6 by 9 mm grid with ragged and
+  // missing edge dots, long sides come out within a few hundredths of a
+  // degree (0.025 typically, at worst 0.105 over 1000 scenes) and short
+  // ones within a few tenths (0.12, at worst 0.37). On a grid twice as
+  // coarse, about three times that: short sides up to 1.2 degrees, which
+  // the standard error term still admits.
   double max_angle_error = std::numbers::pi / 180.0;
 
   // Positive values let one missing or unsquare side be placed from the
