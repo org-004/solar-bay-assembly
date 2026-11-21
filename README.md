@@ -7,9 +7,15 @@ motion planning and control are hand-written in C++ against MuJoCo.
 ![One cycle in the simulated cell, at twice real speed](docs/cycle.gif)
 
 One cycle at twice real speed: the camera finds the front module, the arm
-grips it and lifts it off the stack, carries it over the check camera and
-sets it on the rails. The pallet here was set down 26 mm and 1.25 degrees
-off, and the camera's calibration is off by 1 mm and 0.05 degrees.
+grips it and lifts it off the stack, holds it over the check camera on the
+floor, and sets it on the rails. The pallet here was set down 26 mm and
+1.25 degrees off, and the pallet camera's calibration is off by 1 mm and
+0.05 degrees.
+
+![Ten modules fill a tube](docs/pallet.gif)
+
+Ten modules fill a tube, at 7.5 times real speed. The tube steps along after
+each one.
 
 ## Task
 
@@ -81,12 +87,17 @@ MuJoCo's own code.
 | `models/` | The cell as MuJoCo model files: arm, tool, pallet, conveyor, camera |
 | `src/` | Programs and libraries |
 | `tests/` | Tests |
+| `tools/` | Scripts that make the README's plots and recordings |
+| `docs/` | The gate's description, pictures and recordings |
 
 The world frame has its origin on the floor under the arm's base, +Z up, +X
 toward the pallet and the conveyor on the -X side. Lengths are metres, angles
 radians.
 
 ## Status
+
+![The cell at rest](docs/img/cell.png)
+
 
 The cell exists and the cycle picks each module from where the camera sees
 it, and can carry it to the other side along a planned path.
@@ -99,6 +110,8 @@ step after each placement and is swapped for an empty one when full. A depth
 camera 4 m up, looking down at the stack. Suction is a weld switched on at
 the moment of gripping, which holds the module at whatever pose it had.
 Left alone for 10 simulated seconds, the stack moves less than 0.01 mm.
+
+![A tube with ten modules placed](docs/img/tube_full.png)
 
 **The cycle** (`src/pick_place.h`). The arm goes to the front module, touches
 the glass, grips, lifts along the glass, pulls back, turns the module flat,
@@ -126,6 +139,16 @@ along and 4.0 mm across from the slot: the script cannot see that error.
 `bazel run --config=opt //:run_cell -- --pretty --trials 20` prints the
 table; add `--calibration 1,0.05` or `--blind` for the other two.
 
+![The pick, close up](docs/pick.gif)
+
+The pick on a pallet set down 2.9 degrees and 32 mm off: approach, touch,
+grip, lift along the glass, pull back, clear.
+
+![The same pallet without and with the camera](docs/blind_vs_camera.gif)
+
+The same pallet without and with the camera. Blind, the tool meets the
+glass 9 mm early and the cycle stops.
+
 **Finding the module** (`src/module_finder.h`). The camera's depth image is
 made by casting one ray per pixel (`src/depth_camera.h`), with an optional
 noise model: depth noise that grows with distance, and dropped or blurred
@@ -137,6 +160,12 @@ stack depths and with the noise on, the found pose was never more than 0.8 mm
 or 0.03 degrees from the true one, and it refuses when the arm is in the
 way or the pallet is empty. A camera calibration that is off passes straight
 into the answer: about 4.4 mm per milliradian of tilt.
+
+![The pallet camera's depth image and the glass points](docs/img/pallet_depth.png)
+
+Left, the pallet camera's depth image with noise, the front glass marked.
+Right, the 48,803 points on the glass flattened onto their plane, with the
+box that holds them; the scatter off the plane is 2.2 mm rms.
 
 **Planning** (`src/motion_planner.h`). A collision test with the carried
 module counted as part of the arm (`src/collision.h`), RRT-Connect with path
@@ -153,6 +182,13 @@ against 7.8 s hand-chosen (a cycle 23.9 s against 25.9 s), places the same
 30 of 30 within the same error, and plans every path at least 45 mm clear of
 everything. The hand-chosen carry is still the default.
 `bazel run --config=opt //:run_cell -- --pretty --trials 20 --carry planned`.
+
+![Planned carry against the hand-chosen one](docs/img/carry.png)
+
+The planner's carry from 50 different random seeds against the hand-chosen
+one: shorter and quicker, and closer to things, because it plans to a 45 mm
+margin. "Length of motion" is the planner's own measure, the distance moved
+by the farthest point of arm and module summed over the joints.
 
 **Check after pickup** (`src/held_module_finder.h`). The first picture cannot
 know where the module ends up sitting on the tool: any error in it, above
@@ -177,6 +213,21 @@ cycle stops, saying whether the vacuum still holds a module (a camera fault)
 or not (a failed pick).
 `bazel run --config=opt //:run_cell -- --pretty --trials 20 --check --calibration 1,0.05`.
 
+![Where modules land, with and without the check](docs/img/placement.png)
+
+![The check and the set-down](docs/check.gif)
+
+The second module held over the check camera, then set down beside the
+first.
+
+![The arm holding a module over the check camera](docs/img/check_pose.png)
+
+![The check camera's depth image](docs/img/check_depth.png)
+
+What the check camera sees in its test rig, with the outline the finder
+found. This module was gripped 10 mm and 1.5 degrees off on purpose; the
+measured offset is within 0.1 mm of the true one.
+
 **The gate** (`tests/gate_test.cc`, [docs/gate.md](docs/gate.md)). Part of
 `bazel test --config=opt //...`, and so of CI. Eight whole pallets, 240
 modules, each pallet set down up to 30 mm and 3 degrees off, with noisy
@@ -187,13 +238,22 @@ figure. On this tree all 240 are in tolerance, at worst 1.95 mm and
 0.059 degrees, in about four minutes. A change that skips the correction
 after the check turns it red. Every failure is saved with the command that
 reruns it, and a rerun gives the same numbers bit for bit.
-`bazel run --config=opt //:run_gate -- --trials 40` runs a larger batch.
+`bazel run --config=opt //:run_gate -- --trials 40` runs a larger batch;
+30 pallets run that way, 900 modules, were all in tolerance, at worst
+2.14 mm and 0.063 degrees.
+
+![The gate's 240 placements against the tolerance](docs/img/gate.png)
+
+Each pallet's modules land together, off by that pallet's share of the check
+camera's calibration error.
 
 **Built before the cell.** `src/profile.h` and `src/joint_move.h` time moves
 within velocity, acceleration and jerk limits. `src/plane_fit.h` finds the
 plane most of a cloud of 3D points lies on, by RANSAC; on made-up clouds with
 2 mm of noise it recovers a module face's distance within 0.5 mm and its lean
 within 0.05 degrees.
+
+![Trapezoid and S-curve profiles for one move](docs/img/profile.png)
 
 **Where the simulation is kinder than a real cell.** The motors' rotor
 inertia and gearbox friction are estimates; KUKA publishes neither. A welded

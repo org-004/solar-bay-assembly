@@ -29,6 +29,31 @@
 //   --check-calibration MM,DEG  the check camera's calibration off, as
 //                --calibration
 //
+// For recordings and screenshots without the mouse (none of these changes
+// the trial; without them the viewer behaves as it always has):
+//   --view NAME  the free camera's start: overview (the whole cell), cycle
+//                (the pick, the check camera and the place in one view),
+//                pallet (pallet, arm and the whole tube), pick (close on the
+//                pick side), check (the check camera and the place side)
+//   --lookat X,Y,Z --distance D --azimuth DEG --elevation DEG
+//                the free camera's start, each one overriding --view's
+//   --speed K    K simulated seconds per second (default 1)
+//   --overlay full|short|none   the corner text: all of it (the default),
+//                one line with the module and the step, or nothing;
+//                --no-overlay is --overlay none
+//   --overlay-at top|bottom  the corner text top left (the default) or
+//                bottom left
+//   --caption TEXT  text in the top-right corner
+//   --font-scale P  the size of all text in percent: 50, 100, ..., 300
+//                (default 150)
+//   --size WxH   the window's size (default 1200x900)
+//   --record PATH --fps F  a recording: each frame is speed / F simulated
+//                seconds, the wall clock ignored, appended to PATH as raw
+//                RGB24 frames (src/viewer_lib.h; default F 15)
+//   --quit-at T  closes T simulated seconds after the trial's Reset
+//   --quit-after-done S  closes S simulated seconds after the trial has
+//                ended (all modules placed, or the cycle stopped)
+//
 // The corner text shows the module being picked, its slot, the script's
 // current step, the last picture's outcome (the finder's estimate, and its
 // error against where the module truly stood), and after each placement its
@@ -40,6 +65,7 @@
 //
 // The first argument is the cell's model; BUILD.bazel passes it.
 
+#include <array>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
@@ -64,7 +90,13 @@ int main(int argc, char** argv) {
   const char* usage =
       "usage: %s <cell.xml> [--seed N] [--nominal] [--modules M] "
       "[--camera | --blind] [--noise | --no-noise] [--calibration MM,DEG] "
-      "[--carry scripted|planned] [--check] [--check-calibration MM,DEG]\n";
+      "[--carry scripted|planned] [--check] [--check-calibration MM,DEG]\n"
+      "    [--view overview|cycle|pallet|pick|check] [--lookat X,Y,Z] "
+      "[--distance D] [--azimuth DEG] [--elevation DEG] [--speed K]\n"
+      "    [--overlay full|short|none | --no-overlay] [--overlay-at top|bottom]"
+      " [--caption TEXT] "
+      "[--font-scale P] [--size WxH] [--record PATH] [--fps F]\n"
+      "    [--quit-at T] [--quit-after-done S]\n";
   if (argc < 2) {
     std::fprintf(stderr, usage, argv[0]);
     return 1;
@@ -75,9 +107,134 @@ int main(int argc, char** argv) {
   double check_calibration_mm = 0.0, check_calibration_deg = 0.0;
   int modules = 1;
   cell::CarryMode carry = cell::CarryMode::kScripted;
+  // How the window starts and runs; none of it touches the trial.
+  cell::ViewerOptions view;
+  std::optional<std::array<double, 3>> lookat;
+  std::optional<double> distance, azimuth, elevation;
+  enum class Overlay { kFull, kShort, kNone } overlay = Overlay::kFull;
+  double quit_at = -1.0, quit_after_done = -1.0;
   for (int i = 2; i < argc; ++i) {
     const bool has_value = i + 1 < argc;
-    if (std::strcmp(argv[i], "--nominal") == 0) {
+    // Reads the next argument as one number into `out`; false if it is not.
+    auto number = [&](double* out) {
+      char* end = nullptr;
+      *out = std::strtod(argv[++i], &end);
+      return end != argv[i] && *end == '\0';
+    };
+    double value = 0.0;
+    if (std::strcmp(argv[i], "--view") == 0 && has_value) {
+      // Named starting views: lookat, distance, azimuth, elevation.
+      const char* name = argv[++i];
+      std::array<double, 6> v;
+      if (std::strcmp(name, "overview") == 0) {
+        v = {-0.4, 2.0, 0.6, 12.0, 312.0, -30.0};
+      } else if (std::strcmp(name, "pallet") == 0) {
+        v = {-0.5, -0.5, 0.5, 19.0, 25.0, -35.0};
+      } else if (std::strcmp(name, "pick") == 0) {
+        v = {1.6, 0.0, 0.9, 3.9, 70.0, -35.0};
+      } else if (std::strcmp(name, "check") == 0) {
+        v = {-0.9, 0.5, 0.9, 5.2, 245.0, -24.0};
+      } else if (std::strcmp(name, "cycle") == 0) {
+        v = {0.0, 0.4, 1.4, 7.5, 300.0, -30.0};
+      } else {
+        std::fprintf(stderr, usage, argv[0]);
+        return 1;
+      }
+      view.lookat = std::array<double, 3>{v[0], v[1], v[2]};
+      view.distance = v[3];
+      view.azimuth = v[4];
+      view.elevation = v[5];
+    } else if (std::strcmp(argv[i], "--lookat") == 0 && has_value) {
+      std::array<double, 3> at;
+      if (std::sscanf(argv[++i], "%lf,%lf,%lf", &at[0], &at[1], &at[2]) != 3) {
+        std::fprintf(stderr, usage, argv[0]);
+        return 1;
+      }
+      lookat = at;
+    } else if (std::strcmp(argv[i], "--distance") == 0 && has_value) {
+      if (!number(&value)) {
+        std::fprintf(stderr, usage, argv[0]);
+        return 1;
+      }
+      distance = value;
+    } else if (std::strcmp(argv[i], "--azimuth") == 0 && has_value) {
+      if (!number(&value)) {
+        std::fprintf(stderr, usage, argv[0]);
+        return 1;
+      }
+      azimuth = value;
+    } else if (std::strcmp(argv[i], "--elevation") == 0 && has_value) {
+      if (!number(&value)) {
+        std::fprintf(stderr, usage, argv[0]);
+        return 1;
+      }
+      elevation = value;
+    } else if (std::strcmp(argv[i], "--speed") == 0 && has_value) {
+      if (!number(&value) || !(value > 0.0)) {
+        std::fprintf(stderr, usage, argv[0]);
+        return 1;
+      }
+      view.speed = value;
+    } else if (std::strcmp(argv[i], "--overlay") == 0 && has_value) {
+      const char* mode = argv[++i];
+      if (std::strcmp(mode, "full") == 0) {
+        overlay = Overlay::kFull;
+      } else if (std::strcmp(mode, "short") == 0) {
+        overlay = Overlay::kShort;
+      } else if (std::strcmp(mode, "none") == 0) {
+        overlay = Overlay::kNone;
+      } else {
+        std::fprintf(stderr, usage, argv[0]);
+        return 1;
+      }
+    } else if (std::strcmp(argv[i], "--overlay-at") == 0 && has_value) {
+      const char* where = argv[++i];
+      if (std::strcmp(where, "top") == 0) {
+        view.text_at_bottom = false;
+      } else if (std::strcmp(where, "bottom") == 0) {
+        view.text_at_bottom = true;
+      } else {
+        std::fprintf(stderr, usage, argv[0]);
+        return 1;
+      }
+    } else if (std::strcmp(argv[i], "--no-overlay") == 0) {
+      overlay = Overlay::kNone;
+    } else if (std::strcmp(argv[i], "--caption") == 0 && has_value) {
+      view.caption = argv[++i];
+    } else if (std::strcmp(argv[i], "--font-scale") == 0 && has_value) {
+      view.font_scale = std::atoi(argv[++i]);
+      if (view.font_scale < 50 || view.font_scale > 300 ||
+          view.font_scale % 50 != 0) {
+        std::fprintf(stderr, usage, argv[0]);
+        return 1;
+      }
+    } else if (std::strcmp(argv[i], "--size") == 0 && has_value) {
+      if (std::sscanf(argv[++i], "%dx%d", &view.width, &view.height) != 2 ||
+          view.width < 64 || view.height < 64) {
+        std::fprintf(stderr, usage, argv[0]);
+        return 1;
+      }
+    } else if (std::strcmp(argv[i], "--record") == 0 && has_value) {
+      view.record_path = argv[++i];
+    } else if (std::strcmp(argv[i], "--fps") == 0 && has_value) {
+      if (!number(&value) || !(value > 0.0)) {
+        std::fprintf(stderr, usage, argv[0]);
+        return 1;
+      }
+      view.record_fps = value;
+    } else if (std::strcmp(argv[i], "--quit-at") == 0 && has_value) {
+      if (!number(&value) || !(value >= 0.0)) {
+        std::fprintf(stderr, usage, argv[0]);
+        return 1;
+      }
+      quit_at = value;
+    } else if (std::strcmp(argv[i], "--quit-after-done") == 0 && has_value) {
+      if (!number(&value) || !(value >= 0.0)) {
+        std::fprintf(stderr, usage, argv[0]);
+        return 1;
+      }
+      quit_after_done = value;
+    } else if (std::strcmp(argv[i], "--nominal") == 0) {
       nominal = true;
     } else if (std::strcmp(argv[i], "--camera") == 0) {
       camera = true;
@@ -121,6 +278,12 @@ int main(int argc, char** argv) {
     }
   }
 
+  if (lookat) view.lookat = lookat;
+  if (distance) view.distance = distance;
+  if (azimuth) view.azimuth = azimuth;
+  if (elevation) view.elevation = elevation;
+  view.viewer_line = overlay == Overlay::kFull;
+
   std::string error;
   std::optional<cell::Cell> loaded = cell::Cell::Load(argv[1], &error);
   if (!loaded) {
@@ -157,6 +320,8 @@ int main(int argc, char** argv) {
   int next = 0;           // the next module to pick
   std::string scores;     // one line per placement so far
   int placed = 0;
+  double trial_start = 0.0;  // simulated time at the end of the trial's Reset
+  double ended_at = -1.0;    // simulated time the trial was first seen ended
 
   // A fresh trial: Reset (which settles the scene for a second), a new
   // script, and module_0's cycle started.
@@ -197,6 +362,8 @@ int main(int argc, char** argv) {
     check_truth.clear();
     placed = 0;
     next = 0;
+    trial_start = cell.data()->time;
+    ended_at = -1.0;
     script->Start(next++);
   };
   start_trial();
@@ -228,7 +395,42 @@ int main(int argc, char** argv) {
     }
   };
   hooks.reset = start_trial;
+  hooks.quit = [&]() {
+    const double now = cell.data()->time;
+    if (quit_at >= 0.0 && now - trial_start >= quit_at) return true;
+    if (quit_after_done < 0.0) return false;
+    const bool ended =
+        script->Done() &&
+        (script->outcome().status != cell::PickPlaceOutcome::Status::kPlaced ||
+         next >= modules);
+    if (!ended) return false;
+    if (ended_at < 0.0) ended_at = now;
+    return now - ended_at >= quit_after_done;
+  };
   hooks.status = [&]() {
+    if (overlay == Overlay::kNone) return std::string();
+    if (overlay == Overlay::kShort) {
+      // The module and the step; the check's measurement once there is one;
+      // why the cycle stopped, if it did.
+      const cell::PickPlaceOutcome& outcome = script->outcome();
+      char text[400];
+      std::snprintf(text, sizeof(text), "module_%d -> slot %d   step: %s",
+                    outcome.module, outcome.slot, script->step_name());
+      std::string status = text;
+      const cell::CheckReport& c = outcome.check;
+      if (c.status == cell::CheckReport::Status::kChecked) {
+        std::snprintf(text, sizeof(text),
+                      "\ncheck camera: grip off the design by %.1f mm, "
+                      "%.2f deg",
+                      1e3 * c.offset_shift.norm(),
+                      c.offset_rotation.norm() / kDegree);
+        status += text;
+      }
+      if (outcome.status == cell::PickPlaceOutcome::Status::kFailed) {
+        status += "\nSTOPPED: " + outcome.reason;
+      }
+      return status;
+    }
     const cell::TrueScene& scene = cell.true_scene();
     const cell::PickPlaceOutcome& outcome = script->outcome();
     char text[400];
@@ -324,5 +526,5 @@ int main(int argc, char** argv) {
     return status;
   };
   return cell::RunViewer(cell.model(), cell.data(), hooks,
-                         "solar-panel-pick-place: pick and place");
+                         "solar-panel-pick-place: pick and place", view);
 }

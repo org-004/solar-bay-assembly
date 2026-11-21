@@ -4,7 +4,7 @@
 //
 //   bazel run --config=opt //:print_check -- [--pretty] [--trials N]
 //       [--first-seed S] [--noise] [--calibration MM,DEG] [--no-roof]
-//       [--position MM] [--angle DEG] [--verbose]
+//       [--position MM] [--angle DEG] [--verbose] [--pgm FILE]
 //
 //   --pretty      an aligned table instead of CSV
 //   --trials N    seeds S to S + N - 1, each a grip offset (default 50)
@@ -21,6 +21,20 @@
 //                 in +-MM (default 10) and each of the three turns in +-DEG
 //                 (default 1.5)
 //   --verbose     after each row, the finder's diagnostics on stderr
+//   --pgm FILE    one trial only (seed --first-seed, default 1; --trials is
+//                 ignored): write that trial's depth image, with --noise the
+//                 noisy one, as a 16-bit PGM (each pixel the depth in whole
+//                 millimetres, 0 where there is no reading), and print, in
+//                 place of the table, CSV on stdout: the outline the finder
+//                 found, its four corners (the module's -x-y, +x-y, +x+y,
+//                 -x+y, on the underside) and its centre, projected with the
+//                 calibrated camera model into pixels, as lines
+//                 `item,u_px,v_px` (u, v as Project gives them: the centre of
+//                 the pixel in column c and row r is (c + 0.5, r + 0.5)); then
+//                 the lines `measured_offset,...` and `true_offset,...`:
+//                 x, y, z in mm, then rx, ry, rz in degrees, from the design
+//                 grip in the design module's frame. FILE should be absolute
+//                 (bazel run starts in the runfiles directory).
 //
 //   bazel run --config=opt //:print_check -- --study [--cell CELL.xml]
 //
@@ -60,6 +74,7 @@
 #include <numbers>
 #include <optional>
 #include <string>
+#include <utility>
 
 #include <Eigen/Core>
 #include <Eigen/Geometry>
@@ -108,20 +123,35 @@ Eigen::Isometry3d TrialTip(const Eigen::Isometry3d& nominal,
   return tip;
 }
 
+// print_depth's 16-bit PGM: each pixel the depth in whole millimetres, 0
+// where there is no reading.
+bool WritePgm(const std::string& path, const cell::DepthImage& image) {
+  std::FILE* file = std::fopen(path.c_str(), "wb");
+  if (file == nullptr) return false;
+  std::fprintf(file, "P5\n%d %d\n65535\n", image.width, image.height);
+  for (float z : image.depth) {
+    const long mm = std::isfinite(z) ? std::lround(z * 1000.0) : 0;
+    const unsigned value = static_cast<unsigned>(std::clamp(mm, 0L, 65535L));
+    std::fputc(static_cast<int>(value >> 8), file);  // big-endian
+    std::fputc(static_cast<int>(value & 0xff), file);
+  }
+  return std::fclose(file) == 0;
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
   const char* usage =
       "usage: %s <check_scene.xml> [--cell <cell.xml>] [--study] [--pretty] "
       "[--trials N] [--first-seed S] [--noise] [--calibration MM,DEG] "
-      "[--no-roof] [--position MM] [--angle DEG] [--verbose]\n";
+      "[--no-roof] [--position MM] [--angle DEG] [--verbose] [--pgm FILE]\n";
   if (argc < 2) {
     std::fprintf(stderr, usage, argv[0]);
     return 1;
   }
   bool pretty = false, noise = false, roof = true, verbose = false;
   bool study = false;
-  std::string cell_path;
+  std::string cell_path, pgm;
   int trials = 50, first_seed = 1;
   double calibration_mm = 0.0, calibration_deg = 0.0;
   double position_mm = 10.0, angle_deg = 1.5;
@@ -139,6 +169,8 @@ int main(int argc, char** argv) {
       study = true;
     } else if (std::strcmp(argv[i], "--cell") == 0 && has_value) {
       cell_path = argv[++i];
+    } else if (std::strcmp(argv[i], "--pgm") == 0 && has_value) {
+      pgm = argv[++i];
     } else if (std::strcmp(argv[i], "--trials") == 0 && has_value) {
       trials = std::atoi(argv[++i]);
     } else if (std::strcmp(argv[i], "--first-seed") == 0 && has_value) {
@@ -184,7 +216,9 @@ int main(int argc, char** argv) {
   const char* row_format =
       "%u,%.2f,%.2f,%.2f,%.3f,%.3f,%.3f,%s,%.3f,%.3f,%.3f,%.4f,%.4f,%.4f,"
       "%.2f,%.2f,%d,%.0f,%.0f\n";
-  if (pretty) {
+  if (!pgm.empty()) {
+    trials = 1;
+  } else if (pretty) {
     row_format =
         "%4u %6.2f %6.2f %6.2f %6.3f %6.3f %6.3f  %-14s %6.3f %6.3f %6.3f "
         "%7.4f %7.4f %7.4f  %6.2f %6.2f %7d %5.0f %4.0f\n";
@@ -250,6 +284,51 @@ int main(int argc, char** argv) {
         cell::PoseError6(moved * shot->truth_world, shot->truth_world);
     for (int k = 0; k < 6; ++k) {
       predicted[k].Add(k < 3 ? shift[k] * kToMm : shift[k] * kToDegrees);
+    }
+
+    if (!pgm.empty()) {
+      if (!WritePgm(pgm, image)) {
+        std::fprintf(stderr, "could not write %s\n", pgm.c_str());
+        return 1;
+      }
+      std::fprintf(stderr, "wrote %s\n", pgm.c_str());
+      if (!estimate) {
+        std::fprintf(stderr, "the finder refused: %s: %s\n",
+                     cell::HeldFinderFailureName(d.failure), d.detail.c_str());
+        return 1;
+      }
+      // The outline on the underside, in the module's axes.
+      const Eigen::Matrix3d axes = estimate->pose.linear();
+      const Eigen::Vector3d origin = estimate->underside_centre;
+      const double hx = 0.5 * estimate->length, hy = 0.5 * estimate->width;
+      const double signs[4][2] = {{-1, -1}, {1, -1}, {1, 1}, {-1, 1}};
+      std::printf("item,u_px,v_px\n");
+      for (int k = 0; k < 5; ++k) {
+        const Eigen::Vector3d p =
+            k < 4 ? origin + axes.col(0) * (signs[k][0] * hx) +
+                        axes.col(1) * (signs[k][1] * hy)
+                  : origin;
+        const std::optional<Eigen::Vector2d> uv = cell::Project(told, p);
+        if (!uv) {
+          std::fprintf(stderr, "outline point %d is behind the camera\n", k);
+          return 1;
+        }
+        if (k < 4) {
+          std::printf("corner%d,%.2f,%.2f\n", k, uv->x(), uv->y());
+        } else {
+          std::printf("centre,%.2f,%.2f\n", uv->x(), uv->y());
+        }
+      }
+      const Eigen::Matrix<double, 6, 1> measured = cell::PoseError6(
+          cell::GripOffsetFromCheck(estimate->pose, shot->tip), design);
+      for (const auto& [name, v] :
+           {std::pair{"measured_offset", measured},
+            std::pair{"true_offset", truth_offset}}) {
+        std::printf("%s,%.3f,%.3f,%.3f,%.4f,%.4f,%.4f\n", name, v[0] * kToMm,
+                    v[1] * kToMm, v[2] * kToMm, v[3] * kToDegrees,
+                    v[4] * kToDegrees, v[5] * kToDegrees);
+      }
+      return 0;
     }
 
     const char* outcome = "ok";

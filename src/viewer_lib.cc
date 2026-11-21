@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <cstdio>
 #include <string>
+#include <vector>
 
 #include <GLFW/glfw3.h>
 #include <mujoco/mujoco.h>
@@ -38,6 +39,7 @@ struct Viewer {
   const mjModel* model = nullptr;
   mjData* data = nullptr;
   const ViewerHooks* hooks = nullptr;
+  const ViewerOptions* options_in = nullptr;
 
   mjvCamera camera;   // where the view is looking from
   mjvOption options;  // what gets drawn
@@ -184,6 +186,10 @@ std::string StatusText(const Viewer& viewer, double speed) {
     text = viewer.hooks->status();
     if (!text.empty() && text.back() != '\n') text += '\n';
   }
+  if (!viewer.options_in->viewer_line) {
+    if (!text.empty()) text.pop_back();
+    return text;
+  }
   char line[200];
   if (viewer.paused) {
     std::snprintf(line, sizeof(line), "t %.2f s   paused   camera %s",
@@ -199,31 +205,55 @@ std::string StatusText(const Viewer& viewer, double speed) {
 
 int RunViewer(const mjModel* model, mjData* data, const ViewerHooks& hooks,
               const char* title) {
+  return RunViewer(model, data, hooks, title, ViewerOptions{});
+}
+
+int RunViewer(const mjModel* model, mjData* data, const ViewerHooks& hooks,
+              const char* title, const ViewerOptions& options) {
+  std::FILE* record = nullptr;
+  if (!options.record_path.empty()) {
+    record = std::fopen(options.record_path.c_str(), "wb");
+    if (record == nullptr) {
+      std::fprintf(stderr, "could not open %s\n", options.record_path.c_str());
+      return 1;
+    }
+  }
   if (!glfwInit()) {
     std::fprintf(stderr, "could not start GLFW; is there a display?\n");
     return 1;
   }
-  GLFWwindow* window = glfwCreateWindow(1200, 900, title, nullptr, nullptr);
+  GLFWwindow* window =
+      glfwCreateWindow(options.width, options.height, title, nullptr, nullptr);
   if (window == nullptr) {
     std::fprintf(stderr, "could not open a window\n");
     glfwTerminate();
+    if (record != nullptr) std::fclose(record);
     return 1;
   }
   glfwMakeContextCurrent(window);
-  glfwSwapInterval(1);  // wait for the screen's refresh before each frame
+  // Wait for the screen's refresh before each frame; a recording does not
+  // follow the wall clock, so it draws as fast as it can.
+  glfwSwapInterval(record != nullptr ? 0 : 1);
 
   Viewer viewer;
   viewer.model = model;
   viewer.data = data;
   viewer.hooks = &hooks;
+  viewer.options_in = &options;
   // Start looking at the centre of the scene from far enough back to see all
   // of it. The model says where that is and how big the scene is.
   mjv_defaultFreeCamera(model, &viewer.camera);
+  if (options.lookat) {
+    for (int i = 0; i < 3; ++i) viewer.camera.lookat[i] = (*options.lookat)[i];
+  }
+  if (options.distance) viewer.camera.distance = *options.distance;
+  if (options.azimuth) viewer.camera.azimuth = *options.azimuth;
+  if (options.elevation) viewer.camera.elevation = *options.elevation;
   mjv_defaultOption(&viewer.options);
   mjv_defaultScene(&viewer.scene);
   mjr_defaultContext(&viewer.context);
   mjv_makeScene(model, &viewer.scene, /*maxgeom=*/2000);
-  mjr_makeContext(model, &viewer.context, mjFONTSCALE_150);
+  mjr_makeContext(model, &viewer.context, options.font_scale);
 
   glfwSetWindowUserPointer(window, &viewer);
   glfwSetKeyCallback(window, OnKey);
@@ -243,17 +273,32 @@ int RunViewer(const mjModel* model, mjData* data, const ViewerHooks& hooks,
   double speed = 1;
   double speed_sim = 0;
   double speed_wall = 0;
+  // A recording's frame size, fixed at its first frame, and one frame of it.
+  int record_width = 0;
+  int record_height = 0;
+  std::vector<unsigned char> pixels;
+  // Simulated time a recording still owes: each frame adds its share and
+  // steps until it is paid off, so the steps' rounding does not drift.
+  double record_owed = 0;
+  int status_code = 0;
 
   while (!glfwWindowShouldClose(window)) {
     const double now = glfwGetTime();
     const double wall_dt = now - last_wall;
     last_wall = now;
 
-    if (!viewer.paused) {
+    if (record != nullptr) {
+      // A recording ignores the wall clock and the pause key: every frame
+      // is the same share of simulated time.
+      record_owed += options.speed / options.record_fps;
+      while (record_owed > 0) record_owed -= StepOnce(viewer);
+      speed = options.speed;
+    } else if (!viewer.paused) {
       // The physics timestep is much shorter than a frame, so this steps
       // many times per frame: enough to keep up with the wall clock, unless
       // stepping takes longer than the budget.
-      backlog = std::min(backlog + wall_dt, kMaxBacklog);
+      backlog = std::min(backlog + options.speed * wall_dt,
+                         options.speed * kMaxBacklog);
       const double give_up = now + kStepBudget;
       while (backlog > 0) {
         const double advanced = StepOnce(viewer);
@@ -292,18 +337,56 @@ int RunViewer(const mjModel* model, mjData* data, const ViewerHooks& hooks,
                     mjCAT_ALL, &viewer.scene);
     mjr_render(viewport, &viewer.scene, &viewer.context);
     const std::string status = StatusText(viewer, speed);
-    mjr_overlay(mjFONT_NORMAL, mjGRID_TOPLEFT, viewport, status.c_str(),
-                nullptr, &viewer.context);
+    if (!status.empty()) {
+      mjr_overlay(mjFONT_NORMAL,
+                  options.text_at_bottom ? mjGRID_BOTTOMLEFT : mjGRID_TOPLEFT,
+                  viewport, status.c_str(), nullptr, &viewer.context);
+    }
+    if (!options.caption.empty()) {
+      mjr_overlay(mjFONT_NORMAL, mjGRID_TOPRIGHT, viewport,
+                  options.caption.c_str(), nullptr, &viewer.context);
+    }
+
+    if (record != nullptr) {
+      if (record_width == 0) {
+        record_width = viewport.width;
+        record_height = viewport.height;
+        pixels.resize(3 * static_cast<size_t>(record_width) * record_height);
+        std::fprintf(stderr, "recording %dx%d at %g frames a second\n",
+                     record_width, record_height, options.record_fps);
+      }
+      if (viewport.width != record_width || viewport.height != record_height) {
+        std::fprintf(stderr, "the window changed size while recording\n");
+        status_code = 1;
+        break;
+      }
+      mjrRect frame = {0, 0, record_width, record_height};
+      mjr_readPixels(pixels.data(), nullptr, frame, &viewer.context);
+      // OpenGL's rows run bottom up; the file's run top down.
+      const size_t row = 3 * static_cast<size_t>(record_width);
+      bool written = true;
+      for (int y = record_height - 1; y >= 0 && written; --y) {
+        written = std::fwrite(pixels.data() + row * y, 1, row, record) == row;
+      }
+      if (!written) {
+        std::fprintf(stderr, "could not write the recording\n");
+        status_code = 1;
+        break;
+      }
+    }
 
     glfwSwapBuffers(window);
     glfwPollEvents();
+    if (hooks.quit && hooks.quit()) glfwSetWindowShouldClose(window, GLFW_TRUE);
   }
+
+  if (record != nullptr && std::fclose(record) != 0) status_code = 1;
 
   mjv_freeScene(&viewer.scene);
   mjr_freeContext(&viewer.context);
   glfwDestroyWindow(window);
   glfwTerminate();
-  return 0;
+  return status_code;
 }
 
 }  // namespace cell

@@ -3,5 +3,9 @@
 # Bazel output links
 /bazel-*
 
-# Plots and screenshots, for now
+# Scratch plots and screenshots; the README's pictures are kept
 *.png
+!docs/img/*.png
+
+# Python
+__pycache__/
