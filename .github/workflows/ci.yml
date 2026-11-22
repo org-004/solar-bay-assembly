@@ -10,22 +10,70 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  # The tests that run whole cycles and take minutes each. They run in a job
+  # of their own, and the job for the rest leaves them out; a test not
+  # listed here runs with the rest.
+  CYCLE_TESTS: >-
+    //:camera_cycle_test
+    //:check_cycle_batch_test
+    //:check_cycle_test
+    //:planned_carry_test
+    //:trial_runner_test
+
 jobs:
+  # The suite, divided over jobs that run side by side: a runner has two
+  # cores, and in one job the suite took 33 minutes. Every test target runs
+  # in exactly one job, and the gate's eight pallets are divided over four.
   test:
+    name: ${{ matrix.part }}
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 30
+    strategy:
+      # A failure in one part does not stop the others.
+      fail-fast: false
+      matrix:
+        part: [cycle tests, other tests, gate 1, gate 2, gate 3, gate 4]
     steps:
       - uses: actions/checkout@v7
 
       # Installs Bazelisk, which reads .bazelversion, and keeps Bazel's
       # caches between runs so MuJoCo is compiled once, not on every push.
+      # The disk cache also holds test results, so a test none of whose
+      # inputs changed is not run again. Each part keeps its own, since
+      # each builds and runs different tests.
       - uses: bazel-contrib/setup-bazel@0.19.2
         with:
           bazelisk-cache: true
-          disk-cache: ${{ github.workflow }}
+          disk-cache: ${{ github.workflow }}-${{ matrix.part }}
           repository-cache: true
 
       # Optimized: the tests that run whole cycles take 5 to 70 times longer
       # unoptimized (motion_planner_test alone about 4 minutes).
       - name: Build and test
-        run: bazel test --config=opt //...
+        env:
+          PART: ${{ matrix.part }}
+        run: |
+          case "$PART" in
+            "cycle tests")
+              bazel test --config=opt $CYCLE_TESTS
+              ;;
+            "other tests")
+              # Everything else but the gate; this part also builds the
+              # programs that are not tests.
+              bazel test --config=opt --test_tag_filters=-gate -- //... \
+                  $(printf ' -%s' $CYCLE_TESTS)
+              ;;
+            gate*)
+              # One shard of the gate, two pallets on the runner's two cores
+              # (tests/gate_test.cc).
+              bazel test --config=opt //:gate_test \
+                  --test_sharding_strategy=disabled \
+                  --test_env=GATE_TOTAL_SHARDS=4 \
+                  --test_env=GATE_SHARD_INDEX=$(( ${PART#gate } - 1 )) \
+                  --test_env=GATE_THREADS=2
+              ;;
+            *)
+              echo "unknown part: $PART"; exit 1
+              ;;
+          esac

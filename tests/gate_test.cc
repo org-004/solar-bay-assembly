@@ -13,7 +13,12 @@
 // shards (trial i in shard i % shards), one trial at a time per shard.
 // Run by hand (bazel run, no shards) all of them run in one process on as
 // many threads as the machine has cores; GATE_THREADS in the environment
-// sets the number of threads either way. By hand, --save-failures DIR
+// sets the number of threads either way. One shard of n by itself, as
+// each CI job runs it:
+//   bazel test --config=opt //:gate_test --test_sharding_strategy=disabled \
+//       --test_env=GATE_TOTAL_SHARDS=4 --test_env=GATE_SHARD_INDEX=0 \
+//       --test_env=GATE_THREADS=2
+// (shards here are counted from 0). By hand, --save-failures DIR
 // writes the failure files into DIR as well.
 //
 //   bazel test --config=opt //:gate_test --test_output=all
@@ -55,9 +60,14 @@ TEST(Gate, WholePalletsPlaceInTolerance) {
   if (const char* status = std::getenv("TEST_SHARD_STATUS_FILE")) {
     std::ofstream(status).flush();
   }
-  const bool sharded = std::getenv("TEST_TOTAL_SHARDS") != nullptr;
-  const int shards = std::max(1, EnvInt("TEST_TOTAL_SHARDS", 1));
-  const int shard = EnvInt("TEST_SHARD_INDEX", 0);
+  // GATE_TOTAL_SHARDS and GATE_SHARD_INDEX name one shard from outside, for
+  // CI, where each shard is a job of its own (Bazel does not let
+  // --test_env set its own TEST_ variables).
+  const bool sharded = std::getenv("TEST_TOTAL_SHARDS") != nullptr ||
+                       std::getenv("GATE_TOTAL_SHARDS") != nullptr;
+  const int shards = std::max(
+      1, EnvInt("GATE_TOTAL_SHARDS", EnvInt("TEST_TOTAL_SHARDS", 1)));
+  const int shard = EnvInt("GATE_SHARD_INDEX", EnvInt("TEST_SHARD_INDEX", 0));
   std::vector<TrialSettings> trials;
   for (int i = shard; i < kGateTrials; i += shards) {
     trials.push_back(GateTrialSettings(kGateFirstSeed + i));
