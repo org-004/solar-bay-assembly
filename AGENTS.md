@@ -7,9 +7,19 @@ m2-module-pick-and-place.md`); the working state between sessions is
 
 ## For every agent
 
-**Build.** `bazel test --config=opt //... --test_output=errors`. Always `--config=opt`
-(plain `-c opt` fails inside MuJoCo; unoptimized tests take 5 to 70 times longer). One
-Bazel command runs at a time per checkout: wait for the lock, never start a second.
+**Build.** Always `--config=opt` (plain `-c opt` fails inside MuJoCo; unoptimized tests
+take 5 to 70 times longer). An agent adds `--config=agent`, which keeps it to three cores
+and leaves the gate out; without the limit, three suites at once ran the box out of
+memory.
+
+- While iterating, only your piece's tests, a few seconds to a minute:
+  `bazel test --config=opt --config=agent //:cell_test //:ik_test --test_output=errors`
+- Once, when the piece is done, everything but the gate, about 2 to 4 minutes:
+  `bazel test --config=opt --config=agent //... --test_output=errors`
+- The gate and the unlimited suite (`bazel test --config=opt //...`, about 6 minutes) are
+  the lead's, run alone before a commit.
+
+One Bazel command runs at a time per checkout: wait for the lock, never start a second.
 `bazel run` releases the lock before the program starts. Do not read under
 `bazel-testlogs` or `bazel-out`; they resolve outside the checkout and can stall on a
 permission prompt.
@@ -63,6 +73,15 @@ Launch independent pieces in one message.
 | Run commands and bring back the summary lines | `m2-runner` (Haiku) |
 | Read a stage's diff before the commit | `m2-reviewer` (Opus), for stages that change the cycle or a tolerance |
 
+**Worktrees.** Pieces that overlap in files, or that would queue on the Bazel lock, each
+get a git worktree (`git worktree add ../sppp-wt-<piece>`), which has its own lock.
+`~/.bazelrc` points every checkout at one disk cache, so a new worktree is built and
+tested in seconds and unchanged tests are not run again anywhere. Running suites side by
+side gains little (three at once finish about a quarter sooner than one after another),
+so the saving is in each agent running few tests, not in more agents testing. Before
+removing a worktree, `bazel clean --expunge` in it; otherwise its output base and server
+stay behind.
+
 A fresh agent per piece; do not resume one past about 40 turns. If a cheaper agent's
 result is wrong or thin, move the piece up one tier with a new brief.
 
@@ -71,7 +90,7 @@ the files owned and the files forbidden; what other agents are changing at the s
 time; what is already decided or ruled out; a scratch directory; the report's form.
 
 **Verify before committing a stage,** in the lead session: read the diff; rerun the full
-suite; reproduce the stage's table with `run_cell` or the `print_*` program and compare
+suite with the gate (`bazel test --config=opt //...`) while no agent is testing; reproduce the stage's table with `run_cell` or the `print_*` program and compare
 with the agent's figures; run one cycle in the viewer. Then README status, the M2 note's
 stage paragraph, the daily note.
 

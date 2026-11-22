@@ -25,3 +25,13 @@ build --per_file_copt=^(src|tests)/.*\.cc$@-Wno-psabi
 # plain `-c opt` fails. This config turns that one error back into a warning.
 build:opt -c opt
 build:opt --per_file_copt=^external/mujoco.*@-Wno-error=maybe-uninitialized
+
+# For an agent working beside others, each in its own worktree:
+#   bazel test --config=opt --config=agent //:cell_test
+# One full run of the suite already fills this machine's cores and, unlimited,
+# three at once ran it out of memory (measured 2026-11-22). The limit keeps
+# each worktree to three cores. The gate (about 4 minutes on 4 cores) is left
+# out: the lead runs it once, alone, before a commit, and CI runs it.
+build:agent --local_resources=cpu=3
+build:agent --jobs=3
+test:agent --test_tag_filters=-gate

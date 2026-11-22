@@ -1460,9 +1460,15 @@ cc_test(
 # stage 7's (a Reset noticed anywhere fails the cycle, no pick with a module
 # on the tool, the measured grip its module's only).
 #   bazel test --config=opt //:check_cycle_test --test_output=all
-cc_test(
-    name = "check_cycle_test",
+# One source, two targets, so that the two halves run side by side: the whole
+# camera cycles (the CheckCycles suite, whose shared setup runs nine cycles
+# and is about two thirds of the time) in check_cycle_batch_test, and
+# everything else in check_cycle_test. A new suite lands in check_cycle_test.
+# Sharding instead would repeat that setup in every shard.
+[cc_test(
+    name = name,
     size = "medium",
+    args = ["--gtest_filter=" + gtest_filter],
     srcs = ["tests/check_cycle_test.cc"],
     data = CELL_FILES,
     env = {"MODEL_PATH": "$(rootpath %s)" % CELL_SCENE},
@@ -1486,7 +1492,10 @@ cc_test(
         "@googletest//:gtest_main",
         "@mujoco",
     ],
-)
+) for name, gtest_filter in [
+    ("check_cycle_test", "-CheckCycles.*"),
+    ("check_cycle_batch_test", "CheckCycles.*"),
+]]
 # END check_cycle
 
 # BEGIN gate
