@@ -4,6 +4,13 @@ on:
   push:
     branches: [main]
   pull_request:
+  # By hand, from the Actions page or `gh workflow run CI -f rerun_tests=true`.
+  workflow_dispatch:
+    inputs:
+      rerun_tests:
+        description: Run every test again, cached result or not
+        type: boolean
+        default: false
 
 # A newer push to the same branch cancels the run still in progress.
 concurrency:
@@ -53,21 +60,22 @@ jobs:
       - name: Build and test
         env:
           PART: ${{ matrix.part }}
+          RERUN: ${{ inputs.rerun_tests && '--nocache_test_results' || '' }}
         run: |
           case "$PART" in
             "cycle tests")
-              bazel test --config=opt $CYCLE_TESTS
+              bazel test --config=opt $RERUN $CYCLE_TESTS
               ;;
             "other tests")
               # Everything else but the gate; this part also builds the
               # programs that are not tests.
-              bazel test --config=opt --test_tag_filters=-gate -- //... \
+              bazel test --config=opt $RERUN --test_tag_filters=-gate -- //... \
                   $(printf ' -%s' $CYCLE_TESTS)
               ;;
             gate*)
               # One shard of the gate, two pallets on the runner's two cores
               # (tests/gate_test.cc).
-              bazel test --config=opt //:gate_test \
+              bazel test --config=opt $RERUN //:gate_test \
                   --test_sharding_strategy=disabled \
                   --test_env=GATE_TOTAL_SHARDS=4 \
                   --test_env=GATE_SHARD_INDEX=$(( ${PART#gate } - 1 )) \
