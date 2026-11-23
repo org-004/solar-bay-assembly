@@ -1,0 +1,97 @@
+# The build file for OMPL (https://github.com/ompl/ompl), which has none of
+# its own: MODULE.bazel fetches the release archive and places this file at
+# its top as BUILD.bazel. Unlike a hand-written cc_library, it runs OMPL's own
+# CMake files through rules_foreign_cc, with CMake and Ninja from that rule
+# set's toolchains, and Boost and Eigen from this repository's Bazel modules.
+load("@rules_foreign_cc//foreign_cc:defs.bzl", "cmake")
+
+package(default_visibility = ["//visibility:public"])
+
+# BSD 3-clause. A binary that links OMPL has to reproduce this file.
+licenses(["notice"])
+
+exports_files(["LICENSE"])
+
+# Everything in the archive: CMake reads files from all over the tree, even
+# for parts that are switched off.
+filegroup(
+    name = "all_srcs",
+    srcs = glob(
+        ["**"],
+        exclude = ["BUILD.bazel"],
+    ),
+)
+
+# OMPL's CMake build, run as one Bazel action. It produces the static
+# library lib/libompl.a and OMPL's headers under include/; a target that
+# depends on it also gets Boost and Eigen from the deps below. OMPL's Release
+# flags (-O3 -DNDEBUG -W -Wall -Wextra) come after the flags Bazel hands over,
+# so OMPL is compiled at -O3 here even though --config=opt says -O2.
+cmake(
+    name = "ompl",
+    # Ninja prints every compile line into the rule's log
+    # (ompl_foreign_cc/CMake.log beside the library), which shows the flags
+    # OMPL was actually compiled with.
+    build_args = ["--verbose"],
+    build_data = ["@solar_panel_pick_place//bazel:ompl_cmake/Eigen3Config.cmake"],
+    cache_entries = {
+        # A static library, so nothing has to be found at run time.
+        "OMPL_BUILD_SHARED": "OFF",
+        # The library goes to lib/, which is where the rule looks for it.
+        "CMAKE_INSTALL_LIBDIR": "lib",
+        # Headers go to include/ompl rather than include/ompl-2.0/ompl, so
+        # that #include <ompl/...> works without another include path.
+        "OMPL_VERSIONED_INSTALL": "OFF",
+        # Every optional part off: VAMP (vectorized planning, with its own
+        # SIMD flags), the Python bindings, OMPL's tests and demos.
+        "OMPL_BUILD_VAMP": "OFF",
+        "OMPL_BUILD_PYTHON_BINDINGS": "OFF",
+        "OMPL_BUILD_TESTS": "OFF",
+        "OMPL_BUILD_DEMOS": "OFF",
+        # Optional libraries OMPL would use if it found them on the machine.
+        # They are never looked for, so what is installed does not change
+        # the build.
+        "CMAKE_DISABLE_FIND_PACKAGE_flann": "ON",
+        "CMAKE_DISABLE_FIND_PACKAGE_spot": "ON",
+        "CMAKE_DISABLE_FIND_PACKAGE_Triangle": "ON",
+        "CMAKE_DISABLE_FIND_PACKAGE_yaml-cpp": "ON",
+        "CMAKE_DISABLE_FIND_PACKAGE_Doxygen": "ON",
+        "CMAKE_DISABLE_FIND_PACKAGE_Python": "ON",
+        # OMPL accepts Eigen only through an Eigen3Config.cmake file, which
+        # @eigen lacks; this directory holds a small one written for it.
+        "Eigen3_DIR": "$$EXT_BUILD_ROOT/bazel/ompl_cmake",
+        # CMake's FindBoost would look for libboost_serialization.* in the
+        # usual places. The Boost modules' libraries are named differently
+        # (libboost.serialization.a), so the rule's copies of the headers and
+        # libraries are named outright, and nothing outside them is searched.
+        "Boost_NO_BOOST_CMAKE": "ON",
+        "Boost_NO_SYSTEM_PATHS": "ON",
+        "Boost_INCLUDE_DIR": "$$EXT_BUILD_DEPS/include",
+        "Boost_SERIALIZATION_LIBRARY_RELEASE": "$$EXT_BUILD_DEPS/lib/libboost.serialization.a",
+        "Boost_PROGRAM_OPTIONS_LIBRARY_RELEASE": "$$EXT_BUILD_DEPS/lib/libboost.program_options.a",
+    },
+    generate_args = ["-GNinja"],
+    lib_source = ":all_srcs",
+    out_static_libs = ["libompl.a"],
+    deps = [
+        "@boost.algorithm",
+        "@boost.assert",
+        "@boost.concept_check",
+        "@boost.config",
+        "@boost.dynamic_bitset",
+        "@boost.foreach",
+        "@boost.functional",
+        "@boost.graph",
+        "@boost.math",
+        "@boost.numeric_odeint",
+        "@boost.program_options",
+        "@boost.property_map",
+        "@boost.random",
+        "@boost.range",
+        "@boost.serialization",
+        "@boost.smart_ptr",
+        "@boost.thread",
+        "@boost.type_traits",
+        "@eigen",
+    ],
+)

@@ -1,2 +1,4 @@
-# Holds .bzl files only. A directory needs a BUILD file before Bazel can load
-# anything from it.
+# Holds .bzl files, and the CMake helper files that OMPL's build reads (see
+# bazel/ompl.BUILD.bazel). A directory needs a BUILD file before Bazel can
+# load anything from it.
+exports_files(["ompl_cmake/Eigen3Config.cmake"])

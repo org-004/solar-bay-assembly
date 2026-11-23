@@ -1573,3 +1573,16 @@ cc_binary(
     deps = [":trial_runner"],
 )
 # END gate
+
+# BEGIN ompl
+# OMPL, to measure the planner of src/rrt.h against. Both targets are tagged
+# manual: `bazel build //...` and `bazel test //...` leave them out, so the
+# rest of the build neither downloads nor compiles OMPL. Nothing of the cell
+# may depend on :ompl. On this branch OMPL's own CMake build makes it, run by
+# rules_foreign_cc; the rule is in bazel/ompl.BUILD.bazel.
+alias(
+    name = "ompl",
+    actual = "@ompl//:ompl",
+    tags = ["manual"],
+)
+# END ompl
