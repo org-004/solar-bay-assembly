@@ -23,6 +23,17 @@ bazel_dep(name = "glfw", version = "3.4.0.bcr.4")
 # OMPL from its ROS release repository with its own build file.
 bazel_dep(name = "ompl", version = "2.0.2-1.rcr.1")
 
+# OMPL from that registry needs rules_python's pip extension, which is
+# evaluated once for every module. MuJoCo asks it for a pip hub for Python
+# 3.15 but registers that interpreter only as a dev dependency, so the whole
+# extension fails and OMPL with it. Registering 3.15 here lets it evaluate;
+# 3.12 stays the default, the version the ROS modules choose.
+bazel_dep(name = "rules_python", version = "2.4.5")
+
+python = use_extension("@rules_python//python/extensions:python.bzl", "python")
+python.defaults(python_version = "3.12")
+python.toolchain(python_version = "3.15")
+
 # Test framework. Only this repository's tests need it.
 bazel_dep(name = "googletest", version = "1.18.0.bcr.1", dev_dependency = True)
 
