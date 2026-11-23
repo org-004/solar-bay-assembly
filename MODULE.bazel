@@ -90,3 +90,11 @@ kuka_description(
     strip_prefix = "kuka_quantec_support/meshes/kr210_r2700_2",
     target_name = "kr210_r2700_2",
 )
+
+# OMPL, the Open Motion Planning Library: a yardstick for the planner in
+# src/rrt.h and nothing more. Only //:ompl_smoke uses it, and both are tagged
+# manual, so `bazel build //...` and `bazel test //...` neither fetch nor
+# compile it. OMPL is not in the Bazel Central Registry, so this repository
+# keeps a registry of its own in registry/ (named in .bazelrc) with the one
+# module, whose build file is its overlay.
+bazel_dep(name = "ompl", version = "2.0.2")

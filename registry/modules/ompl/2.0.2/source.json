@@ -1,0 +1,8 @@
+{
+    "url": "https://github.com/ompl/ompl/releases/download/2.0.2/ompl-2.0.2.tar.gz",
+    "integrity": "sha256-uRVeJD5VWwSwH45P9+IaSFgu26ucMAphEollV3i80p0=",
+    "strip_prefix": "ompl-2.0.2",
+    "overlay": {
+        "BUILD.bazel": "sha256-COk4K1sqwdVnE1mCs51lvQKxJePCgAYVI1XHvuGZZw8="
+    }
+}

@@ -1,0 +1,11 @@
+{
+    "homepage": "https://ompl.kavrakilab.org",
+    "maintainers": [],
+    "repository": [
+        "github:ompl/ompl"
+    ],
+    "versions": [
+        "2.0.2"
+    ],
+    "yanked_versions": {}
+}

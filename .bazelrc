@@ -35,3 +35,10 @@ build:opt --per_file_copt=^external/mujoco.*@-Wno-error=maybe-uninitialized
 build:agent --local_resources=cpu=3
 build:agent --jobs=3
 test:agent --test_tag_filters=-gate
+
+# The registries, in the order Bazel asks them. registry/ is this repository's
+# own and has only OMPL, which is not in the Bazel Central Registry. Naming any
+# registry switches off the default one, so the Bazel Central Registry is
+# named again, after it, for every other module.
+common --registry=file://%workspace%/registry
+common --registry=https://bcr.bazel.build

@@ -1,0 +1,28 @@
+module(
+    name = "ompl",
+    version = "2.0.2",
+    compatibility_level = 2,
+    bazel_compatibility = [">=7.2.1"],
+)
+
+# The versions are the ones the root module resolves already or lower, so that
+# taking this module moves no other module.
+bazel_dep(name = "rules_cc", version = "0.2.28")
+bazel_dep(name = "eigen", version = "5.0.1.bcr.2")
+bazel_dep(name = "boost.algorithm", version = "1.90.0.bcr.1")
+bazel_dep(name = "boost.assert", version = "1.90.0.bcr.1")
+bazel_dep(name = "boost.concept_check", version = "1.90.0.bcr.1")
+bazel_dep(name = "boost.config", version = "1.90.0.bcr.1")
+bazel_dep(name = "boost.dynamic_bitset", version = "1.90.0.bcr.1")
+bazel_dep(name = "boost.foreach", version = "1.90.0.bcr.1")
+bazel_dep(name = "boost.functional", version = "1.90.0.bcr.1")
+bazel_dep(name = "boost.graph", version = "1.90.0.bcr.2")
+bazel_dep(name = "boost.math", version = "1.90.0.bcr.1")
+bazel_dep(name = "boost.numeric_odeint", version = "1.90.0.bcr.1")
+bazel_dep(name = "boost.property_map", version = "1.90.0.bcr.1")
+bazel_dep(name = "boost.random", version = "1.90.0.bcr.1")
+bazel_dep(name = "boost.range", version = "1.90.0.bcr.1")
+bazel_dep(name = "boost.serialization", version = "1.90.0.bcr.1")
+bazel_dep(name = "boost.smart_ptr", version = "1.90.0.bcr.1")
+bazel_dep(name = "boost.thread", version = "1.90.0.bcr.1")
+bazel_dep(name = "boost.type_traits", version = "1.90.0.bcr.1")

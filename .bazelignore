@@ -1,0 +1,3 @@
+# The overlay of the ompl module in registry/ is a BUILD file for the unpacked
+# OMPL, not a package of this repository, so //... must not load it.
+registry

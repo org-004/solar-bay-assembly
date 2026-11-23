@@ -1573,3 +1573,16 @@ cc_binary(
     deps = [":trial_runner"],
 )
 # END gate
+
+# BEGIN ompl
+# OMPL, to measure the planner of src/rrt.h against. Both targets are tagged
+# manual: `bazel build //...` and `bazel test //...` leave them out, so the
+# rest of the build neither downloads nor compiles OMPL. Nothing of the cell
+# may depend on :ompl. Its build file is the overlay of the module in
+# registry/modules/ompl/.
+alias(
+    name = "ompl",
+    actual = "@ompl//:ompl",
+    tags = ["manual"],
+)
+# END ompl
