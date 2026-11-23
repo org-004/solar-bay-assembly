@@ -90,3 +90,44 @@ kuka_description(
     strip_prefix = "kuka_quantec_support/meshes/kr210_r2700_2",
     target_name = "kr210_r2700_2",
 )
+
+# OMPL, the Open Motion Planning Library: a yardstick for the planner in
+# src/rrt.h and nothing more. Only //:ompl_smoke uses it, and both are tagged
+# manual, so `bazel build //...` and `bazel test //...` neither fetch nor
+# compile it. OMPL is not in the Bazel Central Registry and has no Bazel
+# files of its own; bazel/ompl.BUILD.bazel is this repository's build file
+# for it. The archive is the one OMPL's maintainers upload with each release
+# (it has the git submodules inside, which GitHub's own archive of the tag
+# lacks), and the hash is the one they publish beside it. To self-host, copy
+# the archive elsewhere and put that address first in `urls`.
+http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
+
+http_archive(
+    name = "ompl",
+    build_file = "//bazel:ompl.BUILD.bazel",
+    sha256 = "b9155e243e555b04b01f8e4ff7e21a48582edbab9c300a611289655778bcd29d",
+    strip_prefix = "ompl-2.0.2",
+    urls = ["https://github.com/ompl/ompl/releases/download/2.0.2/ompl-2.0.2.tar.gz"],
+)
+
+# The Boost libraries whose headers OMPL's core includes by name. Each is its
+# own module in the registry and pulls in the Boost libraries it needs in
+# turn. Only boost.serialization has anything to compile; the rest are
+# headers.
+bazel_dep(name = "boost.algorithm", version = "1.90.0.bcr.1")
+bazel_dep(name = "boost.assert", version = "1.90.0.bcr.1")
+bazel_dep(name = "boost.concept_check", version = "1.90.0.bcr.1")
+bazel_dep(name = "boost.config", version = "1.90.0.bcr.1")
+bazel_dep(name = "boost.dynamic_bitset", version = "1.90.0.bcr.1")
+bazel_dep(name = "boost.foreach", version = "1.90.0.bcr.1")
+bazel_dep(name = "boost.functional", version = "1.90.0.bcr.1")
+bazel_dep(name = "boost.graph", version = "1.90.0.bcr.2")
+bazel_dep(name = "boost.math", version = "1.90.0.bcr.1")
+bazel_dep(name = "boost.numeric_odeint", version = "1.90.0.bcr.1")
+bazel_dep(name = "boost.property_map", version = "1.90.0.bcr.1")
+bazel_dep(name = "boost.random", version = "1.90.0.bcr.1")
+bazel_dep(name = "boost.range", version = "1.90.0.bcr.1")
+bazel_dep(name = "boost.serialization", version = "1.90.0.bcr.1")
+bazel_dep(name = "boost.smart_ptr", version = "1.90.0.bcr.1")
+bazel_dep(name = "boost.thread", version = "1.90.0.bcr.1")
+bazel_dep(name = "boost.type_traits", version = "1.90.0.bcr.1")

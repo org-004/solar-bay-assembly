@@ -1,0 +1,124 @@
+# The build file for OMPL (https://github.com/ompl/ompl), which has none of
+# its own: MODULE.bazel fetches the release archive and places this file at
+# its top as BUILD.bazel. It builds what OMPL's src/ompl/CMakeLists.txt
+# builds with every optional part off: the core library, without FLANN, Spot,
+# Triangle, VAMP, the Python bindings, the tests or the demos.
+#
+# What OMPL's CMake build does that had to be said again here:
+#   - config.h is made from config.h.in (the version and three "have this
+#     optional library" switches);
+#   - the library is every .cpp under seven directories of src/ompl;
+#   - BOOST_MATH_NO_LONG_DOUBLE_MATH_FUNCTIONS is defined while OMPL's own
+#     files compile (the top CMakeLists.txt, for ompl/ompl issue 664);
+#   - it links Boost.Serialization, Eigen and the thread library.
+# What is deliberately not said again: CMake's Release flags are -O3
+# -DNDEBUG and C++17. Here OMPL takes the flags of the build it is part of,
+# like every other dependency of this repository: -std=c++20 from .bazelrc,
+# and -O2 -DNDEBUG under --config=opt.
+#
+# To move to another release, change the address, hash and strip_prefix in
+# MODULE.bazel. The version in config.h is read from OMPL's CMakeLists.txt, so
+# nothing here names it. Then look at that release's src/ompl/CMakeLists.txt
+# and CMakeModules/OMPLDependencies.cmake for a new directory, a new
+# dependency or a new line in config.h.in; the rule below fails if it leaves
+# a CMake placeholder behind.
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+
+package(default_visibility = ["//visibility:public"])
+
+# BSD 3-clause. A binary that links OMPL has to reproduce this file.
+licenses(["notice"])
+
+exports_files(["LICENSE"])
+
+# What CMake's configure_file does to config.h.in. A `#cmakedefine01 X`
+# becomes `#define X 0`: what CMake writes when the optional library X stands
+# for was not found, and none of them is built here.
+genrule(
+    name = "config_h",
+    srcs = [
+        "CMakeLists.txt",
+        "src/ompl/config.h.in",
+    ],
+    outs = ["src/ompl/config.h"],
+    cmd = """
+set -eu
+version=$$(sed -n 's/^project(ompl VERSION \\([0-9][0-9]*\\.[0-9][0-9]*\\.[0-9][0-9]*\\).*/\\1/p' \\
+    $(location CMakeLists.txt))
+if [ -z "$$version" ]; then
+  echo "config_h: no 'project(ompl VERSION x.y.z' line in OMPL's CMakeLists.txt" >&2
+  exit 1
+fi
+major=$${version%%.*}
+rest=$${version#*.}
+minor=$${rest%%.*}
+patch=$${rest#*.}
+sed -e "s/@PROJECT_VERSION@/$$version/" \\
+    -e "s/@PROJECT_VERSION_MAJOR@/$$major/" \\
+    -e "s/@PROJECT_VERSION_MINOR@/$$minor/" \\
+    -e "s/@PROJECT_VERSION_PATCH@/$$patch/" \\
+    -e 's/^#cmakedefine01 \\(OMPL_HAVE_[A-Z_]*\\)$$/#define \\1 0/' \\
+    $(location src/ompl/config.h.in) > $@
+if grep -n '@[A-Za-z_]*@\\|#cmakedefine' $@ >&2; then
+  echo "config_h: config.h.in has a placeholder this rule does not fill" >&2
+  exit 1
+fi
+""",
+)
+
+# The directories OMPL's CMake build takes its sources from. src/ompl has two
+# more: extensions/ (needs Triangle) and vamp/ (needs the VAMP submodule).
+_DIRS = [
+    "base",
+    "control",
+    "datastructures",
+    "geometric",
+    "multilevel",
+    "tools",
+    "util",
+]
+
+# Include as <ompl/...>, for example <ompl/geometric/SimpleSetup.h>.
+#
+# No copts: nothing here changes how OMPL compiles beyond the one definition,
+# and nothing reaches the targets that depend on it except the include path.
+# OMPL's warnings are not silenced with -w; .bazelrc's --output_filter=^//
+# already keeps the compiler output of external repositories off the
+# terminal. `includes` makes the path a system include path, so OMPL's
+# headers raise no warnings in the files of this repository that include
+# them either.
+#
+# datastructures/NearestNeighborsFLANN.h stops with an #error if included,
+# because OMPL_HAVE_FLANN is 0.
+cc_library(
+    name = "ompl",
+    srcs = glob(["src/ompl/%s/**/*.cpp" % d for d in _DIRS]) + [
+        # Two headers that live beside the sources and are not installed.
+        "src/ompl/geometric/planners/prm/src/GoalVisitor.hpp",
+        "src/ompl/multilevel/datastructures/src/BundleSpaceGraphGoalVisitor.hpp",
+    ],
+    hdrs = glob(["src/ompl/%s/**/*.h" % d for d in _DIRS]) + [":config_h"],
+    includes = ["src"],
+    linkopts = ["-pthread"],
+    local_defines = ["BOOST_MATH_NO_LONG_DOUBLE_MATH_FUNCTIONS"],
+    deps = [
+        "@boost.algorithm",
+        "@boost.assert",
+        "@boost.concept_check",
+        "@boost.config",
+        "@boost.dynamic_bitset",
+        "@boost.foreach",
+        "@boost.functional",
+        "@boost.graph",
+        "@boost.math",
+        "@boost.numeric_odeint",
+        "@boost.property_map",
+        "@boost.random",
+        "@boost.range",
+        "@boost.serialization",
+        "@boost.smart_ptr",
+        "@boost.thread",
+        "@boost.type_traits",
+        "@eigen",
+    ],
+)
