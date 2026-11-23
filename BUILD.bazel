@@ -1585,4 +1585,21 @@ alias(
     actual = "@ompl//:ompl",
     tags = ["manual"],
 )
+
+# The 6-joint toy world planned 20 times by the planner of src/rrt.h and 20
+# times by OMPL's RRT-Connect; one line of medians for each. It shows that
+# OMPL builds, links and plans here. It is not the comparison of the two
+# planners: the world is made up and the two do not check edges alike.
+#   bazel run --config=opt //:ompl_smoke
+cc_binary(
+    name = "ompl_smoke",
+    srcs = ["src/ompl_smoke.cc"],
+    tags = ["manual"],
+    deps = [
+        ":ompl",
+        ":rrt",
+        ":rrt_worlds",
+        "@eigen",
+    ],
+)
 # END ompl
