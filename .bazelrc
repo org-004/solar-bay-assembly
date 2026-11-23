@@ -35,3 +35,10 @@ build:opt --per_file_copt=^external/mujoco.*@-Wno-error=maybe-uninitialized
 build:agent --local_resources=cpu=3
 build:agent --jobs=3
 test:agent --test_tag_filters=-gate
+
+# OMPL comes from the ROS Central Registry, which is asked first; every other
+# module still comes from the Bazel Central Registry when the ROS registry does
+# not have it. The order matters: a module found in the first registry is never
+# looked up in the second.
+common --registry=https://bazel.ros.org
+common --registry=https://bcr.bazel.build

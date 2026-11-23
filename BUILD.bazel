@@ -1573,3 +1573,16 @@ cc_binary(
     deps = [":trial_runner"],
 )
 # END gate
+
+# BEGIN ompl
+# OMPL, to measure the planner of src/rrt.h against. Both targets are tagged
+# manual: `bazel build //...` and `bazel test //...` leave them out, so the
+# rest of the build neither downloads nor compiles OMPL. Nothing of the cell
+# may depend on :ompl. OMPL comes from the ROS Central Registry; this is its
+# C++ library target, the static cc_library under its shared library.
+alias(
+    name = "ompl",
+    actual = "@ompl//:ompl_library",
+    tags = ["manual"],
+)
+# END ompl
