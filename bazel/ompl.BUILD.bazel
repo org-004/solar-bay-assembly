@@ -84,9 +84,10 @@ _DIRS = [
 # and nothing reaches the targets that depend on it except the include path.
 # OMPL's warnings are not silenced with -w; .bazelrc's --output_filter=^//
 # already keeps the compiler output of external repositories off the
-# terminal. `includes` makes the path a system include path, so OMPL's
-# headers raise no warnings in the files of this repository that include
-# them either.
+# terminal. That filter goes by the target being compiled, not by where a
+# header lives, and `includes` reaches the compiler as -I, not -isystem: a
+# warning raised inside one of OMPL's or Boost's headers while a file of this
+# repository is compiled would be shown. //:ompl_smoke compiles without one.
 #
 # datastructures/NearestNeighborsFLANN.h stops with an #error if included,
 # because OMPL_HAVE_FLANN is 0.
