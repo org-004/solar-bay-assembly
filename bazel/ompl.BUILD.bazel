@@ -87,8 +87,8 @@ _DIRS = [
 # terminal. That filter goes by the target being compiled, not by where a
 # header lives, and `includes` reaches the compiler as -I, not -isystem: a
 # warning raised inside one of OMPL's or Boost's headers while a file of this
-# repository is compiled would be shown. src/ompl_search.cc, the one file of this repository that
-# includes OMPL, compiles without one.
+# repository is compiled would be shown. src/ompl_search.cc, the one file of
+# this repository that includes OMPL, compiles without one.
 #
 # datastructures/NearestNeighborsFLANN.h stops with an #error if included,
 # because OMPL_HAVE_FLANN is 0.

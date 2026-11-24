@@ -61,8 +61,12 @@
 //     RRTConnect       repeats: the same seed, problem and settings give the
 //                      same path, in this process or another, whatever was
 //                      planned before and whatever other threads plan
-//                      meanwhile (unless max_seconds ends the search). It
-//                      draws from the state sampler and from nothing else.
+//                      meanwhile (unless max_seconds ends the search). Its
+//                      samples come from the state sampler alone. The tree
+//                      it keeps its nodes in for nearest-neighbour search
+//                      (a GNAT) does pick its pivots with a generator of
+//                      its own, but that changes how the tree is laid out,
+//                      not which node it finds nearest.
 //     BiTRRT           repeats, likewise.
 //     BITstar          does not: once it has a path it samples through an
 //                      "informed sampler" with a generator of its own.
@@ -89,8 +93,17 @@
 //
 // The objective every planner is given is the path's length in the metric
 // above. OMPL's own path simplifier is not run on the result: the caller
-// shortens a path of either search with cell::ShortenPath. (AORRTC
-// simplifies inside its own loop; that is part of that planner.)
+// shortens a path of either search with cell::ShortenPath.
+//
+// AORRTC is the exception to two things said above. It runs OMPL's path
+// simplifier inside its own loop; that is part of that planner. And the
+// simplifier's last step (PathGeometric::checkAndRepair) may move a
+// configuration of the path and, if it finds no free place for it, leave it
+// where no check passed, which AORRTC does not look at. So a path of
+// AORRTC's is checked once more here, every segment by cell::EdgeIsFree,
+// before it is returned; the calls are counted, and a path that fails is
+// not returned. The other planners' paths consist of edges their trees
+// already passed through the same check, and are not checked twice.
 //
 // OMPL writes its messages to standard output; the first search of a
 // process turns them off, for the whole process (ompl::msg::setLogLevel).
@@ -134,13 +147,17 @@ struct OmplSettings {
   // The planner's range, its longest step toward a sample, as a weighted
   // distance (the unit of RrtOptions::step_size). Not set: the RrtOptions'
   // step_size, so that both searches take steps of one length. Zero: OMPL's
-  // own choice, a fifth of the box's diagonal in the metric. BITstar has no
-  // range and takes no notice.
+  // own choice, which for RRTConnect is a fifth of the box's diagonal in
+  // the metric and for BiTRRT 3.5% of it. BITstar has no range and takes no
+  // notice.
   std::optional<double> range;
 
-  // The most calls of IsFree in one search. The default is what 2,000
-  // iterations of PlanRrtConnect in the cell can cost at most: a 3 m step
-  // checked every 30 mm is 100 calls.
+  // The most calls of IsFree in one search. The default stands for the
+  // 2,000 iterations PlanMove allows its own search, at 100 calls each: a
+  // 3 m step checked every 30 mm. It is a round figure for "as much work",
+  // not a bound on what 2,000 iterations can cost (a step that turns
+  // several joints is checked at more points, and a connect takes several
+  // steps).
   std::int64_t max_queries = 200000;
 };
 
@@ -193,8 +210,9 @@ struct OmplReport {
 // as PlanRrtConnect checks it.
 //
 // Returns nothing if the input is bad, the planner's name is not known,
-// start or goal is outside the box or in collision, or no exact path was
-// found within the limits; `report` and `more` say which.
+// start or goal is outside the box or in collision, no exact path was
+// found within the limits, or (AORRTC only, see the top) the path found did
+// not pass the edge check; `report` and `more` say which.
 std::optional<JointPath> PlanOmpl(
     const Eigen::VectorXd& start, const Eigen::VectorXd& goal,
     const Eigen::VectorXd& lower, const Eigen::VectorXd& upper,

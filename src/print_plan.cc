@@ -53,8 +53,8 @@
 //                   column names and one row of figures over all the plans
 //                   (a plan is one base seed); the "#" lines stay
 //
-// Given any of --planner and the --ompl- flags, the first "#" line ends with
-// the search and, for OMPL, its settings.
+// Given any of --planner, the --ompl- flags and --summary, the first "#" line
+// ends with the search and, for OMPL, its settings.
 //
 // The scene is the nominal one, Reset(1, Randomization::None()), and the
 // obstacles are where the simulation has them (SetScene); the start and
@@ -113,7 +113,7 @@ struct Args {
   double resample = 0.0;  // m; 0: the default
   double corner = -1.0;   // m; negative: the default
   double resolution = 0.0;  // m; 0: the default
-  bool search_given = false;  // any of the search flags
+  bool search_given = false;  // any of the search flags, or --summary
   cell::PlanSearch search = cell::PlanSearch::kOwn;
   std::string ompl_planner = "RRTConnect";
   std::optional<double> ompl_range;  // m; 0: OMPL's own
@@ -249,6 +249,7 @@ int main(int argc, char** argv) {
       args.search_given = true;
     } else if (a == "--summary") {
       args.summary = true;
+      args.search_given = true;
     } else {
       std::fprintf(stderr, "unknown option %s\n", a.c_str());
       return 2;

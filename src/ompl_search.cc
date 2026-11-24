@@ -46,17 +46,27 @@ double SecondsSince(Clock::time_point start) {
 
 bool PositiveFinite(double x) { return std::isfinite(x) && x > 0.0; }
 
-// The planners this file can make, the default first, and whether a single
-// plan of each repeats from its seed (see Seeds in the header).
+// The planners this file can make, the default first; whether a single
+// plan of each repeats from its seed (see Seeds in the header); and whether
+// its path has to be checked again before it is returned (see AORRTC in the
+// header).
 struct KnownPlanner {
   const char* name;
   bool repeats;
+  bool recheck;
 };
 constexpr KnownPlanner kPlanners[] = {
-    {"RRTConnect", true},      {"BiTRRT", true},
-    {"BITstar", false},        {"AORRTC", false},
-    {"InformedRRTstar", false},
+    {"RRTConnect", true, false},      {"BiTRRT", true, false},
+    {"BITstar", false, false},        {"AORRTC", false, true},
+    {"InformedRRTstar", false, false},
 };
+
+const KnownPlanner* FindPlanner(const std::string& name) {
+  for (const KnownPlanner& p : kPlanners) {
+    if (name == p.name) return &p;
+  }
+  return nullptr;
+}
 
 // As src/rrt.cc: the given weights, or all ones if none were given; nothing
 // if they are the wrong length or not all positive and finite.
@@ -86,7 +96,8 @@ class SeededSampler : public ob::RealVectorStateSampler {
 // and BiTRRT use, and allocDefaultStateSampler, which the informed samplers
 // of the optimizing planners use for as long as they have no path. The
 // first falls back on the second, so overriding the second serves both.
-// Every sampler starts the same sequence; no planner here draws from two.
+// Every sampler starts the same sequence. RRTConnect and BiTRRT plan with
+// one sampler each.
 class SeededBox : public ob::RealVectorStateSpace {
  public:
   SeededBox(unsigned int dimension, std::uint32_t seed)
@@ -276,17 +287,12 @@ const std::vector<std::string>& OmplPlannerNames() {
 }
 
 bool IsOmplPlanner(const std::string& name) {
-  for (const KnownPlanner& p : kPlanners) {
-    if (name == p.name) return true;
-  }
-  return false;
+  return FindPlanner(name) != nullptr;
 }
 
 bool OmplPlannerRepeats(const std::string& name) {
-  for (const KnownPlanner& p : kPlanners) {
-    if (name == p.name) return p.repeats;
-  }
-  return false;
+  const KnownPlanner* planner = FindPlanner(name);
+  return planner != nullptr && planner->repeats;
 }
 
 const char* ToString(OmplStop stop) {
@@ -340,7 +346,8 @@ std::optional<JointPath> PlanOmpl(
       !(options.max_seconds > 0.0)) {
     return fail(RrtStatus::kBadInput, "an option is out of range");
   }
-  if (!IsOmplPlanner(settings.planner)) {
+  const KnownPlanner* known_planner = FindPlanner(settings.planner);
+  if (known_planner == nullptr) {
     std::string known;
     for (const std::string& name : OmplPlannerNames()) {
       known += (known.empty() ? "" : ", ") + name;
@@ -442,6 +449,19 @@ std::optional<JointPath> PlanOmpl(
   if (path.size() < 2) path = {start, goal};
   path.front() = start;
   path.back() = goal;
+  if (known_planner->recheck) {
+    for (std::size_t i = 1; i < path.size(); ++i) {
+      if (!EdgeIsFree(path[i - 1], path[i], is_free, options.edge_resolution,
+                      *weights, options.edge_order, &p.queries)) {
+        out.collision_queries = p.queries;
+        return fail(limit == OmplStop::kTimeLimit ? RrtStatus::kTimeLimit
+                                                  : RrtStatus::kIterationLimit,
+                    "the path of OMPL's " + settings.planner +
+                        " did not pass the edge check");
+      }
+    }
+    out.collision_queries = p.queries;
+  }
   out.status = RrtStatus::kFound;
   out.path_length = PathLength(path, *weights);
   out.seconds = SecondsSince(began);

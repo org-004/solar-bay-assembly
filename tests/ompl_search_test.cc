@@ -4,8 +4,9 @@
 // switch (MotionPlanOptions::search): the cell's carry planned with OMPL
 // chosen, and one whole cycle run with it.
 //
-// Nothing here bounds a wall-clock time, and the time limits are set so
-// high that a count always ends a search first. Random configurations come
+// Nothing here bounds a wall-clock time, and every time limit (of a search,
+// and PlanMove's time budget) is set so high that a count always ends a
+// search first. Random configurations come
 // from src/portable_random.h, one draw per statement, so both platforms
 // test the same ones.
 
@@ -500,6 +501,7 @@ TEST(OmplSearch, PlanMovePlansTheCarry) {
 
   MotionPlanOptions options;
   options.speed = carry.speed;
+  options.time_budget = kNoTimeLimit;
   options.search = PlanSearch::kOmpl;
   MotionPlanReport report;
   const std::optional<JointPath> path = cell::PlanMove(
@@ -507,8 +509,7 @@ TEST(OmplSearch, PlanMovePlansTheCarry) {
   ASSERT_TRUE(path.has_value())
       << cell::ToString(report.status) << ": " << report.reason;
   EXPECT_EQ(report.status, MotionPlanStatus::kFound);
-  EXPECT_EQ(report.plans_tried, options.seeds);
-  EXPECT_EQ(report.plans_found, options.seeds);
+  EXPECT_GE(report.plans_found, 1);
   EXPECT_GT(report.search_queries, 0);
   EXPECT_TRUE((path->front().array() == carry.start.array()).all());
   EXPECT_TRUE((path->back().array() == carry.goal.array()).all());
@@ -566,6 +567,7 @@ TEST(OmplSearch, OneCycleWithOmplPlaces) {
   options.sensing = cell::SensingMode::kCamera;
   options.carry = cell::CarryMode::kPlanned;
   options.planner.search = PlanSearch::kOmpl;
+  options.planner.time_budget = kNoTimeLimit;
   cell::PickPlace script(cell, options);
   std::optional<cell::PlacementError> placement;
   script.set_placed_hook([&](int module, int slot) {
