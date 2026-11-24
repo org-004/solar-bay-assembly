@@ -48,10 +48,37 @@
 // and the hole on the tube it drops into (b). A hold is a stretch of the
 // tube that something may grip while the bay is assembled; the document's
 // section "Holding the tube" says what a holder must do.
+//
+// The locating move (docs/bay-hardware.md, "Locating a module before
+// pinning"). By the owner's decision of 2026-11-24 a module is laid on its
+// rails within the cell's placement tolerance (the gate: 3 mm in the rails'
+// plane in any direction and 0.15 degrees of yaw, kGateOffset and kGateYaw)
+// and then moved into its holes before it is pinned, because the gate
+// accepts placements the pins alone do not (Tolerances). A hardened nose on
+// a floating mount comes up from below, inside the hat, along a hole's axis:
+// its ball tip finds the opening that the rail's slot and the frame's slot
+// leave between them, by contact, and its taper then slides the module
+// until the land is in both slots, which leaves the hole inside the pin's
+// play. The nose leaves the hole, a pin is put in from above and left loose,
+// and the next hole is located; the holes are taken in the order
+// kLocateOrder and the collars swaged in kSwageOrder once all four pins are
+// in. Both slots are read as obrounds (two half circles joined by straight
+// sides), the cautious reading, so a slot is the set of points within half
+// its width of a segment, and a round thing of diameter d passes through two
+// slots when their two segments are no further apart than the sum of the
+// slots' half widths less d (Opening). The functions after the constants
+// compute the capture from a LocatingDims, which defaults to the constants,
+// so that a test can ask the same of other slots and noses. Placements and
+// hole errors are in the tube's frame, metres and radians, relative to a
+// module's place: a hole's error is where its centre is less where it
+// should be. Every figure of the move is `ours`: designed here.
 
 #ifndef SRC_BAY_HARDWARE_H_
 #define SRC_BAY_HARDWARE_H_
 
+#include <algorithm>
+#include <array>
+#include <cmath>
 #include <string>
 #include <vector>
 
@@ -455,6 +482,459 @@ inline std::vector<Hold> Holds() {
   }
   add(kTubeLength, kSectionLength, kNeckRadius, false);
   return all;
+}
+
+// ------------------------------------------------------ the locating move
+// The module's own hole tolerance: the two holes of a pair are 400 +/- 1
+// apart and the two rows 1,096 +/- 2, so each hole can be this far from its
+// place across and along the tube (Tolerances, derived).
+inline constexpr double kHoleToleranceAcrossTube = 0.0005;
+inline constexpr double kHoleToleranceAlongTube = 0.0010;
+
+// What the gate accepts: an offset in the rails' plane of this much in any
+// direction and this much yaw. They repeat cell::PlacementTolerance's
+// `position` and `yaw` (src/trial_runner.h, the owner's figures); this
+// header stands alone and does not include it.
+inline constexpr double kGateOffset = 0.003;
+inline constexpr double kGateYaw = 0.15 * 3.14159265358979323846 / 180.0;
+
+// The free height above the frame's flange, under the laminate: the frame's
+// height less the flange and the laminate, 23.3 mm.
+inline constexpr double kFreeAboveFlange =
+    kModuleThickness - kFlangeThickness - kLaminateThickness;
+
+// The nose, hardened steel, on a mount that floats across and along (ours).
+// A ball tip 2 mm across, small enough to find a slot of 7.1 x 13 from below
+// with +/-2.55 across and +/-5.5 along to aim in.
+inline constexpr double kNoseTipDiameter = 0.0020;
+// The full diameter: more than the pin's 6.35, so a located hole is inside
+// the pin's play with 0.25 to spare, and less than the frame slot's 7.0.
+inline constexpr double kNoseDiameter = 0.0066;
+// The taper from the tip's diameter to the full one. Its half angle,
+// atan(2.3 / 8.6), about 15 degrees, is NoseHalfAngle().
+inline constexpr double kNoseTaperLength = 0.0086;
+// The straight land of the full diameter: longer than the two sheets (3.7)
+// and the over-travel together.
+inline constexpr double kNoseLandLength = 0.0060;
+// Tip (its radius), taper and land: 15.6 mm.
+inline constexpr double kNoseLength =
+    kNoseTipDiameter / 2.0 + kNoseTaperLength + kNoseLandLength;
+// "Fully in": the land's upper end this far above the flange's top face.
+inline constexpr double kNoseOverTravel = 0.0010;
+// How high the tip then stands above the flange's top face: 10.6 mm.
+inline constexpr double kNoseRise =
+    kNoseOverTravel + kNoseTaperLength + kNoseTipDiameter / 2.0;
+// The tip enters when the opening is at least the tip and this.
+inline constexpr double kNoseTipClearance = 0.0005;
+// Static friction of the frame on the rail and of the nose on the slots'
+// edges: the handbook figure for aluminium on mild steel, clean and dry,
+// applied to anodised aluminium on galvanised steel (ours).
+inline constexpr double kLocateFriction = 0.61;
+// The rated thrust of the nose's tool along its axis, N. The tool bears on
+// the rail; the arm carries the tool, not the thrust.
+inline constexpr double kNoseToolThrust = 300.0;
+// The free space the move needs round each hole's axis. Below the rail's
+// top: the swaging tool's 13 and the 5.5 the tip's centre travels along the
+// slot, rounded up, and the swaging tool's 80 of length.
+inline constexpr double kLocateFreeRadiusBelow = 0.019;
+inline constexpr double kLocateFreeLengthBelow = 0.080;
+// Above the flange: the tip and the taper, which stay within the rail's
+// slot's outline (6.5 from the axis), and kNoseRise.
+inline constexpr double kLocateFreeRadiusAbove = 0.007;
+inline constexpr double kLocateFreeHeightAbove = 0.011;
+// The order in which a module's holes are located and pinned (pin index as
+// in Fastenings()), and the order in which the collars are swaged once all
+// four pins are in: the way back.
+inline constexpr std::array<int, 4> kLocateOrder = {0, 2, 3, 1};
+inline constexpr std::array<int, 4> kSwageOrder = {1, 3, 2, 0};
+
+// The dimensions the capture arithmetic reads, the constants by default.
+// Slots are obrounds: `across` is the size across the tube (X), `along`
+// along it (Y).
+struct LocatingDims {
+  double rail_slot_across = kRailSlotAcrossTube;
+  double rail_slot_along = kRailSlotAlongTube;
+  double frame_slot_across = kModuleSlotAcrossTube;
+  double frame_slot_along = kModuleSlotAlongTube;
+  double pin = kPinDiameter;
+  double tip = kNoseTipDiameter;
+  double nose = kNoseDiameter;
+  double taper_length = kNoseTaperLength;
+  double clearance = kNoseTipClearance;
+  double hole_tolerance_across = kHoleToleranceAcrossTube;
+  double hole_tolerance_along = kHoleToleranceAlongTube;
+  double friction = kLocateFriction;
+};
+
+// A module's placement: its centre's offset from its place, and its yaw.
+struct ModulePlacement {
+  double dx = 0.0;
+  double dy = 0.0;
+  double yaw = 0.0;
+};
+
+// Hole `hole`'s place in the module's frame: X = -/+200, Y = -/+548.
+inline Eigen::Vector2d HolePlace(int hole) {
+  return {(hole % 2 == 0 ? -0.5 : 0.5) * kHolePairSpacing,
+          (hole / 2 == 0 ? -1.0 : 1.0) *
+              (kModuleWidth / 2.0 - kHoleFromLongEdge)};
+}
+
+// Hole `hole`'s error for a placement, with its own tolerance taken at
+// `sign_across` and `sign_along` (each -1, 0 or +1) of its limits:
+// (dx - yaw y + tx, dy + yaw x + ty). The yaw is small (the gate's is 2.6
+// mrad), so the turn is taken to first order, as the design has it; the
+// second-order terms are under 0.003 mm.
+inline Eigen::Vector2d HoleError(const ModulePlacement& p, int hole,
+                                 int sign_across, int sign_along,
+                                 const LocatingDims& d = {}) {
+  const Eigen::Vector2d place = HolePlace(hole);
+  return {p.dx - p.yaw * place.y() + sign_across * d.hole_tolerance_across,
+          p.dy + p.yaw * place.x() + sign_along * d.hole_tolerance_along};
+}
+inline Eigen::Vector2d HoleError(double dx, double dy, double yaw, int hole,
+                                 int sign_across, int sign_along,
+                                 const LocatingDims& d = {}) {
+  return HoleError(ModulePlacement{dx, dy, yaw}, hole, sign_across,
+                   sign_along, d);
+}
+
+// Half the straight part of each slot's centre line, across and along: the
+// rail's (0, 2.95 mm) and the frame's (1.5 mm, 0).
+inline Eigen::Vector2d HalfSegment(double across, double along) {
+  return across > along ? Eigen::Vector2d((across - along) / 2.0, 0.0)
+                        : Eigen::Vector2d(0.0, (along - across) / 2.0);
+}
+// How far the two slots' centre lines are apart for a hole error (ex, ey):
+// sqrt(max(0, |ex| - 1.5)^2 + max(0, |ey| - 2.95)^2) with the constants.
+inline Eigen::Vector2d SegmentExcess(double ex, double ey,
+                                     const LocatingDims& d = {}) {
+  const Eigen::Vector2d h =
+      HalfSegment(d.rail_slot_across, d.rail_slot_along) +
+      HalfSegment(d.frame_slot_across, d.frame_slot_along);
+  return {std::copysign(std::max(0.0, std::abs(ex) - h.x()), ex),
+          std::copysign(std::max(0.0, std::abs(ey) - h.y()), ey)};
+}
+inline double SegmentGap(double ex, double ey, const LocatingDims& d = {}) {
+  return SegmentExcess(ex, ey, d).norm();
+}
+// The slots' half widths together: 7.05 mm.
+inline double HalfWidths(const LocatingDims& d = {}) {
+  return (std::min(d.rail_slot_across, d.rail_slot_along) +
+          std::min(d.frame_slot_across, d.frame_slot_along)) /
+         2.0;
+}
+
+// The diameter of the largest round thing that passes through both slots
+// at a hole error (ex, ey): min(7.0, 7.1, 7.05 - SegmentGap).
+inline double Opening(double ex, double ey, const LocatingDims& d = {}) {
+  return std::min({d.rail_slot_across, d.rail_slot_along, d.frame_slot_across,
+                   d.frame_slot_along, HalfWidths(d) - SegmentGap(ex, ey, d)});
+}
+
+// The least opening the tip enters: tip and clearance, 2.5 mm.
+inline double TipNeeds(const LocatingDims& d = {}) {
+  return d.tip + d.clearance;
+}
+inline bool TipEnters(double ex, double ey, const LocatingDims& d = {}) {
+  return Opening(ex, ey, d) >= TipNeeds(d);
+}
+
+// The largest SegmentGap at which a round thing of diameter `diameter`
+// passes: 4.55 mm for the tip, 0.45 for the nose, 0.70 for the pin.
+inline double GapFor(double diameter, const LocatingDims& d = {}) {
+  return HalfWidths(d) - diameter;
+}
+// The largest hole error, across alone and along alone, that something of
+// `diameter` passes: the capture (6.05, 7.50) for the tip and its
+// clearance, what the nose leaves (1.95, 3.40), the pin's play (2.20,
+// 3.65).
+inline Eigen::Vector2d ErrorLimitFor(double diameter,
+                                     const LocatingDims& d = {}) {
+  const Eigen::Vector2d h =
+      HalfSegment(d.rail_slot_across, d.rail_slot_along) +
+      HalfSegment(d.frame_slot_across, d.frame_slot_along);
+  return h + Eigen::Vector2d::Constant(GapFor(diameter, d));
+}
+inline Eigen::Vector2d CaptureLimit(const LocatingDims& d = {}) {
+  return ErrorLimitFor(TipNeeds(d), d);
+}
+inline Eigen::Vector2d NoseLeaves(const LocatingDims& d = {}) {
+  return ErrorLimitFor(d.nose, d);
+}
+inline Eigen::Vector2d PinPlay(const LocatingDims& d = {}) {
+  return ErrorLimitFor(d.pin, d);
+}
+
+// True if the nose fits both slots and is not smaller than the pin, so that
+// a hole it leaves is inside the pin's play.
+inline bool NoseFits(const LocatingDims& d = {}) {
+  return d.nose < std::min({d.rail_slot_across, d.rail_slot_along,
+                            d.frame_slot_across, d.frame_slot_along}) &&
+         d.nose >= d.pin && d.tip < d.nose;
+}
+
+// Where a hole with error (ex, ey) is once the nose is fully in: the
+// nearest error at which the nose's full diameter passes both slots (the
+// module slides no further than the nose makes it). An error the nose
+// already passes is left as it is.
+inline Eigen::Vector2d LocatedHole(double ex, double ey,
+                                   const LocatingDims& d = {}) {
+  const Eigen::Vector2d excess = SegmentExcess(ex, ey, d);
+  const double gap = excess.norm();
+  const double allowed = GapFor(d.nose, d);
+  if (gap <= allowed) return {ex, ey};
+  const Eigen::Vector2d keep = excess * (allowed / gap);
+  return Eigen::Vector2d(ex, ey) - excess + keep;
+}
+// True if a hole error is inside the pin's play.
+inline bool InsidePinPlay(double ex, double ey, const LocatingDims& d = {}) {
+  return SegmentGap(ex, ey, d) <= GapFor(d.pin, d) + 1e-12;
+}
+// How far the module slides at a hole: its error less where it is located.
+inline Eigen::Vector2d Slide(double ex, double ey,
+                             const LocatingDims& d = {}) {
+  return Eigen::Vector2d(ex, ey) - LocatedHole(ex, ey, d);
+}
+
+// The corners of what the gate accepts: placements at `offset` in
+// directions 0, 360/steps, ... degrees (steps a multiple of 4 has the exact
+// axes), yaw +/-`yaw`, and every combination of tolerance signs of each
+// hole. A placement inside the disc is never worse: SegmentGap is convex in
+// the hole error.
+inline constexpr int kRimSteps = 3600;
+inline ModulePlacement RimPlacement(double offset, double yaw, int step,
+                                    int steps = kRimSteps) {
+  const double angle = 2.0 * 3.14159265358979323846 * step / steps;
+  // The exact axes without rounding.
+  double c = std::cos(angle), s = std::sin(angle);
+  if (4 * step % steps == 0) {
+    const int quarter = (4 * step / steps) % 4;
+    c = quarter == 0 ? 1.0 : (quarter == 2 ? -1.0 : 0.0);
+    s = quarter == 1 ? 1.0 : (quarter == 3 ? -1.0 : 0.0);
+  }
+  return {offset * c, offset * s, yaw};
+}
+
+// The worst case of one hole over what the gate accepts.
+struct GateWorst {
+  // The least opening and where it occurs.
+  double opening = 1e9;
+  ModulePlacement placement;
+  double direction_deg = 0.0;  // of the offset, from +X toward +Y
+  int hole = 0;
+  int sign_across = 0;
+  int sign_along = 0;
+  Eigen::Vector2d error = Eigen::Vector2d::Zero();
+  // The largest hole error across and along, each over all cases.
+  double error_across = 0.0;
+  double error_along = 0.0;
+};
+inline GateWorst WorstOverGate(double offset = kGateOffset,
+                               double yaw = kGateYaw,
+                               const LocatingDims& d = {},
+                               int steps = kRimSteps) {
+  GateWorst w;
+  for (int step = 0; step < steps; ++step) {
+    for (int ys : {1, -1}) {
+      const ModulePlacement p = RimPlacement(offset, ys * yaw, step, steps);
+      for (int hole = 0; hole < 4; ++hole) {
+        for (int sa : {1, -1}) {
+          for (int sl : {1, -1}) {
+            const Eigen::Vector2d e = HoleError(p, hole, sa, sl, d);
+            w.error_across = std::max(w.error_across, std::abs(e.x()));
+            w.error_along = std::max(w.error_along, std::abs(e.y()));
+            const double o = Opening(e.x(), e.y(), d);
+            if (o < w.opening - 1e-12) {
+              w.opening = o;
+              w.placement = p;
+              w.direction_deg = 360.0 * step / steps;
+              w.hole = hole;
+              w.sign_across = sa;
+              w.sign_along = sl;
+              w.error = e;
+            }
+          }
+        }
+      }
+    }
+  }
+  return w;
+}
+// True if the tip enters every hole of every placement the gate accepts.
+inline bool CapturesGate(double offset = kGateOffset, double yaw = kGateYaw,
+                         const LocatingDims& d = {}) {
+  return WorstOverGate(offset, yaw, d).opening >= TipNeeds(d);
+}
+
+// The capture range in the gate's terms: the largest offset in any
+// direction at yaw `yaw`, and the largest yaw at offset `offset`, with the
+// hole tolerance against them, for which the tip still enters every hole.
+// Found by halving, to well under a micrometre and a microradian.
+inline double CaptureOffsetAtYaw(double yaw = kGateYaw,
+                                 const LocatingDims& d = {},
+                                 int steps = kRimSteps) {
+  double lo = 0.0, hi = 0.05;
+  if (WorstOverGate(lo, yaw, d, steps).opening < TipNeeds(d)) return 0.0;
+  for (int i = 0; i < 40; ++i) {
+    const double mid = (lo + hi) / 2.0;
+    (WorstOverGate(mid, yaw, d, steps).opening >= TipNeeds(d) ? lo : hi) = mid;
+  }
+  return lo;
+}
+inline double CaptureYawAtOffset(double offset = kGateOffset,
+                                 const LocatingDims& d = {},
+                                 int steps = kRimSteps) {
+  double lo = 0.0, hi = 0.05;
+  if (WorstOverGate(offset, lo, d, steps).opening < TipNeeds(d)) return 0.0;
+  for (int i = 0; i < 40; ++i) {
+    const double mid = (lo + hi) / 2.0;
+    (WorstOverGate(offset, mid, d, steps).opening >= TipNeeds(d) ? lo : hi) =
+        mid;
+  }
+  return lo;
+}
+
+// How the module moves when the nose locates a hole on one rail.
+enum class LocateMotion {
+  // The whole module shifts.
+  kShift,
+  // The module turns about the middle of its other rail (that rail's
+  // friction holds) until the hole's error across is taken up, and shifts
+  // along the tube for what is left along.
+  kTurn,
+};
+inline const char* MotionName(LocateMotion m) {
+  return m == LocateMotion::kShift ? "shift" : "turn";
+}
+
+// The placement after the nose has located hole `hole` (its tolerance
+// signs `sign_across`, `sign_along`) by `motion`: that hole's error is then
+// LocatedHole of what it was.
+inline ModulePlacement AfterLocating(const ModulePlacement& p, int hole,
+                                     int sign_across, int sign_along,
+                                     LocateMotion motion,
+                                     const LocatingDims& d = {}) {
+  const Eigen::Vector2d e = HoleError(p, hole, sign_across, sign_along, d);
+  const Eigen::Vector2d target = LocatedHole(e.x(), e.y(), d);
+  if (motion == LocateMotion::kShift) {
+    const Eigen::Vector2d s = e - target;
+    return {p.dx - s.x(), p.dy - s.y(), p.yaw};
+  }
+  // The pivot: the module's point over the middle of its other rail, at
+  // `rail_y` from the module's centre. Turning by phi about it moves the
+  // centre by phi x (rail_y, 0) and a hole at (x, y) by
+  // phi x (rail_y - y, x), to first order; phi takes up the hole's error
+  // across, and a shift along takes up what is left along.
+  const Eigen::Vector2d place = HolePlace(hole);
+  const double rail_y = (place.y() < 0.0 ? 1.0 : -1.0) *
+                        (kModuleWidth / 2.0 + kModuleGap / 2.0);
+  const double phi = (target.x() - e.x()) / (rail_y - place.y());
+  const double along_left = target.y() - (e.y() + phi * place.x());
+  return {p.dx + phi * rail_y, p.dy + along_left, p.yaw + phi};
+}
+
+// The worst of the holes not yet located once hole kLocateOrder[0] has
+// been located by `motion`, over what the gate accepts.
+struct LaterHoles {
+  double error_across = 0.0;
+  double error_along = 0.0;
+  double opening = 1e9;  // the least
+  ModulePlacement placement;  // where the least opening occurs
+  int hole = 0;
+  bool captured = true;
+};
+inline LaterHoles LaterHolesAfterFirst(LocateMotion motion,
+                                       double offset = kGateOffset,
+                                       double yaw = kGateYaw,
+                                       const LocatingDims& d = {},
+                                       int steps = kRimSteps) {
+  LaterHoles w;
+  const int first = kLocateOrder[0];
+  for (int step = 0; step < steps; ++step) {
+    for (int ys : {1, -1}) {
+      const ModulePlacement p = RimPlacement(offset, ys * yaw, step, steps);
+      for (int sa : {1, -1}) {
+        for (int sl : {1, -1}) {
+          const ModulePlacement q = AfterLocating(p, first, sa, sl, motion, d);
+          for (int hole = 0; hole < 4; ++hole) {
+            if (hole == first) continue;
+            for (int ha : {1, -1}) {
+              for (int hl : {1, -1}) {
+                const Eigen::Vector2d e = HoleError(q, hole, ha, hl, d);
+                w.error_across = std::max(w.error_across, std::abs(e.x()));
+                w.error_along = std::max(w.error_along, std::abs(e.y()));
+                const double o = Opening(e.x(), e.y(), d);
+                if (o < w.opening) {
+                  w.opening = o;
+                  w.placement = p;
+                  w.hole = hole;
+                }
+                if (o < TipNeeds(d)) w.captured = false;
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  return w;
+}
+
+// The largest slide of the module at hole kLocateOrder[0] over what the
+// gate accepts: across, along and in all (not together).
+inline Eigen::Vector3d WorstFirstSlide(double offset = kGateOffset,
+                                       double yaw = kGateYaw,
+                                       const LocatingDims& d = {},
+                                       int steps = kRimSteps) {
+  Eigen::Vector3d w = Eigen::Vector3d::Zero();
+  for (int step = 0; step < steps; ++step) {
+    for (int ys : {1, -1}) {
+      const ModulePlacement p = RimPlacement(offset, ys * yaw, step, steps);
+      for (int sa : {1, -1}) {
+        for (int sl : {1, -1}) {
+          const Eigen::Vector2d e = HoleError(p, kLocateOrder[0], sa, sl, d);
+          const Eigen::Vector2d s = Slide(e.x(), e.y(), d);
+          w = w.cwiseMax(Eigen::Vector3d(std::abs(s.x()), std::abs(s.y()),
+                                         s.norm()));
+        }
+      }
+    }
+  }
+  return w;
+}
+
+// The forces, newtons. The module's weight, 32.4 x 9.81.
+inline double ModuleWeight() { return kModuleMass * 9.81; }
+// The taper's half angle: atan(2.3 / 8.6).
+inline double NoseHalfAngle(const LocatingDims& d = {}) {
+  return std::atan((d.nose - d.tip) / 2.0 / d.taper_length);
+}
+// Sliding the whole module on its two rails, and turning it about its other
+// rail (half its weight on the rail where it slides).
+inline double SlideForce(const LocatingDims& d = {}) {
+  return d.friction * ModuleWeight();
+}
+inline double TurnForce(const LocatingDims& d = {}) {
+  return SlideForce(d) / 2.0;
+}
+// The taper lifts the frame's edge as it pushes it: lift = push x
+// tan(half angle + atan(friction)).
+inline double LiftPerPush(const LocatingDims& d = {}) {
+  return std::tan(NoseHalfAngle(d) + std::atan(d.friction));
+}
+// The push across that slides the whole module, the lift taking weight off
+// the rails: H = mu W / (1 + mu x LiftPerPush); and that lift.
+inline double NosePush(const LocatingDims& d = {}) {
+  return SlideForce(d) / (1.0 + d.friction * LiftPerPush(d));
+}
+inline double NoseLift(const LocatingDims& d = {}) {
+  return NosePush(d) * LiftPerPush(d);
+}
+// The thrust along the nose's axis: wedged between the two slots, the lift
+// at each, twice.
+inline double NoseThrust(const LocatingDims& d = {}) {
+  return 2.0 * NoseLift(d);
 }
 
 }  // namespace cell::bay

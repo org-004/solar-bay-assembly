@@ -238,9 +238,9 @@ Module to rail:
 | Tightening | none (0 N m): swaged | "Vibration proof, permanent swaged fasteners. No re-torquing required" [S4] | published |
 | Tools the manual lists for it | 2: A1100 (air, 90 psi) and PB2500N (battery) | Manual, table 2-2 [S7] | published |
 | Nose of the battery tool for 1/4 in | 26 across and 80 long; an extended one 19 across | The tool's manual [S31] | published |
-| Free space the tool needs | 13 mm radius round the axis, 80 mm along it | Half of 26, and the nose's length | derived |
+| Free space the tool needs | 13 mm radius round the axis, 80 mm along it | Half of 26, and the nose's length. The locating move needs more round each hole, below the rail and above the flange: see Locating a module before pinning | derived |
 | Side the tool comes from | below the rail, moving up (+Z) | The pin's head lies on the frame's flange, where only 30 - 1.7 - 5 = 23 is free under the laminate, less than the nose's 80; the collar and the tool are below the rail's top, inside the hat | ours |
-| How the pin is put in | from above, through the frame's flange and then the rail's top, before the tool comes | The manual's order of words. Only 23 is free above the flange, so the pin is shorter than that or is put into the frame before the module is laid down; its length was not found, and this document does not settle which | ours |
+| How the pin is put in | from above, through the frame's flange and then the rail's top, after the nose has left the hole and before the tool comes | The manual's order of words, and the locating move (Locating a module before pinning). A finger of the pin tool comes up inside the frame, inboard of the rail's top, which ends 45 from the module's edge. It reaches over the flange's inner edge, 28 from the edge, to the hole, 19 from it. Only 23 is free above the flange, so the pin's shank must be under 23 long to pass under the laminate. Its length was not found | ours |
 | Hole a 1/4 in lockbolt needs | 6.4 to 7.1 (Huck BobTail); 7.04 to 7.42 (Avdel 6.4 mm) | Two makers' catalogues, which differ [S32] [S33]. The manual does not name the maker; the rail's 7.1 is inside both, and the frame's slot, 7 wide, is inside the first and 0.04 under the second's least | published |
 | Hole in the module | slot of 10 x 7 | The frame's tracker slot, from the Module section | derived |
 | Thickness the pin clamps | 3.7 | Rail's sheet 2.0 and frame's flange 1.7 | derived |
@@ -378,8 +378,180 @@ module the gate accepts at 3 mm across cannot be pinned. In yaw and along the tu
 cell's tolerance is tighter. Taken together the fastening is the tighter one, because
 yaw and offset share the same 2.20: a module at the cell's limit of yaw has 0.77 mm
 left across, and 0.27 mm once the module's own hole tolerance is taken. A cell that
-pins modules needs either a tighter placement across the tube or a way to move the
-module into its holes before the pins go in.
+pins modules therefore moves each module into its holes before the pins go in, as the
+next section, Locating a module before pinning, designs.
+
+## Locating a module before pinning
+
+This section is designed here; no source was read for any of it. It rests on the owner's
+decision of 2026-11-24 that a module is laid down within the gate's tolerance (3.00 in
+the rails' plane in any direction and 0.15 degrees of yaw, `cell::PlacementTolerance`)
+and then moved into its holes before it is pinned. Tolerances shows why the move is
+needed: the gate accepts modules whose pins would not go in. The move: a tapered nose
+rises from below through the rail's slot into the frame's slot, and slides the module
+until a pin can go in. `bazel run --config=opt //:print_bay -- --summary` prints every
+figure of this section, and `-- --capture` prints the capture table. The figures are in
+`src/bay_hardware.h`, and `tests/bay_hardware_test.cc` checks them over every placement
+the gate accepts. It also shows that the check fails with a tip of 4 or a frame slot of
+7.5 across the tube.
+
+Both slots are taken as obrounds: two half circles of the slot's width joined by
+straight sides. This is the cautious reading of "a slot of 10 x 7", because a rectangle
+leaves a larger opening at its corners. A round thing then passes through both slots
+when the slots' two centre lines are no further apart than the sum of their half widths,
+7.05, less its diameter. The hole's error is how far the frame's slot is from the rail's.
+It is (dx - yaw x Y, dy + yaw x X) for the hole at (X, Y) from the module's centre, plus
+the hole's own tolerance of 0.50 across and 1.00 along (Tolerances).
+
+What carries the taper, and from which side:
+
+| Figure | Value | Source, computation or reason | Basis |
+|---|---|---|---|
+| What carries the taper | a hardened steel nose on the arm that sets the pins, on a mount that floats across and along the tube | The slots, not the arm, then place the nose. Whether it is a tool of its own or a part of the pin tool is for the layout to decide | ours |
+| Side it enters from | below, along the hole's axis (+Z): through the rail's slot first, then the frame's | This is the side the swaging tool uses, inside the hat, where there is room. Above the flange only 23.30 is free, and the laminate covers it | ours |
+| How it fits with Fastenings | the pin still goes in from above, and the swaging tool still comes from below | The nose is out of the hole before either comes | ours |
+| Shape of both slots | obround | The cautious reading, as above | ours |
+
+The nose:
+
+| Figure | Value | Source, computation or reason | Basis |
+|---|---|---|---|
+| Tip | ball, 2.00 across | Small enough to find the rail's slot from below (next table) | ours |
+| Full diameter | 6.60 | More than the pin's 6.35, so a hole it locates is inside the pin's play. Less than the frame slot's 7.0 | ours |
+| Taper | 8.60 long, from 2.00 to 6.60 | A half angle of about 15 degrees, so that a push across lifts the frame's edge less than half the module's weight (below) | ours |
+| Half angle of the taper | 14.97 degrees | atan((6.60 - 2.00) / 2 / 8.60) | derived |
+| Land | 6.00 long, 6.60 across | Longer than the two sheets (2.0 and 1.7) and the over-travel together | ours |
+| Length of the nose | 15.60 | Tip radius 1.00 + taper 8.60 + land 6.00 | derived |
+| Over-travel ("fully in") | 1.00 | The land's upper end this far above the flange's top face | ours |
+| Rise of the tip above the flange when fully in | 10.60 | 1.00 + 8.60 + 1.00 | derived |
+| Free height above the flange, under the laminate | 23.30 | 30 - 1.7 - 5 from the Module section; Fastenings rounds it to 23 | derived |
+| Height left between the tip and the laminate | 12.70 | 23.30 - 10.60 | derived |
+
+How the tip finds the opening. This is the "by contact" of the owner's decision:
+
+| Figure | Value | Source, computation or reason | Basis |
+|---|---|---|---|
+| Aim of the tip at the rail's slot from below | +/-2.55 across, +/-5.50 along | (7.1 - 2.0) / 2 and (13 - 2.0) / 2: the arm's whole aiming budget | derived |
+| Search when the flange stops the tip | 1 loop round the inside of the rail's slot, 27.8 for the tip's centre, pressed up lightly | 2 x 5.9 + pi x 5.1 | ours |
+| Clearance the tip needs | 0.50 | Over the tip's diameter, for the edges' shape and the mount's give | ours |
+| Least opening the tip enters | 2.500 | 2.00 + 0.50 | derived |
+| Opening left at a hole error (ex, ey) | 7.05 - sqrt(max(0, abs(ex) - 1.50)^2 + max(0, abs(ey) - 2.95)^2), at most 7.0 | The two centre lines are a segment of 13 - 7.1 = 5.9 along the tube and one of 10 - 7 = 3.0 across it | derived |
+| Camera looking up through the slot, in place of the loop | not chosen | The owner asked for contact, and the loop needs nothing the tool does not already have | ours |
+
+The frame's slot is 10 long across the tube and the rail's slot is 7.1 wide, so the
+frame's slot always crosses the wall of the rail's slot. Wherever an opening of the
+tip's size exists, it reaches that wall, and the tip rises into it on its way round the
+loop. The tip therefore enters whenever the opening is at least 2.500.
+
+The capture range. The three placements are the worst that the gate accepts, as
+`print_bay -- --capture` prints them. In each, the module is 3.00 from its place: straight
+across the tube, straight along it, or at 45 degrees. The yaw is the gate's 0.15 degrees,
+with the sign that leaves the least opening, and each hole has the tolerance signs that
+make it worst. A hole's error and its place once the nose is fully in are given as
+across, along. The pin's play is 2.200 across and 3.650 along, with the corner rounded
+at 0.700.
+
+| Placement | Hole | Hole's error | Opening left | Tip enters | Hole once the nose is fully in, against the pin's play | Basis |
+|---|---|---|---|---|---|---|
+| 3.00 across, +0.15 degrees | 0 | 4.935, 0.476 | 3.615 | yes | 1.950, 0.476: inside | derived |
+| 3.00 across, +0.15 degrees | 1 | 4.935, 1.524 | 3.615 | yes | 1.950, 1.524: inside | derived |
+| 3.00 across, +0.15 degrees | 2 | 2.065, 0.476 | 6.485 | yes | 1.950, 0.476: inside | derived |
+| 3.00 across, +0.15 degrees | 3 | 2.065, 1.524 | 6.485 | yes | 1.950, 1.524: inside | derived |
+| 3.00 along, +0.15 degrees | 0 | 1.935, 3.476 | 6.367 | yes | 1.787, 3.297: inside | derived |
+| 3.00 along, +0.15 degrees | 1 | 1.935, 4.524 | 5.417 | yes | 1.620, 3.384: inside | derived |
+| 3.00 along, +0.15 degrees | 2 | -1.935, 3.476 | 6.367 | yes | -1.787, 3.297: inside | derived |
+| 3.00 along, +0.15 degrees | 3 | -1.935, 4.524 | 5.417 | yes | -1.620, 3.384: inside | derived |
+| 3.00 at 45 degrees (2.121, 2.121), +0.15 degrees | 0 | 4.056, 2.598 | 4.494 | yes | 1.950, 2.598: inside | derived |
+| 3.00 at 45 degrees (2.121, 2.121), +0.15 degrees | 1 | 4.056, 3.645 | 4.401 | yes | 1.934, 3.068: inside | derived |
+| 3.00 at 45 degrees (2.121, 2.121), +0.15 degrees | 2 | 1.187, 2.598 | 7.000 | yes | 1.187, 2.598: inside | derived |
+| 3.00 at 45 degrees (2.121, 2.121), +0.15 degrees | 3 | 1.187, 3.645 | 6.355 | yes | 1.187, 3.400: inside | derived |
+| Least opening over all the gate accepts | 0 | 4.935, 0.476, at 3.00 straight across and 0.15 degrees | 3.615 | yes | 1.950, 0.476: inside | derived |
+| Largest hole errors over all the gate accepts, not together | all | 4.935 across, 4.524 along | at least 3.615 | yes | inside | derived |
+| Margin of the least opening over what the tip needs | all | | 1.115 = 3.615 - 2.500 | | | derived |
+| Capture range, as a hole's error | all | up to 6.050 across or 7.500 along, corner rounded at 4.550 | 2.500 at the edge | yes, up to the edge | | derived |
+| What the nose leaves, against the pin's play | all | | | | within 1.950 across and 3.400 along (corner 0.450), against 2.200 and 3.650: 0.250 to spare each way | derived |
+| Capture range in the gate's terms: offset at 0.15 degrees, the hole tolerance against it | all | 4.115 in any direction, against the gate's 3.00 | | | | derived |
+| Capture range in the gate's terms: yaw at 3.00 of offset | all | 0.2666 degrees, against the gate's 0.15 | | | | derived |
+| Whole capture | all | every placement the gate accepts, every hole, every tolerance sign | at least 3.615 | yes | inside | derived |
+
+The capture range covers everything the gate accepts.
+
+Which holes are located, and in what order:
+
+| Figure | Value | Source, computation or reason | Basis |
+|---|---|---|---|
+| Holes located | all 4, each just before its own pin | A hole that was not located is never asked to take a pin | ours |
+| Order | 0, 2, 3, 1 | Hole 0 first. Hole 2 is next: it is on the other rail, 1,096 along the tube from hole 0 at the same X | ours |
+| At each hole | nose in (the module slides), nose out (the module stays), pin put in from above and left loose | Nothing pushes the module once the nose is out: it lies on its rails | ours |
+| What keeps a located hole | its loose pin, 6.35 in both slots | Its hole cannot leave the pin's play while later holes are located | ours |
+| Swaging | the four collars once all four pins are in, in the order 1, 3, 2, 0 | The way back. A swaged collar clamps the module, which could then no longer be moved | ours |
+
+This removes both the offset and the yaw. Hole 0 brings one point of the module to its
+place, across and along. Moving hole 2 across the tube turns the module about pin 0,
+which removes the yaw: that lever is the longest the module has along the tube. Moving
+hole 2 along the tube shifts the module, and pin 0 slides in its play. Holes 3 and 1
+then differ from their neighbours only by the module's own tolerance and the turn left
+over, and the nose takes that up too. Two noses in two holes, with pins in the other
+two, would not do. The hole of a pair that was not located could be the nose's 1.950
+out across plus the pair's 1.00, which is more than the pin's 2.200. A set of places
+where all four pins fit always exists: at its nominal place every hole is within its own
+tolerance (0.50, 1.00), inside the nose's 1.950 and 3.400. The test checks this.
+
+A hole not yet located after hole 0, for the two ways a push at one rail can move the
+module:
+
+| Figure | Value | Source, computation or reason | Basis |
+|---|---|---|---|
+| The whole module shifts | later holes at most 4.935 across and 4.524 along; least opening 3.615; captured | Hole 0 brought to where the nose leaves it, over every placement the gate accepts and every tolerance sign | derived |
+| The module turns about the middle of its other rail, then shifts along for what is left | later holes at most 4.935 across and 4.524 along; least opening 3.615; captured | The other rail's friction holds. The pivot is the module's point over that rail's middle, 572.0 from the module's centre | derived |
+
+Neither motion puts a hole that has not been located further out than the gate's worst,
+so every later hole is still captured.
+
+How far the module slides, and the force:
+
+| Figure | Value | Source, computation or reason | Basis |
+|---|---|---|---|
+| Slide at hole 0, across | up to 2.985, toward the hole's place (+X or -X) | 4.935 - 1.950 | derived |
+| Slide at hole 0, along | up to 1.152 (+Y or -Y) | The hole is brought to the nearest point of what the nose leaves, whose corner is rounded at 0.450, so the slide along is more than 4.524 - 3.400 alone would give. It is never at its largest together with the slide across | derived |
+| Slide at hole 0, in all | up to 2.985 | The largest over all the gate accepts | derived |
+| Friction, frame on rail and nose on the slots' edges | 0.61, static | The handbook figure for aluminium on mild steel, clean and dry [S65]. Here it is applied to anodised aluminium on galvanised steel, for which no figure was read. It is taken for the nose on the edges too, on the cautious side | ours |
+| Weight of the module | 317.8 N | 32.4 kg x 9.81 (Module) | derived |
+| Force to slide the whole module | 193.9 N | 0.61 x 317.8 | derived |
+| Force to turn it about its other rail | 96.9 N | Half: half the weight is on the rail where it slides | derived |
+| Lift for each newton of push | 1.048 | tan(14.97 degrees + atan 0.61): the taper lifts the frame's edge as it pushes it | derived |
+| Push across that slides the whole module | 118.3 N | 193.9 / (1 + 0.61 x 1.048): the lift takes weight off the rails | derived |
+| Lift at that push | 124.0 N | 118.3 x 1.048. Under the 158.9 N (half the weight) that would raise the module's edge off its rail | derived |
+| Thrust along the nose's axis | 248.0 N | Twice the lift, because the nose is wedged between the frame's slot and the rail's. The tool makes it inside itself and bears on the rail, as the swaging tool does, so the arm carries the tool and not the thrust | derived |
+| Rated thrust of the nose's tool | 300.0 N | More than 248.0 | ours |
+
+What the module rests on while it slides:
+
+| Figure | Value | Source, computation or reason | Basis |
+|---|---|---|---|
+| What carries it | the tops of its two rails (galvanised steel) under the frame's two long flanges (anodised aluminium), by its own weight | Rail and Module | ours |
+| What else touches it | nothing | The module arm has let go and lifted clear before the nose enters | ours |
+
+The free space the move needs round each hole's axis, in the same terms Fastenings uses
+for the tools:
+
+| Figure | Value | Source, computation or reason | Basis |
+|---|---|---|---|
+| Below the rail's top | a cylinder of radius 19.0, 80.0 long | The swaging tool's 13, plus the 5.50 the tip's centre travels along the slot, rounded up. The swaging tool's 80 of length | ours |
+| What bounds it inside the hat | the web's inner face, 24.0 from the axis along the tube | 100 / 2 - 2.0 - (5 + 19): half the rail's top, its sheet, and the hole's distance from the rail's centre line | derived |
+| Above the flange | a cylinder of radius 7.0, 11.0 high, of the 23.30 free | The nose narrows upward, so above the flange it stays inside the rail's slot's outline, 13 / 2 from the axis. The tip rises 10.60 | ours |
+| What bounds it above the flange | the frame's upright part, 9.0 from the axis | 19 - 10 (Module) | derived |
+| Anything else | nothing | | ours |
+
+What is taken as given: that a nose which has entered both slots does pull the module
+over, as the owner has decided. Whether it does depends on the slots' edges, the nose's
+finish and the mount's give, and no test of that was made. Published figures would
+replace the `ours` rows in three ways. The frame maker's slot drawing, with its
+tolerances and the shape of its corners, would replace the obround reading, and with it
+the capture and the place a hole is left in. The lockbolt maker's pin and its hole would
+replace the pin's 6.35 and so the 0.250 to spare. A measured friction of frame on rail
+would replace the 0.61 and with it every force. The nose itself, its tool's thrust and
+the free space are for the tool's maker to confirm.
 
 ## The container
 
@@ -723,3 +895,5 @@ or a public filing that attaches the document.
 [S63] 40ft Curtain Side Container. SCF Australia. <https://scf.com.au/products-services/intermodal-containers/curtain-side/40ft-curtain-side>. Read 2026-11-24. Taken: tare.
 
 [S64] Technical specifications for purpose-built containers (Giants). Giants (filed with City of Mercer Island permit). <https://permitbulletin.mercerisland.gov/public/2307-086/SUB2/giants%20typical%20technical%20specifications%20for%20purpose-built%20containers.pdf>. Read 2026-11-24. Taken: purpose-built container ratings and reduced racking/stacking tests.
+
+[S65] Friction - Coefficients for Common Materials and Surfaces. The Engineering ToolBox. <https://www.engineeringtoolbox.com/friction-coefficients-d_778.html>. Read 2026-11-24. Taken: aluminum on mild steel, clean and dry: static 0.61, kinetic (sliding) 0.47.

@@ -1739,6 +1739,19 @@ cc_binary(
         "@mujoco",
     ],
 )
+# The gate's figures as src/bay_hardware.h repeats them for the locating
+# move, against cell::PlacementTolerance.
+#   bazel test //:locating_gate_test
+cc_test(
+    name = "locating_gate_test",
+    size = "small",
+    srcs = ["tests/locating_gate_test.cc"],
+    deps = [
+        ":bay_hardware",
+        ":trial_runner",
+        "@googletest//:gtest_main",
+    ],
+)
 # END bay
 
 # BEGIN container
