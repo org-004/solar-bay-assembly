@@ -37,7 +37,7 @@ gate adds about 4 on four cores.
   again anywhere.
 - One Bazel command at a time per checkout: wait for the lock, never start a second.
   `bazel run` releases the lock before the program starts. A git worktree
-  (`git worktree add ../sppp-wt-<piece>`) has a lock of its own.
+  (`git worktree add ../sba-wt-<piece>`) has a lock of its own.
 - Suites side by side gain little: three at once finish about a quarter sooner than one
   after another. The saving is in each agent running few tests, not in more agents
   testing.
