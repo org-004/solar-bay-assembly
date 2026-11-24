@@ -105,3 +105,5 @@ Each header opens with a long comment that explains the piece (240 of the 1,173 
 | Following | `src/arm_follower.h`, `src/joint_move.h`, `src/profile.h`, `src/ik.h` |
 | Tables | `run_cell`, `print_perception`, `print_plan`, `print_check`, each with `-- --pretty` |
 | Viewer (needs a display) | `bazel run --config=opt //:view_cell -- --seed 3` |
+| The bay's real hardware: round tube, rails, modules, fastening points (beside the cell, not in it) | `docs/bay-hardware.md`, `src/bay_hardware.h`, `models/bay.xml`, `//:print_bay`, `tests/bay_hardware_test.cc` |
+| The container the cell is built into: members, openings, envelopes | `docs/bay-hardware.md` ("The container"), `src/container.h`, `models/container.xml`, `tests/container_test.cc` |

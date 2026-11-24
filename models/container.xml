@@ -1,0 +1,86 @@
+<!--
+  The shipping container the cell is built into, in its working state.
+
+  It has the outside of a 40 ft high-cube container: 12.192 m long, 2.438 m
+  wide and 2.896 m high. What is drawn is what stays when the long sides are
+  open: four corner posts, which carry the corner fittings a crane, a ship
+  and a chassis hold; two deep bottom side rails with the floor between
+  them, its top 0.45 m above the ground; two top side rails and the roof;
+  a closed wall at the front end; and at the rear end the door frame, drawn
+  as its sill and its header, with the doors open or off. Each long side is
+  open between the posts over 11.830 m, from the floor to the top side
+  rail 2.240 m above it, and there is no post in between. The roof is
+  closed.
+
+  docs/bay-hardware.md, section "The container", says where each figure
+  comes from: the outside is the standard's, the members are this project's
+  assumption from what open-side containers and flat racks are sold as, and
+  none of it is a structural calculation. src/container.h holds the same
+  numbers for code and tests/container_test.cc checks that they agree. This
+  file was written out from those numbers by a script, so a change is made
+  in the header and here together.
+
+  The container's frame (body "container_frame"): the origin is on the ground
+  under the middle of the container, +Y runs along it to the rear end, +Z
+  is up. The body stands at the world's origin. Every member is a box that
+  collides, and every name starts with "container_".
+
+  Two sites give the envelopes a layout has to respect; a site's size is
+  half the envelope's size, as for a box. container_transport_envelope is
+  the outside: everything must be inside it when the container travels.
+  container_inside_envelope is the space between the posts, above the floor
+  and under the top side rails that a layout may count on: 11.830 m long,
+  2.330 m wide and 2.240 m high. Sites collide with nothing.
+
+  Nothing but structure is here: no arm, no tool, no conveyor, no door and
+  no side panel. Part file: loaded only through a scene that includes
+  common.xml first.
+-->
+<mujoco>
+  <default>
+    <default class="container_member">
+      <geom type="box" rgba="0.2 0.35 0.55 1"/>
+      <default class="container_post">
+        <!-- The corner posts, which carry the corner fittings. -->
+        <geom rgba="0.15 0.25 0.45 1"/>
+      </default>
+      <default class="container_rail">
+        <!-- Side rails, sills and headers. -->
+        <geom rgba="0.2 0.35 0.55 1"/>
+      </default>
+      <default class="container_floor">
+        <!-- Plywood on steel cross members. -->
+        <geom rgba="0.55 0.45 0.3 1"/>
+      </default>
+      <default class="container_panel">
+        <!-- The roof and the front wall, drawn half transparent. -->
+        <geom rgba="0.3 0.45 0.65 0.35"/>
+      </default>
+      <default class="container_envelope">
+        <site type="box" rgba="0.9 0.6 0.1 0.08"/>
+      </default>
+    </default>
+  </default>
+
+  <worldbody>
+    <body name="container_frame" pos="0 0 0" childclass="container_member">
+      <geom name="container_post_0" class="container_post" pos="-1.129 -6.0055 1.448" size="0.09 0.0905 1.448"/>
+      <geom name="container_post_1" class="container_post" pos="1.129 -6.0055 1.448" size="0.09 0.0905 1.448"/>
+      <geom name="container_post_2" class="container_post" pos="-1.129 6.0055 1.448" size="0.09 0.0905 1.448"/>
+      <geom name="container_post_3" class="container_post" pos="1.129 6.0055 1.448" size="0.09 0.0905 1.448"/>
+      <geom name="container_bottom_rail_0" class="container_rail" pos="-1.144 0 0.225" size="0.075 5.915 0.225"/>
+      <geom name="container_top_rail_0" class="container_rail" pos="-1.169 0 2.79" size="0.05 5.915 0.1"/>
+      <geom name="container_bottom_rail_1" class="container_rail" pos="1.144 0 0.225" size="0.075 5.915 0.225"/>
+      <geom name="container_top_rail_1" class="container_rail" pos="1.169 0 2.79" size="0.05 5.915 0.1"/>
+      <geom name="container_floor" class="container_floor" pos="0 0 0.375" size="1.069 5.915 0.075"/>
+      <geom name="container_roof" class="container_panel" pos="0 0 2.865" size="1.119 5.915 0.025"/>
+      <geom name="container_sill_front" class="container_rail" pos="0 -6.0055 0.225" size="1.039 0.0905 0.225"/>
+      <geom name="container_header_front" class="container_rail" pos="0 -6.0055 2.79" size="1.039 0.0905 0.1"/>
+      <geom name="container_sill_rear" class="container_rail" pos="0 6.0055 0.225" size="1.039 0.0905 0.225"/>
+      <geom name="container_header_rear" class="container_rail" pos="0 6.0055 2.79" size="1.039 0.0905 0.1"/>
+      <geom name="container_front_wall" class="container_panel" pos="0 -6.076 1.57" size="1.039 0.02 1.12"/>
+      <site name="container_transport_envelope" class="container_envelope" pos="0 0 1.448" size="1.219 6.096 1.448"/>
+      <site name="container_inside_envelope" class="container_envelope" pos="0 0 1.57" size="1.165 5.915 1.12" rgba="0.1 0.8 0.3 0.08"/>
+    </body>
+  </worldbody>
+</mujoco>

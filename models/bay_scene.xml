@@ -1,0 +1,14 @@
+<!--
+  One finished bay of the tracker by itself: the tube section, its eleven
+  rails, its ten modules and the sites of every fastening, locator and hold,
+  for tests/bay_hardware_test.cc and for looking at.
+
+    bazel run //:viewer_bay
+
+  The bay stands 1.2 m above the floor, fixed in its place, as models/bay.xml
+  puts it.
+-->
+<mujoco model="bay scene">
+  <include file="common.xml"/>
+  <include file="bay.xml"/>
+</mujoco>

@@ -104,6 +104,13 @@ radians.
 The cell exists and the cycle picks each module from where the camera sees
 it, and can carry it to the other side along a planned path.
 
+**The bay's real parts and the container** exist as models beside the cell,
+which still uses its old square tube: a round torque tube with its rails,
+modules and 51 named fastening points (`models/bay.xml`,
+`src/bay_hardware.h`), and a 40 ft container with its long sides open
+(`models/container.xml`, `src/container.h`). Every figure and its source
+is in `docs/bay-hardware.md`.
+
 **The cell** (`models/cell.xml`). A KUKA KR 210 R2700-2, converted from the
 vendor's robot description, with a suction tool. A pallet tilted 10 degrees
 holding 30 modules standing on edge, the front face 1.95 m from the arm. A
