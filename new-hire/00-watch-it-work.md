@@ -12,7 +12,8 @@ most of it the first build.
 2. Give every checkout on the machine one disk cache, unless `~/.bazelrc` already names
    one: `echo "build --disk_cache=$HOME/.cache/bazel-disk" >> ~/.bazelrc`.
 3. Build everything once: `bazel build --config=opt //...`. The first build compiles the
-   physics engine from source and takes several minutes. Later builds take seconds.
+   physics engine and the planning library OMPL from source and takes about ten
+   minutes. Later builds take seconds.
 
 Always pass `--config=opt`. Without it the programs are built unoptimized and run 5 to
 70 times slower.
@@ -117,7 +118,8 @@ No language yet, only the build.
   anything it depends on changed, then starts it. Everything after the lone `--` goes
   to the program, not to Bazel.
 - **Dependencies.** `MODULE.bazel` names the outside libraries: MuJoCo (physics), Eigen
-  (vectors and matrices), GLFW (the viewer's window), GoogleTest. Bazel downloads and
+  (vectors and matrices), OMPL (a second motion planner, stop 9, with the Boost
+  libraries it needs), GLFW (the viewer's window), GoogleTest. Bazel downloads and
   compiles them; nothing is installed on the machine.
 
 If you know `cargo`, `go build` or `npm run`, Bazel is that, for a language with no

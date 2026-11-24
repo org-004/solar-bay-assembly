@@ -16,6 +16,8 @@ again. The definitions are short on purpose; the chapter has the explanation.
 - **action (ROS 2)** (stop 11): a long-running request with a goal, feedback while it
   runs, a result, and cancellation.
 - **actuator** (stop 7): a motor acting on a joint; here every one is a position servo.
+- **adapter** (stop 9): code that makes one library's interface fit another's; here
+  `src/ompl_search.cc`, which poses OMPL the problem this planner's own search is posed.
 - **allowed collision matrix (ACM)** (stop 8): MoveIt's table of link pairs that are never
   checked.
 - **allowed contact** (stop 8): a pair of bodies whose contact does not count for one
@@ -23,6 +25,8 @@ again. The definitions are short on purpose; the chapter has the explanation.
 - **approximate positioning** (stop 10): a robot controller's own rounding of programmed
   points (KUKA's term).
 - **armature** (stop 4): the inertia of a motor's rotor as seen through its gearbox.
+- **asymptotically optimal** (stop 9): of a planner whose path approaches the shortest
+  as it is given more time; RRT* and BIT* are, RRT-Connect is not.
 - **attached collision object** (stop 8): MoveIt's name for an object fixed to a link that
   moves with it, such as a held part.
 
@@ -35,6 +39,9 @@ again. The definitions are short on purpose; the chapter has the explanation.
   is a difference from.
 - **behaviour tree** (stop 11): a tree of tasks ticked at a fixed rate, each node
   answering success, failure or running.
+- **BIT\*** (stop 9): an OMPL planner that keeps improving its path until its budget is
+  spent. With AORRTC and Informed RRT* it is one of the three here that do not repeat
+  from a seed.
 - **blend** (stop 10): the rounded piece of path that replaces a corner.
 - **blind** (stop 0): picking from the drawing's poses, with no camera.
 - **blocked (move)** (stop 11): a move that cannot reach its goal because the arm or its
@@ -222,6 +229,8 @@ again. The definitions are short on purpose; the chapter has the explanation.
 - **mock hardware** (stop 7): in ros2_control, a stand-in robot that reports each
   commanded position back as measured: no physics at all.
 - **module** (stop 0): a solar panel, 2.3 m by 1.1 m, 30 kg here.
+- **motion validator** (stop 9): OMPL's name for the check of a straight segment between
+  two configurations; here one that calls `EdgeIsFree`.
 - **move (C++)** (stop 7): handing an object's contents to another object instead of
   copying them.
 - **MoveIt** (stop 13): the motion planning framework of ROS: planning scene, planners,
@@ -240,7 +249,8 @@ again. The definitions are short on purpose; the chapter has the explanation.
 ## O
 
 - **OMPL** (stops 9, 13): the Open Motion Planning Library, the collection of sampling
-  planners MoveIt usually plans with.
+  planners MoveIt usually plans with, and since stop 9 this planner's second search,
+  chosen with `--planner ompl`.
 
 ## P
 
@@ -253,6 +263,8 @@ again. The definitions are short on purpose; the chapter has the explanation.
 - **path speed** (stop 10): the rate of change of s; the arm's single speedometer.
 - **payload (load data)** (stop 4): the mass, centre of mass and inertia of what the arm
   carries, which a controller's model must be told.
+- **pimpl** (stop 13): a class that keeps its real members behind a pointer to a type
+  defined only in the `.cc`, so that its header needs none of their headers.
 - **pinhole model** (stop 6): the camera as one point that every ray passes through; a
   point at (x, y) and depth z lands at pixel (cx + f x / z, cy - f y / z).
 - **placement error** (stop 0): how far a module lands from its slot, in millimetres and
@@ -318,6 +330,8 @@ again. The definitions are short on purpose; the chapter has the explanation.
 - **RRT-Connect** (stop 9): two such trees, one from the start and one from the goal, each
   trying to reach the other's newest node.
 - **Ruckig** (stop 10): a library for jerk-limited trajectories computed on the fly.
+- **rule fixed beforehand** (stops 9, 14): what will count as each possible conclusion,
+  written down before the measurements so that it cannot be bent to fit them.
 - **rule of three** (stop 12): after n tries with no failure, the failure rate is below
   about 3/n with 95% confidence.
 
@@ -370,6 +384,8 @@ again. The definitions are short on purpose; the chapter has the explanation.
   tool moves straight in.
 - **state machine** (stop 11): a program that is always in one of a fixed set of states
   and moves between them on conditions.
+- **state space** (stop 9): OMPL's name for configuration space together with its
+  bounds and its distance.
 - **step (of the cycle)** (stop 11): one named stage of the script, such as "touch glass"
   or "carry"; `PickPlaceStep`.
 - **stopping error** (stop 7): how far the conveyor really stops from where it was told

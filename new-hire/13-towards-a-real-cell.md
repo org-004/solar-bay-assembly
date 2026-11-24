@@ -8,12 +8,19 @@ much of it talking to your team.
 
 ## Read
 
-1. `README.md`: "Where the simulation is kinder than a real cell" and "Not done".
-2. `docs/ompl-integration.md`: "Summary and recommendation", then "What the comparison
-   needs" down to the end of "A proposed design", then "Decisions for the owner". Skip
-   the build detail in between unless it interests you.
-3. Your own notebook: "Questions for my team" and the answers you have collected.
-4. The "In the MoveIt cells" section of each earlier stop, once more, in order.
+1. `README.md`: "Where the simulation is kinder than a real cell" and "The planner
+   against OMPL".
+2. `docs/ompl-comparison.md`: "Verdict" again, now with "What is left unequal" in
+   full and "If OMPL became the default". It is the one place where this planner has
+   been measured against the library the production cells plan with.
+3. `docs/ompl-integration.md`: "Summary and recommendation" only, for how a C++ library
+   gets into this build at all. Then the OMPL part of `MODULE.bazel`, and a glance at
+   `bazel/ompl.BUILD.bazel`.
+4. `src/ompl_search.cc`: the three small classes near the top (`SeededSampler`,
+   `SeededBox`, `EdgeValidator`), `MakeProblem` and `MakePlanner`. And at the bottom
+   of `src/ompl_search.h`, the class `OmplSpace`.
+5. Your own notebook: "Questions for my team" and the answers you have collected.
+6. The "In the MoveIt cells" section of each earlier stop, once more, in order.
 
 ## The idea
 
@@ -30,6 +37,7 @@ much of it talking to your team.
 | `depth_camera`, `module_finder` (6) | a camera driver, a perception node, a calibration transform | real noise, real glass, a calibration somebody measured |
 | `collision` (8) | the planning scene and its collision library | a shared world model that can be stale |
 | `rrt`, `motion_planner` (9) | OMPL through a planning pipeline | many planners behind one interface, tuned by parameters |
+| `ompl_search` (9) | the same OMPL, on its defaults | here it is handed this planner's box, metric and edge check; there it decides them itself |
 | `pick_place` (11) | a task layer: stages, a behaviour tree, or a PLC | sequencing across processes, with cancel and recovery |
 | `trial_runner`, the gate (12) | launch tests, recorded bags, acceptance tests | no truth, and runs that do not repeat exactly |
 
@@ -87,17 +95,33 @@ questions that have to be answered before this code moves steel.
 6. *How flexible is the module, and does it matter at 3 mm?*
 7. *How does a cycle recover?* Put the module back, set it aside, call a person?
 8. *How is placement measured without truth?*
-9. *Is it better than what runs today?* On the same task, against the MoveIt cell, in
-   cycle time and placement. And against OMPL's planners inside this repository, which
-   `docs/ompl-integration.md` prepares.
+9. *Is it better than what runs today?* Half of this has an answer. Against OMPL's
+   planners inside this repository, on four moves of this simulated cell:
+   "hand-written better", by a rule fixed beforehand (`docs/ompl-comparison.md`).
+   Whether OMPL should become the default search all the same is left to the owner on
+   purpose. Against a MoveIt cell on the same task, in cycle time and placement,
+   nothing has been measured.
 
-**Comparing fairly.** The OMPL report's table "What makes a naive comparison unfair" is
-worth knowing by heart, because every "planner A beats planner B" claim you will ever
-read is open to the same faults: different spacing of the collision checks along an
-edge, different step lengths, one path shortened and the other not, one seed against
-the best of four, wall time on different compile flags. Its rule: make the problem
-identical first, count collision queries before milliseconds, and compare distributions
-over many plans, never one plan against one plan.
+**Comparing fairly.** `docs/ompl-comparison.md` is worth studying as a method, whatever
+you make of its result, because every "planner A beats planner B" claim you will ever
+read is open to the faults it guards against.
+
+- *The rule came first.* What would count as "OMPL better", "hand-written better" or
+  "no material difference" was written down before any number existed. One candidate,
+  BIT*, missed by 1.053 against a limit of 1.05. A rule written afterwards could have
+  been made to say either.
+- *The problem was made identical.* "How the two were made equal" lists what that
+  took: the box, the metric, the edge check, the seeds, the limits, exact solutions
+  only. Each has a test.
+- *What could not be made equal is listed*, with the way each difference pushes. One
+  of them decided the verdict: the hand-written search tries the straight line first.
+- *Counts before milliseconds.* Collision queries are the same on every machine; its
+  times are "good to a factor, not to a few per cent".
+- *Many plans, and honesty about repeats.* Medians and worst cases over fifty seeds,
+  and the rows that do not repeat from run to run are marked as samples.
+
+`docs/ompl-integration.md`, "What makes a naive comparison unfair", is the same list
+written before the work; the comparison is that list carried out.
 
 ## C++ you meet here
 
@@ -106,8 +130,18 @@ C++ that will surprise you most. There is no one package manager. A C++ library 
 headers plus compiled code, and both must agree with your own code about the compiler,
 its flags, the language version and the version of every library you both use.
 
-`docs/ompl-integration.md` is a worked example: eight ways of bringing one library in,
-four of them built and measured. Three things in it are general:
+`docs/ompl-integration.md` weighed eight ways of bringing OMPL in and built four of
+them. The one it recommended is now in the build, and you can read what it took:
+
+- In `MODULE.bazel`, an `http_archive`: an address, a hash of the file, and a build
+  file. OMPL has no Bazel files of its own, so `bazel/ompl.BUILD.bazel` is this
+  repository's build file for somebody else's source.
+- Under it, seventeen Boost libraries named one by one, because OMPL includes their
+  headers. They bring others with them: 82 modules in all, by the comparison's count.
+- The price, from `AGENTS.md` and the comparison: a fresh build takes about ten
+  minutes where it took six, and every program that plans is larger.
+
+Three things in the report are general:
 
 - *One of each library in a program.* OMPL's headers include Eigen, and so does this
   code. If the two saw different Eigens, the program would hold two definitions of the
@@ -119,6 +153,28 @@ four of them built and measured. Three things in it are general:
   fetched outside the registry carry a hash. The same source builds the same program
   next year.
 
+**Where two dialects meet.** `src/ompl_search.cc` is the one file in `src/` that looks
+like most of the C++ you will meet outside this repository, because it has to speak
+OMPL's language.
+
+- *Inheritance.* OMPL is extended by deriving from its classes. `class EdgeValidator :
+  public ob::MotionValidator` is a motion validator of this file's own; `override` on
+  `checkMotion` says "this replaces the base class's function", and the compiler
+  checks that there is one to replace. OMPL then calls it without knowing its type.
+  That is the ordinary method call of Java or Python, which C++ makes you ask for.
+- *Shared ownership.* OMPL passes its objects round as `std::shared_ptr` (its `...Ptr`
+  types): several owners, and the object is freed when the last lets go.
+  `std::make_shared<SeededBox>(...)` makes one. Compare stop 1's single owner.
+- *A short name for a long namespace.* `namespace ob = ompl::base;`.
+- *Hiding all of it.* `OmplSpace` in the header has one data member,
+  `std::unique_ptr<Impl> impl_`, and `Impl` is only declared there. Its contents are
+  in the `.cc`. So the header includes nothing of OMPL's, and the files that include
+  it never see OMPL's or Boost's headers; remember from stop 1 that an include pastes
+  text. The idiom is called "pimpl". Its price: the destructor has to be defined in
+  the `.cc`, where `Impl` is known, and copying is switched off with `= delete`.
+
+ROS 2 code is written in this second dialect throughout.
+
 ## Lab
 
 Make the simulation less kind, one flag at a time, and find where the cell stops
@@ -128,7 +184,8 @@ the script know if it is not?
 1. A baseline, five pallets with the planned carry:
    `bazel run --config=opt //:run_cell -- --pretty --trials 5 --carry planned`.
    Find the planner's computing time and the line that says whether it fits inside
-   the motion it runs beside.
+   the motion it runs beside. Then once more with `--planner ompl`: what changes in
+   the summary, and what does not?
 2. A pallet set down twice as far off as the cell was designed for: add
    `--xy 60 --yaw 6` (drop `--carry planned` if you like).
 3. The pallet camera's calibration three times worse than the gate assumes, with the
@@ -163,13 +220,16 @@ answers go. When you have them, the "Keeping this material true" section of
 
 ## Reading
 
-- `docs/ompl-integration.md` in this repository. The best example here of how a
-  technical decision is prepared: options, measurements, what was not verified.
+- `docs/ompl-integration.md` and `docs/ompl-comparison.md` in this repository. The
+  best examples here of how a technical decision is prepared and how a comparison is
+  reported: the options, a rule fixed beforehand, the measurements, and what was not
+  verified.
 - Steven LaValle, *Planning Algorithms*, chapter 5, "Sampling-Based Motion Planning".
   Free at <https://lavalle.pl/planning/>. The standard account of what stop 9 built.
 - Ioan Sucan, Mark Moll and Lydia Kavraki, "The Open Motion Planning Library", IEEE
   Robotics and Automation Magazine, 2012, and <https://ompl.kavrakilab.org>: what the
-  library is and how its pieces map onto the adapter the report describes.
+  library is, and how its pieces (state space, motion validator, planner) map onto
+  `src/ompl_search.cc`.
 - Balakumar Sundaralingam and others, "cuRobo: Parallelized Collision-Free
   Robot Motion Generation" (2023), <https://curobo.org>: planning as optimisation on a
   GPU, the current direction for cycle time.
@@ -187,7 +247,10 @@ Be ready to explain, with the chapter closed:
 - three ways the simulation is kinder than a real cell, each with the place in the
   code or the README that says so;
 - why run 4 is worse than run 3;
-- what has to be equal before two planners' timings can be compared.
+- what has to be equal before two planners' timings can be compared, and why the rule
+  for the verdict was written first;
+- what `src/ompl_search.cc` does that no other file in `src/` does, and how the
+  header keeps it from spreading.
 
 Questions worth asking your teacher:
 

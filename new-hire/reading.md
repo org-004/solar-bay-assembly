@@ -14,7 +14,7 @@ of it in two weeks; each entry says how much is worth reading.
 - Bjarne Stroustrup, *A Tour of C++* (3rd edition). The whole language in a short book,
   for people who already program.
 - This repository's own long comments, at the top of each header in `src/`, with
-  `docs/gate.md` and `docs/ompl-integration.md`. They say why each thing is as it is,
+  `docs/gate.md` and `docs/ompl-comparison.md`. They say why each thing is as it is,
   with the numbers.
 - The concepts pages of ROS 2 (<https://docs.ros.org/en/rolling/Concepts/Basic.html>)
   and MoveIt (<https://moveit.picknik.ai/main/doc/concepts/concepts.html>), for the
@@ -157,11 +157,14 @@ of it in two weeks; each entry says how much is worth reading.
   Single-Query Path Planning" (ICRA 2000): short, with `Extend` and `Connect` by name.
 - Ioan Sucan, Mark Moll and Lydia Kavraki, "The Open Motion Planning Library" (IEEE
   Robotics and Automation Magazine, 2012), and <https://ompl.kavrakilab.org>: what
-  MoveIt plans with. Read the article; use the site as reference.
+  MoveIt plans with, and since `src/ompl_search.h` what this planner can search with
+  too. Read the article; use the site as reference.
 - Sertac Karaman and Emilio Frazzoli, "Sampling-based Algorithms for Optimal Motion
   Planning" (International Journal of Robotics Research, 2011): RRT*, the planner that
-  keeps improving its path, and what "asymptotically optimal" in the OMPL report
-  refers to. Read the introduction and look at the pictures.
+  keeps improving its path, and what "asymptotically optimal" means. Read the
+  introduction and look at the pictures. Its descendant BIT* (Jonathan Gammell,
+  Siddhartha Srinivasa and Timothy Barfoot, ICRA 2015) is the one OMPL planner that
+  qualified on every move in `docs/ompl-comparison.md`.
 - Wil Thomason, Zachary Kingston and Lydia Kavraki, "Motions in Microseconds via
   Vectorized Sampling-Based Planning" (ICRA 2024): the current direction. The same
   RRT-Connect, with the collision check rewritten so that a plan takes microseconds.
@@ -214,13 +217,16 @@ of it in two weeks; each entry says how much is worth reading.
   datasheet. Know that it exists and what it defines.
 ## Stop 13: Towards a real cell
 
-- `docs/ompl-integration.md` in this repository. The best example here of how a
-  technical decision is prepared: options, measurements, what was not verified.
+- `docs/ompl-integration.md` and `docs/ompl-comparison.md` in this repository. The
+  best examples here of how a technical decision is prepared and how a comparison is
+  reported: the options, a rule fixed beforehand, the measurements, and what was not
+  verified.
 - Steven LaValle, *Planning Algorithms*, chapter 5, "Sampling-Based Motion Planning".
   Free at <https://lavalle.pl/planning/>. The standard account of what stop 9 built.
 - Ioan Sucan, Mark Moll and Lydia Kavraki, "The Open Motion Planning Library", IEEE
   Robotics and Automation Magazine, 2012, and <https://ompl.kavrakilab.org>: what the
-  library is and how its pieces map onto the adapter the report describes.
+  library is, and how its pieces (state space, motion validator, planner) map onto
+  `src/ompl_search.cc`.
 - Balakumar Sundaralingam and others, "cuRobo: Parallelized Collision-Free
   Robot Motion Generation" (2023), <https://curobo.org>: planning as optimisation on a
   GPU, the current direction for cycle time.
@@ -233,8 +239,8 @@ of it in two weeks; each entry says how much is worth reading.
 
 - Richard Hamming, "You and Your Research", a talk from 1986, widely reprinted. On
   choosing problems worth working on.
-- `docs/ompl-integration.md`, "How this was measured": the standard of evidence this
-  repository holds itself to.
+- `docs/ompl-comparison.md`, "Verdict" and "How this was measured": the standard of
+  evidence this repository holds itself to.
 - Mark Moll, Ioan Sucan and Lydia Kavraki, "Benchmarking Motion Planning Algorithms: An
   Extensible Infrastructure for Analysis and Visualization", IEEE Robotics and
   Automation Magazine, 2015: how the planning community compares planners.

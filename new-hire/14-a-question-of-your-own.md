@@ -10,9 +10,12 @@ things. It is the job you were hired for, at the size of two days.
    means is the owner's" are the two that shape a report.
 2. `docs/gate.md` as an example of the form: what was run, the settings, the result, a
    deliberate break and what it showed.
-3. `tools/plots/README.md`: how each figure in the README is tied to the command that
+3. `docs/ompl-comparison.md` as the same form at full size. Read "Verdict" for a rule
+   fixed before the numbers, "What is left unequal" for saying what a result does not
+   show, and "How this was measured" for the commands.
+4. `tools/plots/README.md`: how each figure in the README is tied to the command that
    produced its data.
-4. Your notebook's "Ideas" list.
+5. Your notebook's "Ideas" list.
 
 ## The idea
 
@@ -22,7 +25,9 @@ planner checks edges every 15 mm instead of every 30?" is all three.
 
 **Predict first.** Write down what you expect and why before running anything. A
 prediction that turns out wrong is the most useful thing this stop can give you: it
-marks exactly where your picture of the cell is off.
+marks exactly where your picture of the cell is off. The OMPL comparison did the
+grown-up version of this: it wrote down what would count as "better" before it had a
+single number, and then reported the verdict the rule gave.
 
 **A baseline.** Every result is a difference from something. Run the unchanged cell on
 the same seeds first, on the same machine, the same day.
@@ -50,7 +55,8 @@ result about cycle time on a welded grip and a rigid module is a result about th
 7. What it shows, and what it does not.
 8. What you would try next.
 
-**A worked example.** Measured for this chapter on 2026-11-24 at commit `a091cc2`.
+**A worked example.** Measured for this chapter on 2026-11-24 at commit `a091cc2`,
+and again at `9397bdd` with the same figures.
 
 *Question.* How does placement error grow with the check camera's calibration error,
 and does the cell notice when it leaves the tolerance?
@@ -107,9 +113,23 @@ right size, and each can be done with flags or a one-line edit in a worktree:
   what would it replace here, what would have to be true for it to help, and what
   experiment would tell.
 
-The comparison with OMPL is the larger piece of work this repository is preparing for
-(`docs/ompl-integration.md`). It is too big for this stop and its design is the
-owner's, but a question from the list above is good preparation for it.
+The comparison with OMPL leaves questions of the right size too, each one flag away
+with `print_plan --planner ompl` (its header lists the flags):
+
+- *The row that decided.* BIT* on `--other-way` came out at 1.053 of the own planner's
+  duration, against a limit of 1.05, in a row that does not repeat. Run that row many
+  times. How much does it vary, and how often would the rule have said something
+  else?
+- *OMPL's own step.* `--ompl-range 0` lets OMPL choose its step where the switch gives
+  it this planner's 3 m (the comparison's `ompl-range` rows). Reproduce one of those
+  rows, then explain from the step lengths why it costs what it does.
+- *A budget.* The planners that keep improving were given the own search's median
+  queries, and ten times that. What does the curve between and beyond look like, in
+  the trajectory's duration, which is what the cycle pays for?
+
+The comparison does not decide whether OMPL should become the default search, and
+neither should your page: that is the owner's decision. A result from this list is a
+fact for it.
 
 ## C++ you meet here
 
@@ -155,8 +175,8 @@ could measure.
 
 - Richard Hamming, "You and Your Research", a talk from 1986, widely reprinted. On
   choosing problems worth working on.
-- `docs/ompl-integration.md`, "How this was measured": the standard of evidence this
-  repository holds itself to.
+- `docs/ompl-comparison.md`, "Verdict" and "How this was measured": the standard of
+  evidence this repository holds itself to.
 - Mark Moll, Ioan Sucan and Lydia Kavraki, "Benchmarking Motion Planning Algorithms: An
   Extensible Infrastructure for Analysis and Visualization", IEEE Robotics and
   Automation Magazine, 2015: how the planning community compares planners.

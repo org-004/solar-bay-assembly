@@ -11,11 +11,11 @@ It is C++20 written in a deliberately small subset.
 - **No exceptions.** `src/` contains no `throw`, `try` or `catch`. A function that can
   fail returns a `std::optional` or a `bool`, and says why through a report struct or a
   `std::string*`.
-- **No inheritance and no virtual functions** in `src/`. Where a value can be one of
+- **No inheritance and no virtual functions** of its own. Where a value can be one of
   several kinds it is a `std::variant` or an `enum class`. The only base classes are
-  GoogleTest's fixtures in `tests/`.
-- **No shared ownership.** There is no `std::shared_ptr` anywhere. Every object has one
-  owner and everything else borrows.
+  GoogleTest's fixtures in `tests/` and, in one file, OMPL's (see below).
+- **No shared ownership** of its own. Every object has one owner and everything else
+  borrows. `std::shared_ptr` appears in one file, for OMPL's objects.
 - **Almost no templates of its own:** two small ones in `src/`. It uses the standard
   library's and Eigen's all the time.
 - **Google's naming:** `TypeName`, `FunctionName()`, `variable_name`, `member_`,
@@ -23,8 +23,11 @@ It is C++20 written in a deliberately small subset.
 - **Inputs are `const T&`, outputs are `T*`,** and the comment above a declaration is
   the contract.
 
-ROS 2 code uses all of the first three freely. That is a different dialect of the same
-language, not a mistake; know which one you are reading.
+ROS 2 code uses all of the first three freely, and so does OMPL. That is a different
+dialect of the same language, not a mistake; know which one you are reading. The two
+meet in exactly one place here: `src/ompl_search.cc` derives from OMPL's classes and
+holds its shared pointers, because that is how OMPL is used, and `src/ompl_search.h`
+keeps all of it out of sight of the rest. Stop 13 reads that file for this reason.
 
 ## Stop 0: Watch it work
 
@@ -326,7 +329,8 @@ language, not a mistake; know which one you are reading.
   function type in Go or a `Callable` in Python; the seam that lets the planner know
   nothing about the world it plans in.
   Here: `IsFree` in `src/rrt.h`, supplied by `PlanMove` in `src/motion_planner.cc` and by
-  the toy worlds in `src/rrt_worlds.h`.
+  the toy worlds in `src/rrt_worlds.h`, and handed on to OMPL unchanged by `PlanOmpl` in
+  `src/ompl_search.h`.
 - **A lambda that captures by reference.** `[&checker](...) { ... }` holds a reference to
   `checker`, so the lambda must not outlive it.
   Here: the `is_free` lambda in `PlanMove`, `src/motion_planner.cc`.
@@ -462,11 +466,31 @@ language, not a mistake; know which one you are reading.
 - **Bringing in a library.** No one package manager: a library is headers plus compiled
   code that must agree with yours on compiler, flags, language version and shared
   dependencies.
-  Here: `MODULE.bazel`, `docs/ompl-integration.md`.
+  Here: OMPL in `MODULE.bazel` (an `http_archive` and seventeen Boost modules), built by
+  `bazel/ompl.BUILD.bazel`; the options weighed in `docs/ompl-integration.md`.
 - **One definition rule.** A program may hold only one definition of each type and
   function; two versions of one library break it without a diagnosis.
   Here: "One Eigen in the binary" in `docs/ompl-integration.md`.
 - **Pinned dependencies.** Exact versions and hashes, so the same source builds the same
   program later.
-  Here: `MODULE.bazel`, `bazel/kuka.bzl`.
+  Here: `MODULE.bazel` (the `sha256` of OMPL's archive), `bazel/kuka.bzl`.
+- **Inheritance and `override`.** `class B : public A` makes a B usable wherever an A is
+  expected; a function marked `override` replaces one the base class declared
+  `virtual`, and is found at run time from the object. The ordinary method call of Java
+  or Python, which C++ makes you ask for.
+  Here: `EdgeValidator`, `SeededBox` and `SeededSampler` in `src/ompl_search.cc`, each
+  derived from a class of OMPL's.
+- **`std::shared_ptr`.** A pointer with several owners; the object is freed when the
+  last owner lets go. `std::make_shared<T>(...)` makes one. Against stop 1's
+  `unique_ptr`, which has exactly one owner.
+  Here: OMPL's `...Ptr` types in `MakeProblem` and `MakePlanner`, `src/ompl_search.cc`.
+- **Namespace alias.** `namespace ob = ompl::base;` gives a long namespace a short name
+  within one file.
+  Here: the top of `src/ompl_search.cc`.
+- **Pimpl.** A class whose header declares `struct Impl;` without defining it and holds
+  only a `std::unique_ptr<Impl>`. The real members live in the `.cc`, so the header
+  needs none of the headers they need. The destructor must then be defined in the
+  `.cc`, and copying is usually switched off with `= delete`.
+  Here: `OmplSpace` in `src/ompl_search.h`, which keeps OMPL's and Boost's headers out
+  of every file that includes it.
 

@@ -3,7 +3,8 @@
 The motion planner: given where the arm is and where it should end up, find joint
 angles in between along which nothing hits anything. This is the part people mean when
 they call this repository "the planner", and the part most likely to be measured
-against the production stack. About a day and a half; the lab is the longer half.
+against the production stack. Since OMPL was added it already has been, against the
+library that stack plans with. About two days; the lab is the longer half.
 
 ## Read
 
@@ -16,9 +17,13 @@ against the production stack. About a day and a half; the lab is the longer half
 4. `src/motion_planner.h`: the comment at the top, which is what had to be decided for
    *this* arm. Then `PlanMove` and `PlanArmMove` in `src/motion_planner.cc`.
 5. `docs/img/carry.png` and the README's "Planning" paragraph.
-6. `docs/ompl-integration.md`: only "What the comparison needs" and "A proposed
-   design": what it would take to compare this planner fairly with OMPL, the library
-   MoveIt uses.
+6. `src/ompl_search.h`: the comment at the top. OMPL is the planning library MoveIt
+   uses, and this file poses it the same problem. Read it as a list of everything
+   `PlanRrtConnect` had quietly decided. Then "The search" in the comment at the top
+   of `src/motion_planner.h`, and in `PlanMove` the one `if` that chooses between
+   `PlanRrtConnect` and `PlanOmpl`.
+7. `docs/ompl-comparison.md`: "Verdict" (the rule first, then the table), "How the two
+   were made equal", and the first two points of "What is left unequal".
 
 ## The idea
 
@@ -100,13 +105,33 @@ gives the same path. One thing can break that: a limit in seconds, since whether
 hard search finishes inside ten seconds depends on the machine. The header says which
 limit should bind (iterations); stop 12 shows why the repository cares.
 
+**Two searches behind one switch.** Look at how little of `PlanMove` is the search:
+one call that returns a raw path for one seed. The box, the margins, the seeds, the
+shortening, the choice of the shortest and the clearance measured afterwards all stand
+round that call. So the call can be answered by somebody else's planner, and
+`MotionPlanOptions::search` (the programs' `--planner own|ompl`) chooses between the
+RRT-Connect you have just read and OMPL's planners.
+
+For that to compare two searches and nothing else, OMPL must be given the same problem.
+`src/ompl_search.h` lists what that took: the same box, with every joint an interval;
+the same metric, by handing OMPL coordinates already multiplied by the weights; the
+same edge check, by answering OMPL's own edge question with `EdgeIsFree`; the same
+seed. The last has a striking consequence, which the header states and the lab shows:
+OMPL's RRT-Connect, a different program by different people, grows the same trees here
+and returns the same paths.
+
+What the comparison found is in `docs/ompl-comparison.md`. Two things to take from it
+now. Its verdict follows a rule that was written down before any number existed. And
+three of OMPL's planners keep improving a path for as long as they are given; those do
+not repeat from run to run, whatever the seed (`OmplPlannerRepeats`).
+
 ## C++ you meet here
 
 **A function as a value.** `using IsFree = std::function<bool(const Eigen::VectorXd&)>`
 names the type "anything callable with a configuration that returns yes or no".
 `PlanRrtConnect` takes one and knows nothing else about the world: not MuJoCo, not the
 arm. That is why it can be tested on a point among circles (`src/rrt_worlds.h`) and
-why the OMPL report can hand OMPL the same checker. In `PlanMove` the value is a
+why `PlanOmpl` can hand OMPL the very same checker. In `PlanMove` the value is a
 lambda, `[&checker](const Eigen::VectorXd& q) { return checker.IsFree(q); }`; the
 `[&checker]` means it holds a reference to the checker, so it must not outlive it. A
 template parameter would do the same job a little faster and move the code into the
@@ -136,6 +161,9 @@ its destructor, so they are put back on every one of the function's many returns
 stop 1's ownership idea, used for a setting instead of memory. `= delete` on its copy
 operations stops a second guard restoring twice, and holding it in a `std::optional`
 lets `PlanMove` end it early with `guard.reset()`. Python's `with`; Go's `defer`.
+
+`src/ompl_search.cc` is written in a different dialect of C++ from everything else
+you have read, because OMPL is. Leave its body for stop 13, which is about that.
 
 ## Lab
 
@@ -167,6 +195,18 @@ there is working on a point in a square, 10 units on a side.
    `bazel run --config=opt //:run_cell -- --pretty --nominal --modules 1 --phases`,
    then again with `--carry planned`. Compare the carry and the cycle. In the carry's
    line, find how long planning took and what it ran alongside.
+6. **The other search.** Three comparisons; predict each.
+   - `bazel run --config=opt //:print_plan -- --pretty --seeds 5 --planner ompl`. Set
+     it beside run 3's first table. Which columns agree to the last digit, which
+     differ, and by how much? How can two programs written by different people return
+     the same paths?
+   - The bare arm's return: `--pretty --seeds 5 --return`, without and then with
+     `--planner ompl`. Compare the queries. Which option of `RrtOptions` explains the
+     difference, and what does it cost in milliseconds against a move of three
+     seconds?
+   - A planner that keeps improving:
+     `--planner ompl --ompl-planner BITstar --plan-seeds 1 --ompl-queries 25355 --seeds 5 --summary`,
+     run twice. Do the two runs print the same row? Find in `src/ompl_search.h` why.
 
 ## Pitfalls
 
@@ -183,6 +223,11 @@ there is working on a point in a square, 10 units on a side.
   shortens each leg separately for that reason.
 - **Planning from the truth.** `PlanScene::world` is the simulator's state; the cycle
   passes estimates instead (stop 8).
+- **Comparing two planners on two problems.** Left to its defaults OMPL would have a
+  different box, metric, step and edge check. A table from that would compare the
+  defaults, not the searches.
+- **Reading a table that does not repeat as a record.** For BIT*, AORRTC and Informed
+  RRT* two runs of the same command differ. One run of them is a sample.
 
 ## In the MoveIt cells
 
@@ -203,12 +248,17 @@ read. What surrounds it differs.
   padding, check spacing, corner rounding and tracking error are four settings in
   four places.
 - **Joints and seeds.** A joint the URDF calls `continuous` wraps round; a `revolute`
-  joint with limits is an interval, as here. OMPL seeds its random numbers once per
-  process, so a single plan cannot be replayed by itself.
+  joint with limits is an interval, as here. Left alone, OMPL starts its random
+  numbers from the clock, once per process, so a single plan cannot be replayed by
+  itself. `src/ompl_search.h` shows what it takes to make one repeat, and for which
+  planners it cannot be done from outside.
 
-`docs/ompl-integration.md` is this repository's own work on the question "is the
-hand-written planner any good?". Its table "What makes a naive comparison unfair" is
-worth keeping: every row is a way to fool yourself when comparing two planners.
+This repository now runs the same library, so the question "is the hand-written
+planner any good?" has a measured answer for this cell, in `docs/ompl-comparison.md`.
+Be careful what you carry over to the production cells from it. Here OMPL was given
+this planner's box, metric, step and edge check, so that only the searches differ. In
+a MoveIt cell OMPL runs on the defaults in the third point above, and those were
+exactly what had to be taken away from it to make the comparison fair.
 
 For your team: which planner and which settings do the real cells use, how often does
 planning fail, and what happens to the cycle when it does?
@@ -223,11 +273,14 @@ planning fail, and what happens to the cycle when it does?
   Single-Query Path Planning" (ICRA 2000): short, with `Extend` and `Connect` by name.
 - Ioan Sucan, Mark Moll and Lydia Kavraki, "The Open Motion Planning Library" (IEEE
   Robotics and Automation Magazine, 2012), and <https://ompl.kavrakilab.org>: what
-  MoveIt plans with. Read the article; use the site as reference.
+  MoveIt plans with, and since `src/ompl_search.h` what this planner can search with
+  too. Read the article; use the site as reference.
 - Sertac Karaman and Emilio Frazzoli, "Sampling-based Algorithms for Optimal Motion
   Planning" (International Journal of Robotics Research, 2011): RRT*, the planner that
-  keeps improving its path, and what "asymptotically optimal" in the OMPL report
-  refers to. Read the introduction and look at the pictures.
+  keeps improving its path, and what "asymptotically optimal" means. Read the
+  introduction and look at the pictures. Its descendant BIT* (Jonathan Gammell,
+  Siddhartha Srinivasa and Timothy Barfoot, ICRA 2015) is the one OMPL planner that
+  qualified on every move in `docs/ompl-comparison.md`.
 - Wil Thomason, Zachary Kingston and Lydia Kavraki, "Motions in Microseconds via
   Vectorized Sampling-Based Planning" (ICRA 2024): the current direction. The same
   RRT-Connect, with the collision check rewritten so that a plan takes microseconds.
@@ -240,10 +293,13 @@ Be ready to explain, with the chapter closed:
 - one turn of RRT-Connect, with a sketch;
 - three things "probabilistically complete" does not promise;
 - why the planner runs four seeds, and what shortening cannot fix;
-- where each of the 45 mm comes from.
+- where each of the 45 mm comes from;
+- what had to be made equal before OMPL's search could be compared with this one, and
+  why the two then return the same paths.
 
 Questions worth asking your teacher:
 
 - The cell plans nearly the same carry thirty times a pallet. Why plan afresh each
   time?
-- What would you have to hold equal to compare this planner fairly with OMPL's?
+- The verdict was "hand-written better", and OMPL is in the build all the same. Why
+  might both be right?

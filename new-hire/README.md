@@ -8,8 +8,10 @@ You were hired to do two things: fix problems in the factory cells that exist, w
 run on ROS 2 and MoveIt, and research faster and better ones. This repository is where
 the second happens. It is the in-house planner, still being built: a whole cell in
 simulation, with perception, planning and control written by hand so that every part
-can be read. The path teaches the ideas here, where nothing is hidden, and each stop
-says what the same thing looks like in the MoveIt cells.
+can be read. Its planner can also search with OMPL, the library the MoveIt cells plan
+with, which is how the two have been compared. The path teaches the ideas here, where
+nothing is hidden, and each stop says what the same thing looks like in the MoveIt
+cells.
 
 ## How it works
 
@@ -45,7 +47,7 @@ and run commands will do; give it the same sentence.
 ## Before the first session
 
 - Install Bazelisk as `bazel` (<https://github.com/bazelbuild/bazelisk>). Stop 0 walks
-  through the first build, which takes several minutes.
+  through the first build, which takes about ten minutes.
 - A display is needed only for the viewer programs. The recordings in `docs/` stand in.
 - Python with matplotlib and numpy is needed only to redraw the README's plots
   (`tools/plots/README.md`). No lab depends on it.
