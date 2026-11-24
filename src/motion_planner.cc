@@ -114,6 +114,22 @@ void MeasureClearance(CollisionChecker& checker, const JointPath& path,
 
 }  // namespace
 
+const char* PlanSearchName(PlanSearch search) {
+  switch (search) {
+    case PlanSearch::kOwn:
+      return "own";
+    case PlanSearch::kOmpl:
+      return "ompl";
+  }
+  return "unknown";
+}
+
+std::optional<PlanSearch> PlanSearchFromName(const std::string& name) {
+  if (name == "own") return PlanSearch::kOwn;
+  if (name == "ompl") return PlanSearch::kOmpl;
+  return std::nullopt;
+}
+
 const char* ToString(MotionPlanStatus status) {
   switch (status) {
     case MotionPlanStatus::kFound:
@@ -189,6 +205,23 @@ std::optional<JointPath> PlanMove(CollisionChecker& checker,
       options.shorten_iterations < 0 ||
       !PositiveFinite(options.resample_spacing) ||
       !PositiveFinite(options.clearance_spacing)) {
+    return fail(MotionPlanStatus::kBadInput, "an option is out of range");
+  }
+  // OMPL's settings matter only when OMPL is chosen. They are refused here,
+  // before anything is planned, so that a name nobody knows fails once and
+  // says why, instead of failing every seed of every round.
+  if (options.search == PlanSearch::kOmpl) {
+    if (!IsOmplPlanner(options.ompl.planner)) {
+      return fail(MotionPlanStatus::kBadInput,
+                  "OMPL's search knows no planner named \"" +
+                      options.ompl.planner + "\"");
+    }
+    if (options.ompl.max_queries < 1 ||
+        (options.ompl.range && !NonNegativeFinite(*options.ompl.range))) {
+      return fail(MotionPlanStatus::kBadInput,
+                  "an option of OMPL's search is out of range");
+    }
+  } else if (options.search != PlanSearch::kOwn) {
     return fail(MotionPlanStatus::kBadInput, "an option is out of range");
   }
   if (!InRange(arm, start)) {
@@ -288,6 +321,11 @@ std::optional<JointPath> PlanMove(CollisionChecker& checker,
     // of luck does not help as much as a longer search.
     const int iterations =
         options.max_iterations * (1 << std::min(round, 16));
+    const std::int64_t queries =
+        options.ompl.max_queries <=
+                std::numeric_limits<std::int64_t>::max() >> 16
+            ? options.ompl.max_queries * (1 << std::min(round, 16))
+            : options.ompl.max_queries;
     for (int s = 0; s < options.seeds && !out_of_time; ++s) {
       for (std::size_t g = 0; g < goals.size(); ++g, ++k) {
         const double left = options.time_budget - SecondsSince(began);
@@ -303,8 +341,19 @@ std::optional<JointPath> PlanMove(CollisionChecker& checker,
         rrt.seed = PlanSeed(options.base_seed, k);
         rrt.weights = r.weights;
         RrtReport found;
-        std::optional<JointPath> raw = PlanRrtConnect(
-            start, goals[g], r.lower, r.upper, is_free, rrt, &found);
+        // The one call that differs between the two searches. Both are
+        // given the same problem; OMPL's limit is a number of collision
+        // queries, doubled each round as the iterations are.
+        std::optional<JointPath> raw;
+        if (options.search == PlanSearch::kOmpl) {
+          OmplSettings ompl = options.ompl;
+          ompl.max_queries = queries;
+          raw = PlanOmpl(start, goals[g], r.lower, r.upper, is_free, rrt,
+                         ompl, &found);
+        } else {
+          raw = PlanRrtConnect(start, goals[g], r.lower, r.upper, is_free,
+                               rrt, &found);
+        }
         ++r.plans_tried;
         r.search_seconds += found.seconds;
         r.search_queries += found.collision_queries;

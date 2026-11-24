@@ -91,15 +91,16 @@ kuka_description(
     target_name = "kr210_r2700_2",
 )
 
-# OMPL, the Open Motion Planning Library: a yardstick for the planner in
-# src/rrt.h and nothing more. Only //:ompl_smoke uses it, and both are tagged
-# manual, so `bazel build //...` and `bazel test //...` neither fetch nor
-# compile it. OMPL is not in the Bazel Central Registry and has no Bazel
-# files of its own; bazel/ompl.BUILD.bazel is this repository's build file
-# for it. The archive is the one OMPL's maintainers upload with each release
-# (it has the git submodules inside, which GitHub's own archive of the tag
-# lacks), and the hash is the one they publish beside it. To self-host, copy
-# the archive elsewhere and put that address first in `urls`.
+# OMPL, the Open Motion Planning Library. The planner can search with it in
+# place of its own RRT-Connect (src/ompl_search.h, chosen at run time by
+# MotionPlanOptions::search), so every target that plans compiles and links
+# it, and `bazel build //...` fetches and builds it. OMPL is not in the Bazel
+# Central Registry and has no Bazel files of its own; bazel/ompl.BUILD.bazel
+# is this repository's build file for it. The archive is the one OMPL's
+# maintainers upload with each release (it has the git submodules inside,
+# which GitHub's own archive of the tag lacks), and the hash is the one they
+# publish beside it. To self-host, copy the archive elsewhere and put that
+# address first in `urls`.
 http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 
 http_archive(
