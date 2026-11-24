@@ -1,7 +1,7 @@
-"""Solar module pick-and-place cell: simulation, perception, planning, control."""
+"""Solar bay assembly cell: simulation, perception, planning, control."""
 
 module(
-    name = "solar_panel_pick_place",
+    name = "solar_bay_assembly",
     version = "0.0.0",
 )
 

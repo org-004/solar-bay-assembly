@@ -526,5 +526,5 @@ int main(int argc, char** argv) {
     return status;
   };
   return cell::RunViewer(cell.model(), cell.data(), hooks,
-                         "solar-panel-pick-place: pick and place", view);
+                         "solar-bay-assembly: pick and place", view);
 }

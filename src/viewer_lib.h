@@ -92,7 +92,7 @@ struct ViewerOptions {
 // stepping is too slow for that, it steps for a fixed share of each frame and
 // lets simulated time fall behind, so the window keeps responding; the
 // corner text shows how fast the simulation is actually running.
-int RunViewer(const mjModel* model, mjData* data, const ViewerHooks& hooks = {}, const char* title = "solar-panel-pick-place");
+int RunViewer(const mjModel* model, mjData* data, const ViewerHooks& hooks = {}, const char* title = "solar-bay-assembly");
 // The same, started and run as `options` say. Returns 1 also if the recording
 // file cannot be opened or written.
 int RunViewer(const mjModel* model, mjData* data, const ViewerHooks& hooks, const char* title, const ViewerOptions& options);

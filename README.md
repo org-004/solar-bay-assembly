@@ -1,8 +1,10 @@
-# solar-panel-pick-place
+# solar-bay-assembly
 
-A simulated factory cell in which a 6-axis KUKA arm with a suction tool moves
-solar modules from a pallet onto the rails of a torque tube. Perception,
-motion planning and control are hand-written in C++ against MuJoCo.
+A simulated factory cell that is to take in bolts, rails, torque tubes and solar
+modules and put out an assembled bay. What exists today is one step of that: a
+6-axis KUKA arm with a suction tool moves solar modules from a pallet onto the
+rails of a torque tube. Perception, motion planning and control are
+hand-written in C++ against MuJoCo.
 
 ![One cycle in the simulated cell, at twice real speed](docs/cycle.gif)
 
