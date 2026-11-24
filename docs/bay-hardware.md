@@ -33,7 +33,7 @@ Y, and "yaw" a rotation about Z.
 parts are boxes and cylinders: a rail's saddle is a step and its strap a square U. The
 pins that fasten the modules have no mass in the model (The bay). The
 section's swaged neck is a second, thinner cylinder. One kind of rail stands at all
-eleven places, where the reference has special rails beside a bearing and beside the
+ten places, where the reference has special rails beside a bearing and beside the
 drive.
 
 ## The reference
@@ -74,7 +74,7 @@ from standards, fastener makers and module makers, and by design.
 | Outer diameter | 124 | TaiyangNews on NX Horizon; no source read gives 5 in (127 mm) [S9] | published |
 | Wall thicknesses in use, manual of 2020 | 2.5, 3 and 4 | Columns of the manual's rivet table [S8] | published |
 | Wall thicknesses in use, manual of 2022 | 2.2 or 2.3, 2.5 or 3, 3.5 or 4 | Columns of the same table two revisions later; the wall is chosen for each project and row [S7] | published |
-| Wall the model uses | 3.0 | The middle class of both revisions; with it a section of our length weighs what the manual gives as the heaviest (below) | ours |
+| Wall the model uses | 3.0 | The middle class of both revisions; with it a section of our length weighs within the range the manual gives (below) | ours |
 | Material and finish | galvanized steel, 1 welded seam | Datasheet: "Galvanized steel; other coatings available" [S2]; the tube is rolled from coil and its long edges welded [S10] | published |
 | Least yield strength of round structural tube | 290 MPa (grade B), 315 MPa (grade C) | ASTM A500 as tabulated by Wikipedia; the reference's grade is not public, and this figure is used only in the handling check under Holding the tube [S11] | published |
 | Mass of a standard round tube 114.3 x 4.0 | 10.9 kg/m | Table of EN 10219 circular hollow sections [S12] | published |
@@ -85,12 +85,12 @@ from standards, fastener makers and module makers, and by design.
 | Fasteners of a joint | 6 blind rivets, 1/2 in | Manual, task E.2 and its tool table [S7] | published |
 | Length of the swaged neck | 100 | Two rings of three 1/2 in rivets, 50 apart and 25 (two diameters) from each tube's end | ours |
 | Outer diameter of the neck | 118 | 124 - 2 x 3.0: the neck slides into the next tube's bore | derived |
-| Length from the plain end to the neck's shoulder | 11,660 | 160 to the first rail, 10 x 1,144 to the last, 60 beyond it (see the next table) | derived |
-| Length of a section as shipped | 11,760 | 11,660 + 100. No source gives a section's length; this is the bay of ten modules under The bay | derived |
-| Mass of our section | 105.4 kg | 8.968 x 11.660 + 8.523 x 0.100 (the neck, 118 x 3.0); 0.4 kg above the maker's heaviest | derived |
+| Length from the plain end to the neck's shoulder | 10,516 | 160 to the first rail, 9 x 1,144 to the last, 60 beyond it (see the next table) | derived |
+| Length of a section as shipped | 10,616 | 10,516 + 100. No source gives a section's length; this is the bay of nine modules under The bay | derived |
+| Mass of our section | 95.2 kg | 8.968 x 10.516 + 8.523 x 0.100 (the neck, 118 x 3.0) = 94.31 + 0.85 = 95.16; inside the maker's 67 to 105 kg | derived |
 | Feature that locates a rail | 1 hole for each rail, facing up | "Ensure that the module rail alignment holes on the torque tubes face up"; the rail's tab goes into it [S7]. The holes are drilled at the factory [S10] | published |
 | Diameter of a locating hole | 14 | Not public. A drilled round hole that takes the rail's tab (12 x 2) with the play computed under Tolerances | ours |
-| Locating holes on a section | 11 | One for each rail of the bay | derived |
+| Locating holes on a section | 10 | One for each rail of the bay | derived |
 | Spacing of the locating holes along the tube | 1,144 | The module's width and the gap, since neighbours share a rail: 1,134 + 10 | derived |
 | Position of the first locating hole | Y = 111, on top (X = 0, Z = +62) | The first rail's centre, 160, less 49: the tab is on the rail's web nearer the plain end | ours |
 | Feature that fastens a rail | none on the tube: a strap goes round it | The manual gives a strap closed under the tube by one bolt and names no hole in the tube for it [S7]; that the tube has none is our reading | ours |
@@ -104,8 +104,8 @@ Where a rail cannot stand:
 | Where a joint lies | near a bearing housing | A Nextracker patent: the tubes are joined "within a vicinity of the clam shell clamp housing member". It describes an embodiment, not the product as built [S13] | published |
 | What the row of modules leaves uncovered | 3 things: bearings, piers, slew gear | Nextracker's sheet on bifacial modules [S14]; the rails either side of the slew drive are of another kind [S7] | published |
 | Our section: stretch at the plain end no rail may cover | Y = 0 to 100 | The next section's neck and its rivets are inside it | ours |
-| Our section: stretch at the swaged end no rail may cover | Y = 11,660 to 11,760 | The neck itself | derived |
-| Our section: gap between the rows of modules of two joined sections | 230 | (11,660 - 11,595) + 165: last module's edge to the shoulder, then the next section's plain end to its first module's edge | derived |
+| Our section: stretch at the swaged end no rail may cover | Y = 10,516 to 10,616 | The neck itself | derived |
+| Our section: gap between the rows of modules of two joined sections | 230 | (10,516 - 10,451) + 165: last module's edge to the shoulder, then the next section's plain end to its first module's edge | derived |
 
 Our gap of 230 is wider than the maker's 200 because we keep rails off the joint, and
 the sources do not show how the reference fits its joint and its bearing into 200. Where
@@ -167,7 +167,7 @@ loads of this document.
 |---|---|---|---|
 | Rails a module rests on | 2, one under each long side | The module is fastened by its 400 holes on both long sides (Module) and each rail is levelled against "the rail that it shares a module with" [S7] | published |
 | Modules a rail carries | 2: neighbours share one | "Shared mounting rails" [S4] | published |
-| Rails in a bay of ten modules | 11 | 10 + 1; the two end rails carry one module each | derived |
+| Rails in a bay of nine modules | 10 | 9 + 1; the two end rails carry one module each | derived |
 | How its place along and round the tube is fixed | 1 tab on the rail in 1 hole on top of the tube | "Insert the module rail alignment tab into the torque tube alignment hole" [S7] | published |
 | How level two rails of one module must be before they are fastened | within 1 degree of each other | Manual, task H.2: checked with a digital level, so the tab does not set this by itself [S7] | published |
 | What holds it down | 1 strap under the tube | Manual, task H.2 [S7] | published |
@@ -223,7 +223,7 @@ Rail to tube:
 | Bolt | M8 x 50, hexagon head, class 8.8, its nut held in the far ear | The manual gives only "M8"; this is the common standard bolt (ISO 4014), long enough for two ears and a nut. The nut is caught by the ear's shape so that one tool on one side drives the bolt; the manual does not show how the reference holds it | ours |
 | Hole in the strap's ears | 9.0 | The medium clearance hole for M8 in ISO 273, read in the identical Indian standard [S30] | published |
 | Height of the bolt's axis | Z = -80 | 18 below the tube's underside: the strap, half a bolt head and room for a socket | ours |
-| Side the tool comes from | +X, moving toward -X | The reference fixes only the axis; one side for all eleven rails lets one tool reach them all | ours |
+| Side the tool comes from | +X, moving toward -X | The reference fixes only the axis; one side for all ten rails lets one tool reach them all | ours |
 | Free space the tool needs | 12 mm radius round the axis | A 13 mm socket for an M8 head is about 18 mm across; no source was read for it | ours |
 | Rails beside a bearing, for comparison | 1 U-bolt with M10 nuts at 24.4 N m (manual of 2020) or 28 N m (manual of 2022) | Both print 18 ft-lb, which is 24.4 N m [S8] [S7]. The model has no such rail | published |
 
@@ -258,28 +258,29 @@ One bay is one tube section with its rails and its modules, as it leaves the cel
 
 | Figure | Value | Source, computation or reason | Basis |
 |---|---|---|---|
-| Modules | 10 | No source fixes the number on a section. Ten is the largest whose bay is no longer than 11.8 m: eleven modules alone are 11 x 1,134 = 12,474 | ours |
+| Modules | 9 | No source fixes the number on a section. The owner's decision of 2026-11-24, for the container (The container): ten modules make a section of 11,760, which leaves 35 at each end of the clear inside envelope of 11,830 and does not pass the other open-side container read, whose opening is 11,556; nine make 10,616, which leaves 607 at each end of 11,830 and passes 11,556 with 470 at each end | ours |
+| Bays a pallet of modules fills | 4 | 36 / 9: a pallet of 36 (Module) fills four bays of nine | derived |
 | Gap between modules | 10 | Above both makers' minimum (6.5 and 5) and more than twice what one module can shift along the tube under Tolerances (3.65) | ours |
 | Pitch of the modules and of the rails | 1,144 | 1,134 + 10 | derived |
-| Rails | 11, at Y = 160 + 1,144 k for k = 0 to 10 | 100 for the joint, then half a rail's width over its feet, 60 | derived |
-| Modules' centres | Y = 732 + 1,144 m for m = 0 to 9, X = 0, Z = +139 | Midway between two rails; half the frame's 30 above the rails' top at 124 | derived |
-| Fastenings, rail to tube | 11 | 1 for each rail | derived |
-| Fastenings, module to rail | 40 | 4 for each module | derived |
-| Fastenings in all | 51 | 11 + 40, the two kinds together | derived |
-| Locating holes with their tabs | 11 | 1 for each rail | derived |
-| Stretches of the tube that may be held | 12 | Under Holding the tube | derived |
-| Length (along Y) | 11,760 | The tube as shipped; the modules reach from Y = 165 to 11,595 | derived |
+| Rails | 10, at Y = 160 + 1,144 k for k = 0 to 9 | 100 for the joint, then half a rail's width over its feet, 60 | derived |
+| Modules' centres | Y = 732 + 1,144 m for m = 0 to 8, X = 0, Z = +139 | Midway between two rails; half the frame's 30 above the rails' top at 124 | derived |
+| Fastenings, rail to tube | 10 | 1 for each rail | derived |
+| Fastenings, module to rail | 36 | 4 for each module | derived |
+| Fastenings in all | 46 | 10 + 36, the two kinds together | derived |
+| Locating holes with their tabs | 10 | 1 for each rail | derived |
+| Stretches of the tube that may be held | 11 | Under Holding the tube | derived |
+| Length (along Y) | 10,616 | The tube as shipped; the modules reach from Y = 165 to 10,451 (732 + 8 x 1,144 + 567) | derived |
 | Width (along X) | 2,382 | The module's length | derived |
 | Height (along Z) | 249: from Z = -95 to +154 | The strap's ears end 95 below the axis; the modules' top is 124 + 30 above it | derived |
-| Mass | 455.3 kg | Tube 105.42 + 11 rails x 2.35 + 10 modules x 32.4 | derived |
-| Mass of the 40 pins and collars, which the figure above and the model leave out | about 0.4 kg | About 10 g each, our estimate: a steel pin 6.35 across and its collar; under 0.1% of the bay | ours |
+| Mass | 410.3 kg | Tube 95.16 + 10 rails x 2.35 + 9 modules x 32.4 = 95.16 + 23.50 + 291.60 | derived |
+| Mass of the 36 pins and collars, which the figure above and the model leave out | about 0.4 kg | About 10 g each, our estimate: a steel pin 6.35 across and its collar; under 0.1% of the bay | ours |
 
 `bazel run --config=opt //:print_bay -- --summary` prints the counts, the size and the
-mass of this table, and without the flag one row for each of the 51 fastenings.
+mass of this table, and without the flag one row for each of the 46 fastenings.
 
-![One finished bay: the tube, eleven rails and ten modules](img/bay.png)
+![One finished bay seen from below the rails: the tube, the rails across it with their straps, and the undersides of the modules](img/bay.png)
 
-![The first rail on the tube with the corner of the first module](img/bay_fastening.png)
+![Seen from below: the plain end of the tube, the first rail across it with its strap under the tube, and the corner of the first module](img/bay_fastening.png)
 
 ## Holding the tube
 
@@ -295,23 +296,23 @@ supply.
 | How the reference fixes a rail round the tube | 1 tab in 1 hole, then levelled within 1 degree, then clamped | Manual, task H.2 [S7] | published |
 | Moment about the axis from a module resting on one side only | 73 N m | 32.4 kg x 9.81 x 0.230 m: the whole module on one end of its rails | derived |
 | Moment from a rail resting on one side only | 5.3 N m | 2.35 kg x 9.81 x 0.230 m | derived |
-| Moment from ten modules all off to one side by what their holes allow | 7.0 N m | 10 x 32.4 x 9.81 x 0.0022 m | derived |
+| Moment from nine modules all off to one side by what their holes allow | 6.3 N m | 9 x 32.4 x 9.81 x 0.0022 m | derived |
 | Largest moment assembly can put on the tube | 73 N m | The first of the three; they do not add, since a module is put down once | derived |
 | Moment a holder must resist | 150 N m | Twice the largest, for a module that is set down with a bump | ours |
 | How far the tube may be turned before a rail's tab misses its hole | 0.86 degrees (15 mrad) | The tab's play of 0.93 mm across (Tolerances) at the tube's radius of 62 | derived |
 | How far before a module's pins miss, with the rails already on | 1.02 degrees (17.7 mrad) | The pins' play of 2.20 mm across at the rail's top, 124 from the axis | derived |
 | Angle a holder must keep | within 0.8 degrees of the holes facing up | Just inside the smaller of the two | ours |
 | Stretches a holder may grip: the plain end | Y = 0 to 100, full circle, with its 6 rivet holes | Bare until the row is joined; the holes take a pin, which fixes the angle without friction | ours |
-| Stretches a holder may grip: between rails | 10 stretches, Y = 210 + 1,144 k to 1,254 + 1,144 k, lower half only | Each is 1,044 of bare tube between two straps; the modules are over the upper half | ours |
-| Stretches a holder may grip: the neck | Y = 11,660 to 11,760, diameter 118, with its 6 rivet holes | As the plain end | ours |
-| Stress in the tube if the finished bay is held at its two ends only | 192 MPa, with a sag of 0.22 m | 380 N/m over 11.66 m: 6,454 N m on a section modulus of 33.7 cm3; sag with a modulus of 200 GPa, the usual figure for steel, not from a source | derived |
-| The same held 2.44 m from each end | 34 MPa | The overhangs' moment, 380 x 2.44^2 / 2 = 1,131 N m | derived |
+| Stretches a holder may grip: between rails | 9 stretches, Y = 210 + 1,144 k to 1,254 + 1,144 k for k = 0 to 8, lower half only | Each is 1,044 of bare tube between two straps; the modules are over the upper half | ours |
+| Stretches a holder may grip: the neck | Y = 10,516 to 10,616, diameter 118, with its 6 rivet holes | As the plain end | ours |
+| Stress in the tube if the finished bay is held at its two ends only | 156 MPa, with a sag of 0.14 m | 379 N/m (410.3 kg x 9.81 over 10.616 m) over 10.516 m: 5,241 N m on a section modulus of 33.7 cm3; sag with a modulus of 200 GPa, the usual figure for steel, not from a source | derived |
+| The same held 2.44 m from each end | 33 MPa | The overhangs' moment, 379 x 2.44^2 / 2 = 1,128 N m | derived |
 
-So anything that holds the tube must do four things. It grips only the twelve stretches
-above; they are the sites `bay_hold_0` to `bay_hold_11` of the model, each a cylinder as
+So anything that holds the tube must do four things. It grips only the eleven stretches
+above; they are the sites `bay_hold_0` to `bay_hold_10` of the model, each a cylinder as
 long as its stretch. It resists 150 N m about the axis. It keeps the locating holes
 within 0.8 degrees of straight up from the first rail to the last pin. And it does not
-carry a finished bay by its ends alone: 192 MPa is two thirds of the weakest grade's
+carry a finished bay by its ends alone: 156 MPa is more than half of the weakest grade's
 yield and the sag would spoil the rails' alignment. The locating holes themselves are
 not for holding: each is taken by its rail's tab. This section does not design the
 fixture.
@@ -498,24 +499,24 @@ The container this project assumes, in its working state:
 | Roof | closed, 50 thick, its top at 2,890 | It and the top rails are what is left of the box above; 6 below the fittings' top | ours |
 | Front end | closed wall, 40 thick | An end frame that keeps its panel resists racking | ours |
 | Rear end | door frame, drawn as its sill and its header; the doors are open or off | The tube sections come in here, lengthwise | ours |
-| Clear opening along each long side | 11,830 long and 2,240 high, from the floor up, with no post | 12,192 - 2 x 181, as the container sold with 11,836; 2,690 - 450. Both sides, where the one sold has one. The other open-side container read, with 11,556, would not let a bay of 11,760 pass | ours |
+| Clear opening along each long side | 11,830 long and 2,240 high, from the floor up, with no post | 12,192 - 2 x 181, as the container sold with 11,836; 2,690 - 450. Both sides, where the one sold has one. The other open-side container read, with 11,556, would also let a bay of 10,616 pass | ours |
 | Clear opening through the roof | 0: none | With both sides open the roof is kept. A layout that needs the roof open is a flat rack's case | ours |
 | Clear inside envelope | 11,830 x 2,330 x 2,240, on the floor, centred | Between the posts; the least inside width of ISO 668, which leaves 54 each side for the doors or panels that close the sides in transport; under the top rails | ours |
 | Tare | 6,600 kg | The top of the range of weights of the open-side containers sold. Those have one open side; two will weigh more, so this figure may be low | ours |
 | Gross mass for transport | 23,800 kg | The mass at the cargo the insurer advises for United States roads, 23,859, rounded down; under the 24,000 the open-side container is plated for | ours |
 | Mass left for the cell | 17,200 kg | 23,800 - 6,600 | derived |
-| End clearance of a bay passing out through a side | 35 at each end | (11,830 - 11,760) / 2 | derived |
+| End clearance of a bay passing out through a side | 607 at each end | (11,830 - 10,616) / 2 | derived |
 | Side clearance of a bay standing inside the open container | 28 at each side | (2,438 - 2,382) / 2: the modules' ends are in the planes of the open sides | derived |
-| Length of a bay of nine modules, for comparison | 10,616 | 11,760 - 1,144 | derived |
+| End clearance of a bay in the other open-side container's opening, for comparison | 470 at each end | (11,556 - 10,616) / 2 | derived |
 
 A finished bay is 2,382 wide. That is 26 more at each side than the inside envelope
 and 28 less at each side than the container's outside. So with the sides closed a bay
 cannot be inside, and with both sides open it can stand wholly within the container's
 footprint, between the posts, its modules' ends in the planes of the open sides. It
 cannot leave through an end, where the door is 2,340 wide, so it leaves sideways, with
-35 mm to spare at each end between the posts. That is the tightest figure in this
-document. If a layout cannot move 455 kg sideways that squarely, the bay is nine
-modules. The tube sections, 11.76 m long, go in through the end doors.
+607 mm to spare at each end between the posts. A bay one module longer would have
+35 mm, and that is why the bay is nine modules (The bay). The tube sections, 10.62 m
+long, go in through the end doors.
 
 ![The container in its working state with a bay passing out through one side](img/container.png)
 
@@ -534,9 +535,9 @@ changed by this document.
 | Figure | Value in the cell today, and where | The reference | Basis |
 |---|---|---|---|
 | Tube's section | 130 square, a box (`models/conveyor.xml`, geom `tube`) | round, 124 across [S9], wall 3.0 | published |
-| Tube's length | 11,600 (`models/conveyor.xml`, geom `tube`) | 11,760 with the neck | derived |
-| Tube's mass | 237 kg, "about 20 kg/m" (`models/conveyor.xml`) | 105.4 kg, 8.97 kg/m | derived |
-| Rails | 20 boxes of 2,000 x 50 x 40, geoms of the tube's body (`models/conveyor.xml`, class `conveyor_rail`) | 11 hat rails of 460 x 100 x 80, each a part of its own | ours |
+| Tube's length | 11,600 (`models/conveyor.xml`, geom `tube`) | 10,616 with the neck | derived |
+| Tube's mass | 237 kg, "about 20 kg/m" (`models/conveyor.xml`) | 95.2 kg, 8.97 kg/m | derived |
+| Rails | 20 boxes of 2,000 x 50 x 40, geoms of the tube's body (`models/conveyor.xml`, class `conveyor_rail`) | 10 hat rails of 460 x 100 x 80, each a part of its own | ours |
 | Rail's mass | 4 kg (`models/conveyor.xml`) | 2.35 kg with strap, pins and bolt | derived |
 | Rails for each module | 2 of its own, 400 either side of the slot's centre, lying under the glass (`models/conveyor.xml`) | 2 shared with the neighbours [S4], under the long edges of the frame, 1,144 apart (1,134 + 10) | derived |
 | Module's size | 2,300 x 1,100 x 35 (`src/pallet.h` `kModuleLength`, `kModuleWidth`, `kModuleThickness`; again in `src/conveyor.h` and as a literal in `src/suction.h`) | 2,382 x 1,134 x 30 [S18] | published |
@@ -544,12 +545,12 @@ changed by this document.
 | Module's make-up | one box (`models/pallet.xml`, class `module`) | a frame of four members and a laminate, as the model draws it | ours |
 | Gap between modules | 20, "a guess at what the clamps between modules need" (`src/conveyor.h` `kModuleGap`) | 10, chosen under The bay | ours |
 | Pitch of the slots | 1,120 (`src/conveyor.h` `kStepLength`; the literal `1.12` in `models/conveyor.xml`) | 1,144, the module's 1,134 and the gap | derived |
-| Modules on a tube | 10 (`src/conveyor.h` `kSlotCount`) | 10, by the rule under The bay | ours |
+| Modules on a tube | 10 (`src/conveyor.h` `kSlotCount`) | 9, the owner's decision under The bay | ours |
 | How a module is held | by its weight and friction of 0.5 (`models/conveyor.xml`) | 4 pins with swaged collars: the kind from the manual [S7], the count from the four holes at 400 | derived |
 | Where a module's frame meets its rails | nowhere: the module overhangs its rails by 150 at each end and 125 at each side (the model's comment says 150), and lies on them by its glass (`models/conveyor.xml`) | the flanges of the two long sides lie on the rails over the rails' 460; nothing overhangs along the tube | derived |
 | Height of the rails' top above the tube's axis | 105 (`models/conveyor.xml`: the tube's centre 0.105 below the frame) | 124, to put the cells 90 above the tube | derived |
 | Height of the rails' top above the floor | 800 (`src/conveyor.h` `kRailTopHeight`) | not a figure of the bay: a layout chooses it. The bay's scene puts the tube's axis 1,200 up | ours |
-| What keeps the tube in place | a slide joint along the tube, driven by a motor (`models/conveyor.xml`, `conveyor_slide`) | a holder on the twelve stretches that resists 150 N m (Holding the tube) | ours |
+| What keeps the tube in place | a slide joint along the tube, driven by a motor (`models/conveyor.xml`, `conveyor_slide`) | a holder on the eleven stretches that resists 150 N m (Holding the tube) | ours |
 | Placement tolerance | 3 in the rails' plane, 0.15 degrees of yaw and of tilt (`src/trial_runner.h` `PlacementTolerance`) | 2.20 across, 3.65 along, 0.23 degrees, sharing one play | derived |
 | Modules on a pallet | 30 (`models/pallet.xml`) | 36 [S18] | published |
 | Stack pitch on the pallet | 35, one thickness (`models/pallet.xml`) | 30 if frame lies on frame, from the frame's height [S18]; the maker gives no pitch | derived |
