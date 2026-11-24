@@ -13,7 +13,9 @@ says where the figure comes from:
 - `published`: the figure is in a public source, cited as `[S<n>]` and listed under
   Sources. Each was read in the saved text of the source on 2026-11-24, not in a search
   engine's summary.
-- `derived`: computed from figures of this document; the computation is in the row.
+- `derived`: computed from figures of this document; the computation is in the row. A
+  figure computed from an `ours` figure is as firm as that figure, and the row names
+  what it is computed from.
 - `ours`: designed in this run; the row says why this value. A person with the maker's
   drawings can replace these rows, and the last paragraph of each section says which.
 
@@ -29,7 +31,7 @@ Y, and "yaw" a rotation about Z.
 
 **Simplifications, named once.** Holes are named sites in the model, not geometry. The
 parts are boxes and cylinders: a rail's saddle is a step and its strap a square U. The
-40 pins that fasten the modules (about 0.4 kg together) have no mass in the model. The
+pins that fasten the modules have no mass in the model (The bay). The
 section's swaged neck is a second, thinner cylinder. One kind of rail stands at all
 eleven places, where the reference has special rails beside a bearing and beside the
 drive.
@@ -91,7 +93,7 @@ from standards, fastener makers and module makers, and by design.
 | Locating holes on a section | 11 | One for each rail of the bay | derived |
 | Spacing of the locating holes along the tube | 1,144 | The module's width and the gap, since neighbours share a rail: 1,134 + 10 | derived |
 | Position of the first locating hole | Y = 111, on top (X = 0, Z = +62) | The first rail's centre, 160, less 49: the tab is on the rail's web nearer the plain end | ours |
-| Feature that fastens a rail | 0 holes: a strap round the tube | The rail's strap is closed under the tube by one bolt; nothing is fastened into the tube [S7] | published |
+| Feature that fastens a rail | none on the tube: a strap goes round it | The manual gives a strap closed under the tube by one bolt and names no hole in the tube for it [S7]; that the tube has none is our reading | ours |
 
 Where a rail cannot stand:
 
@@ -99,7 +101,7 @@ Where a rail cannot stand:
 |---|---|---|---|
 | Gap in the row of modules at a bearing | about 200 | "the BHA gap which spans approximately 200 mm depending on selected module width" (BHA: bearing housing assembly) [S7] | published |
 | Distance of the rails beside a bearing from its handle | 35 +/- 6.3 | Manual, task E.3; these are rails of their own kind [S7] | published |
-| Where a joint lies | 1 joint near each bearing housing | A Nextracker patent, which describes an embodiment and not the product as built [S13] | published |
+| Where a joint lies | near a bearing housing | A Nextracker patent: the tubes are joined "within a vicinity of the clam shell clamp housing member". It describes an embodiment, not the product as built [S13] | published |
 | What the row of modules leaves uncovered | 3 things: bearings, piers, slew gear | Nextracker's sheet on bifacial modules [S14]; the rails either side of the slew drive are of another kind [S7] | published |
 | Our section: stretch at the plain end no rail may cover | Y = 0 to 100 | The next section's neck and its rivets are inside it | ours |
 | Our section: stretch at the swaged end no rail may cover | Y = 11,660 to 11,760 | The neck itself | derived |
@@ -126,7 +128,7 @@ largest makers all have it.
 | Size agreed by nine makers | 2,382 x 1,134 | Trina's announcement of the agreement [S15] | published |
 | Mounting-hole distances agreed, along the long side | 400, 790 and 1,400 | The same announcement [S15] | published |
 | Share of rectangular wafers in 2025 | 48.2%, the largest group | CPIA's figures as reported by TaiyangNews [S16] | published |
-| Format the rectangular (210 mm series) wafers are made into | 2,382 x 1,134, with 66 or 72 cells | InfoLink [S17] | published |
+| Format the rectangular (210 mm series) wafers are made into | mainly 2,382 x 1,134, with 66 or 72 cells | InfoLink [S17] | published |
 | Length, width, thickness: Jinko JKM-66HL4M-BDV | 2,382 x 1,134 x 30 | Datasheet (United States) [S18] | published |
 | Length, width, thickness: Canadian Solar CS6.2-66TB | 2,382 x 1,134 x 30 | Datasheet [S19] | published |
 | Length, width, thickness: Trina TSM-NEG19RC.20 | 2,382 x 1,134 x 30 | Datasheet [S20] | published |
@@ -147,7 +149,7 @@ largest makers all have it.
 | Holes meant for trackers | 8 slots of 10 x 7 | Canadian Solar's drawing names them "Mounting Hole(tracker)" [S19] | published |
 | Which holes are the 10 x 7 slots | the 4 at 400 and the 4 at 790 | Canadian Solar's manual: the holes at 400 and 790 take M6, and M6 goes with the 10 x 7 slots [S21] | published |
 | Holes a tracker of the reference kind uses | the 4 at 400 (2 on each long side) | "NEXTracker uses a 400-mm span" [S22]; Canadian Solar's list of approved trackers gives the 400 holes for NX Horizon's short rail [S23] | published |
-| Load the module is approved for on those holes | +1,800 / -1,800 Pa | Jinko's manual, table 8, row "NEXTracker 1P, NT Standard Rail (400)", hole spacing 1,096 [S24] | published |
+| Largest test load the maker lists for the module on those holes | +1,800 / -1,800 Pa | Jinko's manual, table 8 (maximum test loads), row "NEXTracker 1P, NT Standard Rail (400)", hole spacing 1,096; a test load, not a rating [S24] | published |
 | Direction of a 10 x 7 slot's long side | along the module's long side (the bay's X) | The drawings show the slots lying along the frame; no text says so | ours |
 | Least gap between neighbouring modules | 6.5 (Canadian Solar), 5 (Trina) | Installation manuals [S21] [S25] | published |
 | Modules on a pallet | 36 | Jinko's datasheet [S18] | published |
@@ -173,22 +175,24 @@ loads of this document.
 | Height of the cells above the tube | 90 | TaiyangNews on NX Horizon [S9] | published |
 | Shape of comparable rails | hat section, rolled from light-gauge sheet | Two patents, one Nextracker's; a patent is not a product drawing [S26] [S27] | published |
 | Length of a comparable rail on the 400 holes | 440 | Arctech's, in Canadian Solar's list of approved trackers [S23] | published |
-| Profile | hat, open side down: top 100 wide, two webs 80 deep, two feet 20 wide | The top carries the edges of two modules; the open underside lets the tool reach the pins; the webs straddle the tube | ours |
-| Sheet thickness | 2.0 | With the frame's 1.7 flange it gives a grip of 3.7 for the pin; stress at the module's approved load is low (below) | ours |
+| Profile | hat, open side down: top 100 wide, two webs 80 deep, two feet 10 wide | The top carries the edges of two modules; the open underside lets the tool reach the pins; the webs straddle the tube; the feet stiffen the webs' edges and keep the rail within 60 of its centre line, clear of the tube's joint | ours |
+| Sheet thickness | 2.0 | With the frame's 1.7 flange it gives a grip of 3.7 for the pin; stress at the module's test load is low (below) | ours |
 | Length across the tube | 460 | The 400 between a side's two holes and 30 beyond each, over four pin diameters | ours |
 | Height of the top face above the tube's axis | 124 (62 above the tube's top) | Puts the cells 62 + 30 - 2.5 = 89.5 above the tube, the published 90 | derived |
-| How it sits on the round tube | 2 arcs of radius 62.5, cut 18 deep into the webs | A saddle 96 long that centres the rail across the tube and stops it yawing; 0.5 of play on the radius | ours |
+| How it sits on the round tube | 2 arcs of radius 62.5, cut 18 deep into the webs, each about 89 long across the tube; the webs are 96 apart | A saddle that centres the rail across the tube and stops it yawing; 0.5 of play on the radius | ours |
+| Half-width of the saddle in the model | 44 | Where an arc of 62.5 resting on the tube's top meets the webs' lower edge: sqrt(62.5^2 - 44.5^2) = 43.9. The model steps the webs there | derived |
 | Locating tab | 12 wide across the tube, 2 thick, 6 long, at the middle of the web nearer the plain end | A tongue of the web's own sheet, pointing down into the tube's hole | ours |
 | Holes for the pins | 4 slots of 7.1 x 13, long side along the tube, at X = +/-200 and 24 either side of the rail's centre line | 7.1 is a hole both lockbolt makers allow (Fastenings); the slot crosses the frame's slot, as purlins are "stamped with slots" [S28]; 24 = 10 / 2 + 19 | ours |
-| Strap | 40 wide, 2.5 thick, round the lower half of the tube, closed by the bolt 80 below the tube's axis | Sized to take the bolt's tension with a wide margin; 80 leaves the bolt's head clear of the tube | ours |
-| Mass of rail, strap and bolt | 2.39 kg | Sheet 296 developed x 2.0 x 460 less the saddle cuts: 2.11; strap 309 x 40 x 2.5: 0.24; bolt, nut and washers about 0.035; steel at 7,864 kg/m3 | derived |
-| Load on one rail at the module's approved load | 4,862 N | 1,800 Pa x 2.382 x 1.134 m2: half of each of two modules | derived |
-| Bending stress in the rail at that load | 40 MPa | Half the load at 200 from the tube's axis: 486 N m; hat 100 x 80 x 2.0 has a section modulus of 12.1 cm3 | derived |
+| Strap | 40 wide, 2.5 thick: round the lower half of the tube and up to the webs' lower edges, where each end is rolled round a pin 8 across and 100 long that lies in notches of the two webs; its two ears, 20 across together, are closed under the tube by the bolt, 80 below the tube's axis | Sized to take the bolt's tension with a wide margin; the pins let the strap swing open to pass the tube; 80 leaves the bolt's head clear of the tube | ours |
+| Mass of rail, strap, pins and bolt | 2.35 kg | Sheet 276 developed x 2.0 x 460 less the saddle cuts: 1.96; strap 348 long (199 round the tube, 2 x 44 up to the webs, 2 x 30.5 of ear) x 40 x 2.5: 0.27; two pins: 0.08; bolt, nut and washers about 0.035; steel at 7,864 kg/m3 | derived |
+| Load on one rail at the module's test load | 4,862 N | 1,800 Pa x 2.382 x 1.134 m2: half of each of two modules | derived |
+| Bending stress in the rail at that load | 52 MPa | Half the load at 200 from the tube's axis: 486 N m; the hat (100, 80 and 10, sheet 2.0) has a section modulus of 9.4 cm3 at its feet | derived |
 | Load on one rail from the modules' weight alone | 318 N | 32.4 kg x 9.81 | derived |
 
-In the model a rail is a body of fourteen boxes: the top, each web in three pieces that
+In the model a rail is a body of fifteen boxes: the top, each web in three pieces that
 step over the tube where the real web is cut to an arc, the feet in two pieces each,
-and the strap as a square U with a block for its two ears. The reference has more kinds
+and the strap as a square U of three boxes with a block for its two ears; the strap's
+pins are not drawn. The reference has more kinds
 of rail than this one: standard and heavy, wide, the rails beside a bearing and the
 first rails beside the drive ([S7]). A person with the maker's
 drawing could replace every `ours` row of this table.
@@ -204,7 +208,7 @@ two tables after it give each figure its own basis.
 | Module to rail (`module`) | 1/4 in pin with a swaged collar (a lockbolt), not a threaded bolt [S7] | 4 for each module, 2 into each of its two rails | None: the collar is swaged by the tool | Along the rail's upright axis (the bay's Z), from below the rail, moving up (the direction is our reasoning) | 13 mm radius | ours |
 
 The owner's "bolted" is met as real bays meet it: the modules are held by lockbolts,
-which a tool swages in about a second and which are never torqued, and the rails by a
+which a tool swages and which are never torqued, and the rails by a
 strap with one torqued bolt.
 
 Rail to tube:
@@ -212,11 +216,11 @@ Rail to tube:
 | Figure | Value | Source, computation or reason | Basis |
 |---|---|---|---|
 | Fastener | 1 M8 through bolt in the torque tube strap | Manual, task H.2 [S7] | published |
-| Fasteners for each rail | 1 | "Installs with only one fastener per rail" [S29] | published |
+| Fasteners for each rail | 1 | "Installs with only one fastener per rail": a sheet of 2017 for First Solar's Series 4 modules on NX Horizon [S29]; the manual's task H.2 for the short rail has the one bolt and no other | published |
 | Tightening torque | 17.6 N m (13 ft-lb) | Manual, task H.2 [S7] | published |
 | Torque accepted at a check | within 10% | Manual [S7]; an impact gun is not allowed, "an accurate torque value must be measured" | published |
 | Where the bolt lies | at the bottom of the tube, parallel to the rail within 10 degrees | Manual of 2020 [S8]; the manual of 2022 repeats the 10 degrees [S7] | published |
-| Bolt | M8 x 50, hexagon head, class 8.8, with a flange nut | The manual gives only "M8"; this is the common standard bolt (ISO 4014) long enough for two ears and a nut | ours |
+| Bolt | M8 x 50, hexagon head, class 8.8, its nut held in the far ear | The manual gives only "M8"; this is the common standard bolt (ISO 4014), long enough for two ears and a nut. The nut is caught by the ear's shape so that one tool on one side drives the bolt; the manual does not show how the reference holds it | ours |
 | Hole in the strap's ears | 9.0 | The medium clearance hole for M8 in ISO 273, read in the identical Indian standard [S30] | published |
 | Height of the bolt's axis | Z = -80 | 18 below the tube's underside: the strap, half a bolt head and room for a socket | ours |
 | Side the tool comes from | +X, moving toward -X | The reference fixes only the axis; one side for all eleven rails lets one tool reach them all | ours |
@@ -227,7 +231,7 @@ Module to rail:
 
 | Figure | Value | Source, computation or reason | Basis |
 |---|---|---|---|
-| Fastener | 1/4 in pin and collar | "Insert 1/4-in. pins through the module frame and module rail", then "Swage collars onto the 1/4-in. pins" [S7] | published |
+| Fastener | 1/4 in pin and collar; a maker's part, to no public standard | "Insert 1/4-in. pins through the module frame and module rail", then "Swage collars onto the 1/4-in. pins" [S7] | published |
 | Pin's diameter | 6.35 | 1/4 x 25.4 | derived |
 | Fastening points a module maker asks for | at least 4, on two opposite sides | Canadian Solar's manual for bifacial modules [S23] | published |
 | Fasteners for each module | 4 | The two holes of the 400 pair on each long side, each long side on its own rail | derived |
@@ -236,7 +240,8 @@ Module to rail:
 | Nose of the battery tool for 1/4 in | 26 across and 80 long; an extended one 19 across | The tool's manual [S31] | published |
 | Free space the tool needs | 13 mm radius round the axis, 80 mm along it | Half of 26, and the nose's length | derived |
 | Side the tool comes from | below the rail, moving up (+Z) | The pin's head lies on the frame's flange, where only 30 - 1.7 - 5 = 23 is free under the laminate, less than the nose's 80; the collar and the tool are below the rail's top, inside the hat | ours |
-| Hole a 1/4 in lockbolt needs | 6.4 to 7.1 (Huck BobTail); 7.04 to 7.42 (Avdel 6.4 mm) | Two makers' catalogues, which differ [S32] [S33]. The manual does not name the maker; the rail's 7.1 is inside both | published |
+| How the pin is put in | from above, through the frame's flange and then the rail's top, before the tool comes | The manual's order of words. Only 23 is free above the flange, so the pin is shorter than that or is put into the frame before the module is laid down; its length was not found, and this document does not settle which | ours |
+| Hole a 1/4 in lockbolt needs | 6.4 to 7.1 (Huck BobTail); 7.04 to 7.42 (Avdel 6.4 mm) | Two makers' catalogues, which differ [S32] [S33]. The manual does not name the maker; the rail's 7.1 is inside both, and the frame's slot, 7 wide, is inside the first and 0.04 under the second's least | published |
 | Hole in the module | slot of 10 x 7 | The frame's tracker slot, from the Module section | derived |
 | Thickness the pin clamps | 3.7 | Rail's sheet 2.0 and frame's flange 1.7 | derived |
 | What module makers give for a threaded bolt in the same hole, for comparison | M6 at 6 to 9 N m (Canadian Solar), 9 to 12 (Jinko), 8 to 12 (Trina) | Installation manuals [S21] [S24] [S25]. The reference does not use one | published |
@@ -256,7 +261,7 @@ One bay is one tube section with its rails and its modules, as it leaves the cel
 | Modules | 10 | No source fixes the number on a section. Ten is the largest whose bay is no longer than 11.8 m: eleven modules alone are 11 x 1,134 = 12,474 | ours |
 | Gap between modules | 10 | Above both makers' minimum (6.5 and 5) and more than twice what one module can shift along the tube under Tolerances (3.65) | ours |
 | Pitch of the modules and of the rails | 1,144 | 1,134 + 10 | derived |
-| Rails | 11, at Y = 160 + 1,144 k for k = 0 to 10 | 100 for the joint and 10 clear, then half a rail's top | derived |
+| Rails | 11, at Y = 160 + 1,144 k for k = 0 to 10 | 100 for the joint, then half a rail's width over its feet, 60 | derived |
 | Modules' centres | Y = 732 + 1,144 m for m = 0 to 9, X = 0, Z = +139 | Midway between two rails; half the frame's 30 above the rails' top at 124 | derived |
 | Fastenings, rail to tube | 11 | 1 for each rail | derived |
 | Fastenings, module to rail | 40 | 4 for each module | derived |
@@ -266,10 +271,15 @@ One bay is one tube section with its rails and its modules, as it leaves the cel
 | Length (along Y) | 11,760 | The tube as shipped; the modules reach from Y = 165 to 11,595 | derived |
 | Width (along X) | 2,382 | The module's length | derived |
 | Height (along Z) | 249: from Z = -95 to +154 | The strap's ears end 95 below the axis; the modules' top is 124 + 30 above it | derived |
-| Mass | 455.7 kg | Tube 105.42 + 11 rails x 2.39 + 10 modules x 32.4 | derived |
+| Mass | 455.3 kg | Tube 105.42 + 11 rails x 2.35 + 10 modules x 32.4 | derived |
+| Mass of the 40 pins and collars, which the figure above and the model leave out | about 0.4 kg | About 10 g each, our estimate: a steel pin 6.35 across and its collar; under 0.1% of the bay | ours |
 
 `bazel run --config=opt //:print_bay -- --summary` prints the counts, the size and the
 mass of this table, and without the flag one row for each of the 51 fastenings.
+
+![One finished bay: the tube, eleven rails and ten modules](img/bay.png)
+
+![The first rail on the tube with the corner of the first module](img/bay_fastening.png)
 
 ## Holding the tube
 
@@ -284,7 +294,7 @@ supply.
 |---|---|---|---|
 | How the reference fixes a rail round the tube | 1 tab in 1 hole, then levelled within 1 degree, then clamped | Manual, task H.2 [S7] | published |
 | Moment about the axis from a module resting on one side only | 73 N m | 32.4 kg x 9.81 x 0.230 m: the whole module on one end of its rails | derived |
-| Moment from a rail resting on one side only | 5.4 N m | 2.39 kg x 9.81 x 0.230 m | derived |
+| Moment from a rail resting on one side only | 5.3 N m | 2.35 kg x 9.81 x 0.230 m | derived |
 | Moment from ten modules all off to one side by what their holes allow | 7.0 N m | 10 x 32.4 x 9.81 x 0.0022 m | derived |
 | Largest moment assembly can put on the tube | 73 N m | The first of the three; they do not add, since a module is put down once | derived |
 | Moment a holder must resist | 150 N m | Twice the largest, for a module that is set down with a bump | ours |
@@ -294,8 +304,8 @@ supply.
 | Stretches a holder may grip: the plain end | Y = 0 to 100, full circle, with its 6 rivet holes | Bare until the row is joined; the holes take a pin, which fixes the angle without friction | ours |
 | Stretches a holder may grip: between rails | 10 stretches, Y = 210 + 1,144 k to 1,254 + 1,144 k, lower half only | Each is 1,044 of bare tube between two straps; the modules are over the upper half | ours |
 | Stretches a holder may grip: the neck | Y = 11,660 to 11,760, diameter 118, with its 6 rivet holes | As the plain end | ours |
-| Stress in the tube if the finished bay is held at its two ends only | 192 MPa, with a sag of 0.22 m | 380 N/m over 11.66 m: 6,460 N m on a section modulus of 33.7 cm3; sag with a modulus of 200 GPa, the usual figure for steel, not from a source | derived |
-| The same held 2.44 m from each end | 33 MPa | The overhangs' moment, 380 x 2.44^2 / 2 = 1,127 N m | derived |
+| Stress in the tube if the finished bay is held at its two ends only | 192 MPa, with a sag of 0.22 m | 380 N/m over 11.66 m: 6,454 N m on a section modulus of 33.7 cm3; sag with a modulus of 200 GPa, the usual figure for steel, not from a source | derived |
+| The same held 2.44 m from each end | 34 MPa | The overhangs' moment, 380 x 2.44^2 / 2 = 1,131 N m | derived |
 
 So anything that holds the tube must do four things. It grips only the twelve stretches
 above; they are the sites `bay_hold_0` to `bay_hold_11` of the model, each a cylinder as
@@ -323,6 +333,7 @@ holes are at X = +/-200 and 548 either side of the module's centre along the tub
 | Module, yaw | +/-0.23 degrees (4.0 mrad) | The holes 548 from the centre move 2.20 across; the play along would allow 3.65 / 200 = 18 mrad | derived |
 | Module, yaw and offset across together | offset + 548 x yaw (rad) within 2.20 | The same hole takes both | derived |
 | Module, part of the play along the tube that the module's own tolerance takes | 1.0 | The hole rows are 1,096 +/- 2 apart, so each can be 1 from its place | derived |
+| Module, part of the play across the tube that the module's own tolerance takes | 0.5 | The two holes of a pair are 400 +/- 1 apart, so each can be 0.5 from its place | derived |
 
 A rail on the tube: its tab, 12 across by 2 along, in a round hole of 14, and its saddle
 on the tube.
@@ -332,32 +343,42 @@ on the tube.
 | Rail, across the tube at the tab | +/-0.93 | sqrt(7^2 - 1^2) - 6: the tab's corners meet the hole's edge | derived |
 | Rail, round the tube | +/-0.86 degrees (15 mrad) | The same motion: the saddle keeps the rail on the tube, so it can only go across by going round. 0.93 / 62 | derived |
 | Rail, along the tube | +/-2.61 | sqrt(7^2 - 6^2) - 1 | derived |
-| Rail, yaw | +/-0.83 degrees (14 mrad) | The tab can turn freely in its hole; the saddle's 0.5 of play, 0.71 on the flank, over the 49 from the centre to a web | derived |
+| Rail, yaw | +/-0.83 degrees (14 mrad) at most | The tab can turn freely in its hole; the saddle's 0.5 of play, 0.71 on the flank, over the 49 from the centre to a web, taking the arc as centred on the tube. A rail resting on the tube's top has about half of this | derived |
 | Rail, round the tube, for its modules' pins to go in | +/-1.02 degrees (17.7 mrad) | 2.20 at the rail's top, 124 from the axis; the manual's rule is 1 degree | derived |
 | Rail, yaw, for its modules' pins to go in | +/-1.05 degrees (18 mrad) | 3.65 at the holes 200 from the tube's axis | derived |
 | Rail, along the tube, for its modules' pins to go in | +/-3.65 | The module's own play along the tube | derived |
+| Strap's bolt in its ears | +/-0.5 | (9.0 - 8) / 2. The bolt joins the strap's two ears and not the rail to a hole in the tube, so it goes in wherever the rail sits | derived |
 
-So a rail that is in its hole and on its saddle is always close enough for its
-modules' pins: its own play (0.86 degrees, 2.61, 0.83 degrees) is inside what the pins
-allow (1.02 degrees, 3.65, 1.05 degrees). The strap's bolt goes in wherever the rail is.
+So a rail that is in its hole and on its saddle is close enough for its modules'
+pins: its own play (0.86 degrees, 2.61, 0.83 degrees) is inside what the pins allow
+(1.02 degrees, 3.65, 1.05 degrees). Along the tube there is little to spare: once the
+module's own 1.0 is taken, the pins allow 2.65 against the rail's 2.61.
 
-Beside the cell's present tolerance for a placed module (`docs/gate.md`):
+The figures of the first table are for holes at their nominal places; with the module's
+own tolerances 1.70 is left across the tube and 2.65 along it. In the model the two
+sites of a fastening lie on one line along the tool's axis, a stack apart: 10 for the
+strap's bolt, from the ear's hole to the tube's mid-plane, and 1.85 for a pin, between
+the middles of the rail's sheet and the frame's flange. "Within the clearance" is
+measured across that axis.
 
-| Figure | Value | Source, computation or reason | Basis |
-|---|---|---|---|
-| Cell today: position in the rails' plane | within 3 of the slot's centre, in any direction | `cell::PlacementTolerance::position`, the owner's figure | ours |
-| Cell today: yaw | within 0.15 degrees | `cell::PlacementTolerance::yaw`, the owner's figure | ours |
-| Fastening, across the tube | within 2.20: tighter than the cell's 3 | From the first table of this section | derived |
-| Fastening, along the tube | within 3.65: looser than the cell's 3 | From the first table of this section | derived |
-| Fastening, yaw | within 0.23 degrees: looser than the cell's 0.15 | From the first table of this section | derived |
-| Offset across that is left at the cell's largest yaw | 0.77 | 2.20 - 548 x 0.15 degrees in radians (2.62 mrad) | derived |
+Beside the cell's present tolerance for a placed module (`docs/gate.md`,
+`cell::PlacementTolerance`: the owner's figures, 3 in the rails' plane in any direction
+and 0.15 degrees of yaw):
+
+| Figure | The cell today | The fastening allows | Which is tighter | Basis |
+|---|---|---|---|---|
+| Offset across the tube | 3 | 2.20 | the fastening | derived |
+| Offset along the tube | 3 | 3.65 | the cell, by 0.65 | derived |
+| Yaw | 0.15 degrees | 0.23 degrees | the cell, by 0.08 degrees | derived |
+| Offset across at the cell's largest yaw | 3, whatever the yaw | 0.77 = 2.20 - 548 x 2.62 mrad | the fastening | derived |
 
 Which is tighter depends on the direction. Across the tube the fastening is tighter: a
 module the gate accepts at 3 mm across cannot be pinned. In yaw and along the tube the
 cell's tolerance is tighter. Taken together the fastening is the tighter one, because
 yaw and offset share the same 2.20: a module at the cell's limit of yaw has 0.77 mm
-left across. A cell that pins modules needs either a tighter placement across the tube
-or a way to move the module into its holes before the pins go in.
+left across, and 0.27 mm once the module's own hole tolerance is taken. A cell that
+pins modules needs either a tighter placement across the tube or a way to move the
+module into its holes before the pins go in.
 
 ## The container
 
@@ -374,40 +395,46 @@ The envelope and what handles it:
 | Usual inside, standard | 12,032 x 2,352 x 2,395; door 2,340 x 2,292 | Hapag-Lloyd [S35] | published |
 | Usual inside, high cube | 12,032 x 2,350 x 2,700; door 2,340 x 2,597 | Hapag-Lloyd [S36] | published |
 | Least inside the standard allows, high cube | 11.998 m long, 2.330 m wide, 2.655 m high | ISO 668 as tabulated by Wikipedia [S37] | published |
-| Corner fittings | 8, one at each corner, about 180 x 180 x 110 | Wikipedia on twistlocks [S38]; ISO 1161 says its overall sizes are an example [S39] | published |
+| Corner fittings | 8, one at each corner (4 on the ground, 4 at the top), about 180 x 180 x 110 | Wikipedia on twistlocks [S38]; ISO 1161 says its overall sizes are an example [S39] | published |
 | Distance between the fittings' centres | 11,985 along, 2,259 across | A crane maker's table, which cites the Chinese standard; ISO 1161's own figures are drawings that were not read [S40] | published |
 | Opening in a fitting | oval, 124.5 x 63.5 | Wikipedia on twistlocks [S38] | published |
 | How far the top fittings stand above the roof | at least 6 | ISO 1496-1 of 1990, read in a public copy [S41] | published |
 | What locks onto the fittings | twistlocks: on chassis, on decks, between stacked containers, and in the spreaders of cranes | Wikipedia on twistlocks [S38] | published |
 | Lifting from above | by the 4 top fittings, the forces vertical | ISO 1496-1 [S41] | published |
 | Lifting from below | by the 4 bottom fittings, slings at 30 degrees to the horizontal | ISO 1496-1 [S41] | published |
-| Carrying | on the 4 bottom fittings only | ISO 1496-1 [S41] | published |
-| Fork pockets on a 40 ft container | 0: "shall not be provided" | ISO 1496-1 [S41] | published |
+| Carrying | it can be supported on the 4 bottom fittings alone | ISO 1496-1 [S41] | published |
+| Fork pockets on a 40 ft container | 0: "shall not be provided" on 1AA | ISO 1496-1 of 1990, which is older than the high cube's code 1AAA [S41] | published |
 | Recess for a gooseneck chassis | 1, required on a high cube | Wikipedia on intermodal containers [S42] | published |
 
 Masses and roads:
 
 | Figure | Value | Source, computation or reason | Basis |
 |---|---|---|---|
-| Rated gross mass in the standard | 36,000 kg; 30,480 kg before 2016 | ISO 668 [S34]; Wikipedia's two pages call the change amendment 1 and amendment 2 of 2016 [S37] | published |
+| Rated gross mass in the standard | 36,000 kg; 30,480 kg before 2016 | ISO 668 [S34]; Wikipedia calls the change amendment 2 of 2016 on one page [S37] and amendment 1 on another [S42] | published |
 | Gross mass of containers in a fleet | 32,500 kg | Hapag-Lloyd, standard and high cube [S35] [S36] | published |
 | Tare | 3,750 kg standard (the page prints 3.750), 3,900 kg high cube | Hapag-Lloyd [S35] [S36]; a lessor gives 3,700 and 3,890 [S43] | published |
 | United States: gross vehicle weight on Interstates | 80,000 lb (36,287 kg); 20,000 lb on an axle, 34,000 lb on a tandem | 23 CFR 658.17 [S44] | published |
 | United States: width and height | 102 in wide; no federal height, states mostly 13 ft 6 in to 14 ft | 23 CFR 658.15 [S45]; FHWA [S46] | published |
 | United States: cargo advised in a 40 ft container on a standard chassis | 44,000 lb (19,960 kg); high cube 43,700 lb | An insurer's bulletin on overweight containers [S47] | published |
 | Tares that bulletin assumes | container 8,400 lb (high cube 8,900), chassis 6,800 lb, tractor 18,500 lb | The same [S47] | published |
-| United States: gross mass of a high-cube container that this allows | 23,859 kg | 43,700 + 8,900 = 52,600 lb | derived |
+| United States: gross mass of a high-cube container at the cargo advised | 23,859 kg | 43,700 + 8,900 = 52,600 lb | derived |
+| United States: what 80,000 lb leaves for the container after that tractor and chassis | 24,812 kg | 80,000 - 18,500 - 6,800 = 54,700 lb, with no margin for fuel, driver or the axles' limits | derived |
 | European Union: vehicle with a 40 ft container | 40 t; 44 t in intermodal transport with a three-axle tractor | Directive 96/53/EC, consolidated [S48] | published |
-| European Union: height and width | 4.00 m and 2.55 m | The same [S48] | published |
+| European Union: height and width | 4.00 m and 2.55 m (2.60 m for conditioned vehicles) | The same [S48] | published |
 | European Union: gross mass of the container that 40 t allows | about 28,500 kg | 40,000 - 8,392 - 3,084, with the tractor and chassis of the bulletin above, which are American; no European tares were read | derived |
 | Height of a chassis' deck | 1,219 | A lessor's 40 ft gooseneck chassis [S49] | published |
 | Height of a high cube on that chassis | 4,115, which is 13 ft 6 in | 1,219 + 2,896: at the lowest state limit, and over the Union's 4.00 m | derived |
+| Height of a container of standard height on that chassis | 3,810 | 1,219 + 2,591 | derived |
 | Deck height that keeps a high cube under 4.00 m | 1,104 or less | 4,000 - 2,896 | derived |
 
-So the road, not the standard, limits the mass: about 23.9 t in the United States
-against a rating of 36 t. In the European Union the mass is not the limit, but a high
-cube needs a low chassis; a container of standard height is 3.81 m high on the chassis
-above.
+So on the road the mass is held well under the standard's rating of 36 t: in the
+United States an insurer advises cargo that brings a high cube to about 23.9 t, and the
+law's 80,000 lb leaves 24.8 t at most with the tractor and chassis that bulletin
+assumes. For the European Union the same tractor and chassis, which are American,
+would leave about 28.5 t, so the mass is probably not the limit there; no European
+tares were read. A high cube on the one chassis read stands 4.115 m high, over the
+Union's 4.00 m, so it needs a lower deck there; a container of standard height is
+3.81 m high on the same chassis.
 
 Which members carry the load:
 
@@ -421,7 +448,7 @@ Which members carry the load:
 | Top side rail of a standard container | square tube 60 x 60 x 3.0 | A maker's specification for a 40 ft container of standard height [S52] | published |
 | Bottom side rail | pressed section 155 x 52 x 30 x 28 x 4.5 | The same [S52] | published |
 | Floor | 28 plywood on 28 cross members 122 deep (25 of 122 x 45 x 45 x 4.0 and 3 wider) | The same [S52] | published |
-| Corner post | pressed steel 6.0 thick | The same [S52] | published |
+| Corner post | front post pressed steel 6.0 thick; rear post a hot-rolled channel with a pressed outer part | The same [S52] | published |
 | Side wall | corrugated sheet 1.6 thick, 36 deep, welded all along to rails and posts | The same [S52] | published |
 | Tare of that container | 3,620 kg | The same [S52] | published |
 
@@ -431,26 +458,32 @@ When the side walls are taken out:
 |---|---|---|---|
 | What a side wall does | spans the 40 ft as a beam as deep as the container | An engineer's account [S53] | published |
 | Share of the stiffness against racking that the walls can give | up to 95% | A study of containers with openings, citing earlier work [S54] | published |
-| What a converter adds when a whole side is removed | box sections and a stronger top rail; on 40 ft a central pillar, and a C section on the bottom rail | A converter's own account, which gives no sizes [S55] | published |
-| Open-side container sold without a central post: opening | 11,836 long, 2.59 m high | A seller's sheet for a 40 ft high cube with doors along one side [S56] | published |
-| The same container: mass | tare 6,200 kg; plated gross 24,000 kg | The same [S56] | published |
+| What a converter adds when a whole side is removed | box sections and a reinforced top rail; on 30 and 40 ft a central pillar "may" be needed, and a C section on the bottom rail is offered | A converter's own account, which gives no sizes [S55] | published |
+| Open-side container sold without a central post: opening | 11,836 long | A seller's sheet for a 40 ft high cube with doors along one side; it gives a door height of 2.59 m without saying which door [S56] | published |
+| The same container: mass | weight 6,200 kg; plated gross 24,000 kg | The same [S56] | published |
 | Another open-side high cube: opening | 11.556 m long, 2.311 m high | A second seller [S57] | published |
-| The same: bottom rail and tare | rail about 453 deep, arched; tare 5,900 to 6,600 kg; 2.471 m high inside | The same, which adds that shipping lines do not run these in their fleets [S57] | published |
-| Flat rack, 40 ft high cube: between the end walls | 11,652 long, 2,245 wide at the narrowest | Hapag-Lloyd [S58] | published |
-| The same: base, tare, gross | base 648 high; 5,900 kg; 55,000 kg | Hapag-Lloyd, which calls it "height bottom" [S58]; a lessor gives 648 as the height with the end frames folded down [S59] | published |
-| A lessor's flat rack | tare 5,100 kg, gross 52,500 kg, stacked 5 high at that mass | Seaco; its frame is built with a camber of 50 [S59] | published |
-| How a flat rack does without sides and roof | heavier bottom rails and corner posts than a closed container | A glossary of container terms [S60] | published |
-| Open top: opening in the roof and tare | 11,552 long; 4,050 kg | Hapag-Lloyd; the side walls stay [S61] | published |
-| Hard top, high cube: opening and tare | 11,724 long; 5,200 kg | Hapag-Lloyd; the steel roof lifts off and the side walls stay [S62] | published |
-| A container built for one purpose and rated low | gross 15,000 kg, tare 6,100 kg | A maker's specification for a 40 ft high cube that is not stacked under load [S63] | published |
+| The same: bottom rail and weight | a "thicker bottom rail" of about 453, arched on some makes; weight 5,900 to 6,600 kg; 2.471 m high inside | The same, which does not say which dimension the 453 is, and adds that shipping lines do not run these in their fleets [S57] | published |
+| Flat rack, 40 ft high cube: least inside length and width | 11,652 and 2,245 | Hapag-Lloyd [S58] | published |
+| The same: base, tare, gross | "height bottom" 648; 5,900 kg; 55,000 kg | Hapag-Lloyd [S58]; a lessor's flat rack of standard height is 648 high with its end frames folded [S59] | published |
+| A lessor's flat rack of standard height | tare 5,100 kg, gross 52,500 kg, stacked 5 high at that mass | Seaco; its frame is built with a camber of 50 [S59] | published |
+| How a flat rack does without sides and roof | heavier bottom rails and corner posts than a closed container | A course text on shipping containers, adapted from a United States military handbook [S60] | published |
+| Open top, standard height: opening in the roof and tare | 11,552 long; 4,050 kg | Hapag-Lloyd [S61] | published |
+| Hard top, high cube: opening in the roof and tare | 11,724 long; 5,200 kg | Hapag-Lloyd [S62] | published |
+| Curtain-side container, 40 ft: sides and tare | both long sides open, behind curtains, with posts and gates that hang from the roof; tare 6,310 kg | A lessor in Australia; it is 12.2 x 2.5 x 3.0 m outside, which is not the standard's envelope [S63] | published |
+| A container built for one purpose and rated low | gross 15,000 kg, tare 6,100 kg; stacking tested at 6,750 kg a post | A maker's specification for a 40 ft high cube [S64] | published |
 
-So the answer to "which beams have to stay" is, from practice: the four posts with
-their eight fittings and both end frames always stay. Where the roof and the top side
-rails stay, as on an open-side container, the bottom side rails grow from 155 to about
-450 deep and the container gains over two tonnes. Where the top goes too, as on a flat
-rack, the bottom rails alone carry everything and the base is 648 high.
-Nothing sold has both long sides open over the full length under a roof; that is what
-"built to suit" would mean here, and it is the open-side container's side, twice.
+So the answer to "which beams have to stay" is, from what is sold: every container
+read about here keeps its four posts with their eight fittings and its two end frames,
+and a converter prefers not to touch the corner castings. Where the roof and the top
+side rails stay, as on an open-side container, the bottom side rails are much deeper
+(about 453 on one seller's, against 155 on another maker's standard container) and the
+container weighs 5,900 to 6,600 kg against 3,620 to 3,900 kg. Where the top goes too,
+as on a flat rack, the bottom rails and the end walls' posts are built heavier and the
+base is 648 high. Among the sources read, no container with side doors has both long
+sides open over the full length without a post; the one product with both sides open
+under a roof is the curtain-side container, with posts hanging from its roof and
+outside the standard's envelope. "Built to suit" here means the open-side container's
+side, twice, and that is this project's assumption and not a product.
 
 The container this project assumes, in its working state:
 
@@ -458,28 +491,33 @@ The container this project assumes, in its working state:
 |---|---|---|---|
 | Envelope everything must be inside for transport | 12,192 x 2,438 x 2,896 | The high cube's outside; a container of standard height would leave 0.3 m less to work in | ours |
 | Corner posts | 4, each 181 along the container and 180 across, the full height | The footprint of a corner fitting; 181 leaves the opening below | ours |
-| Bottom side rails | 2, each 150 wide and 450 deep, between the posts | The depth the open-side container's seller gives (about 453) | ours |
+| Bottom side rails | 2, each 150 wide and 450 deep, between the posts | The open-side container's "thicker bottom rail" of about 453, read as its depth | ours |
 | Floor | its top 450 above the ground, flush with the bottom side rails; 150 thick | Flush so that nothing stands in a bay's way out; 150 is 122 of cross member and 28 of plywood | ours |
 | Height of the floor above the ground on a chassis | 1,669 | 1,219 + 450 | derived |
 | Top side rails | 2, each 100 wide and 200 deep, their underside 2,690 above the ground | In place of the 60 x 60 tube that needed the wall; a converter strengthens it, no source gives a size | ours |
 | Roof | closed, 50 thick, its top at 2,890 | It and the top rails are what is left of the box above; 6 below the fittings' top | ours |
 | Front end | closed wall, 40 thick | An end frame that keeps its panel resists racking | ours |
-| Rear end | door frame, drawn as its header; the doors are open or off | The tube sections come in here, lengthwise | ours |
-| Clear opening along each long side | 11,830 long and 2,240 high, from the floor up, with no post | 12,192 - 2 x 181, as the container sold with 11,836; 2,690 - 450. Both sides, where the one sold has one | ours |
+| Rear end | door frame, drawn as its sill and its header; the doors are open or off | The tube sections come in here, lengthwise | ours |
+| Clear opening along each long side | 11,830 long and 2,240 high, from the floor up, with no post | 12,192 - 2 x 181, as the container sold with 11,836; 2,690 - 450. Both sides, where the one sold has one. The other open-side container read, with 11,556, would not let a bay of 11,760 pass | ours |
 | Clear opening through the roof | 0: none | With both sides open the roof is kept. A layout that needs the roof open is a flat rack's case | ours |
-| Clear inside envelope | 11,830 x 2,330 x 2,240, on the floor, centred | Between the posts; the least inside width of ISO 668, which leaves 54 each side for doors in transport; under the top rails | ours |
-| Tare | 6,600 kg | The top of the range of open-side containers sold | ours |
-| Gross mass for transport | 23,800 kg | The United States' 23,859 rounded down; under the 24,000 the open-side container is plated for | ours |
+| Clear inside envelope | 11,830 x 2,330 x 2,240, on the floor, centred | Between the posts; the least inside width of ISO 668, which leaves 54 each side for the doors or panels that close the sides in transport; under the top rails | ours |
+| Tare | 6,600 kg | The top of the range of weights of the open-side containers sold. Those have one open side; two will weigh more, so this figure may be low | ours |
+| Gross mass for transport | 23,800 kg | The mass at the cargo the insurer advises for United States roads, 23,859, rounded down; under the 24,000 the open-side container is plated for | ours |
 | Mass left for the cell | 17,200 kg | 23,800 - 6,600 | derived |
 | End clearance of a bay passing out through a side | 35 at each end | (11,830 - 11,760) / 2 | derived |
+| Side clearance of a bay standing inside the open container | 28 at each side | (2,438 - 2,382) / 2: the modules' ends are in the planes of the open sides | derived |
 | Length of a bay of nine modules, for comparison | 10,616 | 11,760 - 1,144 | derived |
 
-A finished bay is 2,382 wide and the container 2,330 inside, so a bay never lies inside
-the closed container: it is built with its modules standing out through both open sides
-and leaves sideways. It then has 35 mm to spare at each end between the posts. That is
-the tightest figure in this document. If a layout cannot move 456 kg sideways that
-squarely, the bay is nine modules. The tube sections, 11.76 m long, go in through the
-end doors.
+A finished bay is 2,382 wide. That is 26 more at each side than the inside envelope
+and 28 less at each side than the container's outside. So with the sides closed a bay
+cannot be inside, and with both sides open it can stand wholly within the container's
+footprint, between the posts, its modules' ends in the planes of the open sides. It
+cannot leave through an end, where the door is 2,340 wide, so it leaves sideways, with
+35 mm to spare at each end between the posts. That is the tightest figure in this
+document. If a layout cannot move 455 kg sideways that squarely, the bay is nine
+modules. The tube sections, 11.76 m long, go in through the end doors.
+
+![The container in its working state with a bay passing out through one side](img/container.png)
 
 In `models/container.xml` the container's frame has its origin on the ground under the
 middle of the container, +Y along it and +Z up; the members are boxes that collide, and
@@ -499,19 +537,22 @@ changed by this document.
 | Tube's length | 11,600 (`models/conveyor.xml`, geom `tube`) | 11,760 with the neck | derived |
 | Tube's mass | 237 kg, "about 20 kg/m" (`models/conveyor.xml`) | 105.4 kg, 8.97 kg/m | derived |
 | Rails | 20 boxes of 2,000 x 50 x 40, geoms of the tube's body (`models/conveyor.xml`, class `conveyor_rail`) | 11 hat rails of 460 x 100 x 80, each a part of its own | ours |
-| Rail's mass | 4 kg (`models/conveyor.xml`) | 2.39 kg with strap and bolt | derived |
-| Rails for each module | 2 of its own, 400 either side of the slot's centre, lying under the glass (`models/conveyor.xml`) | 2 shared with the neighbours [S4], under the long edges of the frame, 1,144 apart | published |
+| Rail's mass | 4 kg (`models/conveyor.xml`) | 2.35 kg with strap, pins and bolt | derived |
+| Rails for each module | 2 of its own, 400 either side of the slot's centre, lying under the glass (`models/conveyor.xml`) | 2 shared with the neighbours [S4], under the long edges of the frame, 1,144 apart (1,134 + 10) | derived |
 | Module's size | 2,300 x 1,100 x 35 (`src/pallet.h` `kModuleLength`, `kModuleWidth`, `kModuleThickness`; again in `src/conveyor.h` and as a literal in `src/suction.h`) | 2,382 x 1,134 x 30 [S18] | published |
 | Module's mass | 30 kg (`src/pallet.h` `kModuleMass`, `models/pallet.xml`) | 32.4 kg [S18] | published |
 | Module's make-up | one box (`models/pallet.xml`, class `module`) | a frame of four members and a laminate, as the model draws it | ours |
 | Gap between modules | 20, "a guess at what the clamps between modules need" (`src/conveyor.h` `kModuleGap`) | 10, chosen under The bay | ours |
 | Pitch of the slots | 1,120 (`src/conveyor.h` `kStepLength`; the literal `1.12` in `models/conveyor.xml`) | 1,144, the module's 1,134 and the gap | derived |
 | Modules on a tube | 10 (`src/conveyor.h` `kSlotCount`) | 10, by the rule under The bay | ours |
-| How a module is held | by its weight and friction of 0.5 (`models/conveyor.xml`) | 4 lockbolts [S7] | published |
+| How a module is held | by its weight and friction of 0.5 (`models/conveyor.xml`) | 4 pins with swaged collars: the kind from the manual [S7], the count from the four holes at 400 | derived |
+| Where a module's frame meets its rails | nowhere: the module overhangs its rails by 150 at each end and 125 at each side (the model's comment says 150), and lies on them by its glass (`models/conveyor.xml`) | the flanges of the two long sides lie on the rails over the rails' 460; nothing overhangs along the tube | derived |
 | Height of the rails' top above the tube's axis | 105 (`models/conveyor.xml`: the tube's centre 0.105 below the frame) | 124, to put the cells 90 above the tube | derived |
+| Height of the rails' top above the floor | 800 (`src/conveyor.h` `kRailTopHeight`) | not a figure of the bay: a layout chooses it. The bay's scene puts the tube's axis 1,200 up | ours |
+| What keeps the tube in place | a slide joint along the tube, driven by a motor (`models/conveyor.xml`, `conveyor_slide`) | a holder on the twelve stretches that resists 150 N m (Holding the tube) | ours |
 | Placement tolerance | 3 in the rails' plane, 0.15 degrees of yaw and of tilt (`src/trial_runner.h` `PlacementTolerance`) | 2.20 across, 3.65 along, 0.23 degrees, sharing one play | derived |
 | Modules on a pallet | 30 (`models/pallet.xml`) | 36 [S18] | published |
-| Stack pitch on the pallet | 35, one thickness (`models/pallet.xml`) | 30, the frame's height [S18] | published |
+| Stack pitch on the pallet | 35, one thickness (`models/pallet.xml`) | 30 if frame lies on frame, from the frame's height [S18]; the maker gives no pitch | derived |
 
 What a change to the reference's parts would touch:
 
@@ -678,4 +719,6 @@ or a public filing that attaches the document.
 
 [S62] 40' Hardtop High Cube. Hapag-Lloyd (Wayback). <https://web.archive.org/web/2025/https://www.hapag-lloyd.com/pt/services-information/cargo-fleet/container/40-hardtop-high-cube.html>. Read 2026-11-24. Taken: roof opening, tare.
 
-[S63] Technical specifications for purpose-built containers (Giants). Giants (filed with City of Mercer Island permit). <https://permitbulletin.mercerisland.gov/public/2307-086/SUB2/giants%20typical%20technical%20specifications%20for%20purpose-built%20containers.pdf>. Read 2026-11-24. Taken: purpose-built container ratings and reduced racking/stacking tests.
+[S63] 40ft Curtain Side Container. SCF Australia. <https://scf.com.au/products-services/intermodal-containers/curtain-side/40ft-curtain-side>. Read 2026-11-24. Taken: tare.
+
+[S64] Technical specifications for purpose-built containers (Giants). Giants (filed with City of Mercer Island permit). <https://permitbulletin.mercerisland.gov/public/2307-086/SUB2/giants%20typical%20technical%20specifications%20for%20purpose-built%20containers.pdf>. Read 2026-11-24. Taken: purpose-built container ratings and reduced racking/stacking tests.
