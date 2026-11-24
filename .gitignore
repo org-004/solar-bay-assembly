@@ -9,3 +9,6 @@
 
 # Python
 __pycache__/
+
+# The new-hire path: each student's own notebook stays on their machine
+/new-hire/notebook.md
