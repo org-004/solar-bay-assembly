@@ -56,32 +56,8 @@ Only `bitstar-1x` qualifies on all four moves, and on `--other-way` its
 every move, and the rule gives `hand-written better`. The pallets clause belongs to
 `OMPL better` only and was not reached; the pallets are reported all the same.
 
-Three things a reader should know about how that verdict came about. None of them is
-part of the rule.
-
-1. **The return decided against three candidates, by the straight line.** On `--return`
-   the straight line from start to goal is free. The own search tries that line before
-   it grows a tree (`RrtOptions::try_direct_first`) and is done after 664 collision
-   queries, shortening included. OMPL's tree planners do not try it: `ompl` needs a
-   median of 2735.0 queries and 24.19 ms where `own` needs 664.0 and 5.80 ms, and after
-   shortening returns the same straight line (same length, clearance and duration in
-   all 50 plans). That is 4.1 times the queries, above the rule's 1.5; in absolute
-   terms it is 18 ms more for a move that takes 2.97 s. `BITstar` finds the direct
-   edge first and matches `own` there, query for query.
-2. **The deciding figure comes from a planner that does not repeat a plan.**
-   `BITstar` draws part of its samples from a generator OMPL seeds from the clock, so
-   the row `bitstar-1x` is one sample. The same command line run three more times
-   printed a `duration_median_s` of 6.070, 6.048 and 5.984 s on `--other-way`: 1.059,
-   1.055 and 1.044 of `own`'s. With the last of these in the table the rule would have
-   given `no material difference`. The table holds the first run, as decided before
-   the repeats were made. No run came near what `OMPL better` asks (at most 0.95 on one
-   move and at most 1.01 on all four).
-3. **On the three carries the switch as it ships changes nothing but the count of
-   queries.** With the problem made equal, OMPL's `RRTConnect` returns the path the own
-   search returns: in all 150 plans of the three carries (50 base seeds each, four
-   seeds a plan) the waypoints, length, clearances and duration are the same to the
-   last printed digit, and the queries differ by -95 to +101 a plan of some 19,000 to
-   25,000. See "What is left unequal" for why it comes out so.
+What stands behind the two figures that decided, the straight line on the return and a
+row that does not repeat from run to run, is under "What is left unequal".
 
 ## Results
 
@@ -308,7 +284,7 @@ checked by a test of `//:ompl_search_test` (`tests/ompl_search_test.cc`):
 |---|---|---|
 | The box (R4) | OMPL plans in a `RealVectorStateSpace` whose bounds are the box `PlanMove` computed; every joint is an interval, none a circle. Every sampler OMPL allocates for the space samples in those bounds. | `OmplSearch.SamplesStayInTheBoxAndFillIt` |
 | The metric (R5) | OMPL plans in the scaled coordinates `x_i = w_i * q_i`, `w` being the planner's weights (`CollisionChecker::LeverArms()`). Its Euclidean distance is then `cell::Distance(a, b, weights)`, and its range and path lengths are in metres of motion. | `OmplSearch.DistanceIsThePlannersMetric` (200 pairs, to 1e-9) |
-| Edges (R6) | A motion validator of the file's own answers each of OMPL's edge questions by calling `cell::EdgeIsFree` with the planner's edge resolution (30 mm), weights and order: the same points, so the same verdict and the same number of collision queries. Both `checkMotion` functions are implemented. The margin budget of `src/motion_planner.h` therefore holds for a path of OMPL's. | `OmplSearch.EdgesCheckedLikeEdgeIsFree` (400 edges; on arm64 129 of them free with 20,226 queries, 271 blocked) |
+| Edges (R6) | A motion validator of the file's own answers each of OMPL's edge questions by calling `cell::EdgeIsFree` with the planner's edge resolution (30 mm), weights and order: the same points, so the same verdict and the same number of collision queries. Both `checkMotion` functions are implemented. The margin budget of `src/motion_planner.h` therefore holds for a path of OMPL's. | `OmplSearch.EdgesCheckedLikeEdgeIsFree` (400 edges; the test prints that on arm64 129 of them are free, with 20,226 queries, and 271 blocked) |
 | Settings (R7) | `OmplSettings`: the planner by name (`RRTConnect` the default, `BiTRRT`, `BITstar`, `AORRTC`, `InformedRRTstar`), the range (by default the planner's step of 3 m; 0 for OMPL's own choice), and a budget of collision queries for one search (200,000 by default). An unknown name is refused with a reason. | `OmplSearch.UnknownPlannerIsRefused`, `OmplSearch.RefusesWhatPlanRrtConnectRefuses` |
 | Solutions and stopping (R8) | Only exact solutions are returned. A search ends when a planner that only seeks a path has one, when the budget of queries is spent, or when the time left to `PlanMove` has passed on `std::chrono::steady_clock`; the limits are asked for where OMPL asks whether to stop, without a timer thread (`solve(double)` is not used). The report says which ended the search. OMPL's messages are turned off. | `OmplSearch.EveryPlannerReturnsAnExactPathAndSaysWhatStoppedIt`, `OmplSearch.NoPathEndsAtTheQueryLimit` |
 | Seeds (R9) | Every state sampler of the space is seeded with the seed `PlanMove` gives the k-th plan, the one the own search gets. OMPL's process-wide seed is not touched. `RRTConnect` and `BiTRRT` then repeat a single plan; the other three do not (below). | `OmplSearch.SameSeedSamePath`; `print_plan --planner ompl` twice (the acceptance criteria) |
@@ -316,7 +292,11 @@ checked by a test of `//:ompl_search_test` (`tests/ompl_search_test.cc`):
 | The switch (R11) | `MotionPlanOptions::search` chooses the call; the box, the margins, the start and goal checks, the seeds, the rounds (OMPL's budget doubled each round as the iterations are), `ShortenPath`, the choice of the shortest, the resampling, the clearance measurement and the report are one code for both. | `OmplSearch.PlanMovePlansTheCarry`, `OmplSearch.OneCycleWithOmplPlaces` |
 
 That the result is an equal problem shows in the tables: `own` and `ompl` are the same
-algorithm given the same samples, and they return the same paths.
+algorithm given the same samples, and they return the same paths. Plan against plan,
+in all 150 plans of the three carries (50 base seeds each, four seeds a plan) the
+waypoints, length, clearances and duration that `print_plan` prints for a seed are the
+same for the two; only the queries differ, by -95 to +101 a plan of some 19,000 to
+25,000 (see the next section for why).
 
 ## What is left unequal
 
@@ -325,11 +305,16 @@ Each remaining difference, and which way it can push the figures.
 - **The straight line first (`try_direct_first`).** The own search checks the straight
   line from start to goal before it grows a tree; OMPL's planners are not given that
   step, because it is part of `PlanRrtConnect` and not of the problem. Where the line is
-  blocked (the three carries) it costs `own` a few queries. Where it is free (the
-  return) `own` is done at once and OMPL's tree planners are not: against OMPL by 684
-  to 4,591 queries a plan on the return (median 2,076), and that is what clause (c)
-  failed on for `ompl`, `bitrrt` and `aorrtc-1x`. It does not change the path that
-  comes out after shortening.
+  blocked (the three carries) it costs `own` one blocked edge check. Where it is free
+  (the return) `own` is done at once, after 664 queries with the shortening, and OMPL's
+  tree planners are not: `ompl` needs a median of 2735.0 queries and 24.19 ms where
+  `own` needs 664.0 and 5.80 ms, plan by plan 684 to 4,591 queries more (median 2,071).
+  This is against OMPL, and it is what clause (c) failed on for `ompl`, `bitrrt` and
+  `aorrtc-1x`: one of the two figures that decided the verdict. It does not change the
+  path: after shortening `ompl` returns the same straight line in all 50 plans (same
+  length, clearance and duration), so in absolute terms the difference is 18 ms of
+  computing for a move that takes 2.97 s. `BITstar` spends exactly `own`'s 664 queries
+  there in every plan.
 - **One more query for each step of the goal tree.** OMPL's `RRTConnect` (and `BiTRRT`)
   grows its goal tree by asking whether the new configuration is free and then whether
   the edge from it back to the tree is, and that edge's check ends on the tree's node,
@@ -337,8 +322,8 @@ Each remaining difference, and which way it can push the figures.
   never asks about the node again. Each accepted step of the goal tree so costs OMPL
   one query more; a blocked edge, checked from the other end, can cost either search
   more or fewer queries than the other. On the three carries the sum is -95 to +101
-  queries a plan, with medians of +12 to +17: against OMPL, by under a tenth of a per
-  cent.
+  queries a plan, with medians of +11 to +17: against OMPL, by under a tenth of a per
+  cent at the median and by half a per cent of a plan at most.
 - **The nearest-neighbour search.** A linear scan in the own search, a GNAT tree in
   OMPL. It changes the computing time, not the queries or the path. With trees of the
   size these moves need it does not show: `own-1` and `ompl-1` take 63.29 and 63.21 ms
@@ -371,8 +356,13 @@ Each remaining difference, and which way it can push the figures.
   generators that OMPL 2.0.2 keeps private and seeds from the clock (an informed
   sampler, cost samples, a goal bias), so the seed fixes only their samples up to the
   first path, and their rows are a sample that a second run does not reproduce. This
-  can push their figures either way; for the row that decided the verdict the spread
-  over four runs is given under Verdict.
+  can push their figures either way, and it touches the other figure that decided the
+  verdict: `bitstar-1x` on `--other-way`, 6.037 s against `own`'s 5.734 s. The same
+  command line run three more times printed a `duration_median_s` of 6.070, 6.048 and
+  5.984 s: 1.059, 1.055 and 1.044 of `own`'s, where the table's run is 1.053. With the
+  last of these in the table the rule would have given `no material difference`. The
+  table holds the first run, as decided before the repeats were made. No run came near
+  what `OMPL better` asks (at most 0.95 on one move and at most 1.01 on all four).
 - **Time ended some searches of `InformedRRTstar`.** `PlanMove` has 10 s for a plan.
   The `ms_worst` of `informed-10x` is at that limit on the default carry and on
   `--other-way` (10,093.88 and 10,058.70 ms): those plans were ended by the clock, not
@@ -385,9 +375,10 @@ Each remaining difference, and which way it can push the figures.
 - **The compiler's settings.** OMPL is compiled like the rest of this repository, as
   C++20 at `-O2 -DNDEBUG`; its maintainers build and test it as C++17 at `-O3`. This
   can only make OMPL's computing times here longer than a build of its maintainers'
-  kind would give; it does not touch queries, lengths or durations. With a collision
-  query at about 9 microseconds, the queries are nearly all of the time for both
-  searches.
+  kind would give; it does not touch queries, lengths or durations. The queries are
+  nearly all of the time for both searches: `own` and `ompl` take 241.85 and 243.90 ms
+  at the median for some 25,360 queries on the default carry, about 9.5 microseconds a
+  query.
 - **The last bit.** OMPL's states are the joint angles times the weights, turned back
   by a division, which can move the last bit of a configuration; the ends of a path
   are set back to the start and goal given. The start and the goal are checked once by
@@ -412,19 +403,20 @@ checked with, `ShortenPath`, which shortens OMPL's paths too, and the types the 
 is called with (`IsFree`, `JointPath`, `RrtOptions`, `RrtReport`, `RrtStatus`).
 
 **What could be deleted.** The RRT-Connect itself: in `src/rrt.cc` the tree, the
-planner and `PlanRrtConnect` (lines 87 to 224 and 370 to 485, 254 of the file's 565
+planner and `PlanRrtConnect` (lines 84 to 222 and 370 to 484, 254 of the file's 565
 lines); in `src/rrt.h` the declarations of `PlanRrtConnect` and `RrtTrees` (lines 290 to
 315, 26 of 397 lines) with the parts of the opening comment and of `RrtOptions` that
 describe RRT-Connect only (`goal_bias`, `max_iterations`, `try_direct_first`). Of the 21
-tests of `tests/rrt_test.cc` (703 lines) 4 call `PlanRrtConnect`; `src/print_rrt.cc`
-(332 lines) prints tables of it. The toy worlds (`src/rrt_worlds.h`) are used by
+tests of `tests/rrt_test.cc` (703 lines) 12 plan with `PlanRrtConnect`, 4 by name and 8
+through the file's `Plan` helper; `src/print_rrt.cc` (332 lines) prints tables of it. The toy worlds (`src/rrt_worlds.h`) are used by
 `tests/ompl_search_test.cc` as well.
 
 **What would change in behaviour.** On the three carries nothing: the same paths (150
 of 150 plans). On the return, and on any move whose straight line is free, the own
 search's first step is missing: a median of 2735.0 queries and 24.19 ms in place of
 664.0 and 5.80 ms, for the same path. Over three whole pallets the two placed the same
-90 of 90 within the same errors, with the same carry and cycle times.
+90 of 90, with placement errors that agree to 0.01 mm and the same carry and cycle
+times.
 
 **What the build pays for OMPL.**
 
@@ -495,7 +487,7 @@ $P $MOVE --planner ompl --ompl-planner BiTRRT --summary   # bitrrt
 $P $MOVE --planner ompl --ompl-planner NAME --plan-seeds 1 --ompl-queries Q --summary               # -1x
 $P $MOVE --planner ompl --ompl-planner NAME --plan-seeds 1 --ompl-queries 10Q --seeds 10 --summary  # -10x
 
-# Plan against plan (Verdict, point 3; What is left unequal): the rows for each seed.
+# Plan against plan (How the two were made equal; What is left unequal): the rows for each seed.
 $P $MOVE
 $P $MOVE --planner ompl
 
