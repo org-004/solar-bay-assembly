@@ -10,6 +10,7 @@
 //   bazel run //:run_cell -- [--pretty] [--seed N] [--modules M] [--phases]
 //                            [--trials T] [--nominal] [--blind] [--no-noise]
 //                            [--calibration MM,DEG] [--carry planned|scripted]
+//                            [--planner own|ompl]
 //                            [--check] [--check-calibration MM,DEG]
 //                            [--verbose]
 //
@@ -29,6 +30,11 @@
 //                the carry from the end of "clear" to over the slot: the
 //                three scripted joint moves (the default), or one move
 //                planned by the motion planner (src/pick_place.h)
+//   --planner own|ompl
+//                which search plans the planned carry: the hand-written
+//                RRT-Connect of src/rrt.h (own, the default) or OMPL's
+//                (src/ompl_search.h). It matters only with --carry planned
+//                or --check.
 //   --check      the check after pickup (src/pick_place.h): the planned
 //                carry (implied) through the check pose over the check
 //                camera, where the grip is measured and the place corrected
@@ -413,7 +419,8 @@ int main(int argc, char** argv) {
       "usage: %s <cell.xml> [--pretty] [--seed N] [--modules M] [--trials T] "
       "[--first K] [--nominal] [--xy MM] [--yaw DEG] [--camera | --blind] "
       "[--noise | --no-noise] [--calibration MM,DEG] "
-      "[--carry scripted|planned] [--check] [--check-calibration MM,DEG] "
+      "[--carry scripted|planned] [--planner own|ompl] [--check] "
+      "[--check-calibration MM,DEG] "
       "[--phases] [--verbose] [--save-failures DIR] [--replay FILE]\n";
   if (argc < 2) {
     std::fprintf(stderr, usage, argv[0]);
@@ -422,6 +429,7 @@ int main(int argc, char** argv) {
   bool pretty = false, nominal = false, verbose = false, phases = false;
   bool camera = true, noise = true, with_check = false;
   cell::CarryMode carry = cell::CarryMode::kScripted;
+  cell::PlanSearch planner = cell::PlanSearch::kOwn;
   double calibration_mm = 0.0, calibration_deg = 0.0;
   double check_calibration_mm = 0.0, check_calibration_deg = 0.0;
   long first_seed = 1;
@@ -458,6 +466,14 @@ int main(int argc, char** argv) {
         std::fprintf(stderr, usage, argv[0]);
         return 1;
       }
+    } else if (std::strcmp(argv[i], "--planner") == 0 && has_value) {
+      const std::optional<cell::PlanSearch> search =
+          cell::PlanSearchFromName(argv[++i]);
+      if (!search) {
+        std::fprintf(stderr, usage, argv[0]);
+        return 1;
+      }
+      planner = *search;
     } else if (std::strcmp(argv[i], "--check") == 0) {
       with_check = true;
     } else if (std::strcmp(argv[i], "--check-calibration") == 0 && has_value) {
@@ -514,6 +530,7 @@ int main(int argc, char** argv) {
     calibration_mm = s.calibration_mm;
     calibration_deg = s.calibration_deg;
     carry = s.carry;
+    planner = s.planner;
     with_check = s.check;
     check_calibration_mm = s.check_calibration_mm;
     check_calibration_deg = s.check_calibration_deg;
@@ -543,6 +560,7 @@ int main(int argc, char** argv) {
   settings.calibration_mm = calibration_mm;
   settings.calibration_deg = calibration_deg;
   settings.carry = carry;
+  settings.planner = planner;
   settings.check = with_check;
   settings.check_calibration_mm = check_calibration_mm;
   settings.check_calibration_deg = check_calibration_deg;
@@ -688,7 +706,7 @@ int main(int argc, char** argv) {
     }
   }
   const char* lead = pretty ? "" : "# ";
-  std::printf("%s%s%d of %zu cycles placed (%s%s%s, %s carry%s%s)",
+  std::printf("%s%s%d of %zu cycles placed (%s%s%s, %s carry%s%s%s)",
               pretty ? "\n" : "", lead, placed, rows.size(),
               camera ? "camera" : "blind",
               camera ? (noise ? ", noisy pictures" : ", exact pictures") : "",
@@ -696,6 +714,10 @@ int main(int argc, char** argv) {
                   ? ", calibration off"
                   : "",
               cell::CarryModeName(carry),
+              carry == cell::CarryMode::kPlanned &&
+                      planner == cell::PlanSearch::kOmpl
+                  ? " by OMPL"
+                  : "",
               with_check ? ", check after pickup" : "",
               with_check && (check_calibration_mm > 0.0 ||
                         check_calibration_deg > 0.0)

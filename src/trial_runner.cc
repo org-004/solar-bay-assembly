@@ -81,6 +81,7 @@ PickPlaceOptions OptionsFor(const TrialSettings& s) {
   options.sensing = s.camera ? SensingMode::kCamera : SensingMode::kBlind;
   options.carry = s.effective_carry();
   options.check_after_pickup = s.check;
+  options.planner.search = s.planner;
   return options;
 }
 
@@ -404,6 +405,7 @@ std::string RunCellFlags(const TrialSettings& s, int through_cycle) {
          Number(s.calibration_deg);
   }
   if (s.carry == CarryMode::kPlanned) f += " --carry planned";
+  if (s.planner == PlanSearch::kOmpl) f += " --planner ompl";
   if (s.check) f += " --check";
   if (s.check_calibration_mm != 0.0 || s.check_calibration_deg != 0.0) {
     f += " --check-calibration " + Number(s.check_calibration_mm) + "," +
@@ -456,6 +458,7 @@ std::string FormatFailureRecord(const FailureRecord& r,
   o << "calibration_mm = " << Number(s.calibration_mm) << "\n";
   o << "calibration_deg = " << Number(s.calibration_deg) << "\n";
   o << "carry = " << CarryModeName(s.carry) << "\n";
+  o << "planner = " << PlanSearchName(s.planner) << "\n";
   o << "check = " << (s.check ? 1 : 0) << "\n";
   o << "check_calibration_mm = " << Number(s.check_calibration_mm) << "\n";
   o << "check_calibration_deg = " << Number(s.check_calibration_deg) << "\n";
@@ -553,6 +556,13 @@ std::optional<FailureRecord> ParseFailureRecord(const std::string& text,
     s.carry = CarryMode::kScripted;
   } else if (ok) {
     return fail("carry must be planned or scripted, not \"" + carry + "\"");
+  }
+  // Text saved before the planner was a setting has no such line: own.
+  const std::string planner = values.count("planner") ? values["planner"] : "own";
+  if (const std::optional<PlanSearch> search = PlanSearchFromName(planner)) {
+    s.planner = *search;
+  } else if (ok) {
+    return fail("planner must be own or ompl, not \"" + planner + "\"");
   }
   s.check = integer("check") != 0;
   s.check_calibration_mm = real("check_calibration_mm");

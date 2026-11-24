@@ -75,6 +75,8 @@ struct TrialSettings {
   double calibration_deg = 0.0;
   CarryMode carry = CarryMode::kScripted;  // as asked; check implies planned
   bool check = false;                      // the check after pickup
+  // Which search plans the planned carry (see src/motion_planner.h).
+  PlanSearch planner = PlanSearch::kOwn;
   double check_calibration_mm = 0.0;       // check camera's
   double check_calibration_deg = 0.0;
 

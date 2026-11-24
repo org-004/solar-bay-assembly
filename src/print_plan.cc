@@ -14,6 +14,9 @@
 //                              [--slot S] [--first-seed B] [--both-ways]
 //                              [--other-way] [--plan-seeds P] [--resample M]
 //                              [--corner MM] [--resolution MM] [--over-slot]
+//                              [--planner own|ompl] [--ompl-planner NAME]
+//                              [--ompl-range M] [--ompl-queries Q]
+//                              [--summary]
 //
 //   --module K      the module carried (default 0): modules 0 .. K-1 are
 //                   taken off the stack first (Cell::ParkModule)
@@ -34,6 +37,24 @@
 //   --resample M    MotionPlanOptions::resample_spacing, m of motion
 //   --corner MM     MotionPlanOptions::corner_allowance, mm
 //   --resolution MM MotionPlanOptions::edge_resolution, mm
+//   --planner own|ompl
+//                   MotionPlanOptions::search: the hand-written RRT-Connect
+//                   of src/rrt.h (own, the default) or OMPL's
+//                   (src/ompl_search.h)
+//   --ompl-planner NAME
+//                   OmplSettings::planner, one of cell::OmplPlannerNames()
+//                   (default RRTConnect); refused if unknown
+//   --ompl-range M  OmplSettings::range, m of motion; 0 leaves the choice
+//                   to OMPL (default: MotionPlanOptions::step)
+//   --ompl-queries Q
+//                   OmplSettings::max_queries, a positive integer
+//                   (default 200000)
+//   --summary       in place of the header and the rows, two lines of CSV: the
+//                   column names and one row of figures over all the plans
+//                   (a plan is one base seed); the "#" lines stay
+//
+// Given any of --planner and the --ompl- flags, the first "#" line ends with
+// the search and, for OMPL, its settings.
 //
 // The scene is the nominal one, Reset(1, Randomization::None()), and the
 // obstacles are where the simulation has them (SetScene); the start and
@@ -92,6 +113,12 @@ struct Args {
   double resample = 0.0;  // m; 0: the default
   double corner = -1.0;   // m; negative: the default
   double resolution = 0.0;  // m; 0: the default
+  bool search_given = false;  // any of the search flags
+  cell::PlanSearch search = cell::PlanSearch::kOwn;
+  std::string ompl_planner = "RRTConnect";
+  std::optional<double> ompl_range;  // m; 0: OMPL's own
+  std::int64_t ompl_queries = 200000;
+  bool summary = false;
 };
 
 struct Row {
@@ -172,6 +199,56 @@ int main(int argc, char** argv) {
       args.corner = 1e-3 * std::atof(value());
     } else if (a == "--resolution") {
       args.resolution = 1e-3 * std::atof(value());
+    } else if (a == "--planner") {
+      const std::string name = value();
+      const std::optional<cell::PlanSearch> search =
+          cell::PlanSearchFromName(name);
+      if (!search) {
+        std::fprintf(stderr, "--planner must be own or ompl, not %s\n",
+                     name.c_str());
+        return 2;
+      }
+      args.search = *search;
+      args.search_given = true;
+    } else if (a == "--ompl-planner") {
+      args.ompl_planner = value();
+      if (!cell::IsOmplPlanner(args.ompl_planner)) {
+        std::string known;
+        for (const std::string& n : cell::OmplPlannerNames()) {
+          known += (known.empty() ? "" : ", ") + n;
+        }
+        std::fprintf(stderr, "unknown OMPL planner %s; known: %s\n",
+                     args.ompl_planner.c_str(), known.c_str());
+        return 2;
+      }
+      args.search_given = true;
+    } else if (a == "--ompl-range") {
+      const char* text = value();
+      char* end = nullptr;
+      const double range = std::strtod(text, &end);
+      if (end == text || *end != '\0' || !(range >= 0.0)) {
+        std::fprintf(stderr,
+                     "--ompl-range must be a number of metres, 0 or more, "
+                     "not %s\n",
+                     text);
+        return 2;
+      }
+      args.ompl_range = range;
+      args.search_given = true;
+    } else if (a == "--ompl-queries") {
+      const char* text = value();
+      char* end = nullptr;
+      const long long queries = std::strtoll(text, &end, 10);
+      if (end == text || *end != '\0' || queries <= 0) {
+        std::fprintf(stderr,
+                     "--ompl-queries must be a positive integer, not %s\n",
+                     text);
+        return 2;
+      }
+      args.ompl_queries = queries;
+      args.search_given = true;
+    } else if (a == "--summary") {
+      args.summary = true;
     } else {
       std::fprintf(stderr, "unknown option %s\n", a.c_str());
       return 2;
@@ -267,6 +344,10 @@ int main(int argc, char** argv) {
   if (args.resample > 0.0) options.resample_spacing = args.resample;
   if (args.corner >= 0.0) options.corner_allowance = args.corner;
   if (args.resolution > 0.0) options.edge_resolution = args.resolution;
+  options.search = args.search;
+  options.ompl.planner = args.ompl_planner;
+  options.ompl.range = args.ompl_range;
+  options.ompl.max_queries = args.ompl_queries;
 
   std::vector<Row> rows;
   for (int s = 0; s < args.seeds; ++s) {
@@ -306,7 +387,7 @@ int main(int argc, char** argv) {
       args.pretty ? "%6u %5s %9.1f %10.1f %8lld %9d %8.2f %9.1f %8.1f %8.2f  %s\n"
                   : "%u,%s,%.2f,%.2f,%lld,%d,%.3f,%.2f,%.2f,%.3f,%s\n";
   std::printf("# %s of module_%d, tube at slot %d%s%s; planning margin %.1f mm "
-              "(self %.1f), max deviation %.2f mrad, tracking %.2f mrad\n",
+              "(self %.1f), max deviation %.2f mrad, tracking %.2f mrad",
               args.return_move ? "return" : "carry", args.module, args.slot,
               args.other_way ? ", goal the other way round" : "",
               args.both_ways ? ", both ways tried" : "",
@@ -314,7 +395,24 @@ int main(int argc, char** argv) {
               rows.empty() ? 0.0 : 1e3 * rows[0].report.planning_self_margin,
               rows.empty() ? 0.0 : 1e3 * rows[0].report.max_deviation,
               rows.empty() ? 0.0 : 1e3 * rows[0].report.tracking_bound);
-  if (args.pretty) {
+  if (args.search_given) {
+    std::printf("; search %s", cell::PlanSearchName(args.search));
+    if (args.search == cell::PlanSearch::kOmpl) {
+      std::printf(" (%s, ", args.ompl_planner.c_str());
+      const double range = args.ompl_range.value_or(options.step);
+      if (args.ompl_range && *args.ompl_range == 0.0) {
+        std::printf("range OMPL's own");
+      } else {
+        std::printf("range %.2f m", range);
+      }
+      std::printf(", %lld queries)",
+                  static_cast<long long>(args.ompl_queries));
+    }
+  }
+  std::printf("\n");
+  if (args.summary) {
+    // No header and no rows: the figures below.
+  } else if (args.pretty) {
     std::printf("%6s %5s %9s %10s %8s %9s %8s %9s %8s %8s  %s\n", "seed",
                 "found", "search_ms", "shorten_ms", "queries", "waypoints",
                 "length_m", "clear_mm", "self_mm", "time_s", "note");
@@ -323,7 +421,7 @@ int main(int argc, char** argv) {
                 "clearance_mm,self_clearance_mm,duration_s,note\n");
   }
   std::vector<double> search, shorten, total, queries, length, duration,
-      clearance;
+      clearance, self_clearance;
   int found = 0;
   int other_side = 0;
   for (const Row& row : rows) {
@@ -336,16 +434,19 @@ int main(int argc, char** argv) {
         ++other_side;
       }
     }
-    std::printf(format, row.base_seed, row.found ? "yes" : "no",
-                1e3 * r.search_seconds, 1e3 * r.shorten_seconds,
-                static_cast<long long>(r.search_queries + r.shorten_queries),
-                r.waypoints, r.length, row.found ? 1e3 * r.clearance : 0.0,
-                row.found ? 1e3 * r.self_clearance : 0.0, row.duration,
-                note.c_str());
+    if (!args.summary) {
+      std::printf(format, row.base_seed, row.found ? "yes" : "no",
+                  1e3 * r.search_seconds, 1e3 * r.shorten_seconds,
+                  static_cast<long long>(r.search_queries + r.shorten_queries),
+                  r.waypoints, r.length, row.found ? 1e3 * r.clearance : 0.0,
+                  row.found ? 1e3 * r.self_clearance : 0.0, row.duration,
+                  note.c_str());
+    }
     search.push_back(1e3 * r.search_seconds);
     shorten.push_back(1e3 * r.shorten_seconds);
     total.push_back(1e3 * (r.search_seconds + r.shorten_seconds));
     queries.push_back(static_cast<double>(r.search_queries + r.shorten_queries));
+    if (row.found) self_clearance.push_back(1e3 * r.self_clearance);
     if (row.found) {
       ++found;
       length.push_back(r.length);
@@ -355,6 +456,19 @@ int main(int argc, char** argv) {
   }
   const double min_clearance =
       clearance.empty() ? 0.0 : *std::min_element(clearance.begin(), clearance.end());
+  if (args.summary) {
+    auto smallest = [](const std::vector<double>& v) {
+      return v.empty() ? 0.0 : *std::min_element(v.begin(), v.end());
+    };
+    std::printf("plans,found,queries_median,queries_worst,ms_median,ms_worst,"
+                "length_median,length_worst,clearance_min_mm,"
+                "self_clearance_min_mm,duration_median_s,duration_worst_s\n");
+    std::printf("%d,%d,%.1f,%.0f,%.2f,%.2f,%.3f,%.3f,%.2f,%.2f,%.3f,%.3f\n",
+                static_cast<int>(rows.size()), found, Median(queries),
+                Max(queries), Median(total), Max(total), Median(length),
+                Max(length), smallest(clearance), smallest(self_clearance),
+                Median(duration), Max(duration));
+  }
   std::printf("# found %d of %zu (%.0f%%)%s\n", found, rows.size(),
               rows.empty() ? 0.0 : 100.0 * found / rows.size(),
               other_side ? (", " + std::to_string(other_side) +
