@@ -1853,6 +1853,45 @@ cc_library(
         "@mujoco",
     ],
 )
+
+# Every layout loads; the chosen one's model agrees with its file and
+# nothing in it overlaps.
+#   bazel test --config=opt //:layout_model_test --test_output=all
+cc_test(
+    name = "layout_model_test",
+    size = "small",
+    srcs = ["tests/layout_model_test.cc"],
+    data = LAYOUT_FILES + LAYOUT_MODEL_FILES,
+    env = LAYOUT_ENV,
+    deps = [
+        ":bay_hardware",
+        ":container",
+        ":layout",
+        ":layout_model",
+        ":mj_handles",
+        "@eigen",
+        "@googletest//:gtest_main",
+        "@mujoco",
+        "@nlohmann_json//:json",
+    ],
+)
+
+# Draws a layout in a window, in a state of the bay or at a work point.
+#   bazel run --config=opt //:viewer_layout -- below --state finished
+cc_binary(
+    name = "viewer_layout",
+    srcs = ["src/view_layout.cc"],
+    data = LAYOUT_FILES + LAYOUT_MODEL_FILES,
+    env = LAYOUT_ENV,
+    deps = [
+        ":layout",
+        ":layout_check",
+        ":layout_model",
+        ":mj_handles",
+        ":viewer_lib",
+        "@mujoco",
+    ],
+)
 # END layout
 
 # BEGIN layout_check
@@ -1868,11 +1907,60 @@ cc_library(
         ":layout",
         ":layout_model",
         ":mj_handles",
+        ":portable_random",
         "@eigen",
         "@mujoco",
+    ],
+)
+
+# One row per check of a layout, or the layouts' names.
+#   bazel run --config=opt //:check_layout -- --list
+#   bazel run --config=opt //:check_layout -- below [--summary|--steps] [--pretty]
+cc_binary(
+    name = "check_layout",
+    srcs = ["src/check_layout.cc"],
+    data = LAYOUT_FILES + LAYOUT_MODEL_FILES,
+    env = LAYOUT_ENV,
+    deps = [
+        ":layout",
+        ":layout_check",
+        ":layout_model",
+    ],
+)
+
+# The reference layout passes; a copy broken in memory fails each check.
+#   bazel test --config=opt //:layout_check_test
+cc_test(
+    name = "layout_check_test",
+    size = "small",
+    srcs = ["tests/layout_check_test.cc"],
+    data = LAYOUT_FILES + LAYOUT_MODEL_FILES,
+    env = LAYOUT_ENV,
+    deps = [
+        ":bay_hardware",
+        ":container",
+        ":layout",
+        ":layout_check",
+        ":layout_model",
+        "@eigen",
+        "@googletest//:gtest_main",
     ],
 )
 # END layout_check
 
 # BEGIN locate
+# R8: the locating move on one module in physics (tests/locate_physics_test.cc).
+cc_test(
+    name = "locate_physics_test",
+    size = "medium",
+    srcs = ["tests/locate_physics_test.cc"],
+    deps = [
+        ":bay_hardware",
+        ":bay_model",
+        ":mj_handles",
+        "@eigen",
+        "@googletest//:gtest_main",
+        "@mujoco",
+    ],
+)
 # END locate

@@ -544,8 +544,32 @@ for the tools:
 | Anything else | nothing | | ours |
 
 What is taken as given: that a nose which has entered both slots does pull the module
-over, as the owner has decided. Whether it does depends on the slots' edges, the nose's
-finish and the mount's give, and no test of that was made. Published figures would
+over, as the owner has decided. Whether it does on the real parts depends on the slots'
+edges, the nose's finish and the mount's give, and no test of that was made on parts.
+
+In simulation the move does what this section says. `tests/locate_physics_test.cc` lays
+one module on two rails of the bay's model, with the slots cut as rectangles of the
+slots' sizes and nominal holes, and drives four noses of the shape above up through
+them in the order 0, 2, 3, 1, each on a mount that floats on springs, with no arm; a
+nose that is in stays in and stands for the loose pin. The search loop is left out:
+each tip starts under its opening. Friction is 0.61 on every face.
+
+| Start | Hole 0 before, across and along | Hole 0 after | Farthest hole after | Yaw before and after | Largest force on a nose | Basis |
+|---|---|---|---|---|---|---|
+| In its place | 0.000, 0.000 | 0.000, 0.000 | 0.000, 0.000 | 0 to 0 degrees | 16.4 N, the drive alone | derived |
+| 3.0 across, +0.15 degrees: the worst the gate accepts, nominal holes | 4.435, -0.522 | 1.941, 0.112 | 1.941, 0.283 | 0.150 to 0.025 degrees | 202.1 N | derived |
+| 3.5 across, +0.15 degrees: beyond the gate, standing for the hole tolerance of 0.5 | 4.935, -0.522 | 1.948, 0.231 | 1.949, 0.231 | 0.150 to 0.000 degrees | 200.1 N | derived |
+| 3.0 along, +0.15 degrees | 1.471, 2.465 | 1.434, 2.360 | 1.433, 3.390 | 0.154 to 0.148 degrees | 221.8 N | derived |
+| 3.0 at 45 degrees, -0.15 degrees | 0.687, 2.647 | 0.626, 2.249 | 1.947, 2.248 | -0.150 to -0.069 degrees | 208.6 N | derived |
+
+Every hole of every start ends inside the pin's play, no hole rises more than 0.005 off
+its rail, and the largest force stays under the 248.0 N of thrust worked out above. A
+hole ends where the arithmetic leaves it: 1.941 to 1.949 across against 1.950, and 3.390
+along against 3.400. The module that starts 3.0 along keeps its yaw, because its holes
+are already inside 1.950 across and no nose pushes it sideways. The simulation's
+contacts are stiff springs, its slots have square corners and its tips do not search,
+so it shows the geometry and the forces of the design and not the behaviour of real
+edges. Published figures would
 replace the `ours` rows in three ways. The frame maker's slot drawing, with its
 tolerances and the shape of its corners, would replace the obround reading, and with it
 the capture and the place a hole is left in. The lockbolt maker's pin and its hole would

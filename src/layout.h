@@ -38,8 +38,8 @@
 //   rail_take    a rail taken from the stock "rails", once for each rail;
 //   rail_set     a rail set down on the tube from above, 10 points;
 //   strap_bolt   a strap's bolt driven along -X under the tube, 10 points;
-//   module_take  a module taken off the pallet from above, 36 points, the
-//                stack one module lower each time;
+//   module_take  a module taken off the pallet, 36 points, the stack one
+//                module smaller each time (see Pallet for the direction);
 //   module_set   a module set down on its two rails from above, 9 points;
 //   locate       the nose of "Locating a module before pinning" brought up
 //                under a hole, 36 points;
@@ -154,10 +154,22 @@ struct ArmUse {
   double tool_change_s = 0.0;
 };
 
+// The pallet's own frame: its origin at pos, x along the modules' long side,
+// y along the stack, z up, turned by yaw_deg about z from the layout's frame.
+// "on_long_edge": the modules stand on their long edge on the deck, side by
+// side along y, the full stack centred on pos; module j (0 is taken first) has
+// its centre at y = (j - (modules - 1) / 2) * pitch and at the deck's height
+// plus half a module's width, and its glass faces -y. It is taken by its
+// glass: the working point is the centre of the glass face, the tool's z
+// along +y, the tool's x along the pallet's x or its opposite. "flat": the
+// modules lie glass up in one stack on the deck, module j at the height of
+// the deck plus (modules - 1 - j) * pitch, taken from above: the working
+// point is the centre of the top module's glass, the tool's z down.
 struct Pallet {
   Vec3 pos{};                  // Centre of its footprint, on the ground.
   double yaw_deg = 0.0;        // 0: the modules' long side along X.
   int modules = 0;
+  std::string stands;          // "on_long_edge" or "flat".
   std::string how;             // How the modules stand on it, in words.
   double base_height = 0.0;    // Top of the pallet's deck above pos.
   double pitch = 0.0;          // From one module to the next in the stack.

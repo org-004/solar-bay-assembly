@@ -60,7 +60,7 @@
    {
     "name": "stand_2_saddle",
     "size": [
-     0.24,
+     0.22,
      0.3,
      0.04
     ],
@@ -112,7 +112,7 @@
    {
     "name": "stand_4_saddle",
     "size": [
-     0.24,
+     0.22,
      0.3,
      0.04
     ],
@@ -164,7 +164,7 @@
    {
     "name": "stand_6_saddle",
     "size": [
-     0.24,
+     0.22,
      0.3,
      0.04
     ],
@@ -216,7 +216,7 @@
    {
     "name": "stand_8_saddle",
     "size": [
-     0.24,
+     0.22,
      0.3,
      0.04
     ],
@@ -255,12 +255,12 @@
    {
     "name": "end_column",
     "size": [
-     0.16,
-     0.16,
+     0.1,
+     0.1,
      0.855
     ],
     "pos": [
-     -1.05,
+     -1.11,
      -5.4,
      0.8775
     ]
@@ -274,7 +274,7 @@
     ],
     "pos": [
      -1.05,
-     -5.385,
+     -5.4,
      1.4
     ]
    }
@@ -325,13 +325,13 @@
     "carriage": {
      "name": "carriage",
      "size": [
-      0.9,
       1.3,
+      0.9,
       0.05
      ],
      "pos": [
-      0.0,
       -0.15,
+      0.0,
       -0.025
      ]
     },
@@ -418,19 +418,19 @@
    },
    "wait_joints_deg": [
     180,
-    -100,
+    -140,
     150,
     0,
-    -60,
+    15,
     0
    ],
    "wait_track": 0.0,
    "stow_joints_deg": [
     180,
-    -100,
+    -140,
     150,
     0,
-    -60,
+    15,
     0
    ],
    "stow_track": 0.0,
@@ -595,12 +595,12 @@
        "size": [
         0.09,
         0.09,
-        0.17
+        0.155
        ],
        "pos": [
         0,
         0,
-        0.085
+        0.0775
        ]
       },
       {
@@ -608,12 +608,12 @@
        "size": [
         0.018,
         0.018,
-        0.075
+        0.095
        ],
        "pos": [
         0,
         0,
-        0.2075
+        0.2025
        ]
       }
      ],
@@ -664,18 +664,19 @@
  ],
  "pallet": {
   "pos": [
-   2.8,
+   2.85,
    0.0,
    0.0
   ],
-  "yaw_deg": 0.0,
+  "yaw_deg": -90.0,
   "modules": 36,
-  "how": "Flat, glass up, frame on frame, the long side along X: a stack of 36, the top one taken from above.",
+  "how": "As the maker packs them: 36 modules standing on their long edge side by side, the glass of each toward the container. The module arm takes the nearest one by its glass with the tool lying level, and turns it flat on the way.",
   "base_height": 0.15,
   "pitch": 0.03,
   "outside": true,
   "basis": "ours",
-  "source": "36 to a pallet is the maker's figure (docs/bay-hardware.md, Module); the flat stack and its pitch of one frame height are ours."
+  "source": "36 to a pallet is the maker's figure (docs/bay-hardware.md, Module). That they stand on their long edge is read from the maker's unpacking manual and a sibling datasheet's pallet size; which way the glass faces, the deck's height and the pitch of one frame thickness are ours.",
+  "stands": "on_long_edge"
  },
  "stocks": [
   {

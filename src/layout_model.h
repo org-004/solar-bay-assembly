@@ -72,8 +72,10 @@ struct LayoutState {
 std::string BuildLayoutXml(const Layout& layout, const LayoutState& state,
                            const ModelPaths& paths, std::string* error);
 
-// The compiled model, or nullptr with *error set. The model's qpos0 holds
-// the state's arm poses.
+// The compiled model, or nullptr with *error set. Its keyframe 0 ("state")
+// holds the state's arm poses and track values: start with
+// mj_resetDataKeyframe(model, data, 0). qpos0 is the model files' zero pose
+// and stays so, because MuJoCo places a joint at qpos - qpos0.
 ModelPtr LoadLayoutModel(const Layout& layout, const LayoutState& state,
                          const ModelPaths& paths, std::string* error);
 
@@ -109,7 +111,10 @@ struct LayoutHandles {
   std::vector<std::vector<int>> rail_geoms;           // [rail], strap included.
   std::vector<std::vector<int>> module_geoms;         // [module]
   std::vector<int> pallet_base_geoms;
-  std::vector<std::vector<int>> pallet_module_geoms;  // [0] is the lowest.
+  // [j] is module j in the order of taking (src/layout.h, Pallet), one entry
+  // for each of the pallet's modules; an entry is empty when that module has
+  // been taken (state.pallet_modules = n leaves j = modules - n .. modules - 1).
+  std::vector<std::vector<int>> pallet_module_geoms;
   std::map<std::string, std::vector<int>> stock_geoms;
   std::map<std::string, std::vector<int>> item_geoms;
   // A mocap body with one see-through cylinder for each free space of
