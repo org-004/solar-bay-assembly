@@ -9,9 +9,13 @@
 // document's counts agree. The cell (models/cell.xml, src/conveyor.h) does
 // not use these parts yet: it still carries its old square tube.
 //
-// The bay. The tube is a round steel tube 124 mm across. Eleven rails sit
-// across it, 1.144 m apart, and ten modules lie between them, each with its
-// two long edges on two rails, so neighbouring modules share a rail. A rail
+// The bay. The tube is a round steel tube 124 mm across. A bay has
+// kModuleCount modules (nine, by the owner's decision of 2026-11-24) and one
+// rail more than that, ten, and the number of modules is the only count that
+// is set: every other count, and the tube's length, follow from it. The rails
+// sit across the tube 1.144 m apart, and a module lies between each two of
+// them, with its two long edges on two rails, so neighbouring modules share
+// a rail, and the two end rails carry one module each. A rail
 // is a hat section, open side down, whose webs straddle the tube. It is
 // located by a tab that drops into a hole on top of the tube and held by a
 // strap that passes under the tube and is closed by one M8 bolt. A module is
@@ -59,16 +63,10 @@ namespace cell::bay {
 inline constexpr double kTubeRadius = 0.062;  // 124 mm across, published
 inline constexpr double kTubeWall = 0.003;
 inline constexpr double kTubeMassPerMetre = 8.968;
-// From the plain end to the shoulder of the swaged neck.
-inline constexpr double kTubeLength = 11.660;
 // The neck slides into the next section's plain end.
 inline constexpr double kNeckLength = 0.100;
 inline constexpr double kNeckRadius = 0.059;
 inline constexpr double kNeckMassPerMetre = 8.523;
-// One section as it is shipped, and so the bay's length.
-inline constexpr double kSectionLength = kTubeLength + kNeckLength;
-inline constexpr double kTubeMass =
-    kTubeMassPerMetre * kTubeLength + kNeckMassPerMetre * kNeckLength;
 // The stretch at the plain end that the next section's neck fills.
 inline constexpr double kJointLength = 0.100;
 
@@ -79,7 +77,9 @@ inline constexpr double kModuleLength = 2.382;
 inline constexpr double kModuleWidth = 1.134;
 inline constexpr double kModuleThickness = 0.030;
 inline constexpr double kModuleMass = 32.4;
-inline constexpr int kModuleCount = 10;
+// The one count that is set; the rails, the fastenings and the length of the
+// tube follow from it.
+inline constexpr int kModuleCount = 9;
 inline constexpr double kModuleGap = 0.010;
 inline constexpr double kModulePitch = kModuleWidth + kModuleGap;
 // The frame's bottom flange, which rests on the rail and takes the pins.
@@ -101,13 +101,17 @@ inline constexpr double kModuleSlotAlongTube = 0.007;
 
 // ---------------------------------------------------------------- the rail
 inline constexpr int kRailCount = kModuleCount + 1;
-// The first rail's centre along the tube; the others follow at the pitch.
-inline constexpr double kFirstRailY = 0.160;
 inline constexpr double kRailLength = 0.460;    // across the tube
 inline constexpr double kRailTopWidth = 0.100;  // along the tube
 inline constexpr double kRailDepth = 0.080;
 inline constexpr double kRailSheet = 0.002;
 inline constexpr double kRailFootWidth = 0.010;
+// How far a rail's feet reach beyond its centre along the tube: half the top's
+// width and the foot, 60 mm.
+inline constexpr double kRailEndMargin = kRailTopWidth / 2.0 + kRailFootWidth;
+// The first rail's centre along the tube: the joint, then the rail's margin.
+// The others follow at the module pitch.
+inline constexpr double kFirstRailY = kJointLength + kRailEndMargin;
 // The rail's top face, on which the modules rest, above the tube's axis.
 inline constexpr double kRailTopHeight = 0.124;
 // The webs are cut to arcs of this radius where they sit on the tube.
@@ -127,6 +131,17 @@ inline constexpr double kStrapThickness = 0.0025;
 inline constexpr double kStrapEarHalfWidth = 0.010;  // across the tube
 // The lowest point of the bay: the ears' underside, below the tube's axis.
 inline constexpr double kStrapEarBottom = -0.095;
+
+// ------------------------------------------------------ the section's length
+// From the plain end to the shoulder of the swaged neck: the joint, the first
+// rail, the other rails a pitch apart, and the last rail's margin. With the
+// nine modules that is 10.516 m.
+inline constexpr double kTubeLength =
+    kFirstRailY + (kRailCount - 1) * kModulePitch + kRailEndMargin;
+// One section as it is shipped, and so the bay's length: 10.616 m.
+inline constexpr double kSectionLength = kTubeLength + kNeckLength;
+inline constexpr double kTubeMass =
+    kTubeMassPerMetre * kTubeLength + kNeckMassPerMetre * kNeckLength;
 
 // ----------------------------------------------- fastening: rail to tube
 // One M8 bolt through the strap's ears, along X, under the tube. The tool
@@ -318,8 +333,9 @@ struct Fastening {
   double stack = 0.0;
 };
 
-// Every fastening of the bay: first the eleven of kind rail, by rail, then
-// the forty of kind module, by module and within a module in the order
+// Every fastening of the bay: first those of kind rail, one for each rail,
+// then those of kind module, four for each module, by module and within a
+// module in the order
 // (rail `module`, X = -0.2), (rail `module`, X = +0.2),
 // (rail `module + 1`, X = -0.2), (rail `module + 1`, X = +0.2).
 inline std::vector<Fastening> Fastenings() {
@@ -418,8 +434,8 @@ struct Hold {
   bool lower_half_only = false;
 };
 
-// The twelve stretches a holder may grip: the plain end, the ten stretches
-// between neighbouring rails, and the neck.
+// The stretches a holder may grip, kHoldCount of them: the plain end, one
+// between each two neighbouring rails, and the neck.
 inline std::vector<Hold> Holds() {
   std::vector<Hold> all;
   all.reserve(kHoldCount);

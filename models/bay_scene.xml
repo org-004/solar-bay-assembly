@@ -1,6 +1,6 @@
 <!--
-  One finished bay of the tracker by itself: the tube section, its eleven
-  rails, its ten modules and the sites of every fastening, locator and hold,
+  One finished bay of the tracker by itself: the tube section, its ten
+  rails, its nine modules and the sites of every fastening, locator and hold,
   for tests/bay_hardware_test.cc and for looking at.
 
     bazel run //:viewer_bay

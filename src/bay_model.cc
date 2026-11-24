@@ -35,8 +35,11 @@ constexpr const char* kFrameName = "bay_frame";
 
 // The sentence that ends the long comment, about where the file comes from.
 constexpr const char* kProvenance =
-    "  This file was written out from those numbers by a script, so a change is\n"
-    "  made in the header and here together.\n";
+    "  This file is generated: //:gen_bay prints it from src/bay_model.cc and\n"
+    "  the header, and //:bay_model_test fails when the file differs from that\n"
+    "  output. After a change to either, write it again with\n"
+    "    bazel run //:gen_bay > models/bay.xml\n"
+    "  built in the opt configuration, as AGENTS.md says.\n";
 
 // Positions and sizes: twelve significant digits, trailing zeros dropped.
 // A value that rounds to zero is written 0, never -0.

@@ -249,7 +249,7 @@ TEST_F(ContainerTest, HeaderGivesTheDocumentsFigures) {
   EXPECT_NEAR(container::kFittingSpacingWidth, 2.259, 1e-6);
   EXPECT_LT(cell::bay::kBayLength, container::kSideOpeningLength);
   EXPECT_NEAR((container::kSideOpeningLength - cell::bay::kBayLength) / 2.0,
-              0.035, 1e-6);
+              0.607, 1e-6);
 }
 
 TEST_F(ContainerTest, BayPassesThroughTheSideOpening) {
@@ -273,7 +273,9 @@ TEST_F(ContainerTest, BayPassesThroughTheSideOpening) {
   const double end_clearance =
       std::min(hull.min[1] + container::kSideOpeningLength / 2.0,
                container::kSideOpeningLength / 2.0 - hull.max[1]);
-  EXPECT_NEAR(end_clearance, 0.035, 1e-6);
+  EXPECT_NEAR(end_clearance,
+              (container::kSideOpeningLength - cell::bay::kBayLength) / 2.0,
+              1e-6);
   EXPECT_GT(hull.min[2], container::kFloorHeight);
   EXPECT_LT(hull.max[2], container::kTopRailUnderside);
   // And no geom of the bay overlaps a member of the container.

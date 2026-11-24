@@ -257,9 +257,9 @@ TEST_F(BayHardwareTest, Sites) {
       EXPECT_TRUE(expected_hold.count(name)) << "unexpected site " << name;
     }
   }
-  EXPECT_EQ(fasten_in_model, 102);
-  EXPECT_EQ(locate_in_model, 22);
-  EXPECT_EQ(hold_in_model, 12);
+  EXPECT_EQ(fasten_in_model, 92);
+  EXPECT_EQ(locate_in_model, 20);
+  EXPECT_EQ(hold_in_model, 11);
   EXPECT_EQ(fasten.found, 2 * bay::kFasteningCount);
   EXPECT_EQ(locate.found, 2 * bay::kLocatorCount);
   EXPECT_EQ(hold.found, bay::kHoldCount);
@@ -368,11 +368,14 @@ TEST_F(BayHardwareTest, Counts) {
   EXPECT_EQ(module_fastenings, bay::kModuleFasteningCount);
   EXPECT_EQ(fastenings, bay::kFasteningCount);
   // The document's numbers.
-  EXPECT_EQ(rails, 11);
-  EXPECT_EQ(modules, 10);
-  EXPECT_EQ(rail_fastenings, 11);
-  EXPECT_EQ(module_fastenings, 40);
-  EXPECT_EQ(fastenings, 51);
+  EXPECT_EQ(rails, 10);
+  EXPECT_EQ(modules, 9);
+  EXPECT_EQ(rail_fastenings, 10);
+  EXPECT_EQ(module_fastenings, 36);
+  EXPECT_EQ(fastenings, 46);
+  EXPECT_EQ(bay::kLocatorCount, 10);
+  EXPECT_EQ(bay::kHoldCount, 11);
+  EXPECT_NEAR(bay::kSectionLength, 10.616, 1e-9);
 }
 
 TEST_F(BayHardwareTest, Bodies) {
