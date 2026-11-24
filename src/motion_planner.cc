@@ -321,11 +321,14 @@ std::optional<JointPath> PlanMove(CollisionChecker& checker,
     // of luck does not help as much as a longer search.
     const int iterations =
         options.max_iterations * (1 << std::min(round, 16));
+    // OMPL's limit doubles with them (kept from overflowing for a limit
+    // set absurdly high).
+    const std::int64_t doubling = std::int64_t{1} << std::min(round, 16);
     const std::int64_t queries =
-        options.ompl.max_queries <=
-                std::numeric_limits<std::int64_t>::max() >> 16
-            ? options.ompl.max_queries * (1 << std::min(round, 16))
-            : options.ompl.max_queries;
+        options.ompl.max_queries >
+                std::numeric_limits<std::int64_t>::max() / doubling
+            ? std::numeric_limits<std::int64_t>::max()
+            : options.ompl.max_queries * doubling;
     for (int s = 0; s < options.seeds && !out_of_time; ++s) {
       for (std::size_t g = 0; g < goals.size(); ++g, ++k) {
         const double left = options.time_budget - SecondsSince(began);

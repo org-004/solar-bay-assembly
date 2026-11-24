@@ -52,23 +52,28 @@
 //   goal. OMPL's "approximate" solutions, which stop short of it, count as
 //   nothing found.
 //
-//   Seeds. OMPL's planners draw their samples from the space's state
-//   sampler; the one given here is seeded with RrtOptions::seed. Nothing
-//   here sets or reads OMPL's process-wide seed (ompl::RNG::setSeed).
-//   Whether a single plan repeats then depends on what else a planner draws
-//   from generators of its own, which OMPL seeds from that process-wide
-//   sequence and, in 2.0.2, keeps private:
+//   Seeds. Every state sampler OMPL allocates for the space is seeded with
+//   RrtOptions::seed. Nothing here sets or reads OMPL's process-wide seed
+//   (ompl::RNG::setSeed). Whether a single plan repeats then depends on
+//   what else a planner draws from generators of its own, which OMPL seeds
+//   from that process-wide sequence (started from the clock) and, in 2.0.2,
+//   keeps private:
 //     RRTConnect       repeats: the same seed, problem and settings give the
 //                      same path, in this process or another, whatever was
 //                      planned before and whatever other threads plan
-//                      meanwhile (unless max_seconds ends the search).
+//                      meanwhile (unless max_seconds ends the search). It
+//                      draws from the state sampler and from nothing else.
 //     BiTRRT           repeats, likewise.
-//     BITstar          does not: its informed sampler has its own generator.
+//     BITstar          does not: once it has a path it samples through an
+//                      "informed sampler" with a generator of its own.
 //     AORRTC           does not: its cost samples and the path simplifier
-//                      inside it have their own generators.
-//     InformedRRTstar  does not: its informed sampler has its own.
-//   OmplPlannerRepeats says the same in code. A consequence worth knowing:
-//   OMPL's RRTConnect, seeded like this, draws the very samples
+//                      inside it have generators of their own.
+//     InformedRRTstar  does not: its goal bias and its informed sampler
+//                      have generators of their own.
+//   OmplPlannerRepeats says the same in code. For the three that do not,
+//   the seed fixes only the samples drawn before the first path; two runs
+//   differ, and a table of them is a sample, not a record. A consequence
+//   worth knowing of the seeding: OMPL's RRTConnect draws the very samples
 //   PlanRrtConnect draws (both seed a std::mt19937 with the seed and take
 //   one uniform number per joint), and on the cell's moves it then grows
 //   the same trees. See docs/ompl-comparison.md.
