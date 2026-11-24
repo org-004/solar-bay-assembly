@@ -1629,3 +1629,124 @@ cc_test(
     ],
 )
 # END ompl
+
+# BEGIN bay
+# One bay of a real single-axis tracker: a round torque tube section, its
+# rails, its modules and every fastening point (docs/bay-hardware.md). The
+# cell does not load these parts; they stand beside it until a layout takes
+# them.
+BAY_SCENE = "models/bay_scene.xml"
+
+BAY_SCENE_FILES = MODELS_COMMON + [
+    "models/bay.xml",
+    BAY_SCENE,
+]
+
+# The document's figures as constants, and the pose of every rail, module
+# and fastening point in the tube's frame. Header only.
+# Include as "src/bay_hardware.h".
+cc_library(
+    name = "bay_hardware",
+    hdrs = ["src/bay_hardware.h"],
+    deps = ["@eigen"],
+)
+
+# Prints the bay's fastening points as CSV, one row each, or with --summary
+# the bay's counts, size and mass.
+#   bazel run //:print_bay
+#   bazel run //:print_bay -- --summary
+cc_binary(
+    name = "print_bay",
+    srcs = ["src/print_bay.cc"],
+    deps = [
+        ":bay_hardware",
+        "@eigen",
+    ],
+)
+
+# The model against the header: every site, the counts, the mass, the size,
+# and that no two parts of the assembled bay overlap.
+#   bazel test //:bay_hardware_test --test_output=all
+cc_test(
+    name = "bay_hardware_test",
+    size = "small",
+    srcs = ["tests/bay_hardware_test.cc"],
+    data = BAY_SCENE_FILES,
+    env = {"MODEL_PATH": "$(rootpath %s)" % BAY_SCENE},
+    deps = [
+        ":bay_hardware",
+        ":mj_handles",
+        "@eigen",
+        "@googletest//:gtest_main",
+        "@mujoco",
+    ],
+)
+
+# Draws the finished bay in a window.
+#   bazel run //:viewer_bay
+cc_binary(
+    name = "viewer_bay",
+    srcs = ["src/viewer.cc"],
+    args = ["$(rootpath %s)" % BAY_SCENE],
+    data = BAY_SCENE_FILES,
+    deps = [
+        ":mj_handles",
+        ":viewer_lib",
+        "@mujoco",
+    ],
+)
+# END bay
+
+# BEGIN container
+# The shipping container the cell is built into, in its working state, and
+# a scene with a finished bay passing out through one of its open sides
+# (docs/bay-hardware.md, "The container").
+CONTAINER_SCENE = "models/container_scene.xml"
+
+CONTAINER_SCENE_FILES = MODELS_COMMON + [
+    "models/bay.xml",
+    "models/container.xml",
+    CONTAINER_SCENE,
+]
+
+# The container's figures as constants, its members and its two envelopes.
+# Header only. Include as "src/container.h".
+cc_library(
+    name = "container",
+    hdrs = ["src/container.h"],
+    deps = ["@eigen"],
+)
+
+# The model against the header, the members inside the transport envelope,
+# and the bay through the side opening.
+#   bazel test //:container_test --test_output=all
+cc_test(
+    name = "container_test",
+    size = "small",
+    srcs = ["tests/container_test.cc"],
+    data = CONTAINER_SCENE_FILES,
+    env = {"MODEL_PATH": "$(rootpath %s)" % CONTAINER_SCENE},
+    deps = [
+        ":bay_hardware",
+        ":container",
+        ":mj_handles",
+        "@eigen",
+        "@googletest//:gtest_main",
+        "@mujoco",
+    ],
+)
+
+# Draws the container with the bay in a window.
+#   bazel run //:viewer_container
+cc_binary(
+    name = "viewer_container",
+    srcs = ["src/viewer.cc"],
+    args = ["$(rootpath %s)" % CONTAINER_SCENE],
+    data = CONTAINER_SCENE_FILES,
+    deps = [
+        ":mj_handles",
+        ":viewer_lib",
+        "@mujoco",
+    ],
+)
+# END container
