@@ -153,6 +153,7 @@ largest makers all have it.
 | Direction of a 10 x 7 slot's long side | along the module's long side (the bay's X) | The drawings show the slots lying along the frame; no text says so | ours |
 | Least gap between neighbouring modules | 6.5 (Canadian Solar), 5 (Trina) | Installation manuals [S21] [S25] | published |
 | Modules on a pallet | 36 | Jinko's datasheet [S18] | published |
+| How the modules stand on the pallet | on their long edge, side by side | Read from the maker's unpacking instructions and from a sibling datasheet's pallet size (2,396 x 1,110 x 1,251 for 31 modules of 35), sources [L9] and [L10] of `docs/layout.md`; neither says it outright, and which way the glass faces was not found | ours |
 
 A person with the module maker's frame drawing could replace the upright part's width
 and the laminate's thickness and mass.
