@@ -1201,6 +1201,7 @@ cc_library(
         ":arm",
         ":collision",
         ":joint_move",
+        ":ompl_search",
         ":path_timing",
         ":rrt",
         "@eigen",
@@ -1573,3 +1574,58 @@ cc_binary(
     deps = [":trial_runner"],
 )
 # END gate
+
+# BEGIN ompl
+# OMPL (the Open Motion Planning Library), as a second search for the
+# planner beside the RRT-Connect of src/rrt.h. Its build file is
+# bazel/ompl.BUILD.bazel. :motion_planner depends on :ompl_search, so every
+# target that plans compiles and links OMPL, and `bazel build //...` and
+# `bazel test //...` build it.
+alias(
+    name = "ompl",
+    actual = "@ompl//:ompl",
+)
+
+# OMPL posed the problem that PlanRrtConnect is posed: the same box, metric,
+# edge check, seed and limits, over an abstract IsFree. Nothing here knows
+# about the arm or MuJoCo. Include as "src/ompl_search.h".
+cc_library(
+    name = "ompl_search",
+    srcs = ["src/ompl_search.cc"],
+    hdrs = ["src/ompl_search.h"],
+    deps = [
+        ":rrt",
+        "@eigen",
+        "@ompl",
+    ],
+)
+
+# The search against the planner's own: the metric and the edge check OMPL
+# is given, seeds, the names it refuses; then the cell's carry planned with
+# OMPL chosen, and one cycle run with it.
+#   bazel test --config=opt //:ompl_search_test --test_output=all
+cc_test(
+    name = "ompl_search_test",
+    size = "medium",
+    srcs = ["tests/ompl_search_test.cc"],
+    data = CELL_FILES,
+    env = {"MODEL_PATH": "$(rootpath %s)" % CELL_SCENE},
+    deps = [
+        ":arm",
+        ":cell",
+        ":collision",
+        ":conveyor",
+        ":motion_planner",
+        ":ompl_search",
+        ":pick_place",
+        ":portable_random",
+        ":rrt",
+        ":rrt_worlds",
+        ":score",
+        ":trial_runner",
+        "@eigen",
+        "@googletest//:gtest_main",
+        "@mujoco",
+    ],
+)
+# END ompl

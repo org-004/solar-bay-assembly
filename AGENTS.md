@@ -22,9 +22,10 @@ suites at once ran a machine out of memory.
 Where the time goes (three cores, 2026-11-23): eight tests take 370 of the suite's 417
 seconds. `check_cycle_batch_test` 76 s, `planned_carry_test` 74, `motion_planner_test`
 58, `trial_runner_test` 45, `camera_cycle_test` 41, `check_cycle_test` 37,
-`pick_place_test` 23, `collision_test` 17. The other 20 take under 10 s each. Keep the
+`pick_place_test` 23, `collision_test` 17. The other 21 take under 10 s each. Keep the
 eight out of the loop unless your change is theirs to check. A fresh checkout builds and
-passes everything but the gate in about 6 minutes; the gate adds about 4 on four cores.
+passes everything but the gate in about 10 minutes (about 6 before OMPL was added); the
+gate adds about 4 on four cores.
 
 ## Caches, locks and worktrees
 
@@ -32,7 +33,7 @@ passes everything but the gate in about 6 minutes; the gate adds about 4 on four
   `~/.bazelrc` already names one:
   `echo "build --disk_cache=$HOME/.cache/bazel-disk" >> ~/.bazelrc`.
   A new clone or worktree then takes MuJoCo and the rest from it (build and all tests in
-  about 2.5 minutes in place of 6), and a test none of whose inputs changed is not run
+  about 2.5 minutes in place of 10), and a test none of whose inputs changed is not run
   again anywhere.
 - One Bazel command at a time per checkout: wait for the lock, never start a second.
   `bazel run` releases the lock before the program starts. A git worktree
@@ -100,6 +101,7 @@ Each header opens with a long comment that explains the piece (240 of the 1,173 
 | Pallet camera to module pose | `src/depth_camera.h`, `src/module_finder.h`, `src/rectangle_fit.h`, `src/plane_fit.h` |
 | Check camera to grip offset | `src/held_module_finder.h`, `src/check_placement.h`, `src/check_rig.h` |
 | Planning | `src/motion_planner.h` (`PlanArmMove`, `PlanScene`), `src/collision.h`, `src/rrt.h`, `src/path_timing.h` |
+| OMPL as the planner's second search | `src/ompl_search.h`, switched by `MotionPlanOptions::search` and `--planner ompl` on `run_cell` and `print_plan`; `bazel/ompl.BUILD.bazel`; `docs/ompl-comparison.md` |
 | Following | `src/arm_follower.h`, `src/joint_move.h`, `src/profile.h`, `src/ik.h` |
 | Tables | `run_cell`, `print_perception`, `print_plan`, `print_check`, each with `-- --pretty` |
 | Viewer (needs a display) | `bazel run --config=opt //:view_cell -- --seed 3` |

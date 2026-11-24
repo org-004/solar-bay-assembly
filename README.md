@@ -182,6 +182,9 @@ against 7.8 s hand-chosen (a cycle 23.9 s against 25.9 s), places the same
 30 of 30 within the same error, and plans every path at least 45 mm clear of
 everything. The hand-chosen carry is still the default.
 `bazel run --config=opt //:run_cell -- --pretty --trials 20 --carry planned`.
+The search for the path can be switched from the hand-written RRT-Connect to
+OMPL's with `--planner ompl` on `run_cell` and `print_plan`
+(`MotionPlanOptions::search` in code); the hand-written one is the default.
 
 ![Planned carry against the hand-chosen one](docs/img/carry.png)
 
@@ -263,4 +266,17 @@ the simulator's own.
 The depth noise numbers are an assumption, not a camera's datasheet, and
 glass is harder for a real depth camera than for this one.
 
-Not done: a comparison of the hand-written planner with OMPL.
+**The planner against OMPL.** The hand-written planner was compared with OMPL
+2.0.2 through that switch, on four moves and over whole pallets, by a rule
+fixed before the numbers existed (`docs/ompl-comparison.md`). The result is
+"Verdict: hand-written better". Given the same problem and the same seeds,
+OMPL's RRT-Connect (`--planner ompl`) returns the paths the hand-written
+search returns on the three carries, 150 of 150 plans, and over three pallets
+places the same 90 of 90 modules. It failed the rule on the bare arm's return,
+where the hand-written search tries the straight line first and needs 664
+collision queries against OMPL's median of 2,735 (5.80 ms against 24.19 ms).
+The one OMPL planner that passed on every move, BIT*, gave a median trajectory
+of 6.037 s against 5.734 s on one carry, 5.3% longer where the rule allows 5%,
+in a row that does not repeat from run to run. The document gives the tables,
+what was made equal between the two and what was not, and the facts for
+deciding whether OMPL should become the default; it does not decide that.

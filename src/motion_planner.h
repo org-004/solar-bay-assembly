@@ -95,6 +95,21 @@
 //   `time_budget` seconds in all. Running out of either is "not found", never
 //   "no path exists" (src/rrt.h).
 //
+//   The search. All of the above is decided round one call, the search for
+//   a raw path of one seed, and that call can be answered by either of two
+//   searches: the RRT-Connect of src/rrt.h, written for this cell and the
+//   default, or one of OMPL's planners (src/ompl_search.h), chosen by
+//   `search` and set up by `ompl`. OMPL is given the same box, weights, step,
+//   edge resolution and edge check, the same seed for the k-th plan and the
+//   time that is left; where the own search is limited by `max_iterations`
+//   it is limited by a number of collision queries, OmplSettings::max_queries,
+//   doubled each round as the iterations are. The margins, the start and
+//   goal checks, the shortening, the choice of the shortest, the rounds, the
+//   resampling, the clearance measured afterwards and the report are one
+//   code for both, so the margin budget above holds for a path of OMPL's as
+//   it does for one of the own search. docs/ompl-comparison.md compares the
+//   two on the cell's moves. With `search` left alone nothing of OMPL runs.
+//
 // Which way round. Joint 1 is an interval too: from the pallet (joint 1
 // near 0) to the place with joint 1 at -180 degrees every path turns joint 1
 // through -90, round the +Y side, away from the camera's post; to the same
@@ -125,10 +140,25 @@
 
 #include "src/collision.h"
 #include "src/joint_move.h"
+#include "src/ompl_search.h"
 #include "src/path_timing.h"
 #include "src/rrt.h"
 
 namespace cell {
+
+// Which search finds the raw path of each plan (see "The search" at the top
+// of this file).
+enum class PlanSearch {
+  kOwn,   // PlanRrtConnect of src/rrt.h.
+  kOmpl,  // PlanOmpl of src/ompl_search.h.
+};
+
+// "own" or "ompl": the names the programs' --planner flag and the trial
+// settings' text use.
+const char* PlanSearchName(PlanSearch search);
+
+// The search of that name, or nothing for any other text.
+std::optional<PlanSearch> PlanSearchFromName(const std::string& name);
 
 struct MotionPlanOptions {
   // ------------------------------------------------------------- margins
@@ -157,6 +187,12 @@ struct MotionPlanOptions {
   double wrist_slack = 1.05;  // rad, 60 degrees
 
   // -------------------------------------------------------------- search
+  // Which search plans each seed, and OMPL's own settings for when it is
+  // OMPL: its planner by name, its range (by default `step` below) and the
+  // collision queries one search may make in the first round. A planner
+  // name OMPL's search does not know fails the plan with kBadInput.
+  PlanSearch search = PlanSearch::kOwn;
+  OmplSettings ompl;
   double step = 3.0;  // m of motion (weighted distance)
   int max_iterations = 2000;  // per seed, in the first round
   int seeds = 4;
