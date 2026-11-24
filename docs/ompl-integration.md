@@ -1466,15 +1466,18 @@ its branch from `origin`, so that nothing uncommitted took part.
 ```
 OB=$W/ob/<name>; RC=$W/cache/<name>-repo; DC=$W/cache/<name>-disk     # none exists yet
 FLAGS="--config=opt --repository_cache=$RC --disk_cache=$DC --experimental_convenience_symlinks=ignore"
-nproc; uptime; free -m
+date -u; nproc; uptime; free -m
 t0=$(date +%s.%N); bazel --output_base=$OB build $FLAGS //:ompl_smoke; t1=$(date +%s.%N)
 du -sb $OB $OB/execroot $RC $RC/* $DC
 bazel --output_base=$OB clean
 t0=$(date +%s.%N); bazel --output_base=$OB build $FLAGS //:ompl_smoke; t1=$(date +%s.%N)
 ```
 
-Wall time is `t1 - t0`. The action count is Bazel's own last line ("340 total
-actions"). `--experimental_convenience_symlinks=ignore` keeps Bazel from leaving
+Wall time is `t1 - t0`. The action counts, their division into sandboxed, internal
+and cache-hit actions, and the critical path are Bazel's own closing lines of each
+build ("INFO: Elapsed time: 147.369s, Critical Path: 8.93s", "INFO: 340 processes:
+5 internal, 335 linux-sandbox", "340 total actions"). "23 minutes later" for O4 is
+the difference of the two `date -u` lines. `--experimental_convenience_symlinks=ignore` keeps Bazel from leaving
 `bazel-*` links in the clone; it does not change what is built. Bazel's own program
 files (its install base under `~/.cache/bazel`) were already unpacked; everything else
 was fetched and built from nothing.
@@ -1499,8 +1502,8 @@ ldd "$(bazel --output_base=$OB info $FLAGS bazel-bin)/ompl_smoke"
 ```
 
 The flags quoted are those of the action whose output is `_objs/ompl/RRTConnect.o`,
-with the 332 include-path arguments, the file names and three `-D__DATE__`-style
-redactions left out. The sizes of the library and the binary are from
+with the include-path arguments (those beginning `-I` or `-iquote` in that command
+line, 166 of each), the file names and three `-D__DATE__`-style redactions left out. The sizes of the library and the binary are from
 `ls -l "$(bazel info --config=opt bazel-bin)"/ompl_smoke` in the measured clone and
 `ls -l "$(bazel info --config=opt bazel-bin)"/external/+http_archive+ompl/libompl.a` in
 the working copy the branch was written in (the measured clone, building from its disk
@@ -1534,6 +1537,7 @@ grep -c pythonhosted MODULE.bazel.lock              # O3: 3,617
 ```
 bazel mod graph | grep -o '[A-Za-z0-9_.+-]*@[A-Za-z0-9_.+-]*' | sort -u      # on main, and on the branch
 comm -3 main.txt branch.txt
+wc -l main.txt branch.txt          # the numbers of entries: 62 on main; 144, 151, 547, 145 on the branches
 ```
 
 `grep -c '^qt' branch.txt` and `grep -c '^boost' branch.txt` gave the 36 and 110 of O3.
@@ -1543,10 +1547,15 @@ comm -3 main.txt branch.txt
 **The repository's tests**:
 
 ```
+date -u; nproc; uptime; free -m
+t0=$(date +%s.%N)
 bazel test --config=opt --config=agent --disk_cache=$W/cache/r8-disk //... --test_output=errors --nocache_test_results
+t1=$(date +%s.%N)
 ```
 
-run in this order: in a fresh clone of `main` with that disk cache empty; in the same
+The wall time is `t1 - t0`, and the division of the actions into cache hits, run and
+internal is Bazel's closing line ("INFO: 2637 processes: 2123 disk cache hit, 483
+internal, 31 linux-sandbox"). It was run in this order: in a fresh clone of `main` with that disk cache empty; in the same
 clone after `bazel clean --expunge`; then once in a fresh clone of each branch (O1, O2,
 O4, O3); and for O4 a second time, in the same clone after `bazel clean --expunge`.
 The count of
@@ -1661,10 +1670,14 @@ That O4's lock file is O1's: `diff <(git show spike/ompl-native:MODULE.bazel.loc
 <(git show spike/ompl-own-module:MODULE.bazel.lock)` prints nothing.
 
 **What is from notes and not from the commands above.** O2, O3 and O4 were each
-written in a working copy first, with a note kept of every build attempt. "Built at
-the first attempt", "five minutes", the error of O3's first build and the times of
-O2's large action during that work are from those notes. Every other figure is from a
-fresh clone of the pushed branch with the commands above.
+written in a working copy first, with a note kept of every build attempt: the time of
+day, the command, and Bazel's closing lines or its error. From those notes, and not
+from a timed command of the kind above, are: that O2 and O4 built at the first attempt
+and O3 at the second; the error of O3's first build; the "five minutes" of O4 (between
+the first note and the push); and the 141 s, 131 s and 106 s of O2's large action (the
+critical path Bazel printed for `bazel build --config=opt //:ompl` and
+`//:ompl_smoke` in that working copy). Every other figure is from a fresh clone of the
+pushed branch with the commands above.
 
 **OMPL's archive:**
 
