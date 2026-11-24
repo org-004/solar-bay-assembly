@@ -22,15 +22,17 @@
 // tube's axis at the plain (not swaged) end of the section, +Y runs along
 // the tube to the swaged end, +Z points up through the locating holes, and
 // +X is across the tube. Metres, kilograms, radians, newton metres.
-// models/bay.xml places this frame in the world as its body "bay"; where it
-// puts it is the scene's choice and not a figure of the bay.
+// models/bay.xml places this frame in the world as its body "bay_frame";
+// where it puts it is the scene's choice and not a figure of the bay.
 //
 // A fastening is two points, one on each of the two parts it joins, each at
 // the centre of that part's hole, and an axis: the direction the tool
 // travels to drive the fastener. Point a is on the part nearer the tool. The
 // model has a site at each point, named <name>_a and <name>_b, whose z axis
 // is the tool's axis. In the assembled bay the two points lie on one line
-// along that axis, a little apart, because each is in its own part's sheet.
+// along that axis, a little apart, because each is in its own part's sheet:
+// a fastening goes in when the two points are within the fastener's play of
+// each other across the axis, and the distance along it is the stack.
 //
 // The strap's bolt passes through the strap's two ears under the tube and
 // not through the tube, so the tube has no hole for a rail's fastening.
@@ -105,15 +107,17 @@ inline constexpr double kRailLength = 0.460;    // across the tube
 inline constexpr double kRailTopWidth = 0.100;  // along the tube
 inline constexpr double kRailDepth = 0.080;
 inline constexpr double kRailSheet = 0.002;
-inline constexpr double kRailFootWidth = 0.020;
+inline constexpr double kRailFootWidth = 0.010;
 // The rail's top face, on which the modules rest, above the tube's axis.
 inline constexpr double kRailTopHeight = 0.124;
+// The webs are cut to arcs of this radius where they sit on the tube.
+inline constexpr double kSaddleRadius = 0.0625;
 // The model draws the saddle as a step: within this distance of the tube's
 // mid-plane the webs end on top of the tube, outside it they reach down to
 // the feet.
 inline constexpr double kSaddleHalfWidth = 0.044;
-// Rail, strap and bolt together.
-inline constexpr double kRailMass = 2.39;
+// Rail, strap, the strap's two pins and the bolt together.
+inline constexpr double kRailMass = 2.35;
 // The rail's slots for the pins: 7.1 mm across the tube, 13 mm along it.
 inline constexpr double kRailSlotAcrossTube = 0.0071;
 inline constexpr double kRailSlotAlongTube = 0.013;
@@ -161,15 +165,24 @@ inline constexpr double kModulePlayYaw =
 inline constexpr double kLocatingHoleDiameter = 0.014;
 inline constexpr double kTabWidth = 0.012;
 inline constexpr double kTabThickness = 0.002;
+inline constexpr double kTabLength = 0.006;
 inline constexpr double kTabOffsetY = -0.049;
 // Play of the tab in its hole: sqrt(7^2 - 1^2) - 6 and sqrt(7^2 - 6^2) - 1,
 // in millimetres.
 inline constexpr double kTabPlayAcrossTube = 0.000928;
 inline constexpr double kTabPlayAlongTube = 0.002606;
+// How far a rail in its hole and on its saddle can be from its place: along
+// the tube, round it, and in yaw. Round the tube is the tab's play across at
+// the tube's radius; the yaw is the saddle's, at most.
+inline constexpr double kRailPlayAlongTube = kTabPlayAlongTube;
+inline constexpr double kRailPlayRound = kTabPlayAcrossTube / kTubeRadius;
+inline constexpr double kRailPlayYaw = 0.0144;
 
 // ------------------------------------------------------- holding the tube
-// The moment about the tube's axis a holder must resist, and how far the
-// locating holes may be from straight up while parts go on.
+// How far the tube may be turned from its place before a rail's tab misses
+// its hole (0.86 degrees), the angle a holder must keep, just inside it, and
+// the moment about the tube's axis a holder must resist.
+inline constexpr double kTubeTurnLimit = kRailPlayRound;
 inline constexpr double kHoldMoment = 150.0;                    // N m
 inline constexpr double kHoldAngle = 0.8 * 3.14159265358979323846 / 180.0;
 // The largest moment assembly puts on the tube: a module resting on one end

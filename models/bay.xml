@@ -13,13 +13,13 @@
   rail and are 10 mm apart. docs/bay-hardware.md says where each figure comes
   from.
 
-  The frame (body "bay") is the tube's frame of src/bay_hardware.h: the
+  The frame (body "bay_frame") is the tube's frame of src/bay_hardware.h: the
   origin is on the tube's axis at the plain end of the section, +Y runs
   along the tube to the swaged end, +Z points up through the locating holes
   and +X is across the tube. Metres, kilograms, radians. This file places
   that frame at (-1.219, -5.880, 1.200) in the world, 1.2 m above the floor;
   where it stands is the scene's choice and not a figure of the bay. The
-  body "bay" has no geoms of its own. Its children are bay_tube,
+  body "bay_frame" has no geoms of its own. Its children are bay_tube,
   bay_rail_0 .. bay_rail_10 and bay_module_0 .. bay_module_9, each fixed in
   its place: there is no joint, no actuator and no weld, because this is
   the finished bay. Every geom collides.
@@ -36,7 +36,7 @@
   middle of the frame's flange, and the tool travels up. locate_<k>_a is
   rail k's locating tab and locate_<k>_b the hole on top of the tube it
   drops into; their z axis points down. hold_0 .. hold_11 are the stretches
-  of the tube that a holder may grip, drawn as see-through cylinders along
+  of the tube that a holder may grip, given as see-through cylinders along
   the tube: the plain end, the ten stretches between neighbouring rails, and
   the neck. Fastening sites are orange (_a) and green (_b), locators
   magenta.
@@ -50,7 +50,7 @@
   the sites stand for them. A module is a laminate on top of a frame of four
   upright members and four bottom flanges; the junction box, the cables and
   the corners' shape are left out. Each geom has a mass proportional to its
-  volume, so that a rail weighs 2.39 kg and a module 32.4 kg, of which the
+  volume, so that a rail weighs 2.35 kg and a module 32.4 kg, of which the
   laminate is 27 kg.
 
   src/bay_hardware.h holds the same numbers for code, and
@@ -89,12 +89,12 @@
     </default>
     <!-- Stretches of the tube a holder may grip, see-through. -->
     <default class="bay_site_hold">
-      <site type="cylinder" rgba="1 0.9 0.1 0.25"/>
+      <site type="cylinder" group="3" rgba="1 0.9 0.1 0.25"/>
     </default>
   </default>
 
   <worldbody>
-    <body name="bay" pos="-1.219 -5.880 1.200">
+    <body name="bay_frame" pos="-1.219 -5.880 1.200">
       <!-- The tube: from the plain end to the shoulder, then the neck. -->
       <body name="bay_tube" pos="0 0 0">
         <geom name="bay_tube" class="bay_steel" type="cylinder" size="0.062" fromto="0 0 0 0 11.66 0" mass="104.567"/>
@@ -140,21 +140,21 @@
 
       <!-- Rail 0. -->
       <body name="bay_rail_0" pos="0 0.16 0">
-        <geom name="bay_rail_0_top" class="bay_steel" pos="0 0 0.123" size="0.23 0.05 0.001" mass="0.691568"/>
-        <geom name="bay_rail_0_web_a_mid" class="bay_steel" pos="0 -0.049 0.092" size="0.044 0.001 0.03" mass="0.079380"/>
-        <geom name="bay_rail_0_web_a_neg" class="bay_steel" pos="-0.137 -0.049 0.083" size="0.093 0.001 0.039" mass="0.218115"/>
-        <geom name="bay_rail_0_web_a_pos" class="bay_steel" pos="0.137 -0.049 0.083" size="0.093 0.001 0.039" mass="0.218115"/>
-        <geom name="bay_rail_0_web_b_mid" class="bay_steel" pos="0 0.049 0.092" size="0.044 0.001 0.03" mass="0.079380"/>
-        <geom name="bay_rail_0_web_b_neg" class="bay_steel" pos="-0.137 0.049 0.083" size="0.093 0.001 0.039" mass="0.218115"/>
-        <geom name="bay_rail_0_web_b_pos" class="bay_steel" pos="0.137 0.049 0.083" size="0.093 0.001 0.039" mass="0.218115"/>
-        <geom name="bay_rail_0_foot_a_neg" class="bay_steel" pos="-0.137 -0.06 0.045" size="0.093 0.01 0.001" mass="0.055927"/>
-        <geom name="bay_rail_0_foot_a_pos" class="bay_steel" pos="0.137 -0.06 0.045" size="0.093 0.01 0.001" mass="0.055927"/>
-        <geom name="bay_rail_0_foot_b_neg" class="bay_steel" pos="-0.137 0.06 0.045" size="0.093 0.01 0.001" mass="0.055927"/>
-        <geom name="bay_rail_0_foot_b_pos" class="bay_steel" pos="0.137 0.06 0.045" size="0.093 0.01 0.001" mass="0.055927"/>
-        <geom name="bay_rail_0_strap_neg" class="bay_steel" pos="-0.06325 0 -0.01025" size="0.00125 0.02 0.05425" mass="0.081560"/>
-        <geom name="bay_rail_0_strap_pos" class="bay_steel" pos="0.06325 0 -0.01025" size="0.00125 0.02 0.05425" mass="0.081560"/>
-        <geom name="bay_rail_0_strap_bottom" class="bay_steel" pos="0 0 -0.06325" size="0.0645 0.02 0.00125" mass="0.096970"/>
-        <geom name="bay_rail_0_strap_ears" class="bay_steel" pos="0 0 -0.07975" size="0.01 0.02 0.01525" mass="0.183414"/>
+        <geom name="bay_rail_0_top" class="bay_steel" pos="0 0 0.123" size="0.23 0.05 0.001" mass="0.713381"/>
+        <geom name="bay_rail_0_web_a_mid" class="bay_steel" pos="0 -0.049 0.092" size="0.044 0.001 0.03" mass="0.081884"/>
+        <geom name="bay_rail_0_web_a_neg" class="bay_steel" pos="-0.137 -0.049 0.083" size="0.093 0.001 0.039" mass="0.224994"/>
+        <geom name="bay_rail_0_web_a_pos" class="bay_steel" pos="0.137 -0.049 0.083" size="0.093 0.001 0.039" mass="0.224994"/>
+        <geom name="bay_rail_0_web_b_mid" class="bay_steel" pos="0 0.049 0.092" size="0.044 0.001 0.03" mass="0.081884"/>
+        <geom name="bay_rail_0_web_b_neg" class="bay_steel" pos="-0.137 0.049 0.083" size="0.093 0.001 0.039" mass="0.224994"/>
+        <geom name="bay_rail_0_web_b_pos" class="bay_steel" pos="0.137 0.049 0.083" size="0.093 0.001 0.039" mass="0.224994"/>
+        <geom name="bay_rail_0_foot_a_neg" class="bay_steel" pos="-0.137 -0.055 0.045" size="0.093 0.005 0.001" mass="0.028845"/>
+        <geom name="bay_rail_0_foot_a_pos" class="bay_steel" pos="0.137 -0.055 0.045" size="0.093 0.005 0.001" mass="0.028845"/>
+        <geom name="bay_rail_0_foot_b_neg" class="bay_steel" pos="-0.137 0.055 0.045" size="0.093 0.005 0.001" mass="0.028845"/>
+        <geom name="bay_rail_0_foot_b_pos" class="bay_steel" pos="0.137 0.055 0.045" size="0.093 0.005 0.001" mass="0.028845"/>
+        <geom name="bay_rail_0_strap_neg" class="bay_steel" pos="-0.06325 0 -0.01025" size="0.00125 0.02 0.05425" mass="0.084132"/>
+        <geom name="bay_rail_0_strap_pos" class="bay_steel" pos="0.06325 0 -0.01025" size="0.00125 0.02 0.05425" mass="0.084132"/>
+        <geom name="bay_rail_0_strap_bottom" class="bay_steel" pos="0 0 -0.06325" size="0.0645 0.02 0.00125" mass="0.100028"/>
+        <geom name="bay_rail_0_strap_ears" class="bay_steel" pos="0 0 -0.07975" size="0.01 0.02 0.01525" mass="0.189203"/>
         <site name="bay_fasten_rail_0_0_a" class="bay_site_a" pos="0.01 0 -0.08" quat="0.707106781187 0 -0.707106781187 0"/>
         <site name="bay_locate_0_a" class="bay_site_locate" pos="0 -0.049 0.062" quat="0 1 0 0"/>
         <site name="bay_fasten_module_0_0_a" class="bay_site_a" pos="-0.2 0.024 0.123" quat="1 0 0 0"/>
@@ -163,21 +163,21 @@
 
       <!-- Rail 1. -->
       <body name="bay_rail_1" pos="0 1.304 0">
-        <geom name="bay_rail_1_top" class="bay_steel" pos="0 0 0.123" size="0.23 0.05 0.001" mass="0.691568"/>
-        <geom name="bay_rail_1_web_a_mid" class="bay_steel" pos="0 -0.049 0.092" size="0.044 0.001 0.03" mass="0.079380"/>
-        <geom name="bay_rail_1_web_a_neg" class="bay_steel" pos="-0.137 -0.049 0.083" size="0.093 0.001 0.039" mass="0.218115"/>
-        <geom name="bay_rail_1_web_a_pos" class="bay_steel" pos="0.137 -0.049 0.083" size="0.093 0.001 0.039" mass="0.218115"/>
-        <geom name="bay_rail_1_web_b_mid" class="bay_steel" pos="0 0.049 0.092" size="0.044 0.001 0.03" mass="0.079380"/>
-        <geom name="bay_rail_1_web_b_neg" class="bay_steel" pos="-0.137 0.049 0.083" size="0.093 0.001 0.039" mass="0.218115"/>
-        <geom name="bay_rail_1_web_b_pos" class="bay_steel" pos="0.137 0.049 0.083" size="0.093 0.001 0.039" mass="0.218115"/>
-        <geom name="bay_rail_1_foot_a_neg" class="bay_steel" pos="-0.137 -0.06 0.045" size="0.093 0.01 0.001" mass="0.055927"/>
-        <geom name="bay_rail_1_foot_a_pos" class="bay_steel" pos="0.137 -0.06 0.045" size="0.093 0.01 0.001" mass="0.055927"/>
-        <geom name="bay_rail_1_foot_b_neg" class="bay_steel" pos="-0.137 0.06 0.045" size="0.093 0.01 0.001" mass="0.055927"/>
-        <geom name="bay_rail_1_foot_b_pos" class="bay_steel" pos="0.137 0.06 0.045" size="0.093 0.01 0.001" mass="0.055927"/>
-        <geom name="bay_rail_1_strap_neg" class="bay_steel" pos="-0.06325 0 -0.01025" size="0.00125 0.02 0.05425" mass="0.081560"/>
-        <geom name="bay_rail_1_strap_pos" class="bay_steel" pos="0.06325 0 -0.01025" size="0.00125 0.02 0.05425" mass="0.081560"/>
-        <geom name="bay_rail_1_strap_bottom" class="bay_steel" pos="0 0 -0.06325" size="0.0645 0.02 0.00125" mass="0.096970"/>
-        <geom name="bay_rail_1_strap_ears" class="bay_steel" pos="0 0 -0.07975" size="0.01 0.02 0.01525" mass="0.183414"/>
+        <geom name="bay_rail_1_top" class="bay_steel" pos="0 0 0.123" size="0.23 0.05 0.001" mass="0.713381"/>
+        <geom name="bay_rail_1_web_a_mid" class="bay_steel" pos="0 -0.049 0.092" size="0.044 0.001 0.03" mass="0.081884"/>
+        <geom name="bay_rail_1_web_a_neg" class="bay_steel" pos="-0.137 -0.049 0.083" size="0.093 0.001 0.039" mass="0.224994"/>
+        <geom name="bay_rail_1_web_a_pos" class="bay_steel" pos="0.137 -0.049 0.083" size="0.093 0.001 0.039" mass="0.224994"/>
+        <geom name="bay_rail_1_web_b_mid" class="bay_steel" pos="0 0.049 0.092" size="0.044 0.001 0.03" mass="0.081884"/>
+        <geom name="bay_rail_1_web_b_neg" class="bay_steel" pos="-0.137 0.049 0.083" size="0.093 0.001 0.039" mass="0.224994"/>
+        <geom name="bay_rail_1_web_b_pos" class="bay_steel" pos="0.137 0.049 0.083" size="0.093 0.001 0.039" mass="0.224994"/>
+        <geom name="bay_rail_1_foot_a_neg" class="bay_steel" pos="-0.137 -0.055 0.045" size="0.093 0.005 0.001" mass="0.028845"/>
+        <geom name="bay_rail_1_foot_a_pos" class="bay_steel" pos="0.137 -0.055 0.045" size="0.093 0.005 0.001" mass="0.028845"/>
+        <geom name="bay_rail_1_foot_b_neg" class="bay_steel" pos="-0.137 0.055 0.045" size="0.093 0.005 0.001" mass="0.028845"/>
+        <geom name="bay_rail_1_foot_b_pos" class="bay_steel" pos="0.137 0.055 0.045" size="0.093 0.005 0.001" mass="0.028845"/>
+        <geom name="bay_rail_1_strap_neg" class="bay_steel" pos="-0.06325 0 -0.01025" size="0.00125 0.02 0.05425" mass="0.084132"/>
+        <geom name="bay_rail_1_strap_pos" class="bay_steel" pos="0.06325 0 -0.01025" size="0.00125 0.02 0.05425" mass="0.084132"/>
+        <geom name="bay_rail_1_strap_bottom" class="bay_steel" pos="0 0 -0.06325" size="0.0645 0.02 0.00125" mass="0.100028"/>
+        <geom name="bay_rail_1_strap_ears" class="bay_steel" pos="0 0 -0.07975" size="0.01 0.02 0.01525" mass="0.189203"/>
         <site name="bay_fasten_rail_1_0_a" class="bay_site_a" pos="0.01 0 -0.08" quat="0.707106781187 0 -0.707106781187 0"/>
         <site name="bay_locate_1_a" class="bay_site_locate" pos="0 -0.049 0.062" quat="0 1 0 0"/>
         <site name="bay_fasten_module_0_2_a" class="bay_site_a" pos="-0.2 -0.024 0.123" quat="1 0 0 0"/>
@@ -188,21 +188,21 @@
 
       <!-- Rail 2. -->
       <body name="bay_rail_2" pos="0 2.448 0">
-        <geom name="bay_rail_2_top" class="bay_steel" pos="0 0 0.123" size="0.23 0.05 0.001" mass="0.691568"/>
-        <geom name="bay_rail_2_web_a_mid" class="bay_steel" pos="0 -0.049 0.092" size="0.044 0.001 0.03" mass="0.079380"/>
-        <geom name="bay_rail_2_web_a_neg" class="bay_steel" pos="-0.137 -0.049 0.083" size="0.093 0.001 0.039" mass="0.218115"/>
-        <geom name="bay_rail_2_web_a_pos" class="bay_steel" pos="0.137 -0.049 0.083" size="0.093 0.001 0.039" mass="0.218115"/>
-        <geom name="bay_rail_2_web_b_mid" class="bay_steel" pos="0 0.049 0.092" size="0.044 0.001 0.03" mass="0.079380"/>
-        <geom name="bay_rail_2_web_b_neg" class="bay_steel" pos="-0.137 0.049 0.083" size="0.093 0.001 0.039" mass="0.218115"/>
-        <geom name="bay_rail_2_web_b_pos" class="bay_steel" pos="0.137 0.049 0.083" size="0.093 0.001 0.039" mass="0.218115"/>
-        <geom name="bay_rail_2_foot_a_neg" class="bay_steel" pos="-0.137 -0.06 0.045" size="0.093 0.01 0.001" mass="0.055927"/>
-        <geom name="bay_rail_2_foot_a_pos" class="bay_steel" pos="0.137 -0.06 0.045" size="0.093 0.01 0.001" mass="0.055927"/>
-        <geom name="bay_rail_2_foot_b_neg" class="bay_steel" pos="-0.137 0.06 0.045" size="0.093 0.01 0.001" mass="0.055927"/>
-        <geom name="bay_rail_2_foot_b_pos" class="bay_steel" pos="0.137 0.06 0.045" size="0.093 0.01 0.001" mass="0.055927"/>
-        <geom name="bay_rail_2_strap_neg" class="bay_steel" pos="-0.06325 0 -0.01025" size="0.00125 0.02 0.05425" mass="0.081560"/>
-        <geom name="bay_rail_2_strap_pos" class="bay_steel" pos="0.06325 0 -0.01025" size="0.00125 0.02 0.05425" mass="0.081560"/>
-        <geom name="bay_rail_2_strap_bottom" class="bay_steel" pos="0 0 -0.06325" size="0.0645 0.02 0.00125" mass="0.096970"/>
-        <geom name="bay_rail_2_strap_ears" class="bay_steel" pos="0 0 -0.07975" size="0.01 0.02 0.01525" mass="0.183414"/>
+        <geom name="bay_rail_2_top" class="bay_steel" pos="0 0 0.123" size="0.23 0.05 0.001" mass="0.713381"/>
+        <geom name="bay_rail_2_web_a_mid" class="bay_steel" pos="0 -0.049 0.092" size="0.044 0.001 0.03" mass="0.081884"/>
+        <geom name="bay_rail_2_web_a_neg" class="bay_steel" pos="-0.137 -0.049 0.083" size="0.093 0.001 0.039" mass="0.224994"/>
+        <geom name="bay_rail_2_web_a_pos" class="bay_steel" pos="0.137 -0.049 0.083" size="0.093 0.001 0.039" mass="0.224994"/>
+        <geom name="bay_rail_2_web_b_mid" class="bay_steel" pos="0 0.049 0.092" size="0.044 0.001 0.03" mass="0.081884"/>
+        <geom name="bay_rail_2_web_b_neg" class="bay_steel" pos="-0.137 0.049 0.083" size="0.093 0.001 0.039" mass="0.224994"/>
+        <geom name="bay_rail_2_web_b_pos" class="bay_steel" pos="0.137 0.049 0.083" size="0.093 0.001 0.039" mass="0.224994"/>
+        <geom name="bay_rail_2_foot_a_neg" class="bay_steel" pos="-0.137 -0.055 0.045" size="0.093 0.005 0.001" mass="0.028845"/>
+        <geom name="bay_rail_2_foot_a_pos" class="bay_steel" pos="0.137 -0.055 0.045" size="0.093 0.005 0.001" mass="0.028845"/>
+        <geom name="bay_rail_2_foot_b_neg" class="bay_steel" pos="-0.137 0.055 0.045" size="0.093 0.005 0.001" mass="0.028845"/>
+        <geom name="bay_rail_2_foot_b_pos" class="bay_steel" pos="0.137 0.055 0.045" size="0.093 0.005 0.001" mass="0.028845"/>
+        <geom name="bay_rail_2_strap_neg" class="bay_steel" pos="-0.06325 0 -0.01025" size="0.00125 0.02 0.05425" mass="0.084132"/>
+        <geom name="bay_rail_2_strap_pos" class="bay_steel" pos="0.06325 0 -0.01025" size="0.00125 0.02 0.05425" mass="0.084132"/>
+        <geom name="bay_rail_2_strap_bottom" class="bay_steel" pos="0 0 -0.06325" size="0.0645 0.02 0.00125" mass="0.100028"/>
+        <geom name="bay_rail_2_strap_ears" class="bay_steel" pos="0 0 -0.07975" size="0.01 0.02 0.01525" mass="0.189203"/>
         <site name="bay_fasten_rail_2_0_a" class="bay_site_a" pos="0.01 0 -0.08" quat="0.707106781187 0 -0.707106781187 0"/>
         <site name="bay_locate_2_a" class="bay_site_locate" pos="0 -0.049 0.062" quat="0 1 0 0"/>
         <site name="bay_fasten_module_1_2_a" class="bay_site_a" pos="-0.2 -0.024 0.123" quat="1 0 0 0"/>
@@ -213,21 +213,21 @@
 
       <!-- Rail 3. -->
       <body name="bay_rail_3" pos="0 3.592 0">
-        <geom name="bay_rail_3_top" class="bay_steel" pos="0 0 0.123" size="0.23 0.05 0.001" mass="0.691568"/>
-        <geom name="bay_rail_3_web_a_mid" class="bay_steel" pos="0 -0.049 0.092" size="0.044 0.001 0.03" mass="0.079380"/>
-        <geom name="bay_rail_3_web_a_neg" class="bay_steel" pos="-0.137 -0.049 0.083" size="0.093 0.001 0.039" mass="0.218115"/>
-        <geom name="bay_rail_3_web_a_pos" class="bay_steel" pos="0.137 -0.049 0.083" size="0.093 0.001 0.039" mass="0.218115"/>
-        <geom name="bay_rail_3_web_b_mid" class="bay_steel" pos="0 0.049 0.092" size="0.044 0.001 0.03" mass="0.079380"/>
-        <geom name="bay_rail_3_web_b_neg" class="bay_steel" pos="-0.137 0.049 0.083" size="0.093 0.001 0.039" mass="0.218115"/>
-        <geom name="bay_rail_3_web_b_pos" class="bay_steel" pos="0.137 0.049 0.083" size="0.093 0.001 0.039" mass="0.218115"/>
-        <geom name="bay_rail_3_foot_a_neg" class="bay_steel" pos="-0.137 -0.06 0.045" size="0.093 0.01 0.001" mass="0.055927"/>
-        <geom name="bay_rail_3_foot_a_pos" class="bay_steel" pos="0.137 -0.06 0.045" size="0.093 0.01 0.001" mass="0.055927"/>
-        <geom name="bay_rail_3_foot_b_neg" class="bay_steel" pos="-0.137 0.06 0.045" size="0.093 0.01 0.001" mass="0.055927"/>
-        <geom name="bay_rail_3_foot_b_pos" class="bay_steel" pos="0.137 0.06 0.045" size="0.093 0.01 0.001" mass="0.055927"/>
-        <geom name="bay_rail_3_strap_neg" class="bay_steel" pos="-0.06325 0 -0.01025" size="0.00125 0.02 0.05425" mass="0.081560"/>
-        <geom name="bay_rail_3_strap_pos" class="bay_steel" pos="0.06325 0 -0.01025" size="0.00125 0.02 0.05425" mass="0.081560"/>
-        <geom name="bay_rail_3_strap_bottom" class="bay_steel" pos="0 0 -0.06325" size="0.0645 0.02 0.00125" mass="0.096970"/>
-        <geom name="bay_rail_3_strap_ears" class="bay_steel" pos="0 0 -0.07975" size="0.01 0.02 0.01525" mass="0.183414"/>
+        <geom name="bay_rail_3_top" class="bay_steel" pos="0 0 0.123" size="0.23 0.05 0.001" mass="0.713381"/>
+        <geom name="bay_rail_3_web_a_mid" class="bay_steel" pos="0 -0.049 0.092" size="0.044 0.001 0.03" mass="0.081884"/>
+        <geom name="bay_rail_3_web_a_neg" class="bay_steel" pos="-0.137 -0.049 0.083" size="0.093 0.001 0.039" mass="0.224994"/>
+        <geom name="bay_rail_3_web_a_pos" class="bay_steel" pos="0.137 -0.049 0.083" size="0.093 0.001 0.039" mass="0.224994"/>
+        <geom name="bay_rail_3_web_b_mid" class="bay_steel" pos="0 0.049 0.092" size="0.044 0.001 0.03" mass="0.081884"/>
+        <geom name="bay_rail_3_web_b_neg" class="bay_steel" pos="-0.137 0.049 0.083" size="0.093 0.001 0.039" mass="0.224994"/>
+        <geom name="bay_rail_3_web_b_pos" class="bay_steel" pos="0.137 0.049 0.083" size="0.093 0.001 0.039" mass="0.224994"/>
+        <geom name="bay_rail_3_foot_a_neg" class="bay_steel" pos="-0.137 -0.055 0.045" size="0.093 0.005 0.001" mass="0.028845"/>
+        <geom name="bay_rail_3_foot_a_pos" class="bay_steel" pos="0.137 -0.055 0.045" size="0.093 0.005 0.001" mass="0.028845"/>
+        <geom name="bay_rail_3_foot_b_neg" class="bay_steel" pos="-0.137 0.055 0.045" size="0.093 0.005 0.001" mass="0.028845"/>
+        <geom name="bay_rail_3_foot_b_pos" class="bay_steel" pos="0.137 0.055 0.045" size="0.093 0.005 0.001" mass="0.028845"/>
+        <geom name="bay_rail_3_strap_neg" class="bay_steel" pos="-0.06325 0 -0.01025" size="0.00125 0.02 0.05425" mass="0.084132"/>
+        <geom name="bay_rail_3_strap_pos" class="bay_steel" pos="0.06325 0 -0.01025" size="0.00125 0.02 0.05425" mass="0.084132"/>
+        <geom name="bay_rail_3_strap_bottom" class="bay_steel" pos="0 0 -0.06325" size="0.0645 0.02 0.00125" mass="0.100028"/>
+        <geom name="bay_rail_3_strap_ears" class="bay_steel" pos="0 0 -0.07975" size="0.01 0.02 0.01525" mass="0.189203"/>
         <site name="bay_fasten_rail_3_0_a" class="bay_site_a" pos="0.01 0 -0.08" quat="0.707106781187 0 -0.707106781187 0"/>
         <site name="bay_locate_3_a" class="bay_site_locate" pos="0 -0.049 0.062" quat="0 1 0 0"/>
         <site name="bay_fasten_module_2_2_a" class="bay_site_a" pos="-0.2 -0.024 0.123" quat="1 0 0 0"/>
@@ -238,21 +238,21 @@
 
       <!-- Rail 4. -->
       <body name="bay_rail_4" pos="0 4.736 0">
-        <geom name="bay_rail_4_top" class="bay_steel" pos="0 0 0.123" size="0.23 0.05 0.001" mass="0.691568"/>
-        <geom name="bay_rail_4_web_a_mid" class="bay_steel" pos="0 -0.049 0.092" size="0.044 0.001 0.03" mass="0.079380"/>
-        <geom name="bay_rail_4_web_a_neg" class="bay_steel" pos="-0.137 -0.049 0.083" size="0.093 0.001 0.039" mass="0.218115"/>
-        <geom name="bay_rail_4_web_a_pos" class="bay_steel" pos="0.137 -0.049 0.083" size="0.093 0.001 0.039" mass="0.218115"/>
-        <geom name="bay_rail_4_web_b_mid" class="bay_steel" pos="0 0.049 0.092" size="0.044 0.001 0.03" mass="0.079380"/>
-        <geom name="bay_rail_4_web_b_neg" class="bay_steel" pos="-0.137 0.049 0.083" size="0.093 0.001 0.039" mass="0.218115"/>
-        <geom name="bay_rail_4_web_b_pos" class="bay_steel" pos="0.137 0.049 0.083" size="0.093 0.001 0.039" mass="0.218115"/>
-        <geom name="bay_rail_4_foot_a_neg" class="bay_steel" pos="-0.137 -0.06 0.045" size="0.093 0.01 0.001" mass="0.055927"/>
-        <geom name="bay_rail_4_foot_a_pos" class="bay_steel" pos="0.137 -0.06 0.045" size="0.093 0.01 0.001" mass="0.055927"/>
-        <geom name="bay_rail_4_foot_b_neg" class="bay_steel" pos="-0.137 0.06 0.045" size="0.093 0.01 0.001" mass="0.055927"/>
-        <geom name="bay_rail_4_foot_b_pos" class="bay_steel" pos="0.137 0.06 0.045" size="0.093 0.01 0.001" mass="0.055927"/>
-        <geom name="bay_rail_4_strap_neg" class="bay_steel" pos="-0.06325 0 -0.01025" size="0.00125 0.02 0.05425" mass="0.081560"/>
-        <geom name="bay_rail_4_strap_pos" class="bay_steel" pos="0.06325 0 -0.01025" size="0.00125 0.02 0.05425" mass="0.081560"/>
-        <geom name="bay_rail_4_strap_bottom" class="bay_steel" pos="0 0 -0.06325" size="0.0645 0.02 0.00125" mass="0.096970"/>
-        <geom name="bay_rail_4_strap_ears" class="bay_steel" pos="0 0 -0.07975" size="0.01 0.02 0.01525" mass="0.183414"/>
+        <geom name="bay_rail_4_top" class="bay_steel" pos="0 0 0.123" size="0.23 0.05 0.001" mass="0.713381"/>
+        <geom name="bay_rail_4_web_a_mid" class="bay_steel" pos="0 -0.049 0.092" size="0.044 0.001 0.03" mass="0.081884"/>
+        <geom name="bay_rail_4_web_a_neg" class="bay_steel" pos="-0.137 -0.049 0.083" size="0.093 0.001 0.039" mass="0.224994"/>
+        <geom name="bay_rail_4_web_a_pos" class="bay_steel" pos="0.137 -0.049 0.083" size="0.093 0.001 0.039" mass="0.224994"/>
+        <geom name="bay_rail_4_web_b_mid" class="bay_steel" pos="0 0.049 0.092" size="0.044 0.001 0.03" mass="0.081884"/>
+        <geom name="bay_rail_4_web_b_neg" class="bay_steel" pos="-0.137 0.049 0.083" size="0.093 0.001 0.039" mass="0.224994"/>
+        <geom name="bay_rail_4_web_b_pos" class="bay_steel" pos="0.137 0.049 0.083" size="0.093 0.001 0.039" mass="0.224994"/>
+        <geom name="bay_rail_4_foot_a_neg" class="bay_steel" pos="-0.137 -0.055 0.045" size="0.093 0.005 0.001" mass="0.028845"/>
+        <geom name="bay_rail_4_foot_a_pos" class="bay_steel" pos="0.137 -0.055 0.045" size="0.093 0.005 0.001" mass="0.028845"/>
+        <geom name="bay_rail_4_foot_b_neg" class="bay_steel" pos="-0.137 0.055 0.045" size="0.093 0.005 0.001" mass="0.028845"/>
+        <geom name="bay_rail_4_foot_b_pos" class="bay_steel" pos="0.137 0.055 0.045" size="0.093 0.005 0.001" mass="0.028845"/>
+        <geom name="bay_rail_4_strap_neg" class="bay_steel" pos="-0.06325 0 -0.01025" size="0.00125 0.02 0.05425" mass="0.084132"/>
+        <geom name="bay_rail_4_strap_pos" class="bay_steel" pos="0.06325 0 -0.01025" size="0.00125 0.02 0.05425" mass="0.084132"/>
+        <geom name="bay_rail_4_strap_bottom" class="bay_steel" pos="0 0 -0.06325" size="0.0645 0.02 0.00125" mass="0.100028"/>
+        <geom name="bay_rail_4_strap_ears" class="bay_steel" pos="0 0 -0.07975" size="0.01 0.02 0.01525" mass="0.189203"/>
         <site name="bay_fasten_rail_4_0_a" class="bay_site_a" pos="0.01 0 -0.08" quat="0.707106781187 0 -0.707106781187 0"/>
         <site name="bay_locate_4_a" class="bay_site_locate" pos="0 -0.049 0.062" quat="0 1 0 0"/>
         <site name="bay_fasten_module_3_2_a" class="bay_site_a" pos="-0.2 -0.024 0.123" quat="1 0 0 0"/>
@@ -263,21 +263,21 @@
 
       <!-- Rail 5. -->
       <body name="bay_rail_5" pos="0 5.88 0">
-        <geom name="bay_rail_5_top" class="bay_steel" pos="0 0 0.123" size="0.23 0.05 0.001" mass="0.691568"/>
-        <geom name="bay_rail_5_web_a_mid" class="bay_steel" pos="0 -0.049 0.092" size="0.044 0.001 0.03" mass="0.079380"/>
-        <geom name="bay_rail_5_web_a_neg" class="bay_steel" pos="-0.137 -0.049 0.083" size="0.093 0.001 0.039" mass="0.218115"/>
-        <geom name="bay_rail_5_web_a_pos" class="bay_steel" pos="0.137 -0.049 0.083" size="0.093 0.001 0.039" mass="0.218115"/>
-        <geom name="bay_rail_5_web_b_mid" class="bay_steel" pos="0 0.049 0.092" size="0.044 0.001 0.03" mass="0.079380"/>
-        <geom name="bay_rail_5_web_b_neg" class="bay_steel" pos="-0.137 0.049 0.083" size="0.093 0.001 0.039" mass="0.218115"/>
-        <geom name="bay_rail_5_web_b_pos" class="bay_steel" pos="0.137 0.049 0.083" size="0.093 0.001 0.039" mass="0.218115"/>
-        <geom name="bay_rail_5_foot_a_neg" class="bay_steel" pos="-0.137 -0.06 0.045" size="0.093 0.01 0.001" mass="0.055927"/>
-        <geom name="bay_rail_5_foot_a_pos" class="bay_steel" pos="0.137 -0.06 0.045" size="0.093 0.01 0.001" mass="0.055927"/>
-        <geom name="bay_rail_5_foot_b_neg" class="bay_steel" pos="-0.137 0.06 0.045" size="0.093 0.01 0.001" mass="0.055927"/>
-        <geom name="bay_rail_5_foot_b_pos" class="bay_steel" pos="0.137 0.06 0.045" size="0.093 0.01 0.001" mass="0.055927"/>
-        <geom name="bay_rail_5_strap_neg" class="bay_steel" pos="-0.06325 0 -0.01025" size="0.00125 0.02 0.05425" mass="0.081560"/>
-        <geom name="bay_rail_5_strap_pos" class="bay_steel" pos="0.06325 0 -0.01025" size="0.00125 0.02 0.05425" mass="0.081560"/>
-        <geom name="bay_rail_5_strap_bottom" class="bay_steel" pos="0 0 -0.06325" size="0.0645 0.02 0.00125" mass="0.096970"/>
-        <geom name="bay_rail_5_strap_ears" class="bay_steel" pos="0 0 -0.07975" size="0.01 0.02 0.01525" mass="0.183414"/>
+        <geom name="bay_rail_5_top" class="bay_steel" pos="0 0 0.123" size="0.23 0.05 0.001" mass="0.713381"/>
+        <geom name="bay_rail_5_web_a_mid" class="bay_steel" pos="0 -0.049 0.092" size="0.044 0.001 0.03" mass="0.081884"/>
+        <geom name="bay_rail_5_web_a_neg" class="bay_steel" pos="-0.137 -0.049 0.083" size="0.093 0.001 0.039" mass="0.224994"/>
+        <geom name="bay_rail_5_web_a_pos" class="bay_steel" pos="0.137 -0.049 0.083" size="0.093 0.001 0.039" mass="0.224994"/>
+        <geom name="bay_rail_5_web_b_mid" class="bay_steel" pos="0 0.049 0.092" size="0.044 0.001 0.03" mass="0.081884"/>
+        <geom name="bay_rail_5_web_b_neg" class="bay_steel" pos="-0.137 0.049 0.083" size="0.093 0.001 0.039" mass="0.224994"/>
+        <geom name="bay_rail_5_web_b_pos" class="bay_steel" pos="0.137 0.049 0.083" size="0.093 0.001 0.039" mass="0.224994"/>
+        <geom name="bay_rail_5_foot_a_neg" class="bay_steel" pos="-0.137 -0.055 0.045" size="0.093 0.005 0.001" mass="0.028845"/>
+        <geom name="bay_rail_5_foot_a_pos" class="bay_steel" pos="0.137 -0.055 0.045" size="0.093 0.005 0.001" mass="0.028845"/>
+        <geom name="bay_rail_5_foot_b_neg" class="bay_steel" pos="-0.137 0.055 0.045" size="0.093 0.005 0.001" mass="0.028845"/>
+        <geom name="bay_rail_5_foot_b_pos" class="bay_steel" pos="0.137 0.055 0.045" size="0.093 0.005 0.001" mass="0.028845"/>
+        <geom name="bay_rail_5_strap_neg" class="bay_steel" pos="-0.06325 0 -0.01025" size="0.00125 0.02 0.05425" mass="0.084132"/>
+        <geom name="bay_rail_5_strap_pos" class="bay_steel" pos="0.06325 0 -0.01025" size="0.00125 0.02 0.05425" mass="0.084132"/>
+        <geom name="bay_rail_5_strap_bottom" class="bay_steel" pos="0 0 -0.06325" size="0.0645 0.02 0.00125" mass="0.100028"/>
+        <geom name="bay_rail_5_strap_ears" class="bay_steel" pos="0 0 -0.07975" size="0.01 0.02 0.01525" mass="0.189203"/>
         <site name="bay_fasten_rail_5_0_a" class="bay_site_a" pos="0.01 0 -0.08" quat="0.707106781187 0 -0.707106781187 0"/>
         <site name="bay_locate_5_a" class="bay_site_locate" pos="0 -0.049 0.062" quat="0 1 0 0"/>
         <site name="bay_fasten_module_4_2_a" class="bay_site_a" pos="-0.2 -0.024 0.123" quat="1 0 0 0"/>
@@ -288,21 +288,21 @@
 
       <!-- Rail 6. -->
       <body name="bay_rail_6" pos="0 7.024 0">
-        <geom name="bay_rail_6_top" class="bay_steel" pos="0 0 0.123" size="0.23 0.05 0.001" mass="0.691568"/>
-        <geom name="bay_rail_6_web_a_mid" class="bay_steel" pos="0 -0.049 0.092" size="0.044 0.001 0.03" mass="0.079380"/>
-        <geom name="bay_rail_6_web_a_neg" class="bay_steel" pos="-0.137 -0.049 0.083" size="0.093 0.001 0.039" mass="0.218115"/>
-        <geom name="bay_rail_6_web_a_pos" class="bay_steel" pos="0.137 -0.049 0.083" size="0.093 0.001 0.039" mass="0.218115"/>
-        <geom name="bay_rail_6_web_b_mid" class="bay_steel" pos="0 0.049 0.092" size="0.044 0.001 0.03" mass="0.079380"/>
-        <geom name="bay_rail_6_web_b_neg" class="bay_steel" pos="-0.137 0.049 0.083" size="0.093 0.001 0.039" mass="0.218115"/>
-        <geom name="bay_rail_6_web_b_pos" class="bay_steel" pos="0.137 0.049 0.083" size="0.093 0.001 0.039" mass="0.218115"/>
-        <geom name="bay_rail_6_foot_a_neg" class="bay_steel" pos="-0.137 -0.06 0.045" size="0.093 0.01 0.001" mass="0.055927"/>
-        <geom name="bay_rail_6_foot_a_pos" class="bay_steel" pos="0.137 -0.06 0.045" size="0.093 0.01 0.001" mass="0.055927"/>
-        <geom name="bay_rail_6_foot_b_neg" class="bay_steel" pos="-0.137 0.06 0.045" size="0.093 0.01 0.001" mass="0.055927"/>
-        <geom name="bay_rail_6_foot_b_pos" class="bay_steel" pos="0.137 0.06 0.045" size="0.093 0.01 0.001" mass="0.055927"/>
-        <geom name="bay_rail_6_strap_neg" class="bay_steel" pos="-0.06325 0 -0.01025" size="0.00125 0.02 0.05425" mass="0.081560"/>
-        <geom name="bay_rail_6_strap_pos" class="bay_steel" pos="0.06325 0 -0.01025" size="0.00125 0.02 0.05425" mass="0.081560"/>
-        <geom name="bay_rail_6_strap_bottom" class="bay_steel" pos="0 0 -0.06325" size="0.0645 0.02 0.00125" mass="0.096970"/>
-        <geom name="bay_rail_6_strap_ears" class="bay_steel" pos="0 0 -0.07975" size="0.01 0.02 0.01525" mass="0.183414"/>
+        <geom name="bay_rail_6_top" class="bay_steel" pos="0 0 0.123" size="0.23 0.05 0.001" mass="0.713381"/>
+        <geom name="bay_rail_6_web_a_mid" class="bay_steel" pos="0 -0.049 0.092" size="0.044 0.001 0.03" mass="0.081884"/>
+        <geom name="bay_rail_6_web_a_neg" class="bay_steel" pos="-0.137 -0.049 0.083" size="0.093 0.001 0.039" mass="0.224994"/>
+        <geom name="bay_rail_6_web_a_pos" class="bay_steel" pos="0.137 -0.049 0.083" size="0.093 0.001 0.039" mass="0.224994"/>
+        <geom name="bay_rail_6_web_b_mid" class="bay_steel" pos="0 0.049 0.092" size="0.044 0.001 0.03" mass="0.081884"/>
+        <geom name="bay_rail_6_web_b_neg" class="bay_steel" pos="-0.137 0.049 0.083" size="0.093 0.001 0.039" mass="0.224994"/>
+        <geom name="bay_rail_6_web_b_pos" class="bay_steel" pos="0.137 0.049 0.083" size="0.093 0.001 0.039" mass="0.224994"/>
+        <geom name="bay_rail_6_foot_a_neg" class="bay_steel" pos="-0.137 -0.055 0.045" size="0.093 0.005 0.001" mass="0.028845"/>
+        <geom name="bay_rail_6_foot_a_pos" class="bay_steel" pos="0.137 -0.055 0.045" size="0.093 0.005 0.001" mass="0.028845"/>
+        <geom name="bay_rail_6_foot_b_neg" class="bay_steel" pos="-0.137 0.055 0.045" size="0.093 0.005 0.001" mass="0.028845"/>
+        <geom name="bay_rail_6_foot_b_pos" class="bay_steel" pos="0.137 0.055 0.045" size="0.093 0.005 0.001" mass="0.028845"/>
+        <geom name="bay_rail_6_strap_neg" class="bay_steel" pos="-0.06325 0 -0.01025" size="0.00125 0.02 0.05425" mass="0.084132"/>
+        <geom name="bay_rail_6_strap_pos" class="bay_steel" pos="0.06325 0 -0.01025" size="0.00125 0.02 0.05425" mass="0.084132"/>
+        <geom name="bay_rail_6_strap_bottom" class="bay_steel" pos="0 0 -0.06325" size="0.0645 0.02 0.00125" mass="0.100028"/>
+        <geom name="bay_rail_6_strap_ears" class="bay_steel" pos="0 0 -0.07975" size="0.01 0.02 0.01525" mass="0.189203"/>
         <site name="bay_fasten_rail_6_0_a" class="bay_site_a" pos="0.01 0 -0.08" quat="0.707106781187 0 -0.707106781187 0"/>
         <site name="bay_locate_6_a" class="bay_site_locate" pos="0 -0.049 0.062" quat="0 1 0 0"/>
         <site name="bay_fasten_module_5_2_a" class="bay_site_a" pos="-0.2 -0.024 0.123" quat="1 0 0 0"/>
@@ -313,21 +313,21 @@
 
       <!-- Rail 7. -->
       <body name="bay_rail_7" pos="0 8.168 0">
-        <geom name="bay_rail_7_top" class="bay_steel" pos="0 0 0.123" size="0.23 0.05 0.001" mass="0.691568"/>
-        <geom name="bay_rail_7_web_a_mid" class="bay_steel" pos="0 -0.049 0.092" size="0.044 0.001 0.03" mass="0.079380"/>
-        <geom name="bay_rail_7_web_a_neg" class="bay_steel" pos="-0.137 -0.049 0.083" size="0.093 0.001 0.039" mass="0.218115"/>
-        <geom name="bay_rail_7_web_a_pos" class="bay_steel" pos="0.137 -0.049 0.083" size="0.093 0.001 0.039" mass="0.218115"/>
-        <geom name="bay_rail_7_web_b_mid" class="bay_steel" pos="0 0.049 0.092" size="0.044 0.001 0.03" mass="0.079380"/>
-        <geom name="bay_rail_7_web_b_neg" class="bay_steel" pos="-0.137 0.049 0.083" size="0.093 0.001 0.039" mass="0.218115"/>
-        <geom name="bay_rail_7_web_b_pos" class="bay_steel" pos="0.137 0.049 0.083" size="0.093 0.001 0.039" mass="0.218115"/>
-        <geom name="bay_rail_7_foot_a_neg" class="bay_steel" pos="-0.137 -0.06 0.045" size="0.093 0.01 0.001" mass="0.055927"/>
-        <geom name="bay_rail_7_foot_a_pos" class="bay_steel" pos="0.137 -0.06 0.045" size="0.093 0.01 0.001" mass="0.055927"/>
-        <geom name="bay_rail_7_foot_b_neg" class="bay_steel" pos="-0.137 0.06 0.045" size="0.093 0.01 0.001" mass="0.055927"/>
-        <geom name="bay_rail_7_foot_b_pos" class="bay_steel" pos="0.137 0.06 0.045" size="0.093 0.01 0.001" mass="0.055927"/>
-        <geom name="bay_rail_7_strap_neg" class="bay_steel" pos="-0.06325 0 -0.01025" size="0.00125 0.02 0.05425" mass="0.081560"/>
-        <geom name="bay_rail_7_strap_pos" class="bay_steel" pos="0.06325 0 -0.01025" size="0.00125 0.02 0.05425" mass="0.081560"/>
-        <geom name="bay_rail_7_strap_bottom" class="bay_steel" pos="0 0 -0.06325" size="0.0645 0.02 0.00125" mass="0.096970"/>
-        <geom name="bay_rail_7_strap_ears" class="bay_steel" pos="0 0 -0.07975" size="0.01 0.02 0.01525" mass="0.183414"/>
+        <geom name="bay_rail_7_top" class="bay_steel" pos="0 0 0.123" size="0.23 0.05 0.001" mass="0.713381"/>
+        <geom name="bay_rail_7_web_a_mid" class="bay_steel" pos="0 -0.049 0.092" size="0.044 0.001 0.03" mass="0.081884"/>
+        <geom name="bay_rail_7_web_a_neg" class="bay_steel" pos="-0.137 -0.049 0.083" size="0.093 0.001 0.039" mass="0.224994"/>
+        <geom name="bay_rail_7_web_a_pos" class="bay_steel" pos="0.137 -0.049 0.083" size="0.093 0.001 0.039" mass="0.224994"/>
+        <geom name="bay_rail_7_web_b_mid" class="bay_steel" pos="0 0.049 0.092" size="0.044 0.001 0.03" mass="0.081884"/>
+        <geom name="bay_rail_7_web_b_neg" class="bay_steel" pos="-0.137 0.049 0.083" size="0.093 0.001 0.039" mass="0.224994"/>
+        <geom name="bay_rail_7_web_b_pos" class="bay_steel" pos="0.137 0.049 0.083" size="0.093 0.001 0.039" mass="0.224994"/>
+        <geom name="bay_rail_7_foot_a_neg" class="bay_steel" pos="-0.137 -0.055 0.045" size="0.093 0.005 0.001" mass="0.028845"/>
+        <geom name="bay_rail_7_foot_a_pos" class="bay_steel" pos="0.137 -0.055 0.045" size="0.093 0.005 0.001" mass="0.028845"/>
+        <geom name="bay_rail_7_foot_b_neg" class="bay_steel" pos="-0.137 0.055 0.045" size="0.093 0.005 0.001" mass="0.028845"/>
+        <geom name="bay_rail_7_foot_b_pos" class="bay_steel" pos="0.137 0.055 0.045" size="0.093 0.005 0.001" mass="0.028845"/>
+        <geom name="bay_rail_7_strap_neg" class="bay_steel" pos="-0.06325 0 -0.01025" size="0.00125 0.02 0.05425" mass="0.084132"/>
+        <geom name="bay_rail_7_strap_pos" class="bay_steel" pos="0.06325 0 -0.01025" size="0.00125 0.02 0.05425" mass="0.084132"/>
+        <geom name="bay_rail_7_strap_bottom" class="bay_steel" pos="0 0 -0.06325" size="0.0645 0.02 0.00125" mass="0.100028"/>
+        <geom name="bay_rail_7_strap_ears" class="bay_steel" pos="0 0 -0.07975" size="0.01 0.02 0.01525" mass="0.189203"/>
         <site name="bay_fasten_rail_7_0_a" class="bay_site_a" pos="0.01 0 -0.08" quat="0.707106781187 0 -0.707106781187 0"/>
         <site name="bay_locate_7_a" class="bay_site_locate" pos="0 -0.049 0.062" quat="0 1 0 0"/>
         <site name="bay_fasten_module_6_2_a" class="bay_site_a" pos="-0.2 -0.024 0.123" quat="1 0 0 0"/>
@@ -338,21 +338,21 @@
 
       <!-- Rail 8. -->
       <body name="bay_rail_8" pos="0 9.312 0">
-        <geom name="bay_rail_8_top" class="bay_steel" pos="0 0 0.123" size="0.23 0.05 0.001" mass="0.691568"/>
-        <geom name="bay_rail_8_web_a_mid" class="bay_steel" pos="0 -0.049 0.092" size="0.044 0.001 0.03" mass="0.079380"/>
-        <geom name="bay_rail_8_web_a_neg" class="bay_steel" pos="-0.137 -0.049 0.083" size="0.093 0.001 0.039" mass="0.218115"/>
-        <geom name="bay_rail_8_web_a_pos" class="bay_steel" pos="0.137 -0.049 0.083" size="0.093 0.001 0.039" mass="0.218115"/>
-        <geom name="bay_rail_8_web_b_mid" class="bay_steel" pos="0 0.049 0.092" size="0.044 0.001 0.03" mass="0.079380"/>
-        <geom name="bay_rail_8_web_b_neg" class="bay_steel" pos="-0.137 0.049 0.083" size="0.093 0.001 0.039" mass="0.218115"/>
-        <geom name="bay_rail_8_web_b_pos" class="bay_steel" pos="0.137 0.049 0.083" size="0.093 0.001 0.039" mass="0.218115"/>
-        <geom name="bay_rail_8_foot_a_neg" class="bay_steel" pos="-0.137 -0.06 0.045" size="0.093 0.01 0.001" mass="0.055927"/>
-        <geom name="bay_rail_8_foot_a_pos" class="bay_steel" pos="0.137 -0.06 0.045" size="0.093 0.01 0.001" mass="0.055927"/>
-        <geom name="bay_rail_8_foot_b_neg" class="bay_steel" pos="-0.137 0.06 0.045" size="0.093 0.01 0.001" mass="0.055927"/>
-        <geom name="bay_rail_8_foot_b_pos" class="bay_steel" pos="0.137 0.06 0.045" size="0.093 0.01 0.001" mass="0.055927"/>
-        <geom name="bay_rail_8_strap_neg" class="bay_steel" pos="-0.06325 0 -0.01025" size="0.00125 0.02 0.05425" mass="0.081560"/>
-        <geom name="bay_rail_8_strap_pos" class="bay_steel" pos="0.06325 0 -0.01025" size="0.00125 0.02 0.05425" mass="0.081560"/>
-        <geom name="bay_rail_8_strap_bottom" class="bay_steel" pos="0 0 -0.06325" size="0.0645 0.02 0.00125" mass="0.096970"/>
-        <geom name="bay_rail_8_strap_ears" class="bay_steel" pos="0 0 -0.07975" size="0.01 0.02 0.01525" mass="0.183414"/>
+        <geom name="bay_rail_8_top" class="bay_steel" pos="0 0 0.123" size="0.23 0.05 0.001" mass="0.713381"/>
+        <geom name="bay_rail_8_web_a_mid" class="bay_steel" pos="0 -0.049 0.092" size="0.044 0.001 0.03" mass="0.081884"/>
+        <geom name="bay_rail_8_web_a_neg" class="bay_steel" pos="-0.137 -0.049 0.083" size="0.093 0.001 0.039" mass="0.224994"/>
+        <geom name="bay_rail_8_web_a_pos" class="bay_steel" pos="0.137 -0.049 0.083" size="0.093 0.001 0.039" mass="0.224994"/>
+        <geom name="bay_rail_8_web_b_mid" class="bay_steel" pos="0 0.049 0.092" size="0.044 0.001 0.03" mass="0.081884"/>
+        <geom name="bay_rail_8_web_b_neg" class="bay_steel" pos="-0.137 0.049 0.083" size="0.093 0.001 0.039" mass="0.224994"/>
+        <geom name="bay_rail_8_web_b_pos" class="bay_steel" pos="0.137 0.049 0.083" size="0.093 0.001 0.039" mass="0.224994"/>
+        <geom name="bay_rail_8_foot_a_neg" class="bay_steel" pos="-0.137 -0.055 0.045" size="0.093 0.005 0.001" mass="0.028845"/>
+        <geom name="bay_rail_8_foot_a_pos" class="bay_steel" pos="0.137 -0.055 0.045" size="0.093 0.005 0.001" mass="0.028845"/>
+        <geom name="bay_rail_8_foot_b_neg" class="bay_steel" pos="-0.137 0.055 0.045" size="0.093 0.005 0.001" mass="0.028845"/>
+        <geom name="bay_rail_8_foot_b_pos" class="bay_steel" pos="0.137 0.055 0.045" size="0.093 0.005 0.001" mass="0.028845"/>
+        <geom name="bay_rail_8_strap_neg" class="bay_steel" pos="-0.06325 0 -0.01025" size="0.00125 0.02 0.05425" mass="0.084132"/>
+        <geom name="bay_rail_8_strap_pos" class="bay_steel" pos="0.06325 0 -0.01025" size="0.00125 0.02 0.05425" mass="0.084132"/>
+        <geom name="bay_rail_8_strap_bottom" class="bay_steel" pos="0 0 -0.06325" size="0.0645 0.02 0.00125" mass="0.100028"/>
+        <geom name="bay_rail_8_strap_ears" class="bay_steel" pos="0 0 -0.07975" size="0.01 0.02 0.01525" mass="0.189203"/>
         <site name="bay_fasten_rail_8_0_a" class="bay_site_a" pos="0.01 0 -0.08" quat="0.707106781187 0 -0.707106781187 0"/>
         <site name="bay_locate_8_a" class="bay_site_locate" pos="0 -0.049 0.062" quat="0 1 0 0"/>
         <site name="bay_fasten_module_7_2_a" class="bay_site_a" pos="-0.2 -0.024 0.123" quat="1 0 0 0"/>
@@ -363,21 +363,21 @@
 
       <!-- Rail 9. -->
       <body name="bay_rail_9" pos="0 10.456 0">
-        <geom name="bay_rail_9_top" class="bay_steel" pos="0 0 0.123" size="0.23 0.05 0.001" mass="0.691568"/>
-        <geom name="bay_rail_9_web_a_mid" class="bay_steel" pos="0 -0.049 0.092" size="0.044 0.001 0.03" mass="0.079380"/>
-        <geom name="bay_rail_9_web_a_neg" class="bay_steel" pos="-0.137 -0.049 0.083" size="0.093 0.001 0.039" mass="0.218115"/>
-        <geom name="bay_rail_9_web_a_pos" class="bay_steel" pos="0.137 -0.049 0.083" size="0.093 0.001 0.039" mass="0.218115"/>
-        <geom name="bay_rail_9_web_b_mid" class="bay_steel" pos="0 0.049 0.092" size="0.044 0.001 0.03" mass="0.079380"/>
-        <geom name="bay_rail_9_web_b_neg" class="bay_steel" pos="-0.137 0.049 0.083" size="0.093 0.001 0.039" mass="0.218115"/>
-        <geom name="bay_rail_9_web_b_pos" class="bay_steel" pos="0.137 0.049 0.083" size="0.093 0.001 0.039" mass="0.218115"/>
-        <geom name="bay_rail_9_foot_a_neg" class="bay_steel" pos="-0.137 -0.06 0.045" size="0.093 0.01 0.001" mass="0.055927"/>
-        <geom name="bay_rail_9_foot_a_pos" class="bay_steel" pos="0.137 -0.06 0.045" size="0.093 0.01 0.001" mass="0.055927"/>
-        <geom name="bay_rail_9_foot_b_neg" class="bay_steel" pos="-0.137 0.06 0.045" size="0.093 0.01 0.001" mass="0.055927"/>
-        <geom name="bay_rail_9_foot_b_pos" class="bay_steel" pos="0.137 0.06 0.045" size="0.093 0.01 0.001" mass="0.055927"/>
-        <geom name="bay_rail_9_strap_neg" class="bay_steel" pos="-0.06325 0 -0.01025" size="0.00125 0.02 0.05425" mass="0.081560"/>
-        <geom name="bay_rail_9_strap_pos" class="bay_steel" pos="0.06325 0 -0.01025" size="0.00125 0.02 0.05425" mass="0.081560"/>
-        <geom name="bay_rail_9_strap_bottom" class="bay_steel" pos="0 0 -0.06325" size="0.0645 0.02 0.00125" mass="0.096970"/>
-        <geom name="bay_rail_9_strap_ears" class="bay_steel" pos="0 0 -0.07975" size="0.01 0.02 0.01525" mass="0.183414"/>
+        <geom name="bay_rail_9_top" class="bay_steel" pos="0 0 0.123" size="0.23 0.05 0.001" mass="0.713381"/>
+        <geom name="bay_rail_9_web_a_mid" class="bay_steel" pos="0 -0.049 0.092" size="0.044 0.001 0.03" mass="0.081884"/>
+        <geom name="bay_rail_9_web_a_neg" class="bay_steel" pos="-0.137 -0.049 0.083" size="0.093 0.001 0.039" mass="0.224994"/>
+        <geom name="bay_rail_9_web_a_pos" class="bay_steel" pos="0.137 -0.049 0.083" size="0.093 0.001 0.039" mass="0.224994"/>
+        <geom name="bay_rail_9_web_b_mid" class="bay_steel" pos="0 0.049 0.092" size="0.044 0.001 0.03" mass="0.081884"/>
+        <geom name="bay_rail_9_web_b_neg" class="bay_steel" pos="-0.137 0.049 0.083" size="0.093 0.001 0.039" mass="0.224994"/>
+        <geom name="bay_rail_9_web_b_pos" class="bay_steel" pos="0.137 0.049 0.083" size="0.093 0.001 0.039" mass="0.224994"/>
+        <geom name="bay_rail_9_foot_a_neg" class="bay_steel" pos="-0.137 -0.055 0.045" size="0.093 0.005 0.001" mass="0.028845"/>
+        <geom name="bay_rail_9_foot_a_pos" class="bay_steel" pos="0.137 -0.055 0.045" size="0.093 0.005 0.001" mass="0.028845"/>
+        <geom name="bay_rail_9_foot_b_neg" class="bay_steel" pos="-0.137 0.055 0.045" size="0.093 0.005 0.001" mass="0.028845"/>
+        <geom name="bay_rail_9_foot_b_pos" class="bay_steel" pos="0.137 0.055 0.045" size="0.093 0.005 0.001" mass="0.028845"/>
+        <geom name="bay_rail_9_strap_neg" class="bay_steel" pos="-0.06325 0 -0.01025" size="0.00125 0.02 0.05425" mass="0.084132"/>
+        <geom name="bay_rail_9_strap_pos" class="bay_steel" pos="0.06325 0 -0.01025" size="0.00125 0.02 0.05425" mass="0.084132"/>
+        <geom name="bay_rail_9_strap_bottom" class="bay_steel" pos="0 0 -0.06325" size="0.0645 0.02 0.00125" mass="0.100028"/>
+        <geom name="bay_rail_9_strap_ears" class="bay_steel" pos="0 0 -0.07975" size="0.01 0.02 0.01525" mass="0.189203"/>
         <site name="bay_fasten_rail_9_0_a" class="bay_site_a" pos="0.01 0 -0.08" quat="0.707106781187 0 -0.707106781187 0"/>
         <site name="bay_locate_9_a" class="bay_site_locate" pos="0 -0.049 0.062" quat="0 1 0 0"/>
         <site name="bay_fasten_module_8_2_a" class="bay_site_a" pos="-0.2 -0.024 0.123" quat="1 0 0 0"/>
@@ -388,21 +388,21 @@
 
       <!-- Rail 10. -->
       <body name="bay_rail_10" pos="0 11.6 0">
-        <geom name="bay_rail_10_top" class="bay_steel" pos="0 0 0.123" size="0.23 0.05 0.001" mass="0.691568"/>
-        <geom name="bay_rail_10_web_a_mid" class="bay_steel" pos="0 -0.049 0.092" size="0.044 0.001 0.03" mass="0.079380"/>
-        <geom name="bay_rail_10_web_a_neg" class="bay_steel" pos="-0.137 -0.049 0.083" size="0.093 0.001 0.039" mass="0.218115"/>
-        <geom name="bay_rail_10_web_a_pos" class="bay_steel" pos="0.137 -0.049 0.083" size="0.093 0.001 0.039" mass="0.218115"/>
-        <geom name="bay_rail_10_web_b_mid" class="bay_steel" pos="0 0.049 0.092" size="0.044 0.001 0.03" mass="0.079380"/>
-        <geom name="bay_rail_10_web_b_neg" class="bay_steel" pos="-0.137 0.049 0.083" size="0.093 0.001 0.039" mass="0.218115"/>
-        <geom name="bay_rail_10_web_b_pos" class="bay_steel" pos="0.137 0.049 0.083" size="0.093 0.001 0.039" mass="0.218115"/>
-        <geom name="bay_rail_10_foot_a_neg" class="bay_steel" pos="-0.137 -0.06 0.045" size="0.093 0.01 0.001" mass="0.055927"/>
-        <geom name="bay_rail_10_foot_a_pos" class="bay_steel" pos="0.137 -0.06 0.045" size="0.093 0.01 0.001" mass="0.055927"/>
-        <geom name="bay_rail_10_foot_b_neg" class="bay_steel" pos="-0.137 0.06 0.045" size="0.093 0.01 0.001" mass="0.055927"/>
-        <geom name="bay_rail_10_foot_b_pos" class="bay_steel" pos="0.137 0.06 0.045" size="0.093 0.01 0.001" mass="0.055927"/>
-        <geom name="bay_rail_10_strap_neg" class="bay_steel" pos="-0.06325 0 -0.01025" size="0.00125 0.02 0.05425" mass="0.081560"/>
-        <geom name="bay_rail_10_strap_pos" class="bay_steel" pos="0.06325 0 -0.01025" size="0.00125 0.02 0.05425" mass="0.081560"/>
-        <geom name="bay_rail_10_strap_bottom" class="bay_steel" pos="0 0 -0.06325" size="0.0645 0.02 0.00125" mass="0.096970"/>
-        <geom name="bay_rail_10_strap_ears" class="bay_steel" pos="0 0 -0.07975" size="0.01 0.02 0.01525" mass="0.183414"/>
+        <geom name="bay_rail_10_top" class="bay_steel" pos="0 0 0.123" size="0.23 0.05 0.001" mass="0.713381"/>
+        <geom name="bay_rail_10_web_a_mid" class="bay_steel" pos="0 -0.049 0.092" size="0.044 0.001 0.03" mass="0.081884"/>
+        <geom name="bay_rail_10_web_a_neg" class="bay_steel" pos="-0.137 -0.049 0.083" size="0.093 0.001 0.039" mass="0.224994"/>
+        <geom name="bay_rail_10_web_a_pos" class="bay_steel" pos="0.137 -0.049 0.083" size="0.093 0.001 0.039" mass="0.224994"/>
+        <geom name="bay_rail_10_web_b_mid" class="bay_steel" pos="0 0.049 0.092" size="0.044 0.001 0.03" mass="0.081884"/>
+        <geom name="bay_rail_10_web_b_neg" class="bay_steel" pos="-0.137 0.049 0.083" size="0.093 0.001 0.039" mass="0.224994"/>
+        <geom name="bay_rail_10_web_b_pos" class="bay_steel" pos="0.137 0.049 0.083" size="0.093 0.001 0.039" mass="0.224994"/>
+        <geom name="bay_rail_10_foot_a_neg" class="bay_steel" pos="-0.137 -0.055 0.045" size="0.093 0.005 0.001" mass="0.028845"/>
+        <geom name="bay_rail_10_foot_a_pos" class="bay_steel" pos="0.137 -0.055 0.045" size="0.093 0.005 0.001" mass="0.028845"/>
+        <geom name="bay_rail_10_foot_b_neg" class="bay_steel" pos="-0.137 0.055 0.045" size="0.093 0.005 0.001" mass="0.028845"/>
+        <geom name="bay_rail_10_foot_b_pos" class="bay_steel" pos="0.137 0.055 0.045" size="0.093 0.005 0.001" mass="0.028845"/>
+        <geom name="bay_rail_10_strap_neg" class="bay_steel" pos="-0.06325 0 -0.01025" size="0.00125 0.02 0.05425" mass="0.084132"/>
+        <geom name="bay_rail_10_strap_pos" class="bay_steel" pos="0.06325 0 -0.01025" size="0.00125 0.02 0.05425" mass="0.084132"/>
+        <geom name="bay_rail_10_strap_bottom" class="bay_steel" pos="0 0 -0.06325" size="0.0645 0.02 0.00125" mass="0.100028"/>
+        <geom name="bay_rail_10_strap_ears" class="bay_steel" pos="0 0 -0.07975" size="0.01 0.02 0.01525" mass="0.189203"/>
         <site name="bay_fasten_rail_10_0_a" class="bay_site_a" pos="0.01 0 -0.08" quat="0.707106781187 0 -0.707106781187 0"/>
         <site name="bay_locate_10_a" class="bay_site_locate" pos="0 -0.049 0.062" quat="0 1 0 0"/>
         <site name="bay_fasten_module_9_2_a" class="bay_site_a" pos="-0.2 -0.024 0.123" quat="1 0 0 0"/>

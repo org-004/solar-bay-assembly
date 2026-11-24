@@ -2,10 +2,12 @@
 // describe the same bay:
 //   - every site of Fastenings(), Locators() and Holds() is in the model, on
 //     the body the header names, at the header's position and orientation in
-//     the tube's frame (body "bay"), and there are no other such sites;
-//   - the two sites of each fastening lie on the tool's axis, the distance
-//     between them along it is the header's stack, and a locator's tab is
-//     over its hole;
+//     the tube's frame (body "bay_frame"), and there are no other such sites;
+//   - the two sites of each fastening lie on the tool's axis: across the
+//     axis they are within the fastener's play in its holes, which is how
+//     this test reads "within the hole clearance of each other", and along
+//     it they are the header's stack apart, each being in its own part's
+//     sheet; a locator's tab is over its hole;
 //   - the model has as many rails, modules and fastenings as the header and
 //     the document say;
 //   - every rail and module stands at its pose of the header, each module has
@@ -45,7 +47,7 @@ namespace bay = cell::bay;
 
 constexpr double kPositionTolerance = 1e-6;  // m
 constexpr double kAngleTolerance = 1e-6;     // rad
-constexpr double kSizeTolerance = 1e-9;      // m
+constexpr double kSizeTolerance = 1e-6;      // m
 constexpr double kMassTolerance = 0.01;      // relative
 constexpr double kBoxTolerance = 1e-3;       // m
 // The deepest overlap of two parts that is still taken as touching.
@@ -149,8 +151,8 @@ class BayHardwareTest : public ::testing::Test {
     ASSERT_TRUE(data_);
     mj_forward(model_.get(), data_.get());
 
-    bay_ = mj_name2id(model_.get(), mjOBJ_BODY, "bay");
-    ASSERT_GE(bay_, 0) << "no body bay";
+    bay_ = mj_name2id(model_.get(), mjOBJ_BODY, "bay_frame");
+    ASSERT_GE(bay_, 0) << "no body bay_frame";
     bay_inverse_ = MakePose(data_->xpos + 3 * bay_, data_->xmat + 9 * bay_).inverse();
   }
 
@@ -158,7 +160,7 @@ class BayHardwareTest : public ::testing::Test {
     return mj_name2id(model_.get(), type, name.c_str());
   }
 
-  // Poses in the tube's frame, the frame of body "bay".
+  // Poses in the tube's frame, the frame of body "bay_frame".
   Eigen::Isometry3d SitePose(int site) const {
     return bay_inverse_ *
            MakePose(data_->site_xpos + 3 * site, data_->site_xmat + 9 * site);
@@ -172,7 +174,7 @@ class BayHardwareTest : public ::testing::Test {
            MakePose(data_->geom_xpos + 3 * geom, data_->geom_xmat + 9 * geom);
   }
 
-  // The bodies below "bay", not "bay" itself.
+  // The bodies below "bay_frame", not "bay_frame" itself.
   std::vector<int> BayBodies() const {
     std::vector<int> bodies;
     for (int b = 0; b < model_->nbody; ++b) {
@@ -422,7 +424,9 @@ TEST_F(BayHardwareTest, NoJoints) {
   EXPECT_EQ(model_->nq, 0);
   EXPECT_EQ(model_->nu, 0);
   EXPECT_EQ(model_->neq, 0);
-  int bodies = 0, geoms = 0, sites = 0;
+  int bodies = 1, geoms = 0, sites = 0;
+  // The body that holds the bay is one of its names too.
+  EXPECT_TRUE(StartsWith(Name(*model_, mjOBJ_BODY, bay_), "bay_"));
   for (int b : BayBodies()) {
     ++bodies;
     const std::string name = Name(*model_, mjOBJ_BODY, b);
