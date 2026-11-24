@@ -160,8 +160,12 @@
 // bay::kSwageOrder, having taken a magazine once before the first pin; a
 // tool change wherever an arm's next work needs another tool; release, bay
 // out, and each arm back to its wait pose and first tool. Every arm starts
-// at its wait pose with its first tool. The model of a move and of the
-// bay's time is TimeModelText(), printed with the rows.
+// at its wait pose with its first tool. Two phases can be worked by two
+// arms side by side (SideBySide): the rails, when rail_set and strap_bolt
+// are given to different arms (the bolting arm one rail behind), and the
+// modules, when module_set and pin are (the pin arm one module behind);
+// with one arm a phase is the plain sum of its steps. The model of a move
+// and of the bay's time is TimeModelText(), printed with the rows.
 
 #ifndef SRC_LAYOUT_CHECK_H_
 #define SRC_LAYOUT_CHECK_H_
@@ -266,6 +270,13 @@ double JointMoveTime(const std::array<double, 6>& change_deg,
 double TrackMoveTime(double distance, double speed, double accel);
 inline constexpr double kAccelFactor = 1.5;
 inline constexpr double kSettleS = 0.3;
+
+// Two arms side by side on a row of units (rails or modules), the second
+// one unit behind the first: lead[k] and follow[k] are each arm's time on
+// unit k, its tool changes included. max(sum(lead) + follow.back(),
+// lead.front() + sum(follow)); 0 when either is empty.
+double SideBySide(const std::vector<double>& lead,
+                  const std::vector<double>& follow);
 
 // The model of a move and of the bay's time, in words.
 std::string TimeModelText();

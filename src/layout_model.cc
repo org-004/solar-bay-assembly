@@ -655,6 +655,25 @@ ModelPtr LoadLayoutModel(const Layout& layout, const LayoutState& state,
   // (qpos0 is the configuration the bodies are written in), so a qpos0 other
   // than the file's would move the joints' zeros. The state's poses are
   // keyframe 0, "state".
+  //
+  // Capsules that can collide are turned into the cylinders that cover them
+  // (the same radius, longer by the radius at each end). In MuJoCo 4.0.0
+  // mj_geomDistance gives a positive distance for a capsule whose axis
+  // passes through a box (a capsule of radius 0.05 standing through a plate
+  // 5 mm thick measured +0.1975 m), while a cylinder in the same place
+  // measures as it should (-0.2525 m). Menagerie's UR10e is made of
+  // capsules, so without this an arm reaching through a module was "clear".
+  // The cylinder is a little larger than the capsule at its ends, which is
+  // the safe side, and it has the same bounding box.
+  for (int g = 0; g < model->ngeom; ++g) {
+    if (model->geom_type[g] != mjGEOM_CAPSULE) continue;
+    if (model->geom_contype[g] == 0 && model->geom_conaffinity[g] == 0) continue;
+    const mjtNum radius = model->geom_size[3 * g];
+    const mjtNum half = model->geom_size[3 * g + 1] + radius;
+    model->geom_type[g] = mjGEOM_CYLINDER;
+    model->geom_size[3 * g + 1] = half;
+    model->geom_rbound[g] = mju_sqrt(radius * radius + half * half);
+  }
   return model;
 }
 

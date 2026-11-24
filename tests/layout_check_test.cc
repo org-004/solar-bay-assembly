@@ -129,6 +129,19 @@ TEST(LayoutCheck, MoveModel) {
   EXPECT_FALSE(TimeModelText().empty());
 }
 
+// Two arms side by side, the second one unit behind the first.
+TEST(LayoutCheck, SideBySide) {
+  // The follower is the slower: the leader's first unit, then all of its.
+  EXPECT_DOUBLE_EQ(SideBySide({5, 5, 5}, {10, 10, 10}), 5.0 + 30.0);
+  // The leader is the slower: all of its, then the follower's last unit.
+  EXPECT_DOUBLE_EQ(SideBySide({10, 10, 10}, {2, 2, 3}), 30.0 + 3.0);
+  // Never less than either arm alone, never more than the plain sum.
+  const std::vector<double> a = {12, 7, 9, 4}, b = {3, 11, 6, 8};
+  EXPECT_GE(SideBySide(a, b), 32.0);
+  EXPECT_LE(SideBySide(a, b), 32.0 + 28.0);
+  EXPECT_DOUBLE_EQ(SideBySide({}, {1}), 0.0);
+}
+
 // The whole check of the reference layout.
 TEST(LayoutCheck, ReferenceReport) {
   const Layout layout = Reference();

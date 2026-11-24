@@ -1964,3 +1964,26 @@ cc_test(
     ],
 )
 # END locate
+
+# BEGIN layout_moves
+# R16: the layout check's time model against the repository's planner
+# (src/rrt.h, src/path_timing.h) for a few of a layout's moves.
+#   bazel run --config=opt //:print_layout_moves -- below
+cc_binary(
+    name = "print_layout_moves",
+    srcs = ["src/print_layout_moves.cc"],
+    data = LAYOUT_FILES + LAYOUT_MODEL_FILES,
+    env = LAYOUT_ENV,
+    deps = [
+        ":joint_move",
+        ":layout",
+        ":layout_check",
+        ":layout_model",
+        ":mj_handles",
+        ":path_timing",
+        ":rrt",
+        "@eigen",
+        "@mujoco",
+    ],
+)
+# END layout_moves

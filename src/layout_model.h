@@ -20,6 +20,12 @@
 // checker leaves out what is not there at a step by leaving its geoms out of
 // the lists it measures against (LayoutHandles gives the lists).
 //
+// Distances. Everything that measures in a model made here uses
+// mj_geomDistance, and MuJoCo 4.0.0 measures a capsule against a box wrongly
+// when the capsule's axis passes through the box (it gives a positive
+// distance). LoadLayoutModel therefore turns every capsule that can collide
+// into the cylinder that covers it; src/layout_model.cc gives the figures.
+//
 // Arms keep the joint ranges of their model files; the checker applies the
 // datasheet's ranges of src/arm_catalog.h. An arm on a track has one more
 // joint, a slide along the track, before its six.

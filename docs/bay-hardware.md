@@ -711,8 +711,12 @@ cannot be inside, and with both sides open it can stand wholly within the contai
 footprint, between the posts, its modules' ends in the planes of the open sides. It
 cannot leave through an end, where the door is 2,340 wide, so it leaves sideways, with
 607 mm to spare at each end between the posts. A bay one module longer would have
-35 mm, and that is why the bay is nine modules (The bay). The tube sections, 10.62 m
-long, go in through the end doors.
+35 mm, and that is why the bay is nine modules (The bay). A tube section, 10.62 m long
+and 124 across, can go in through the end doors, whose opening is 2,340 wide, or
+through an open side. Which way it comes in is a layout's to say: the layout chosen in
+`docs/layout.md` brings tubes in through the same open side the bays leave by, because
+a tube that comes through the door frame has to lie within 0.98 m of the container's
+centre line, and the cell wants it further out.
 
 ![The container in its working state with a bay passing out through one side](img/container.png)
 

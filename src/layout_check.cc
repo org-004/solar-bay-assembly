@@ -1497,22 +1497,38 @@ std::vector<CheckRow> Checker::TimeRows(std::vector<BayStep>* steps,
                               L_.tube_in.time_s);
   const double clamp = push("clamp", "", "", "tube", "", "holder",
                             L_.holder.clamp_s);
-  double rails = 0.0;
+  // The rail phase. Each step's time goes to the setting arm's rail k
+  // (set[k]) or the bolting arm's (bolt[k]); a take goes to the arm that
+  // takes (a third arm counts with the setting arm).
   const bool each = L_.rail_order == "each_rail_then_its_bolt";
-  for (int k = 0; k < R; ++k) {
-    rails += work("rail_take", k, Fmt("take rail %d", k), Fmt("rail %d", k));
-    rails += work("rail_set", k, Fmt("set rail %d", k), Fmt("rail %d", k));
-    if (each) {
-      rails += work("strap_bolt", k, Fmt("bolt rail %d", k),
+  const Work* wrail = FindWork(L_, "rail_set");
+  const Work* wbolt = FindWork(L_, "strap_bolt");
+  const Work* wtake = FindWork(L_, "rail_take");
+  const bool one_rail_arm =
+      wrail == nullptr || wbolt == nullptr || wrail->arm == wbolt->arm;
+  const bool take_by_bolter = !one_rail_arm && wtake != nullptr &&
+                              wtake->arm == wbolt->arm;
+  std::vector<double> set(R, 0.0), bolt(R, 0.0);
+  auto bolt_rail = [&](int k) {
+    bolt[k] += work("strap_bolt", k, Fmt("bolt rail %d", k),
                     Fmt("strap bolt %d", k));
-    }
+  };
+  for (int k = 0; k < R; ++k) {
+    (take_by_bolter ? bolt : set)[k] +=
+        work("rail_take", k, Fmt("take rail %d", k), Fmt("rail %d", k));
+    set[k] += work("rail_set", k, Fmt("set rail %d", k), Fmt("rail %d", k));
+    if (each) bolt_rail(k);
   }
   if (!each) {
-    for (int k = 0; k < R; ++k) {
-      rails += work("strap_bolt", k, Fmt("bolt rail %d", k),
-                    Fmt("strap bolt %d", k));
-    }
+    for (int k = 0; k < R; ++k) bolt_rail(k);
   }
+  double sum_set = 0.0, sum_bolt = 0.0;
+  for (int k = 0; k < R; ++k) {
+    sum_set += set[k];
+    sum_bolt += bolt[k];
+  }
+  const double rails =
+      one_rail_arm ? sum_set + sum_bolt : SideBySide(set, bolt);
   // The module phase.
   std::vector<double> mod(M, 0.0), pin(M, 0.0);
   const Work* wset = FindWork(L_, "module_set");
@@ -1545,9 +1561,7 @@ std::vector<CheckRow> Checker::TimeRows(std::vector<BayStep>* steps,
     sum_mod += mod[m];
     sum_pin += pin[m];
   }
-  const double modules =
-      one_arm ? sum_mod + sum_pin
-              : std::max(sum_mod + pin[M - 1], mod[0] + sum_pin);
+  const double modules = one_arm ? sum_mod + sum_pin : SideBySide(mod, pin);
   // The end.
   const double release = push("release", "", "", "bay", "holder", "",
                               L_.holder.release_s);
@@ -1582,9 +1596,11 @@ std::vector<CheckRow> Checker::TimeRows(std::vector<BayStep>* steps,
   rows.push_back(Row(
       "time", "bay", "", "", total, "s", 0.0, all_poses,
       (all_poses ? std::string() : why + "; ") +
-          Fmt("tube in %.1f + clamp %.1f + rails %.1f + modules %.1f "
-              "(module arm %.1f, pin arm %.1f%s) + end %.1f",
-              tube_in, clamp, rails, modules, sum_mod, sum_pin,
+          Fmt("tube in %.1f + clamp %.1f + rails %.1f (setting %.1f, "
+              "bolting %.1f%s) + modules %.1f (module arm %.1f, pin arm "
+              "%.1f%s) + end %.1f",
+              tube_in, clamp, rails, sum_set, sum_bolt,
+              one_rail_arm ? ", one arm" : "", modules, sum_mod, sum_pin,
               one_arm ? ", one arm" : "", end)));
   for (size_t i = 0; i < arms_.size(); ++i) {
     rows.push_back(Row("time", "busy " + arms_[i].use->name,
@@ -1750,6 +1766,15 @@ double JointMoveTime(const std::array<double, 6>& change_deg,
   return kAccelFactor * t;
 }
 
+double SideBySide(const std::vector<double>& lead,
+                  const std::vector<double>& follow) {
+  if (lead.empty() || follow.empty()) return 0.0;
+  double sum_lead = 0.0, sum_follow = 0.0;
+  for (double t : lead) sum_lead += t;
+  for (double t : follow) sum_follow += t;
+  return std::max(sum_lead + follow.back(), lead.front() + sum_follow);
+}
+
 double TrackMoveTime(double distance, double speed, double accel) {
   if (distance <= 0.0) return 0.0;
   if (speed <= 0.0 || accel <= 0.0) return std::numeric_limits<double>::infinity();
@@ -1770,13 +1795,19 @@ std::string TimeModelText() {
       "process time for the kind. A tool change takes the arm's "
       "tool_change_s; the move to where the tools wait is not counted. "
       "Every arm starts the bay at its wait pose with its first tool.\n"
-      "The bay: tube in + clamp + the rail phase (its steps one after "
-      "another) + the module phase + the end. In the module phase the "
-      "module arm and the pin arm work side by side, the pin arm one module "
-      "behind: max(the module arm's steps + the pin arm's steps on the last "
-      "module, the module arm's steps on the first module + the pin arm's "
-      "steps), the magazine taken with the first module's; if one arm does "
-      "both, the plain sum. The end: release + bay out, or the longest of "
+      "The bay: tube in + clamp + the rail phase + the module phase + the "
+      "end. In the rail phase, when one arm sets the rails and another "
+      "drives the strap bolts, the bolting arm works one rail behind: "
+      "max(the setting arm's steps + the bolting arm's steps on the last "
+      "rail, the setting arm's steps on the first rail + the bolting arm's "
+      "steps), each rail's take counted with the arm that takes; when one "
+      "arm does both, the plain sum in the layout's rail_order. In the "
+      "module phase the module arm and the pin arm work side by side the "
+      "same way, the pin arm one module behind: max(the module arm's steps "
+      "+ the pin arm's steps on the last module, the module arm's steps on "
+      "the first module + the pin arm's steps), the magazine taken with the "
+      "first module's; if one arm does both, the plain sum. An arm's steps "
+      "include its tool changes. The end: release + bay out, or the longest of "
       "the arms' moves back to their wait poses and first tools if that is "
       "longer.",
       kAccelFactor, kSettleS);

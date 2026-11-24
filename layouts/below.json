@@ -2,7 +2,7 @@
  "name": "below",
  "title": "Small arm on a floor track below the bay, module arm on a track beside it",
  "summary": "The tube lies along the container 1.05 m off its centre line toward the -X side and 0.95 m above the floor, on four stands. A KUKA KR 210 on a track along the +X half takes modules from a pallet outside the +X side and sets each down from one pitch ahead of it. One Universal Robots UR10e on a floor track between the stands and the big arm's track, under the bay's inner half, sets the rails, drives the strap bolts, locates the modules and sets the pins, changing tools. Tubes come in and bays leave through the -X side on one transfer cart.",
- "chosen": true,
+ "chosen": false,
  "small_arms_stand": "below",
  "container": {
   "sides_open": [
