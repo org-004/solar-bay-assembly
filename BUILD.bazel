@@ -1807,3 +1807,72 @@ cc_binary(
     ],
 )
 # END container
+
+# BEGIN layout
+# A layout of the new cell as data (layouts/*.json, src/layout.h), the arms
+# it may use (src/arm_catalog.h), and the MuJoCo model made from a layout
+# (src/layout_model.h). docs/layout.md explains the layouts.
+LAYOUT_FILES = glob(["layouts/*.json"])
+
+# What a layout's model is built from at run time: the container, the
+# common settings, the KUKA with its meshes, and Menagerie's UR10e.
+LAYOUT_MODEL_FILES = MODELS_COMMON + [
+    "models/arm.xml",
+    "models/container.xml",
+    ":arm_meshes",
+] + UR10E_FILES
+
+# What every program that builds a layout's model is started with.
+LAYOUT_ENV = {
+    "LAYOUT_DIR": "layouts",
+    "MODELS_DIR": "models",
+    "UR10E_XML": "$(rootpath %s)" % UR10E,
+}
+
+cc_library(
+    name = "layout",
+    srcs = ["src/layout.cc"],
+    hdrs = [
+        "src/arm_catalog.h",
+        "src/layout.h",
+    ],
+    deps = ["@nlohmann_json//:json"],
+)
+
+cc_library(
+    name = "layout_model",
+    srcs = ["src/layout_model.cc"],
+    hdrs = ["src/layout_model.h"],
+    deps = [
+        ":bay_hardware",
+        ":bay_model",
+        ":container",
+        ":layout",
+        ":mj_handles",
+        "@eigen",
+        "@mujoco",
+    ],
+)
+# END layout
+
+# BEGIN layout_check
+# The checks on a layout (src/layout_check.h) and the program that prints
+# them.
+cc_library(
+    name = "layout_check",
+    srcs = ["src/layout_check.cc"],
+    hdrs = ["src/layout_check.h"],
+    deps = [
+        ":bay_hardware",
+        ":container",
+        ":layout",
+        ":layout_model",
+        ":mj_handles",
+        "@eigen",
+        "@mujoco",
+    ],
+)
+# END layout_check
+
+# BEGIN locate
+# END locate
