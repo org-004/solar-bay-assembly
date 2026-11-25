@@ -6,10 +6,17 @@ facts of this code that make it worth having and the command that measures it:
 every principle, each figure a count of departures, so "more in line with the
 principles" is a figure going down. `tools/architecture/measure.sh --list P<n>` prints
 the places counted. The figures under **Now** are those of
-[`baseline.txt`](baseline.txt); `measure.sh --check` fails when one of them changes
-without the baseline changing in the same commit. A detail line `P<n>.frozen` counts
-the places in the stand-in cell's files, which a refactoring does not edit (ADR 0020);
-until the stand-in cell is removed, a principle's target is its frozen figure.
+[`baseline.txt`](baseline.txt); `measure.sh --check` fails when its output differs
+from that file, so a commit that moves a figure changes `baseline.txt` with it. A
+detail line `P<n>.frozen` counts the places in the stand-in cell's files, which a
+refactoring does not edit (ADR 0020); until the stand-in cell is removed, a
+principle's target is its frozen figure. Lines marked "a rule of deps.json" count the
+rules themselves (what may include what, which files are excused), so that a rule
+cannot be widened unseen: they may not grow without a decision record.
+
+A figure is a means. A change that lowers one without the code getting better (a file
+cut at a line count, a test that asserts nothing, a pattern written another way) is
+against the principle it games; each **Check** says what its figure cannot see.
 
 The rules of `AGENTS.md` stand as written and are cited here, not repeated. The reasons
 behind each principle are in [`research.md`](research.md), cited as `[S7]`; the
@@ -18,9 +25,9 @@ where the code departs today, and what to do about it, is [`backlog.md`](backlog
 
 ## P1 Dependencies point one way
 
-**Rule.** Put every file under `src/` and `tests/` in exactly one group of
-`tools/architecture/deps.json`, and include only headers of the file's own group and of
-the groups that group may include.
+**Rule.** Include only headers of the file's own group and of the groups it may
+include, as `tools/architecture/deps.json` lists them, and change a group, what it may
+include or what is frozen only with a decision record.
 
 **Why here.** `src/` is flat: 99 files in one directory and one Bazel package, so
 neither a directory nor `visibility` says which piece may use which
@@ -28,17 +35,19 @@ neither a directory nor `visibility` says which piece may use which
 the stand-in cell, which is to be replaced, and the new cell, which must not grow roots
 into it. At the base commit no file of the stand-in includes the new cell and the
 project's headers have no cycle; that is true by luck, and this rule keeps it. The
-groups are `base`, `planning`, `hardware`, `perception`, `arm`, `standin`, `layout`,
-`viewer`, `programs` and `layout_programs`; `python3 tools/architecture/deps.py --graph`
-prints who includes whom.
+groups, lowest first, are `base`, `planning`, `hardware`, `layout`, `perception`,
+`arm`, `standin`, `viewer`, `programs` and `layout_programs`; every file under `src/`
+and `tests/` is in exactly one, and `python3 tools/architecture/deps.py --graph` prints
+who includes whom.
 
 **Sources.** [S1], [S2], [S26], [S48], [S57]
 
-**Check.** `measure.sh` line `P1`: `#include` lines against the allowed direction.
-`P1.cycles` counts cycles among the headers and `P1.namespace` the headers that open a
-namespace their group may not. `measure.sh --check` fails on a new one at once: a
-departure must be on the list in `deps.json`, the list can only shrink, and a file in
-no group is an error.
+**Check.** `measure.sh` line `P1`: pairs of a file and a header it includes against
+the allowed direction. `P1.cycles` counts cycles among the headers and `P1.namespace`
+the files that open a namespace their group may not. `measure.sh --check` fails on a
+new one at once: a departure must be on the list in `deps.json`, the list can only
+shrink, and a file in no group is an error. It cannot see a forward declaration of
+another group's name; that is a dependency too, and review holds it.
 
 **Now.** NOW_P1
 
@@ -69,7 +78,11 @@ compares what they print byte for byte. What is still outside is listed in
 
 **Check.** `measure.sh` line `P2` (needs Bazel): files under `src/` that neither a
 test target nor a captured program depends on. `P2.untested` counts the files no test
-target depends on, `P2.unrun` the programs no capture runs.
+target depends on, `P2.unrun` the programs no capture runs. The figure says that a
+file is reached, not how much of what it does is pinned: a test that asserts nothing
+or a capture of `--help` lowers it and holds nothing. A new test or capture counts
+when it fails after the result it names is changed by hand; try that before relying
+on it.
 
 **Now.** NOW_P2
 
@@ -91,23 +104,30 @@ pose out of the simulation's `mjData`) only in a file that `deps.json` lists und
 **Why here.** `AGENTS.md`, "Sensor data only", is the rule the whole project rests on:
 a cell that corrects itself from what it senses cannot be developed against poses that
 only a simulator knows. As worded it cannot be checked by a command. One test checks it
-for one file (`tests/camera_cycle_test.cc:974` reads `src/pick_place.cc` and fails on a
-`True` name), while any file that includes `src/cell.h` can call
-`Cell::TrueModulePose`. This principle makes the rule a list of files: the scene
+for one file (`tests/camera_cycle_test.cc:979` reads the text of `src/pick_place.cc`
+and fails on a list of names of truth), while any file that includes `src/cell.h` can
+call `Cell::TrueModulePose`. This principle makes the rule a list of files: the scene
 generator, the scorer and the tests may, everything else may not.
 
 **Sources.** [S9], [S13]
 
 **Check.** `measure.sh` line `P3`: files that match a truth pattern of `deps.json` and
-are not on its allowed list.
+are not on its allowed list, which names each file. The patterns hold the `True...`
+and `true_...` accessors and a body's pose (`xpos`, `xquat`, `xmat`); a pose read
+under another field of `mjData`, or through a helper added to an allowed file, is not
+seen, and the allowed files are the stand-in's, which a refactoring does not edit.
 
 **Now.** NOW_P3
 
-**Target.** `P3` equals `P3.frozen`, then 0. Never worse meanwhile.
+**Target.** `P3` equals `P3.frozen`, which it does today: the five files counted are
+the stand-in's runner and programs that score or report against truth. The line is
+there for the new cell's control code: any rise fails `measure.sh --check`.
 
-**Exceptions.** `src/collision.cc` and `src/layout_check.cc` read poses out of a
-private copy of the model that the planner or the checker poses itself; `deps.json`
-lists them with that reason.
+**Exceptions.** The files of `deps.json`, `truth`, `allowed`: the scene generator
+(`src/cell.*`, `src/pallet.*`, `src/conveyor.*`, `src/suction.*`, `src/check_rig.*`),
+the scorer (`src/score.*`), the tests, and `src/collision.cc` and
+`src/layout_check.cc`, which read poses out of a private copy of the model that the
+planner or the checker poses itself.
 
 **Decisions.** ADR 0005
 
@@ -132,7 +152,8 @@ counted here.
 
 **Check.** `measure.sh` line `P4`: the number of outside dependencies. `P4.unpinned`
 counts fetches without a version, commit or hash, `P4.group` the includes of a library
-from a group that may not, and one line per library counts the targets that list it.
+from a group that may not, one line per library counts the targets that list it, and
+`P4.mujoco_files` the files that include MuJoCo.
 
 **Now.** NOW_P4
 
@@ -161,7 +182,9 @@ so they must be true before anything is built on them.
 **Check.** `measure.sh` line `P5`: `deps` entries none of whose headers the target's
 files include, plus includes of a library that is not in `deps`, plus files under
 `src/` and `tests/` that belong to no target or to several (`P5.unused_project`,
-`P5.unused_outside`, `P5.missing`, `P5.files`). `measure.sh --check` fails on a new one.
+`P5.unused_outside`, `P5.missing`, `P5.files`). `measure.sh --check` fails on a new
+one. It compares `#include` lines with `deps`: an include that nothing needs, and a
+name used only through another header's include, are not seen.
 
 **Now.** NOW_P5
 
@@ -187,17 +210,19 @@ P2 is made on one machine.
 
 **Sources.** [S11], [S12], [S14], [S52]
 
-**Check.** `measure.sh` line `P6`: files under `src/` and `tests/`, other than
-`src/portable_random.h`, that use a distribution of `<random>`, `std::rand`,
-`std::random_device` or the wall clock.
+**Check.** `measure.sh` line `P6`: files under `src/` and `tests/` that use a
+distribution of `<random>`, `std::shuffle`, `std::rand` and its kin,
+`std::random_device` or a wall clock, or that read `std::chrono::steady_clock`
+anywhere but in the files `deps.json` lists as only printing the time (`P6.clock`).
 
 **Now.** NOW_P6
 
 **Target.** `P6` equals `P6.frozen`, then 0. Never worse meanwhile.
 
-**Exceptions.** `std::chrono::steady_clock` for a time that is only printed, and OMPL's
-planners that seed themselves from the clock (`src/ompl_search.cc`, ADR 0008): a figure
-of theirs is a sample, never a bound.
+**Exceptions.** The files of `deps.json`, `clock_printed_only`, where a clock reading
+is printed or reported and decides nothing. OMPL's planners that seed themselves from
+the clock (ADR 0008) are outside this code: a figure of theirs is a sample, never a
+bound.
 
 **Decisions.** ADR 0006, ADR 0008
 
@@ -211,17 +236,18 @@ drifted before: the stand-in still has ten slots where the bay has nine. Some fa
 are written many times today. `mj_geomDistance`, which in MuJoCo 4.0.0 measures a
 capsule through a box wrongly unless the model was mended by `src/layout_model.cc`, is
 called from four files under `src/`, where one function (`LeastDistance` in
-`src/layout_scene.cc`) is meant to be the only caller. The stand-in module's size and
-the gate's 3 mm are spelled out as literals in files that include the header that
-names them. `AGENTS.md`, "Frames and units", is the home of the units; this principle
-is about the values.
+`src/layout_scene.cc`) is meant to be the only caller. The stand-in module's size is
+written out again in `src/conveyor.h` and `src/suction.h`, and the gate's 3 mm in
+`src/bay_hardware.h`. `AGENTS.md`, "Frames and units", is the home of the units; this
+principle is about the values.
 
 **Sources.** [S10], [S23], [S24]
 
-**Check.** `measure.sh` line `P7`: files that write again a fact whose home `deps.json`
-names under `single_home`, one detail line for each fact. The list is of known
-duplicates; a fact found written twice is added to it with its home, in the commit
-that finds it.
+**Check.** `measure.sh` line `P7`: files under `src/` that write again a fact whose
+home `deps.json` names under `single_home`, one detail line for each fact. The list is
+of known duplicates, found by the spelling each has today; a fact found written twice
+is added to it with its home, in the commit that finds it. A home must be in a group
+that every user may include (P1); where it is not, the home moves first.
 
 **Now.** NOW_P7
 
@@ -255,8 +281,9 @@ stated reason why no test can compare them.
 
 **Target.** 0. Never worse meanwhile.
 
-**Exceptions.** Pictures and recordings (`docs/img/`, `docs/*.gif`): their entries name
-the command that makes them, and `docs/layout.md` lists those commands.
+**Exceptions.** Pictures and recordings (`docs/img/`, `docs/*.gif`) need a display and
+are judged by eye: their entries say so and name the script or the document that holds
+the command, where one is recorded.
 
 **Decisions.** ADR 0010
 
@@ -300,8 +327,8 @@ that names it in the same commit.
 
 **Why here.** Agents find their way here by `AGENTS.md`'s map and the documents under
 `docs/`, and they follow a path or a command as written. `docs/layout.md:667` still
-tells the reader to run `//:print_layout_moves`, a target that left with
-`src/print_layout_moves.cc`. Every refactoring in the backlog moves or renames
+tells the reader to run `//:print_layout_moves` (gone), a target that left with its
+source file in run 012. Every refactoring in the backlog moves or renames
 something, so without this rule each one would leave the documents a little more
 wrong.
 
@@ -339,11 +366,17 @@ of `deps.json`, `size`.
 
 **Check.** `measure.sh` line `P11`: `.cc` files under `src/` over the line limit,
 headers over theirs, and headers whose opening comment is shorter than five lines
-(`P11.cc`, `P11.h`, `P11.comment`).
+(`P11.cc`, `P11.h`, `P11.comment`). The figure cannot tell a file divided by what it
+does from one cut at a line count, nor a comment that explains from five lines of
+filler. So a split also answers a question: does each new file have a header whose
+opening comment says what the piece is for without naming the file it was cut from?
+`src/layout_rows.h:1` passes (the rows of a check that need no pose of an arm, taken
+out of `src/layout_check.h`); a `src/layout_check_part2.cc` would not.
 
 **Now.** NOW_P11
 
-**Target.** `P11` equals `P11.frozen`; `P11.comment` stays 0. Never worse meanwhile.
+**Target.** `P11` equals `P11.frozen` plus one, the header excepted below;
+`P11.comment` stays 0. Never worse meanwhile.
 
 **Exceptions.** Tests are not counted: a long test file is many short cases.
 `src/bay_hardware.h` is a table of the hardware's figures with their sources and is

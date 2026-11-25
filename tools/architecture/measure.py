@@ -15,22 +15,31 @@ and, where a principle has parts, detail lines
 A line that needs `bazel query` ends in "(bazel)"; when bazel is not on PATH
 it is left out and a note goes to stderr. The lines, in the order printed:
 
-  P1  dependencies point one way: #include lines against the groups'
-      allowed direction. P1.cycles, P1.namespace.
+  P1  dependencies point one way: file-to-header pairs against the groups'
+      allowed direction. P1.cycles, P1.namespace (src/ files, .cc included),
+      and the guards P1.allowed, P1.listed, P1.frozen_files.
   P2  nothing moves outside the net: files under src/ that no test and no
       captured program depends on (bazel). P2.untested (bazel), P2.unrun.
-  P3  sensor data only: files that read the simulation's truth.
-  P4  outside libraries: their number and who lists them. P4.unpinned,
-      P4.mujoco ..., P4.group.
+  P3  sensor data only: files that read the simulation's truth. P3.allowed.
+  P4  outside libraries: their number (bazel_dep, fetches, use_repo names and
+      overrides) and who lists them. P4.unpinned, P4.mujoco ..., P4.group
+      (also through project headers), P4.allowed.
   P5  a target lists what its files include. P5.unused_project,
       P5.unused_outside, P5.missing, P5.files. The headline is their sum.
-  P6  the same on every platform and in every run.
-  P7  a fact has one home. One detail line per fact.
-  P8  committed outputs agree with their source. P8.unmatched.
-  P9  a finding is cured, not silenced.
-  P10 documents point at what exists.
+  P6  the same on every platform and in every run. P6.clock (steady_clock
+      read for more than a print), P6.allowed.
+  P7  a fact has one home (src/ only). One detail line per fact.
+  P8  committed outputs agree with their source. P8.unmatched, P8.no_test.
+  P9  a finding is cured, not silenced. P9.allowed, P9.held.
+  P10 documents point at what exists. P10.left_out.
   P11 a file is small enough to read and says what it is. P11.cc, P11.h,
       P11.comment.
+
+A guard line (P1.allowed, P1.listed, P1.frozen_files, P3.allowed, P4.allowed,
+P6.allowed, P8.no_test, P9.allowed, P10.left_out) counts what the rules of
+deps.json excuse, and ends in "(a rule of deps.json; may not grow)": a rule
+that is widened shows there. P9.held counts what is switched on (a guard that
+may not fall).
 
 For P1, P2, P3, P5, P6, P7, P9 and P11 a further detail line
     P<n>.frozen <k> of them in the stand-in cell's files, which a refactoring does not edit
@@ -216,7 +225,11 @@ def opened_namespaces(code):
             stack.append(None)
         else:
             outer = [x for x in stack if x]
-            name = m.group(1) or "(anonymous)"
+            if m.group(1) is None:
+                stack.append(outer[-1] if outer else None)
+                opened.append("(anonymous)")
+                continue
+            name = m.group(1)
             full = "::".join(outer[-1:] + [name]) if outer else name
             stack.append(full)
             opened.append(full)
@@ -224,16 +237,24 @@ def opened_namespaces(code):
 
 
 def m_namespace(c):
+    """Files under src/ that open a namespace their group does not allow
+    (headers and .cc files; an unnamed namespace is allowed in a .cc file),
+    and #define lines that carry the word namespace."""
     allowed = {g["name"]: set(g["namespaces"]) for g in c.rules["groups"]}
     out = []
     for f in c.sources():
-        if not f.startswith("src/") or not f.endswith(".h"):
+        if not f.startswith("src/"):
             continue
-        bad = sorted({o for o in opened_namespaces(c.code(f))
-                      if o not in allowed.get(c.result.group_of.get(f), set())})
+        ok = allowed.get(c.result.group_of.get(f), set())
+        if f.endswith(".cc"):
+            ok = ok | {"(anonymous)"}
+        bad = sorted({o for o in opened_namespaces(c.code(f)) if o not in ok})
         if bad:
             out.append("%s opens %s, which group %s does not allow"
                        % (f, ", ".join(bad), c.result.group_of.get(f)))
+        for n, line in enumerate(c.code(f).split("\n"), 1):
+            if re.match(r"\s*#\s*define\b.*\bnamespace\b", line):
+                out.append("%s:%d a #define that holds the word namespace" % (f, n))
     return out
 
 
@@ -261,10 +282,21 @@ def m_truth(c):
     return files_matching(c, regexes, allowed)
 
 
+def pinned(kw):
+    """Whether a repository rule's or override's keywords pin what it fetches:
+    an integrity (sha256- and base64), a sha256 (64 hex digits) or a commit
+    (40 hex digits)."""
+    return bool(re.fullmatch(r"sha256-[A-Za-z0-9+/]{43}=", str(kw.get("integrity") or ""))
+                or re.fullmatch(r"[0-9a-f]{64}", str(kw.get("sha256") or ""))
+                or re.fullmatch(r"[0-9a-f]{40}", str(kw.get("commit") or "")))
+
+
 def module_bazel(c):
-    """(bazel_deps, fetches): [(name, pinned by)] read from MODULE.bazel."""
+    """[(kind, name, pinned)] read from MODULE.bazel: bazel_dep (pinned by a
+    version), fetch (a repository rule), override (a *_override) and use_repo
+    (a name taken from a module extension)."""
     tree = ast.parse(deps.read(c.root, "MODULE.bazel"), "MODULE.bazel")
-    rules, bazel_deps, fetches = set(), [], []
+    rules, found = set(), []
     for node in tree.body:
         if isinstance(node, ast.Assign) and isinstance(node.value, ast.Call) \
                 and getattr(node.value.func, "id", None) == "use_repo_rule":
@@ -281,23 +313,25 @@ def module_bazel(c):
             except ValueError:
                 kw[k.arg] = None
         if fn == "bazel_dep":
-            bazel_deps.append((kw.get("name"), kw.get("version") or ""))
+            found.append(("bazel_dep", kw.get("name"), bool(kw.get("version"))))
         elif fn in rules:
-            pin = kw.get("sha256") or kw.get("integrity") or kw.get("commit") or ""
-            fetches.append((kw.get("name"), pin))
-    return bazel_deps, fetches
+            found.append(("fetch", kw.get("name"), pinned(kw)))
+        elif fn == "use_repo":
+            names = [a.value for a in call.args[1:] if isinstance(a, ast.Constant)]
+            names += [v for v in kw.values() if isinstance(v, str)]
+            found += [("use_repo", n, True) for n in names]
+        elif fn and fn.endswith("_override"):
+            found.append(("override", "%s %s" % (fn, kw.get("module_name")),
+                          pinned(kw) or bool(kw.get("version"))))
+    return found
 
 
 def m_outside(c):
-    bazel_deps, fetches = module_bazel(c)
-    return sorted(["bazel_dep " + n for n, _ in bazel_deps] +
-                  ["fetch " + n for n, _ in fetches])
+    return sorted("%s %s" % (k, n) for k, n, _ in module_bazel(c))
 
 
 def m_outside_unpinned(c):
-    bazel_deps, fetches = module_bazel(c)
-    return sorted(["bazel_dep " + n for n, v in bazel_deps if not v] +
-                  ["fetch " + n for n, p in fetches if not p])
+    return sorted("%s %s" % (k, n) for k, n, ok in module_bazel(c) if not ok)
 
 
 def targets_listing(lib):
@@ -319,12 +353,16 @@ def m_outside_mujoco_files(c):
 
 
 def m_outside_group(c):
-    """The #include lines of an outside library from a group that may not."""
+    """The #include lines of an outside library from a group that may not,
+    and the files that reach such a library through project headers."""
     out = []
     for f, lib in sorted(c.result.found["outside_include"]):
-        for line, kind, name in c.result.file_includes[f]:
-            if kind == "<" and deps.outside_library(c.rules, name) == lib:
-                out.append("%s:%d %s" % (f, line, lib))
+        lines = [line for line, kind, name in c.result.file_includes[f]
+                 if kind == "<" and deps.outside_library(c.rules, name) == lib]
+        for line in lines:
+            out.append("%s:%d %s" % (f, line, lib))
+        if not lines:
+            out.append("%s %s (through its project headers)" % (f, lib))
     return out
 
 
@@ -377,10 +415,22 @@ def files_matching(c, regexes, allowed, scope=("src/*", "tests/*")):
     return sorted(out)
 
 
+def clock_printed_only(c):
+    return [e["file"] for e in c.rules["portable"]["clock_printed_only"]]
+
+
+def m_clock(c):
+    """Files that read steady_clock for more than a print."""
+    r = re.compile(r"\bsteady_clock\b")
+    return files_matching(c, [r], clock_printed_only(c))
+
+
 def m_portable(c):
-    p = c.rules["portable"]
-    regexes = [re.compile(x["regex"], re.M) for x in p["patterns"]]
-    return files_matching(c, regexes, p["allowed"])
+    found = set(m_clock(c))
+    for p in c.rules["portable"]["patterns"]:
+        r = re.compile(p["regex"], re.M)
+        found |= set(files_matching(c, [r], [a["file"] for a in p["allowed"]]))
+    return sorted(found)
 
 
 def m_single_home_parts(c):
@@ -388,18 +438,13 @@ def m_single_home_parts(c):
     parts = {}
     for e in c.rules["single_home"]["entries"]:
         r = re.compile(e["pattern"], re.M)
-        parts[e["key"]] = (e["fact"], files_matching(c, [r], e["home"]))
+        parts[e["key"]] = (e["fact"], files_matching(c, [r], e["home"], scope=("src/*",)))
     return parts
 
 
 def m_single_home(c):
     return ["%s (%s)" % (f, key) for key, (_, files) in m_single_home_parts(c).items()
             for f in files]
-
-
-def m_generated(c):
-    return sorted(e["committed"] for e in c.rules["generated"]["entries"]
-                  if not e.get("test") and not e.get("no_test"))
 
 
 def expand(pattern):
@@ -411,32 +456,73 @@ def expand(pattern):
             for x in expand(pattern[:m.start()] + alt + pattern[m.end():])]
 
 
+def test_compares(c, e):
+    """Whether the entry's test is a file under tests/ that names the
+    committed file's base name, or whose target's data covers it."""
+    t = e.get("test")
+    if not t or not t.startswith("tests/") or t not in c.tracked:
+        return False
+    pats = expand(e["committed"])
+    text = deps.read(c.root, t)
+    if any(os.path.basename(p) in text for p in pats):
+        return True
+    for tgt in c.result.targets.values():
+        if t in tgt["srcs"]:
+            for d in tgt["data"] if isinstance(tgt["data"], list) else []:
+                if any(fnmatch.fnmatchcase(d, p) for p in pats):
+                    return True
+    return False
+
+
+def m_generated(c):
+    return sorted(e["committed"] for e in c.rules["generated"]["entries"]
+                  if not test_compares(c, e) and not e.get("no_test"))
+
+
+def m_no_test(c):
+    return sorted(e["committed"] for e in c.rules["generated"]["entries"] if e.get("no_test"))
+
+
 def m_generated_unmatched(c):
-    """Entries whose committed pattern matches no tracked file: the data is stale."""
+    """Entries whose committed pattern matches no tracked file (the data is
+    stale), tracked files under plans/ that no entry matches, and the
+    models/*.xml that a generator writes and no entry matches."""
+    entries = c.rules["generated"]["entries"]
+    pats = [p for e in entries for p in expand(e["committed"])]
     out = []
-    for e in c.rules["generated"]["entries"]:
-        pats = expand(e["committed"])
-        if not any(any(fnmatch.fnmatchcase(f, p) for f in c.files) for p in pats):
+    for e in entries:
+        if not any(any(fnmatch.fnmatchcase(f, p) for f in c.files) for p in expand(e["committed"])):
             out.append(e["committed"])
+    for f in c.files:
+        if f.startswith("plans/") and not any(fnmatch.fnmatchcase(f, p) for p in pats):
+            out.append("%s matches no entry of generated" % f)
+    for e in entries:
+        for m in re.finditer(r"models/[A-Za-z0-9_./-]+\.xml", e["generator"]):
+            if not any(fnmatch.fnmatchcase(m.group(0), p) for p in pats):
+                out.append("%s, written by %s, matches no entry of generated" % (m.group(0), e["generator"]))
     return out
 
 
 _SILENCE_CODE = [
     re.compile(r"^[ \t]*#[ \t]*pragma[ \t]+(?:GCC|clang)[ \t]+diagnostic\b", re.M),
+    re.compile(r"\b_Pragma\s*\("),
+    re.compile(r"^[ \t]*#[ \t]*pragma[ \t]+(?:GCC|clang)[ \t]+system_header\b", re.M),
     re.compile(r"__attribute__\s*\(\(\s*no_sanitize"),
     re.compile(r"\[\[\s*(?:gnu|clang)::no_sanitize"),
 ]
-# NOLINT is itself a comment: only a comment that begins with it silences.
-_NOLINT = re.compile(r"(?://|/\*)[ \t]*NOLINT(?:NEXTLINE|BEGIN)?\b")
-_BAZELRC_FLAG = re.compile(r"(?<![\w-])(-Wno-[\w=+-]*|-w)(?![\w-])")
+# NOLINT is itself a comment, and clang-tidy honours it anywhere in one.
+_COMMENT = re.compile(r"//[^\n]*|/\*.*?\*/", re.S)
+_NOLINT = re.compile(r"NOLINT(?:NEXTLINE|BEGIN)?\b")
+_BAZELRC_FLAG = re.compile(r"(?<![\w-])(-Wno-[\w=+-]*|-w|-isystem)(?![\w-])")
 
 
 def m_silenced(c):
     out = []
     for f in c.sources():
         raw = deps.read(c.root, f)
-        for m in _NOLINT.finditer(raw):
-            out.append("%s:%d NOLINT" % (f, raw.count("\n", 0, m.start()) + 1))
+        for cm in _COMMENT.finditer(raw):
+            for m in _NOLINT.finditer(cm.group(0)):
+                out.append("%s:%d NOLINT" % (f, raw.count("\n", 0, cm.start() + m.start()) + 1))
         code = c.code(f)
         for r in _SILENCE_CODE:
             for m in r.finditer(code):
@@ -444,7 +530,7 @@ def m_silenced(c):
                                          m.group(0).strip()))
     for name, t in sorted(c.result.targets.items()):
         for o in t["copts"]:
-            if o == "-w" or o.startswith("-Wno-"):
+            if o == "-w" or o.startswith(("-Wno-", "-isystem")):
                 out.append("BUILD.bazel:%d %s copts %s" % (t["line"], name, o))
     budget = {}
     for a in c.rules["silenced"]["allowed"]:
@@ -531,23 +617,114 @@ def doc_files(root, left_out=()):
 _LABEL = re.compile(r"(?<![\w/@])//:([A-Za-z0-9_][A-Za-z0-9_./+-]*[A-Za-z0-9_])")
 
 
+_STARTER = re.compile(r"\s*(?:[-*+]\s|\d+[.)]\s|\||#|>)")
+_GONE = re.compile(r"\(gone\)|no longer exists?", re.I)
+
+
+def doc_units(text):
+    """(line, text, fenced) for each paragraph (its lines joined, with a
+    list of the offset at which each line starts) outside fenced blocks, and
+    for each line inside one. A new paragraph starts at a blank line, a
+    table row, a heading, a quotation or a list item."""
+    lines = text.split("\n")
+    fence, para, starts = None, [], []
+    units = []
+
+    def flush():
+        if para:
+            units.append((starts[0][1], " ".join(para), False, [(o, n) for o, n in starts]))
+        para.clear()
+        starts.clear()
+
+    for n, line in enumerate(lines, 1):
+        m = re.match(r"^\s*(```|~~~)", line)
+        if m:
+            flush()
+            fence = None if fence == m.group(1) else (fence or m.group(1))
+            continue
+        if fence:
+            units.append((n, line, True, [(0, n)]))
+            continue
+        if not line.strip():
+            flush()
+            continue
+        if _STARTER.match(line):
+            flush()
+        offset = len(" ".join(para)) + (1 if para else 0)
+        starts.append((offset, n))
+        para.append(line.strip())
+    flush()
+    return units
+
+
+def line_at(starts, offset):
+    n = starts[0][1]
+    for o, ln in starts:
+        if o <= offset:
+            n = ln
+    return n
+
+
+def sentence_around(text, start, end):
+    """The sentence of text that holds [start, end)."""
+    lo = 0
+    hi = len(text)
+    for m in re.finditer(r"(?<=[.!?])\s+", text):
+        if m.end() <= start:
+            lo = m.end()
+        elif m.start() >= end:
+            hi = m.start()
+            break
+    return text[lo:hi]
+
+
+def token_departures(c, token, tops):
+    """(token, reason) for each path word and Bazel label of the text."""
+    out = []
+    for word in token.split():
+        w = word.strip("\"'(),;").rstrip(".:")
+        why = check_path(c.root, w, tops)
+        if why:
+            out.append((w, why))
+    for lm in _LABEL.finditer(token):
+        name = lm.group(1)
+        if "//:" + name not in c.result.rule_names and name not in c.tracked:
+            out.append(("//:" + name, "is no target of BUILD.bazel"))
+    return out
+
+
 def doc_departures(c, doc, tops):
     """(line, token, reason) for each backticked path or Bazel label of a
-    document that does not exist."""
+    document that does not exist, in paragraphs, inside multi-word spans and
+    in fenced blocks, and each relative link to a file that does not exist.
+    A token is skipped when " (new)" or " (gone)" follows its span, or when
+    its sentence says "(gone)" or "no longer exists"."""
     out = []
-    for n, line in markdown_lines(deps.read(c.root, doc)):
-        for m in _BACKTICK.finditer(line):
-            if line[m.end():m.end() + 7].startswith((" (new)", " (gone)")):
+    for first, text, fenced, starts in doc_units(deps.read(c.root, doc)):
+        if fenced:
+            if _GONE.search(text):
                 continue
-            token = m.group(2).strip()
-            why = check_path(c.root, token, tops)
-            if why:
-                out.append((n, token, why))
-            for lm in _LABEL.finditer(token):
-                name = lm.group(1)
-                if "//:" + name not in c.result.rule_names and name not in c.tracked:
-                    out.append((n, "//:" + name, "is no target of BUILD.bazel"))
-    return out
+            out += [(first, t, why) for t, why in token_departures(c, text, tops)]
+            continue
+        for m in _BACKTICK.finditer(text):
+            if text[m.end():m.end() + 7].startswith((" (new)", " (gone)")):
+                continue
+            if _GONE.search(sentence_around(text, m.start(), m.end())):
+                continue
+            line = line_at(starts, m.start())
+            out += [(line, t, why) for t, why in token_departures(c, m.group(2).strip(), tops)]
+        bare = _BACKTICK.sub(lambda x: " " * len(x.group(0)), text)
+        for m in _LINK.finditer(bare):
+            target = m.group(1)
+            if re.match(r"^[a-z][a-z0-9+.-]*:", target, re.I) or target.startswith("#"):
+                continue
+            target = target.split("#", 1)[0]
+            if not target or _GONE.search(sentence_around(text, m.start(), m.end())):
+                continue
+            full = os.path.normpath(os.path.join(c.root, os.path.dirname(doc), target))
+            if not os.path.exists(full):
+                out.append((line_at(starts, m.start()), target, "link target does not exist"))
+    return sorted(set(out))
 
 
 def m_documents(c):
@@ -565,18 +742,90 @@ def documents_by_file(root):
     return {doc: len(doc_departures(c, doc, tops)) for doc in doc_files(root)}
 
 
+def m_allowed_pairs(c):
+    return ["%s may include %s" % (g["name"], m) for g in c.rules["groups"] for m in g["may_include"]]
+
+
+def m_listed(c):
+    return [deps.place(d["kind"], deps.departure_key(d)) for d in c.rules["departures"]["list"]]
+
+
+def m_frozen_files(c):
+    return sorted(c.frozen_files)
+
+
+def m_truth_allowed(c):
+    names = set()
+    for a in c.rules["truth"]["allowed"]:
+        for pat in a["files"]:
+            names |= {f for f in c.files if fnmatch.fnmatchcase(f, pat)}
+    return sorted(names)
+
+
+def m_outside_pairs(c):
+    out = ["%s may include %s" % (g["name"], lib) for g in c.rules["groups"] for lib in g["outside"]]
+    return out + ["tests may include %s" % lib for lib in c.rules["tests_outside"]]
+
+
+def m_portable_allowed(c):
+    out = ["%s (%s)" % (a["file"], p["name"]) for p in c.rules["portable"]["patterns"]
+           for a in p["allowed"]]
+    return out + ["%s (steady_clock only printed)" % f for f in clock_printed_only(c)]
+
+
+def m_silenced_allowed(c):
+    return ["%s %s" % (a["file"], a["token"]) for a in c.rules["silenced"]["allowed"]]
+
+
+def m_left_out(c):
+    return [d["file"] for d in c.rules["docs_left_out"]["list"]]
+
+
+def clang_tidy_entries(text, key):
+    """The comma-separated entries of a key of .clang-tidy (a plain, quoted
+    or folded value, over one or several lines)."""
+    m = re.search(r"^%s:[ \t]*([^\n]*)((?:\n[ \t]+[^\n]*)*)" % key, text, re.M)
+    if not m:
+        return []
+    value = (m.group(1) + " " + m.group(2)).strip().lstrip(">|-+").strip().strip("'\"")
+    return [e.strip().strip("'\"") for e in re.split(r"[,\n]", value) if e.strip().strip("'\"")]
+
+
+def m_held(c):
+    out = []
+    rc = os.path.join(c.root, ".bazelrc")
+    if os.path.exists(rc):
+        for n, line in enumerate(deps.read(c.root, ".bazelrc").split("\n"), 1):
+            if line.startswith("build --per_file_copt="):
+                out += [".bazelrc:%d %s" % (n, f) for f in re.findall(r"-Werror=[\w+-]+", line)]
+    ct = os.path.join(c.root, ".clang-tidy")
+    if os.path.exists(ct):
+        text = deps.read(c.root, ".clang-tidy")
+        out += [".clang-tidy Checks %s" % e for e in clang_tidy_entries(text, "Checks")
+                if not e.startswith("-")]
+        out += [".clang-tidy WarningsAsErrors %s" % e
+                for e in clang_tidy_entries(text, "WarningsAsErrors")]
+    return out
+
+
+GUARD = " (a rule of deps.json; may not grow)"
+
 # The table. label, what is counted, the function that lists the places,
 # whether it needs `bazel query`.
 METRICS = [
-    ("P1", "#include lines against the groups' allowed direction (deps.json)", m_layering, False),
+    ("P1", "file-to-header pairs (a file and a project header it includes) against the groups' allowed direction (deps.json)", m_layering, False),
     ("P1.cycles", "header cycles", m_cycles, False),
-    ("P1.namespace", "headers under src/ that open a namespace their group does not allow (deps.json namespaces)", m_namespace, False),
+    ("P1.namespace", "files under src/ that open a namespace their group does not allow (deps.json namespaces), and #define lines with the word namespace", m_namespace, False),
+    ("P1.allowed", "pairs (group, group it may include)" + GUARD, m_allowed_pairs, False),
+    ("P1.listed", "departures on the list of deps.json" + GUARD, m_listed, False),
+    ("P1.frozen_files", "files in frozen groups" + GUARD, m_frozen_files, False),
     ("P2", "files under src/ that no test and no captured program (programs.txt) depends on (bazel)", m_unheld, True),
     ("P2.untested", "files under src/ that no test target depends on (bazel)", m_untested, True),
     ("P2.unrun", "cc_binary targets that programs.txt does not capture", m_unrun, False),
     ("P3", "files that read the simulation's truth and are not allowed to (deps.json truth)", m_truth, False),
-    ("P4", "outside dependencies in MODULE.bazel (bazel_dep and fetches; may not grow)", m_outside, False),
-    ("P4.unpinned", "fetches or bazel_deps not pinned by a version, commit or hash", m_outside_unpinned, False),
+    ("P3.allowed", "files that may read the truth, by exact name" + GUARD, m_truth_allowed, False),
+    ("P4", "outside dependencies in MODULE.bazel (bazel_dep, fetches, use_repo names, overrides; may not grow)", m_outside, False),
+    ("P4.unpinned", "of them not pinned by a version, a commit, an integrity or a sha256", m_outside_unpinned, False),
     ("P4.mujoco", "targets that list @mujoco directly (may not grow)", targets_listing("mujoco"), False),
     ("P4.eigen", "targets that list @eigen directly (may not grow)", targets_listing("eigen"), False),
     ("P4.googletest", "targets that list @googletest directly (may not grow)", targets_listing("googletest"), False),
@@ -584,19 +833,26 @@ METRICS = [
     ("P4.ompl", "targets that list @ompl directly (may not grow)", targets_listing("ompl"), False),
     ("P4.glfw", "targets that list @glfw directly (may not grow)", targets_listing("glfw"), False),
     ("P4.mujoco_files", "files that include mujoco/ (may not grow)", m_outside_mujoco_files, False),
-    ("P4.group", "#include lines of an outside library from a group that may not include it", m_outside_group, False),
+    ("P4.group", "#include lines of an outside library from a group that may not include it, and files that reach one through project headers", m_outside_group, False),
+    ("P4.allowed", "pairs (group, outside library)" + GUARD, m_outside_pairs, False),
     ("P5", "unused and missing deps of targets, and files in the srcs and hdrs of no target or of several", m_dep_places, False),
     ("P5.unused_project", "targets' deps on project libraries none of whose headers the target includes", m_unused_project, False),
     ("P5.unused_outside", "targets' deps on outside libraries none of whose headers the target includes", m_unused_outside, False),
     ("P5.missing", "targets that include a header of a library they do not list", m_missing, False),
     ("P5.files", "files under src/ and tests/ in the srcs and hdrs of no target or of more than one", m_target_files, False),
-    ("P6", "files that use what differs between platforms or runs outside src/portable_random.h", m_portable, False),
-    ("P7", "places where a fact that has a home is written again (file and fact; deps.json single_home)", m_single_home, False),
-    ("P7.*", "files outside its home that write {}", m_single_home_parts, False),
+    ("P6", "files that use what differs between platforms or runs outside src/portable_random.h, or that read steady_clock for more than a print", m_portable, False),
+    ("P6.clock", "files that read steady_clock and are not in clock_printed_only of deps.json", m_clock, False),
+    ("P6.allowed", "files excused from a pattern or from the clock reading" + GUARD, m_portable_allowed, False),
+    ("P7", "places in src/ where a fact that has a home is written again (file and fact; deps.json single_home)", m_single_home, False),
+    ("P7.*", "files under src/ outside its home that write {}", m_single_home_parts, False),
     ("P8", "committed generated files with no test that compares them to their source and no reason why none can", m_generated, False),
-    ("P8.unmatched", "deps.json generated entries that match no tracked file", m_generated_unmatched, False),
+    ("P8.unmatched", "generated entries that match no tracked file, and plans and models that match no entry", m_generated_unmatched, False),
+    ("P8.no_test", "entries excused from a test" + GUARD, m_no_test, False),
     ("P9", "places that silence a compiler's or analyzer's finding (deps.json silenced)", m_silenced, False),
-    ("P10", "backticked paths and Bazel labels in AGENTS.md, README.md and docs/**/*.md that do not exist", m_documents, False),
+    ("P9.allowed", "silencers excused" + GUARD, m_silenced_allowed, False),
+    ("P9.held", "-Werror= flags in .bazelrc plus enabled entries of Checks and WarningsAsErrors in .clang-tidy (a guard; may not fall)", m_held, False),
+    ("P10", "backticked paths and Bazel labels, and relative links, in AGENTS.md, README.md and docs/**/*.md that do not exist", m_documents, False),
+    ("P10.left_out", "documents left out of P10" + GUARD, m_left_out, False),
     ("P11", "files under src/ too long, and headers whose opening comment is too short", m_size, False),
     ("P11.cc", ".cc files under src/ over the line limit of deps.json size", m_size_cc, False),
     ("P11.h", "headers under src/ over the line limit of deps.json size", m_size_h, False),

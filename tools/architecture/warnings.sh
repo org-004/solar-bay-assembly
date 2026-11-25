@@ -23,6 +23,8 @@
 #   --list FLAG    print the places of one flag (file:line:col: message)
 #   --by-file      print "flag file count" lines
 #   --check        exit 1 if a count is above docs/architecture/baseline.txt
+#   --baseline F   with --check, read the baseline from F (a file in the
+#                  format of docs/architecture/baseline.txt) instead
 #   --probe        with --flags: say which flags the compiler knows, and stop
 #
 # The environment variable BAZEL, if set, is the Bazel command, startup
@@ -71,7 +73,8 @@ Output (standard output):
   places of that flag; with --by-file only line 1 and `FLAG FILE COUNT` lines
   (inside places, by asked flag). Notes about the run go to standard error.
 
---check reads, in docs/architecture/baseline.txt of this checkout, the lines
+--check reads, in docs/architecture/baseline.txt of this checkout (or in the
+file named by --baseline, which must exist), the lines
 `W FLAG N` after the line that starts with `# not compared`, and exits 1,
 naming each flag whose count is above its N.
 
@@ -104,11 +107,11 @@ def die(msg, code=2):
 def parse_args(argv):
     argv = ["x"] + argv
     o = dict(flags=None, cc=None, extra=[], jobs=3, raw=None, list=None,
-             by_file=False, check=False, probe=False)
+             baseline=None, by_file=False, check=False, probe=False)
     i = 1
     while i < len(argv):
         a = argv[i]
-        if a in ("--flags", "--cc", "--extra", "--jobs", "--raw", "--list"):
+        if a in ("--flags", "--cc", "--extra", "--jobs", "--raw", "--list", "--baseline"):
             i += 1
             if i >= len(argv):
                 die(__doc__)
@@ -358,7 +361,9 @@ def run(o, tmp):
     print("# asked, nothing produced: %s" % (" ".join(none) or "-"))
 
     if o["check"]:
-        path = os.path.join(ROOT, "docs", "architecture", "baseline.txt")
+        path = o["baseline"] or os.path.join(ROOT, "docs", "architecture", "baseline.txt")
+        if o["baseline"] and not os.path.exists(path):
+            die("no baseline file " + path)
         if os.path.exists(path):
             limits, on = {}, False
             with open(path) as fh:

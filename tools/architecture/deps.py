@@ -11,16 +11,25 @@ data in deps.json; that file's "about" strings explain each part. This
 script fails, with one line per problem that names the place (a file or a
 target) and the rule broken, when:
 
-  (a) a file under src/ or tests/ is in no group, or in more than one;
+  (a) a file under src/ or tests/ is in no group, or in more than one, or
+      is neither .h nor .cc; or a directive cannot be followed: an
+      #include whose operand is not a literal "..." or <...> (a macro), an
+      #import, an #include_next. Backslash-newline is removed first and the
+      digraph %: is read as #;
   (b) an #include "src/..." goes from a group to one that the first may not
       include (may_include), and is not a listed departure;
   (c) a file includes an outside library that its group may not (outside),
-      and that is not a listed departure;
+      directly or through project headers, and that is not a listed
+      departure; an #include <...> must name an outside library of deps.json
+      or be in STD_HEADERS, the fixed list of C++20 and C library headers;
   (d) the project's headers include each other in a cycle (the cycle is
       printed);
   (e) a target's files include a header of a library that is not among the
       target's deps (direct deps only; a header in the target's own srcs or
-      hdrs is fine), or a project header that no target offers;
+      hdrs is fine), or a project header that no target offers; BUILD.bazel
+      uses an attribute on a cc_library, cc_binary, cc_test or alias that
+      deps.json build_attributes does not list, a rule of another kind lists
+      a file under src/ or tests/, or a comprehension cannot be evaluated;
   (f) a target lists in deps a project library none of whose headers its
       files include, and the pair is not a listed departure;
   (g) a listed departure no longer occurs, so that the list can only shrink;
@@ -82,14 +91,27 @@ RULES = os.path.join(ROOT, "tools", "architecture", "deps.json")
 KINDS = ["include", "outside_include", "unused_dep", "unused_outside_dep",
          "missing_dep", "cycle"]
 
-# The C and C++ standard library: an #include <...> that is none of the
-# outside libraries is taken for it when its name has no "/" and either no
-# extension or the ".h" of a C header. Anything else in angle brackets that
-# no outside library claims is reported, so that a new library cannot come
-# in unnoticed.
-_STD = re.compile(r"^[a-z_0-9]+(\.h)?$")
+# The C and C++ standard library, by its names (C++20 and the C headers, in
+# both spellings). Anything else in <...> must be an outside library of
+# deps.json.
+STD_HEADERS = frozenset("""
+algorithm any array atomic barrier bit bitset charconv chrono codecvt compare complex concepts
+condition_variable coroutine deque exception execution filesystem format forward_list fstream
+functional future initializer_list iomanip ios iosfwd iostream istream iterator latch limits list
+locale map memory memory_resource mutex new numbers numeric optional ostream queue random ranges
+ratio regex scoped_allocator stdexcept semaphore set shared_mutex source_location span sstream stack
+stop_token streambuf string string_view strstream syncstream system_error thread tuple
+type_traits typeindex typeinfo unordered_map unordered_set utility valarray variant vector version
+cassert cctype cerrno cfenv cfloat cinttypes ciso646 climits clocale cmath csetjmp csignal
+cstdalign cstdarg cstdbool cstddef cstdint cstdio cstdlib cstring ctgmath ctime cuchar cwchar
+cwctype ccomplex
+assert.h complex.h ctype.h errno.h fenv.h float.h inttypes.h iso646.h limits.h locale.h math.h
+setjmp.h signal.h stdalign.h stdarg.h stdatomic.h stdbool.h stddef.h stdint.h stdio.h stdlib.h
+string.h tgmath.h threads.h time.h uchar.h wchar.h wctype.h
+""".split())
 
-_INCLUDE = re.compile(r'^[ \t]*#[ \t]*include[ \t]*([<"])([^>"]+)[>"]', re.M)
+_DIRECTIVE = re.compile(r"^[ \t]*(?:#|%:)[ \t]*(include_next|include|import)\b[ \t]*(.*?)[ \t]*$", re.M)
+_LITERAL = re.compile(r'^(?:"([^">]+)"|<([^<>"]+)>)$')
 
 
 # ---------------------------------------------------------------- files
@@ -128,8 +150,9 @@ def strip_comments(text):
             out.append(c)
             i += 1
             continue
-        if line_start and c == "#":
-            include_line = re.match(r"#[ \t]*include\b", text[i:i + 40]) is not None
+        if line_start and (c == "#" or text.startswith("%:", i)):
+            include_line = re.match(r"(?:#|%:)[ \t]*(?:include_next|include|import)\b",
+                                    text[i:i + 40]) is not None
         line_start = False
         if text.startswith("//", i):
             j = text.find("\n", i)
@@ -178,13 +201,51 @@ def strip_comments(text):
     return "".join(out)
 
 
+def splice_lines(text):
+    """The text with each backslash-newline removed, as the preprocessor does
+    before it reads a directive, and a function that gives the line of the
+    original that an offset of the new text lies on."""
+    pieces, cuts, pos = [], [], 0
+    for m in re.finditer(r"\\\r?\n", text):
+        pieces.append(text[pos:m.start()])
+        pos = m.end()
+        cuts.append((sum(len(p) for p in pieces), len(cuts) + 1))
+    pieces.append(text[pos:])
+    joined = "".join(pieces)
+
+    def line_of(offset):
+        extra = 0
+        for at, k in cuts:
+            if at <= offset:
+                extra = k
+            else:
+                break
+        return joined.count("\n", 0, offset) + 1 + extra
+    return joined, line_of
+
+
 def includes(text):
-    """(line number, '"' or '<', name) for each #include outside comments."""
-    code = strip_comments(text)
+    """(line number, kind, name) for each #include outside comments. kind is
+    '"' or '<' for a literal file name; '!' for a directive that this check
+    cannot follow (#import, #include_next, or an operand that is not a
+    literal "..." or <...>, such as a macro), where name says why."""
+    joined, line_of = splice_lines(text)
+    code = strip_comments(joined)
     found = []
-    for m in _INCLUDE.finditer(code):
-        line = code.count("\n", 0, m.start()) + 1
-        found.append((line, m.group(1), m.group(2).strip()))
+    for m in _DIRECTIVE.finditer(code):
+        line = line_of(m.start())
+        directive, operand = m.group(1), m.group(2)
+        if directive != "include":
+            found.append((line, "!", "#%s is not followed (use #include)" % directive))
+            continue
+        lit = _LITERAL.match(operand)
+        if not lit:
+            found.append((line, "!", "#include %s: the operand is not a literal \"...\" or <...>"
+                          % operand))
+        elif lit.group(1) is not None:
+            found.append((line, '"', lit.group(1).strip()))
+        else:
+            found.append((line, "<", lit.group(2).strip()))
     return found
 
 
@@ -309,28 +370,47 @@ def _bindings(star, comp, local):
     return passes
 
 
-def build_targets(root, files, info=None):
+def build_targets(root, files, info=None, allowed_attrs=None):
     """name -> {kind, srcs, hdrs, deps, actual, copts, line, family} for
     BUILD.bazel. The targets that one comprehension makes share a family (the
     line of the statement). When info is a dict, it receives "rules" (kind ->
     names of every rule, those it does not read as targets included) and
-    "labels" (the names of all rules)."""
+    "problems" (what in BUILD.bazel this reader refuses: an attribute of a
+    cc_* rule that allowed_attrs, a dict of kind -> attribute names, does
+    not list; a rule of another kind whose srcs or hdrs name a file under
+    src/ or tests/; an expression it cannot evaluate)."""
     tree = ast.parse(read(root, "BUILD.bazel"), "BUILD.bazel")
     star = Starlark(files)
     targets = {}
     rules = {}
+    problems = []
 
     def one(call, local, line):
         kind = call.func.id
         attrs = {}
         for k in call.keywords:
-            if k.arg in ("name", "srcs", "hdrs", "deps", "actual", "copts"):
+            if k.arg is None:
+                problems.append("BUILD.bazel:%d: a %s with ** arguments, which this check does "
+                                "not read (rule e)" % (line, kind))
+                continue
+            if kind in TARGET_KINDS or kind == "alias":
+                if allowed_attrs is not None and k.arg not in allowed_attrs.get(kind, []):
+                    problems.append("BUILD.bazel:%d: a %s with the attribute %s, which deps.json "
+                                    "build_attributes does not list (rule e)" % (line, kind, k.arg))
+            if k.arg in ("name", "srcs", "hdrs", "deps", "actual", "copts", "data"):
                 try:
                     attrs[k.arg] = star.eval(k.value, local)
                 except Unknown as e:
-                    raise SystemExit("BUILD.bazel:%d: cannot read %s of a %s: %s"
-                                     % (line, k.arg, kind, e))
+                    problems.append("BUILD.bazel:%d: cannot read %s of a %s: %s (rule e)"
+                                    % (line, k.arg, kind, e))
         name = attrs.get("name")
+        if kind not in TARGET_KINDS and kind != "alias":
+            for attr in ("srcs", "hdrs"):
+                for f in attrs.get(attr, []) if isinstance(attrs.get(attr), list) else []:
+                    if isinstance(f, str) and f.startswith(("src/", "tests/")):
+                        problems.append("BUILD.bazel:%d: a %s lists %s in %s, but this check reads "
+                                        "only cc_library, cc_binary and cc_test (rule e)"
+                                        % (line, kind, f, attr))
         if name is None:
             return
         rules.setdefault(kind, []).append(name)
@@ -343,6 +423,7 @@ def build_targets(root, files, info=None):
             "deps": attrs.get("deps", []),
             "actual": attrs.get("actual"),
             "copts": attrs.get("copts", []),
+            "data": attrs.get("data", []),
             "line": line,
             "family": line,
         }
@@ -360,12 +441,19 @@ def build_targets(root, files, info=None):
         v = node.value
         if isinstance(v, ast.ListComp) and isinstance(v.elt, ast.Call) \
                 and isinstance(v.elt.func, ast.Name):
-            for env in _bindings(star, v, {}):
+            try:
+                passes = _bindings(star, v, {})
+            except Unknown as e:
+                problems.append("BUILD.bazel:%d: cannot evaluate this list comprehension: %s "
+                                "(rule e)" % (node.lineno, e))
+                continue
+            for env in passes:
                 one(v.elt, env, node.lineno)
         elif isinstance(v, ast.Call) and isinstance(v.func, ast.Name):
             one(v, {}, node.lineno)
     if info is not None:
         info["rules"] = rules
+        info["problems"] = problems
     return targets
 
 
@@ -433,6 +521,10 @@ def group_files(rules, files, r):
     groups = rules["groups"]
     for path in files:
         if not path.startswith(("src/", "tests/")):
+            continue
+        if not path.endswith((".h", ".cc")):
+            r.problems.append("%s: a file under src/ or tests/ that is neither .h nor .cc, "
+                              "which this check does not read (rule a)" % path)
             continue
         hits = [g["name"] for g in groups
                 if any(fnmatch.fnmatchcase(path, p) for p in g["files"])]
@@ -532,6 +624,9 @@ def analyse(root=ROOT, rules=None, strict_items=False):
         r.file_includes[path] = incs
         g = r.group_of.get(path)
         for line, kind, name in incs:
+            if kind == "!":
+                r.problems.append("%s:%d: %s (rule a)" % (path, line, name))
+                continue
             if kind == '"':
                 if name not in tracked:
                     r.problems.append("%s:%d: includes %s, which is not a tracked file"
@@ -547,9 +642,10 @@ def analyse(root=ROOT, rules=None, strict_items=False):
                 continue
             lib = outside_library(rules, name)
             if lib is None:
-                if not _STD.match(name):
+                if name not in STD_HEADERS:
                     r.problems.append("%s:%d: includes <%s>, which is no outside library of "
-                                      "deps.json and not the standard library" % (path, line, name))
+                                      "deps.json and not in the list of standard headers "
+                                      "(deps.py STD_HEADERS)" % (path, line, name))
                 continue
             allowed = set(groups[g]["outside"]) if g else set()
             if path.startswith("tests/"):
@@ -557,12 +653,41 @@ def analyse(root=ROOT, rules=None, strict_items=False):
             if g and lib not in allowed:
                 r.found["outside_include"].add((path, lib))
 
+    # Outside libraries through project headers: a file may not reach, by
+    # any chain of #include "src/...", a library its group may not include.
+    memo = {}
+
+    def reach(f, seen=()):
+        if f in memo:
+            return memo[f]
+        if f in seen:
+            return set()
+        out = set()
+        for line, kind, name in r.file_includes.get(f, []):
+            if kind == "<":
+                lib = outside_library(rules, name)
+                if lib:
+                    out.add(lib)
+            elif kind == '"' and name in r.file_includes:
+                out |= reach(name, seen + (f,))
+        memo[f] = out
+        return out
+
+    for path in r.file_includes:
+        g = r.group_of.get(path)
+        if not g:
+            continue
+        allowed = set(groups[g]["outside"]) | (tests_outside if path.startswith("tests/") else set())
+        for lib in reach(path) - allowed:
+            r.found["outside_include"].add((path, lib))
+
     for cyc in find_cycles(header_graph):
         r.found["cycle"].add(cyc)
 
     # Targets.
     info = {}
-    targets = build_targets(root, r.files, info)
+    targets = build_targets(root, r.files, info, rules.get("build_attributes", {}))
+    r.problems += info["problems"]
     r.targets = targets
     r.rules = info["rules"]
     r.rule_names = {"//:" + n for names in r.rules.values() for n in names}
