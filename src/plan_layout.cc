@@ -3,6 +3,7 @@
 //   plan_layout <name> [--summary] [--out PATH] [--threads N]
 //               [--first-step A --last-step B] [--pretty]
 //               [--budgets A,B,C] [--why STEP]... [--why all-failed]
+//   plan_layout <name> --margins [--pretty]
 //
 // The default output is CSV: a header and one row per move
 //   step,arm,from,to,found,budget,waypoints,queries,planned_s,model_s,ratio,note
@@ -18,6 +19,13 @@
 // to a step and plans nothing else; --why all-failed plans as usual and then
 // explains every move not found. Layouts are read from LAYOUT_DIR.
 //
+// --margins plans nothing: it reads the committed plan PLAN_DIR/<name>.json,
+// refuses it (exit 1) when it was made for another version of the layout, runs
+// the verifier and the checker, and prints one CSV table of the tightest
+// margins (kinds distance, arm_pair, joint_margin, tool_fit, load, ways and
+// transport, tightest first within each) and then `#` lines. It exits 0 when
+// the plan verifies and every checker row passes.
+//
 // Exit status: 0 when the plan is complete; 1 when a move was not found,
 // the schedule is blocked or the verifier found a fault; 2 on a usage or
 // loading error.
@@ -25,6 +33,8 @@
 #include <cstdio>
 #include <cstdlib>
 #include <fstream>
+#include <iterator>
+#include <optional>
 #include <algorithm>
 #include <map>
 #include <string>
@@ -68,7 +78,8 @@ int Usage() {
   std::fprintf(stderr,
                "usage: plan_layout <name> [--summary] [--out PATH] "
                "[--threads N] [--first-step A --last-step B] [--pretty] "
-               "[--budgets A,B,C] [--why STEP|all-failed]...\n");
+               "[--budgets A,B,C] [--why STEP|all-failed]... "
+               "| plan_layout <name> --margins [--pretty]\n");
   return 2;
 }
 
@@ -114,11 +125,106 @@ ArmSeconds SecondsOf(const ArmPlan& a) {
   return s;
 }
 
+// --margins: reads the committed plan, verifies it and prints the tightest
+// margins of the plan and of the checker. Plans nothing.
+int PrintMargins(const Layout& layout, const ModelPaths& paths,
+                 const std::string& layout_path, const std::string& sha,
+                 const std::string& name, bool pretty) {
+  const char* dir = std::getenv("PLAN_DIR");
+  const std::string plan_path =
+      std::string(dir != nullptr && dir[0] != '\0' ? dir : "plans") + "/" +
+      name + ".json";
+  std::ifstream file(plan_path, std::ios::binary);
+  if (!file) {
+    std::fprintf(stderr, "plan_layout: cannot read %s\n", plan_path.c_str());
+    return 2;
+  }
+  const std::string text((std::istreambuf_iterator<char>(file)),
+                         std::istreambuf_iterator<char>());
+  std::string error;
+  const std::optional<Plan> plan = PlanFromJson(text, &error);
+  if (!plan) {
+    std::fprintf(stderr, "plan_layout: %s: %s\n", plan_path.c_str(),
+                 error.c_str());
+    return 2;
+  }
+  VerifyOptions options;
+  options.keep = 20;
+  const VerifyReport v = VerifyPlan(layout, paths, *plan, sha, options);
+  if (!v.ok && v.least.empty() && v.arm_pairs.empty()) {
+    for (const std::string& f : v.faults) {
+      std::fprintf(stderr, "plan_layout: %s\n", f.c_str());
+    }
+    return 1;
+  }
+  const CheckReport check = CheckLayout(layout, paths);
+  const PlanFigures& fig = plan->figures;
+  bool all_pass = v.ok;
+  std::vector<std::vector<std::string>> table;
+  table.push_back({"kind", "rank", "figure", "unit", "limit", "a", "b", "arm",
+                   "step", "time_s", "detail"});
+  auto against = [](const Closest& c) {
+    return c.other_arm.empty() ? std::string("against the cell")
+                               : "against " + c.other_arm;
+  };
+  int rank = 0;
+  for (const Closest& c : v.least) {
+    table.push_back({"distance", std::to_string(++rank), Num(c.distance, 4),
+                     "m", Num(fig.clearance_m, 4), c.a, c.b, c.arm,
+                     std::to_string(c.step), Num(c.t), against(c)});
+  }
+  rank = 0;
+  for (const Closest& c : v.arm_pairs) {
+    const std::string other = c.other_arm.empty() ? "?" : c.other_arm;
+    table.push_back({"arm_pair", std::to_string(++rank), Num(c.distance, 4),
+                     "m", Num(fig.clearance_m, 4), c.a, c.b, c.arm,
+                     std::to_string(c.step), Num(c.t),
+                     "arms " + c.arm + " and " + other});
+  }
+  rank = 0;
+  for (const VerifyReport::JointMargin& j : v.joint_margins) {
+    table.push_back({"joint_margin", std::to_string(++rank),
+                     Num(j.margin_deg, 2), "deg", Num(fig.joint_margin_deg, 1),
+                     j.joint, "", j.arm, std::to_string(j.step), Num(j.t), ""});
+  }
+  auto add_rows = [&](const std::string& kind, const std::string& check_name,
+                      const std::string& prefix) {
+    int n = 0;
+    for (const CheckRow& r : check.rows) {
+      if (r.check != check_name) continue;
+      if (r.item.compare(0, prefix.size(), prefix) != 0) continue;
+      all_pass = all_pass && r.pass;
+      const bool tool = kind == "tool_fit";
+      table.push_back({kind, std::to_string(++n), Num(r.figure, 4), r.unit,
+                       Num(r.limit, 4), tool ? r.tool : r.item, "", r.arm, "",
+                       "", r.detail});
+    }
+  };
+  add_rows("tool_fit", "clearance", "tool in free space");
+  add_rows("load", "load", "");
+  add_rows("ways", "ways", "");
+  add_rows("transport", "transport", "");
+  PrintTable(table, pretty);
+  std::printf("# layout: %s\n", layout_path.c_str());
+  std::printf("# plan sha256: %s\n", plan->layout_sha256.c_str());
+  std::printf("# least_clearance_m %s\n", Num(v.least_clearance_m, 4).c_str());
+  std::printf("# least_arm_to_arm_m %s\n",
+              Num(v.least_arm_to_arm_m, 4).c_str());
+  if (!v.least.empty() &&
+      Num(v.least.front().distance, 4) != Num(v.least_clearance_m, 4)) {
+    std::printf("# note: the first distance row is not least_clearance_m\n");
+  }
+  std::printf("# schedule collision queries: %lld\n",
+              static_cast<long long>(v.queries));
+  for (const std::string& f : v.faults) std::printf("# fault: %s\n", f.c_str());
+  return all_pass ? 0 : 1;
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
   std::string name, out;
-  bool summary = false, pretty = false;
+  bool summary = false, pretty = false, margins = false;
   PlanOptions options;
   std::vector<int> why;
   bool why_failed = false;
@@ -171,9 +277,7 @@ int main(int argc, char** argv) {
         at = comma + 1;
       }
     } else if (a == "--margins") {
-      // The next milestone's: the tightest margins of the plan.
-      std::fprintf(stderr, "plan_layout: --margins is not written yet\n");
-      return 2;
+      margins = true;
     } else if (!a.empty() && a[0] == '-') {
       return Usage();
     } else if (name.empty()) {
@@ -196,6 +300,7 @@ int main(int argc, char** argv) {
   }
   const std::string sha = Sha256OfFile(path);
   const ModelPaths paths = ModelPaths::FromEnvironment();
+  if (margins) return PrintMargins(*layout, paths, path, sha, name, pretty);
   // --why STEP: explain the moves that lead to the steps, planning nothing
   // else.
   if (!why.empty() && !why_failed) {

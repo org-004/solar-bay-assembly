@@ -1847,6 +1847,7 @@ cc_test(
 # it may use (src/arm_catalog.h), and the MuJoCo model made from a layout
 # (src/layout_model.h). docs/layout.md explains the layouts.
 LAYOUT_FILES = glob(["layouts/*.json"])
+PLAN_FILES = glob(["plans/*.json"], allow_empty = True)
 
 # What a layout's model is built from at run time: the container, the
 # common settings, the KUKA with its meshes, and Menagerie's UR10e.
@@ -1916,12 +1917,13 @@ cc_test(
 cc_binary(
     name = "viewer_layout",
     srcs = ["src/view_layout.cc"],
-    data = LAYOUT_FILES + LAYOUT_MODEL_FILES,
-    env = LAYOUT_ENV,
+    data = LAYOUT_FILES + LAYOUT_MODEL_FILES + PLAN_FILES,
+    env = LAYOUT_ENV | {"PLAN_DIR": "plans"},
     deps = [
         ":layout",
         ":layout_check",
         ":layout_model",
+        ":layout_plan",
         ":mj_handles",
         ":viewer_lib",
         "@mujoco",
@@ -2054,7 +2056,6 @@ cc_test(
 # One whole bay of a layout as planned motion (src/layout_plan.h): every move
 # planned, all arms on one clock, the plan as a file under plans/, and the
 # test that replays the committed plan of the chosen layout without planning.
-PLAN_FILES = glob(["plans/*.json"], allow_empty = True)
 
 cc_library(
     name = "layout_plan",
