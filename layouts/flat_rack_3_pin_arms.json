@@ -496,12 +496,12 @@
         "carriage": {
           "name": "carriage",
           "size": [
-            0.5,
+            0.59,
             0.5,
             0.05
           ],
           "pos": [
-            0.1,
+            0.145,
             0.0,
             -0.025
           ]
@@ -544,7 +544,7 @@
             }
           ],
           "waits_at": [
-            0.27,
+            0.36,
             -0.09,
             0.13
           ],
@@ -590,7 +590,7 @@
             }
           ],
           "waits_at": [
-            0.27,
+            0.36,
             0.09,
             0.13
           ],
@@ -671,12 +671,12 @@
         "carriage": {
           "name": "carriage",
           "size": [
-            0.5,
+            0.59,
             0.5,
             0.05
           ],
           "pos": [
-            0.1,
+            0.145,
             0.0,
             -0.025
           ]
@@ -719,7 +719,7 @@
             }
           ],
           "waits_at": [
-            0.27,
+            0.36,
             -0.09,
             0.13
           ],
@@ -765,7 +765,7 @@
             }
           ],
           "waits_at": [
-            0.27,
+            0.36,
             0.09,
             0.13
           ],
@@ -846,12 +846,12 @@
         "carriage": {
           "name": "carriage",
           "size": [
-            0.5,
+            0.59,
             0.5,
             0.05
           ],
           "pos": [
-            0.1,
+            0.145,
             0.0,
             -0.025
           ]
@@ -894,7 +894,7 @@
             }
           ],
           "waits_at": [
-            0.27,
+            0.36,
             -0.09,
             0.13
           ],
@@ -940,7 +940,7 @@
             }
           ],
           "waits_at": [
-            0.27,
+            0.36,
             0.09,
             0.13
           ],
@@ -1040,7 +1040,7 @@
       "part": "pin magazine",
       "how": "Magazines of 36 pins and collars come along a lane on the deck from the feeder at the +Y end and stop in a nest beside pin_arm_a; its pin tool takes one for each bay.",
       "pick_pos": [
-        0.1,
+        0.17,
         -5.2,
         0.998
       ],
@@ -1061,7 +1061,7 @@
       "part": "pin magazine",
       "how": "Magazines of 36 pins and collars come along a lane on the deck from the feeder at the +Y end and stop in a nest beside pin_arm_b; its pin tool takes one for each bay.",
       "pick_pos": [
-        0.1,
+        0.17,
         1.1,
         0.998
       ],
@@ -1082,7 +1082,7 @@
       "part": "pin magazine",
       "how": "Magazines of 36 pins and collars come along a lane on the deck from the feeder at the +Y end and stop in a nest beside pin_arm_c; its pin tool takes one for each bay.",
       "pick_pos": [
-        0.1,
+        0.17,
         5.0,
         0.998
       ],
@@ -1356,7 +1356,7 @@
             1.0
           ],
           "pos": [
-            0.1,
+            0.17,
             6.4,
             0.5
           ]
@@ -1379,7 +1379,7 @@
             0.25
           ],
           "pos": [
-            0.1,
+            0.17,
             0.27,
             0.773
           ]
@@ -1392,7 +1392,7 @@
             0.05
           ],
           "pos": [
-            0.1,
+            0.17,
             -5.2,
             0.923
           ]
@@ -1405,7 +1405,7 @@
             0.05
           ],
           "pos": [
-            0.1,
+            0.17,
             1.1,
             0.923
           ]
@@ -1418,7 +1418,7 @@
             0.05
           ],
           "pos": [
-            0.1,
+            0.17,
             5.0,
             0.923
           ]
@@ -1555,7 +1555,7 @@
       "crosses": "pin_magazines",
       "unit": "A feeder that stands against the +Y end and puts magazines of 36 pins and collars on the lane's outer end, at the base's edge.",
       "frame_pos": [
-        0.1,
+        0.17,
         6.096,
         0.648
       ],
@@ -1567,7 +1567,7 @@
           2.4
         ],
         "pos": [
-          0.1,
+          0.17,
           6.546,
           1.2
         ]

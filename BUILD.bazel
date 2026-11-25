@@ -1988,6 +1988,8 @@ cc_test(
         ":layout_model",
         "@eigen",
         "@googletest//:gtest_main",
+        "@mujoco",
+        ":mj_handles",
     ],
 )
 # What moves and what is there: the capsule defect worked round (R15), the

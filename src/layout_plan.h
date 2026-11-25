@@ -334,6 +334,11 @@ class PlanPlayer {
   const CheckReport& report_;
   const Plan& plan_;
   std::vector<ArmMotion> motions_;
+  // What the constructor works out once: one trajectory per move, the
+  // instants at which parts are taken and set, the steps by number. Never
+  // changed after construction, so several threads may play one player.
+  struct Cache;
+  std::shared_ptr<const Cache> cache_;
 };
 
 // One measured distance at an instant.

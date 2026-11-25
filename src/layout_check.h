@@ -109,6 +109,22 @@
 // track <arm>" (figure: how far inside the range, negative outside, limit
 // 0).
 //
+// The tool-change pose. An arm with more than one tool changes them at one
+// pose that rides with its carriage: the flange kToolChangeHeight (0.32 m,
+// ours) above the highest top of the boxes its tools wait in (Tool::
+// waits_at, wait_size, in the arm's base frame), over the middle of their
+// places (the middle of the boxes' extent across), the flange's z straight
+// down, any spin. It is solved by the inverse kinematics above at the arm's
+// wait track, with the solver's own spin and then eight fixed ones, from
+// the wait pose and the seeds; the first pose whose clearance passes wins,
+// else the reached one with the most clearance. The joints do not depend on
+// the track's value. CheckReport::tool_changes has it for every such arm. On
+// the flat rack two rows: "reach,tools <arm>" (the least joint margin, as
+// the other reach rows; the detail gives the flange's place) and
+// "clearance,tools <arm>" (the least distance at that pose with each of its
+// tools on the flange in turn, the worse counting, the other arms at wait,
+// all rails and all nine modules on; limit clearance_m).
+//
 // The tool in the free space. The probe's cylinders say what else must keep
 // out of the free space; the tool itself must fit in it too. One row for
 // each arm and tool a fastening kind is given to, "tool in free space
@@ -232,12 +248,14 @@
 
 #include <array>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include <Eigen/Core>
 
 #include "src/layout.h"
 #include "src/layout_model.h"
+#include "src/layout_scene.h"
 
 namespace cell::layout {
 
@@ -263,6 +281,14 @@ struct BayStep {
   std::string from;
   std::string to;
   double time_s = 0.0;
+  // The work kind of src/layout.h for a working step, else one of
+  // "tube_in", "clamp", "tool_change", "to_wait", "release", "bay_out".
+  std::string kind;
+  int index = -1;          // The work point's number for a work kind.
+  // The phase of the time model the step counts in: "tube in", "clamp",
+  // "rails", "modules" or "end".
+  std::string phase;
+  std::string tool_after;  // For a tool_change: the tool on the flange after it.
 };
 
 struct CheckOptions {
@@ -309,6 +335,26 @@ struct SolvedPoint {
   // the kind has an approach and the approach rows were made.
   bool approach_reached = false;
   bool retreat_reached = false;
+  // The legs' samples as the approach rows walked them, joints in degrees:
+  // the work pose first, then every sample, the far pose last. Empty when
+  // the kind has no rule or the leg was not reached.
+  std::vector<std::array<double, 6>> approach_leg_deg;
+  std::vector<std::array<double, 6>> retreat_leg_deg;
+  double approach_length_m = 0.0;  // The rule's distances.
+  double retreat_length_m = 0.0;
+};
+
+// The flange at an arm's tool-change pose stands this far above the highest
+// top of the boxes its tools wait in (ours): high enough that the tool on
+// the flange, 0.25 m long, hangs clear above the waiting tools.
+inline constexpr double kToolChangeHeight = 0.32;  // m
+
+// The pose at which an arm with more than one tool changes them (see the
+// opening comment, "The tool-change pose").
+struct SolvedToolChange {
+  std::string arm;
+  std::array<double, 6> deg{};
+  bool reached = false;
 };
 
 struct CheckReport {
@@ -321,6 +367,11 @@ struct CheckReport {
   // Every work point whose pose was looked for, kinds in WorkKinds() order,
   // points in index order. Empty when no check that needs poses was made.
   std::vector<SolvedPoint> points;
+  // Every arm with more than one tool, in the layout's order of arms.
+  std::vector<SolvedToolChange> tool_changes;
+  // The time model's five phases in order ("tube in", "clamp", "rails",
+  // "modules", "end") with their seconds, as in the time,bay row's detail.
+  std::vector<std::pair<std::string, double>> phases;
   bool pass = false;       // Every row passes.
   std::string error;       // Set when the model could not be built.
 };
@@ -391,6 +442,11 @@ struct TimePiece {
 // When a phase of `units` units ends, its pieces in the order of the steps.
 double PhaseEnd(const std::vector<TimePiece>& pieces, int units,
                 int arm_count);
+
+// The time model's time for a move of one arm between two poses, settle
+// included; 0 when nothing changes.
+double ModelMoveSeconds(const LayoutScene& scene, int arm, const ArmPose& from,
+                        const ArmPose& to);
 
 // The model of a move and of the bay's time, in words.
 std::string TimeModelText();

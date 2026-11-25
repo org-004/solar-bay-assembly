@@ -15,13 +15,17 @@
 #include <vector>
 
 #include <Eigen/Core>
+#include <Eigen/Geometry>
 #include <gtest/gtest.h>
+#include <mujoco/mujoco.h>
 
 #include "src/arm_catalog.h"
 #include "src/bay_hardware.h"
 #include "src/container.h"
 #include "src/layout.h"
 #include "src/layout_model.h"
+#include "src/layout_scene.h"
+#include "src/mj_handles.h"
 
 namespace cell::layout {
 namespace {
@@ -942,6 +946,186 @@ TEST(LayoutCheck, LoadCentreOnTheFlatRack) {
   EXPECT_FALSE(row->pass) << row->detail;
   EXPECT_NE(row->detail.find("centre of mass"), std::string::npos)
       << row->detail;
+}
+
+}  // namespace
+}  // namespace cell::layout
+
+namespace cell::layout {
+namespace {
+
+Layout FlatRackNamed(const std::string& name) {
+  std::string error;
+  const std::optional<Layout> layout =
+      LoadLayout(Dir() + "/" + name + ".json", &error);
+  EXPECT_TRUE(layout.has_value()) << error;
+  return layout.value_or(Layout{});
+}
+
+// The steps carry their kind, point, phase and the tool after a change.
+TEST(LayoutCheck, StepsCarryKindIndexAndPhase) {
+  const Layout layout = FlatRackNamed("flat_rack_2_pin_arms");
+  CheckOptions options;
+  options.checks = {"time"};
+  const CheckReport report = CheckLayout(layout, Paths(), options);
+  ASSERT_FALSE(report.steps.empty());
+  std::map<std::string, int> kinds;
+  std::map<std::string, std::set<int>> points;
+  const std::set<std::string> phases = {"tube in", "clamp", "rails", "modules",
+                                        "end"};
+  for (const BayStep& s : report.steps) {
+    ++kinds[s.kind];
+    EXPECT_TRUE(phases.count(s.phase)) << s.what << ": " << s.phase;
+    if (s.index >= 0) {
+      EXPECT_TRUE(points[s.kind].insert(s.index).second) << s.what;
+    }
+    if (s.kind == "tool_change") {
+      const ArmUse* arm = FindArm(layout, s.arm);
+      ASSERT_NE(arm, nullptr) << s.what;
+      EXPECT_NE(FindTool(*arm, s.tool_after), nullptr) << s.tool_after;
+    } else {
+      EXPECT_TRUE(s.tool_after.empty()) << s.what;
+    }
+  }
+  for (const char* k : {"tube_in", "clamp", "release", "bay_out"}) {
+    EXPECT_EQ(kinds[k], 1) << k;
+  }
+  for (const std::string& kind : WorkKinds()) {
+    const int expect = kind == "module_take" ? bay::kModuleCount
+                                             : PointCount(layout, kind);
+    EXPECT_EQ(kinds[kind], expect) << kind;
+  }
+  EXPECT_EQ(report.steps.front().phase, "tube in");
+  EXPECT_EQ(report.steps.back().phase, "end");
+  // The phases add up to the bay's time.
+  ASSERT_EQ(report.phases.size(), 5u);
+  double sum = 0.0;
+  for (const auto& [name, seconds] : report.phases) sum += seconds;
+  EXPECT_NEAR(sum, report.bay_time_s, 1e-9);
+  EXPECT_EQ(report.phases[2].first, "rails");
+}
+
+// A leg's samples start at the work pose and end at the far pose, as many
+// as the row says.
+TEST(LayoutCheck, LegSamplesForThePlanner) {
+  const Layout layout = FlatRackNamed("flat_rack_1_pin_arm");
+  CheckOptions options;
+  options.checks = {"approach"};
+  options.work_kinds = {"module_set", "pin"};
+  const CheckReport report = CheckLayout(layout, Paths(), options);
+  int checked = 0;
+  for (const SolvedPoint& p : report.points) {
+    if (p.item != "module_set 4" && p.item != "pin 3/2") continue;
+    ++checked;
+    const CheckRow* row = FindRow(report, "approach", p.item + " approach");
+    ASSERT_NE(row, nullptr);
+    int samples = 0;
+    ASSERT_NE(row->detail.find(" samples over "), std::string::npos);
+    const size_t at = row->detail.rfind("; ", row->detail.find(" samples over "));
+    samples = std::atoi(row->detail.c_str() + at + 2);
+    ASSERT_GT(samples, 0);
+    ASSERT_EQ(static_cast<int>(p.approach_leg_deg.size()), samples + 1);
+    ASSERT_EQ(static_cast<int>(p.retreat_leg_deg.size()), samples + 1)
+        << "the rules of these kinds have legs of one length";
+    for (int j = 0; j < 6; ++j) {
+      EXPECT_NEAR(p.approach_leg_deg.front()[j], p.work_deg[j], 1e-9);
+      EXPECT_NEAR(p.approach_leg_deg.back()[j], p.approach_deg[j], 1e-9);
+      EXPECT_NEAR(p.retreat_leg_deg.front()[j], p.work_deg[j], 1e-9);
+      EXPECT_NEAR(p.retreat_leg_deg.back()[j], p.retreat_deg[j], 1e-9);
+    }
+    const Approach* rule = FindApproach(layout, p.kind);
+    ASSERT_NE(rule, nullptr);
+    EXPECT_DOUBLE_EQ(p.approach_length_m, rule->approach_m);
+    EXPECT_DOUBLE_EQ(p.retreat_length_m, rule->retreat_m);
+  }
+  EXPECT_EQ(checked, 2);
+}
+
+// The tool-change pose: rows on the flat rack, and the flange where the
+// rule puts it.
+TEST(LayoutCheck, ToolChangePose) {
+  const Layout layout = FlatRackNamed("flat_rack_1_pin_arm");
+  CheckOptions options;
+  options.checks = {"reach", "clearance"};
+  options.work_kinds = {"pins_take"};
+  const CheckReport report = CheckLayout(layout, Paths(), options);
+  std::string error;
+  auto scene = LayoutScene::Load(layout, Paths(), 5.0, &error);
+  ASSERT_NE(scene, nullptr) << error;
+  int arms = 0;
+  for (const ArmUse& a : layout.arms) arms += a.tools.size() > 1 ? 1 : 0;
+  ASSERT_GT(arms, 0);
+  ASSERT_EQ(static_cast<int>(report.tool_changes.size()), arms);
+  for (const SolvedToolChange& tc : report.tool_changes) {
+    EXPECT_TRUE(tc.reached) << tc.arm;
+    const CheckRow* reach = FindRow(report, "reach", "tools " + tc.arm);
+    const CheckRow* clear = FindRow(report, "clearance", "tools " + tc.arm);
+    ASSERT_NE(reach, nullptr) << tc.arm;
+    ASSERT_NE(clear, nullptr) << tc.arm;
+    EXPECT_TRUE(reach->pass) << reach->detail;
+    // Where the rule puts the flange, by forward kinematics.
+    const ArmUse& use = *FindArm(layout, tc.arm);
+    const int ai = scene->ArmIndex(tc.arm);
+    Eigen::Vector3d lo = Eigen::Vector3d::Constant(1e9);
+    Eigen::Vector3d hi = -lo;
+    for (const Tool& t : use.tools) {
+      const Eigen::Vector3d c(t.waits_at[0], t.waits_at[1], t.waits_at[2]);
+      const Eigen::Vector3d h(t.wait_size[0] / 2, t.wait_size[1] / 2,
+                              t.wait_size[2] / 2);
+      lo = lo.cwiseMin(c - h);
+      hi = hi.cwiseMax(c + h);
+    }
+    const Eigen::Vector3d local((lo.x() + hi.x()) / 2, (lo.y() + hi.y()) / 2,
+                                hi.z() + kToolChangeHeight);
+    const double d = M_PI / 180.0;
+    const Eigen::Matrix3d r =
+        (Eigen::AngleAxisd(use.base_rpy_deg[2] * d, Eigen::Vector3d::UnitZ()) *
+         Eigen::AngleAxisd(use.base_rpy_deg[1] * d, Eigen::Vector3d::UnitY()) *
+         Eigen::AngleAxisd(use.base_rpy_deg[0] * d, Eigen::Vector3d::UnitX()))
+            .toRotationMatrix();
+    Eigen::Vector3d base(use.base_pos[0], use.base_pos[1], use.base_pos[2]);
+    if (use.track) {
+      const Eigen::Vector3d dir(use.track->direction[0],
+                                use.track->direction[1],
+                                use.track->direction[2]);
+      base += use.wait_track * dir.normalized();
+    }
+    const Eigen::Vector3d expect = base + r * local;
+    DataPtr data = scene->MakeData();
+    ArmPose pose;
+    for (int j = 0; j < 6; ++j) pose.q[j] = tc.deg[j] * d;
+    pose.track = use.wait_track;
+    scene->SetPose(data.get(), ai, pose);
+    mj_kinematics(&scene->model(), data.get());
+    const int site = scene->arm(ai).h->flange_site;
+    const Eigen::Vector3d at(data->site_xpos[3 * site],
+                             data->site_xpos[3 * site + 1],
+                             data->site_xpos[3 * site + 2]);
+    EXPECT_LT((at - expect).norm(), 2e-4) << tc.arm;
+    EXPECT_NEAR(data->site_xmat[9 * site + 8], -1.0, 1e-5) << tc.arm;
+    std::printf("tools %s: reach %.4f deg, clearance %.4f m (%s)\n",
+                tc.arm.c_str(), reach->figure, clear->figure,
+                clear->detail.c_str());
+  }
+}
+
+// On the three flat rack files every tool-change pose is clear.
+TEST(LayoutCheck, ToolChangePosesClearOnTheFlatRackFiles) {
+  for (const char* name :
+       {"flat_rack_1_pin_arm", "flat_rack_2_pin_arms", "flat_rack_3_pin_arms"}) {
+    CheckOptions options;
+    options.checks = {"reach", "clearance"};
+    options.work_kinds = {"pins_take"};
+    const CheckReport report = CheckLayout(FlatRackNamed(name), Paths(), options);
+    int rows = 0;
+    for (const CheckRow& r : report.rows) {
+      if (r.item.rfind("tools ", 0) != 0) continue;
+      ++rows;
+      EXPECT_TRUE(r.pass) << name << " " << r.check << " " << r.item << ": "
+                          << r.figure << " " << r.detail;
+    }
+    EXPECT_GT(rows, 0) << name;
+  }
 }
 
 }  // namespace

@@ -162,6 +162,7 @@ struct LegResult {
   std::string margin_joint;
   std::string held;
   std::string why;           // Not walked or not reached: why.
+  std::vector<Q6> path;      // The work pose, then every sample reached.
 };
 
 // ------------------------------------------------------------ the checker
@@ -185,6 +186,13 @@ class Checker {
   std::vector<CheckRow> TimeRows(std::vector<BayStep>* steps, double* bay);
   std::vector<CheckRow> ApproachRows();
   std::vector<SolvedPoint> Points() const;
+  // The tool-change poses, solved on the first call.
+  std::vector<SolvedToolChange> ToolChanges();
+  // The flat rack's rows of the tool-change poses: reach, clearance.
+  std::vector<CheckRow> ToolChangeRows(const std::string& check);
+  const std::vector<std::pair<std::string, double>>& phases() const {
+    return phases_;
+  }
 
   // The state for a picture.
   bool State(const std::string& kind, int index, LayoutState* state,
@@ -233,6 +241,21 @@ class Checker {
   std::map<std::string, std::vector<Job>> jobs_;
   std::map<std::string, std::vector<std::string>> kind_errors_;
   bool solved_ = false;
+  std::vector<std::pair<std::string, double>> phases_;
+  struct ToolChange {
+    int arm = -1;
+    bool reached = false;
+    Pose pose;
+    Vec flange = Vec::Zero();  // Where the rule puts the flange.
+    double margin_deg = 0.0;
+    std::string margin_joint;
+    Nearest nearest;           // The worst over its tools.
+    std::string worst_tool;
+    std::string why;
+  };
+  std::vector<ToolChange> tool_changes_;
+  bool tool_changes_solved_ = false;
+  void SolveToolChanges();
 };
 
 bool Checker::Init(const ModelPaths& paths, std::string* error) {
@@ -717,6 +740,7 @@ void Checker::WalkLeg(Job& job, int leg, const Approach& rule) {
       }
     }
     q = ik.q;
+    r.path.push_back(q);
     if (margin < r.margin_deg) {
       r.margin_deg = margin;
       r.margin_joint = joint;
@@ -1368,22 +1392,7 @@ std::vector<CheckRow> Checker::WaysRows() {
 }
 
 double Checker::MoveTime(int arm, const Pose& from, const Pose& to) const {
-  const SceneArm& a = *arms_[arm].s;
-  std::array<double, 6> change;
-  bool any = false;
-  for (int j = 0; j < 6; ++j) {
-    change[j] = (to.q[j] - from.q[j]) / kDeg;
-    any |= std::abs(change[j]) > 1e-9;
-  }
-  double t = JointMoveTime(change, a.cat->joint_speed_deg_s);
-  if (a.use->track) {
-    const double dist = std::abs(to.track - from.track) *
-                        V(a.use->track->direction).norm();
-    if (dist > 1e-9) any = true;
-    t = std::max(t, TrackMoveTime(dist, a.use->track->speed,
-                                  a.use->track->accel));
-  }
-  return any ? t + kSettleS : 0.0;
+  return ModelMoveSeconds(*scene_, arm, from, to);
 }
 
 using Piece = TimePiece;
@@ -1466,6 +1475,26 @@ Phase PhaseTime(const std::vector<Piece>& pieces, int units, int arm_count) {
 
 }  // namespace
 
+double ModelMoveSeconds(const LayoutScene& scene, int arm, const ArmPose& from,
+                        const ArmPose& to) {
+  const SceneArm& a = scene.arm(arm);
+  std::array<double, 6> change;
+  bool any = false;
+  for (int j = 0; j < 6; ++j) {
+    change[j] = (to.q[j] - from.q[j]) / kDeg;
+    any |= std::abs(change[j]) > 1e-9;
+  }
+  double t = JointMoveTime(change, a.cat->joint_speed_deg_s);
+  if (a.use->track) {
+    const double dist = std::abs(to.track - from.track) *
+                        V(a.use->track->direction).norm();
+    if (dist > 1e-9) any = true;
+    t = std::max(t, TrackMoveTime(dist, a.use->track->speed,
+                                  a.use->track->accel));
+  }
+  return any ? t + kSettleS : 0.0;
+}
+
 double PhaseEnd(const std::vector<TimePiece>& pieces, int units,
                 int arm_count) {
   return PhaseTime(pieces, units, arm_count).time;
@@ -1503,11 +1532,17 @@ std::vector<CheckRow> Checker::TimeRows(std::vector<BayStep>* steps,
   }
   bool all_poses = true;
   std::vector<std::string> missing;
+  std::string phase_now = "tube in";
   auto push = [&](const std::string& what, const std::string& arm,
                   const std::string& tool, const std::string& part,
                   const std::string& from, const std::string& to,
-                  double t) {
+                  double t, const std::string& kind, int index = -1,
+                  const std::string& tool_after = "") {
     BayStep s;
+    s.kind = kind;
+    s.index = index;
+    s.phase = phase_now;
+    s.tool_after = tool_after;
     s.number = static_cast<int>(steps->size()) + 1;
     s.what = what;
     s.arm = arm;
@@ -1540,7 +1575,8 @@ std::vector<CheckRow> Checker::TimeRows(std::vector<BayStep>* steps,
     double t = 0.0;
     if (n.tool != w->tool) {
       const double tc = Use(ai).tool_change_s;
-      t += push("tool change", w->arm, w->tool, "", n.tool, w->tool, tc);
+      t += push("tool change", w->arm, w->tool, "", n.tool, w->tool, tc,
+                "tool_change", -1, w->tool);
       n.tool = w->tool;
     }
     auto it = jobs_.find(kind);
@@ -1558,7 +1594,8 @@ std::vector<CheckRow> Checker::TimeRows(std::vector<BayStep>* steps,
       missing.push_back(to);
       to += " (no pose)";
     }
-    t += push(what, w->arm, w->tool, part, n.at, to, move + w->process_s);
+    t += push(what, w->arm, w->tool, part, n.at, to, move + w->process_s, kind,
+              index);
     n.at = job != nullptr ? job->point.item : kind;
     n.busy += t;
     return t;
@@ -1566,9 +1603,11 @@ std::vector<CheckRow> Checker::TimeRows(std::vector<BayStep>* steps,
   const int R = bay::kRailCount, M = bay::kModuleCount;
   double total = 0.0;
   const double tube_in = push("tube in", "", "", "tube", "outside", "holder",
-                              L_.tube_in.time_s);
+                              L_.tube_in.time_s, "tube_in");
+  phase_now = "clamp";
   const double clamp = push("clamp", "", "", "tube", "", "holder",
-                            L_.holder.clamp_s);
+                            L_.holder.clamp_s, "clamp");
+  phase_now = "rails";
   // The rail phase: each rail's take and set lead, its bolt follows.
   const bool each = L_.rail_order == "each_rail_then_its_bolt";
   std::vector<Piece> rail_pieces;
@@ -1597,6 +1636,7 @@ std::vector<CheckRow> Checker::TimeRows(std::vector<BayStep>* steps,
     for (int k = 0; k < R; ++k) bolt_rail(k);
   }
   const Phase rails = PhaseTime(rail_pieces, R, arm_count);
+  phase_now = "modules";
   // The module phase: each module's take and set lead, its holes follow;
   // an arm takes its magazine before its first hole.
   std::vector<Piece> module_pieces;
@@ -1653,11 +1693,12 @@ std::vector<CheckRow> Checker::TimeRows(std::vector<BayStep>* steps,
     }
   }
   const Phase modules = PhaseTime(module_pieces, M, arm_count);
+  phase_now = "end";
   // The end.
   const double release = push("release", "", "", "bay", "holder", "",
-                              L_.holder.release_s);
+                              L_.holder.release_s, "release");
   const double out = push("bay out", "", "", "bay", "holder", "outside",
-                          L_.bay_out.time_s);
+                          L_.bay_out.time_s, "bay_out");
   double back = 0.0;
   for (int i = 0; i < arm_count; ++i) {
     ArmNow& n = now[i];
@@ -1666,17 +1707,24 @@ std::vector<CheckRow> Checker::TimeRows(std::vector<BayStep>* steps,
     const Pose wait{arms_[i].s->wait, arms_[i].s->wait_track};
     const double move = MoveTime(i, n.pose, wait);
     if (move > 0.0) {
-      t += push("back to wait", use.name, n.tool, "", n.at, "wait", move);
+      t += push("back to wait", use.name, n.tool, "", n.at, "wait", move,
+                "to_wait");
     }
     if (n.tool != use.first_tool) {
       t += push("tool change", use.name, use.first_tool, "", n.tool,
-                use.first_tool, use.tool_change_s);
+                use.first_tool, use.tool_change_s, "tool_change", -1,
+                use.first_tool);
     }
     n.busy += t;
     back = std::max(back, t);
   }
   const double end = std::max(release + out, back);
   total = tube_in + clamp + rails.time + modules.time + end;
+  phases_ = {{"tube in", tube_in},
+             {"clamp", clamp},
+             {"rails", rails.time},
+             {"modules", modules.time},
+             {"end", end}};
   *bay_time = total;
   const std::string why =
       all_poses ? ""
@@ -1744,6 +1792,158 @@ std::vector<CheckRow> Checker::ApproachRows() {
   return rows;
 }
 
+// The tool-change pose of each arm with more than one tool (see the header).
+void Checker::SolveToolChanges() {
+  if (tool_changes_solved_) return;
+  tool_changes_solved_ = true;
+  const mjModel& m = M();
+  mjData* d = data_.get();
+  for (int ai = 0; ai < static_cast<int>(arms_.size()); ++ai) {
+    const ArmUse& use = Use(ai);
+    if (use.tools.size() < 2) continue;
+    ToolChange tc;
+    tc.arm = ai;
+    const SceneArm& sa = *arms_[ai].s;
+    // Over the middle of the waiting places, kToolChangeHeight above the
+    // highest top, in the arm's base frame.
+    Vec lo = Vec::Constant(1e9), hi = Vec::Constant(-1e9);
+    for (const Tool& t : use.tools) {
+      const Vec c = V(t.waits_at), h = V(t.wait_size) / 2.0;
+      lo = lo.cwiseMin(c - h);
+      hi = hi.cwiseMax(c + h);
+    }
+    const Vec local((lo.x() + hi.x()) / 2.0, (lo.y() + hi.y()) / 2.0,
+                    hi.z() + kToolChangeHeight);
+    AllAtWait();
+    mj_kinematics(&m, d);
+    const std::string frame = use.name + (use.track ? "_carriage" : "_mount");
+    const int body = mj_name2id(&m, mjOBJ_BODY, frame.c_str());
+    if (body < 0 || sa.h->flange_site < 0) {
+      tc.why = "the model has no body " + frame + " or no flange site";
+      tool_changes_.push_back(tc);
+      continue;
+    }
+    Eigen::Matrix3d r;
+    for (int i = 0; i < 3; ++i) {
+      for (int j = 0; j < 3; ++j) r(i, j) = d->xmat[9 * body + 3 * i + j];
+    }
+    tc.flange = Vec(d->xpos[3 * body], d->xpos[3 * body + 1],
+                    d->xpos[3 * body + 2]) +
+                r * local;
+    Target t;
+    t.p = tc.flange;
+    t.z = -Vec::UnitZ();
+    std::vector<Q6> seeds = arms_[ai].seeds;  // The wait pose first.
+    Built built;
+    built.rails = std::vector<int>();
+    for (int k = 0; k < bay::kRailCount; ++k) built.rails.push_back(k);
+    for (int k = 0; k < bay::kModuleCount; ++k) built.modules.push_back(k);
+    built.on_pallets =
+        std::max(0, PointCount(L_, "module_take") - bay::kModuleCount);
+    bool have = false;
+    double best_perr = 1e9;
+    // Any spin: the solver's own, then eight fixed ones.
+    std::vector<Target> targets = {t};
+    for (int k = 0; k < 8; ++k) {
+      Target ts = t;
+      ts.has_x = true;
+      const double a = k * std::numbers::pi / 4.0;
+      ts.x = Vec(std::cos(a), std::sin(a), 0.0);
+      targets.push_back(ts);
+    }
+    bool clear = false;
+    for (const Target& tg : targets) {
+    if (clear) break;
+    for (const Q6& seed : seeds) {
+      AllAtWait();
+      const IkResult ik = Solve(ai, sa.h->flange_site, tg, sa.wait_track, seed);
+      if (!ik.ok) {
+        best_perr = std::min(best_perr, ik.perr);
+        continue;
+      }
+      // The worst over its tools on the flange.
+      Nearest worst;
+      worst.distance = kFar + 1.0;
+      std::string worst_tool;
+      for (const Tool& tool : use.tools) {
+        const Nearest n = scene_->LeastDistance(
+            d, scene_->Moving(ai, tool.name, ""),
+            scene_->Obstacles(ai, tool.name, built, DesignPairs()));
+        if (n.distance < worst.distance) {
+          worst = n;
+          worst_tool = tool.name;
+        }
+      }
+      if (!have || worst.distance > tc.nearest.distance) {
+        have = true;
+        tc.reached = true;
+        tc.pose = {ik.q, sa.wait_track};
+        tc.nearest = worst;
+        tc.worst_tool = worst_tool;
+      }
+      if (worst.distance >= opt_.clearance_m) {  // Clear: it wins.
+        clear = true;
+        break;
+      }
+    }
+    }
+    if (have) {
+      Margin(ai, tc.pose.q, &tc.margin_deg, &tc.margin_joint);
+    } else {
+      tc.why = Fmt("not reached: %.3f m short at best", best_perr);
+    }
+    tool_changes_.push_back(tc);
+  }
+  AllAtWait();
+  mj_kinematics(&m, d);
+}
+
+std::vector<SolvedToolChange> Checker::ToolChanges() {
+  SolveToolChanges();
+  std::vector<SolvedToolChange> out;
+  for (const ToolChange& tc : tool_changes_) {
+    SolvedToolChange s;
+    s.arm = Use(tc.arm).name;
+    s.reached = tc.reached;
+    s.deg = ToDeg(tc.pose.q);
+    out.push_back(s);
+  }
+  return out;
+}
+
+std::vector<CheckRow> Checker::ToolChangeRows(const std::string& check) {
+  std::vector<CheckRow> rows;
+  if (L_.base != "flat_rack") return rows;
+  SolveToolChanges();
+  for (const ToolChange& tc : tool_changes_) {
+    const std::string arm = Use(tc.arm).name;
+    const std::string where =
+        Fmt("flange at (%.3f, %.3f, %.3f), z down, track %.3f", tc.flange.x(),
+            tc.flange.y(), tc.flange.z(), arms_[tc.arm].s->wait_track);
+    if (check == "reach") {
+      rows.push_back(Row("reach", "tools " + arm, arm, "",
+                         tc.reached ? tc.margin_deg : 0.0, "deg",
+                         opt_.joint_margin_deg,
+                         tc.reached &&
+                             tc.margin_deg >= opt_.joint_margin_deg - 1e-9,
+                         tc.reached ? Fmt("least margin at %s; ",
+                                          tc.margin_joint.c_str()) +
+                                          where
+                                    : tc.why + "; " + where));
+    } else {
+      rows.push_back(Row(
+          "clearance", "tools " + arm, arm, tc.worst_tool,
+          tc.reached ? tc.nearest.distance : 0.0, "m", opt_.clearance_m,
+          tc.reached && tc.nearest.distance >= opt_.clearance_m,
+          tc.reached ? scene_->PairText(tc.nearest) + "; worst with " +
+                           tc.worst_tool + " on the flange; all rails and "
+                           "modules on"
+                     : "no pose: " + tc.why));
+    }
+  }
+  return rows;
+}
+
 std::vector<SolvedPoint> Checker::Points() const {
   std::vector<SolvedPoint> out;
   if (!solved_) return out;
@@ -1773,6 +1973,16 @@ std::vector<SolvedPoint> Checker::Points() const {
       p.retreat_reached = r.walked && r.why.empty() && r.reached;
       if (a.walked) p.approach_deg = ToDeg(a.far);
       if (r.walked) p.retreat_deg = ToDeg(r.far);
+      if (p.approach_reached) {
+        for (const Q6& q : a.path) p.approach_leg_deg.push_back(ToDeg(q));
+      }
+      if (p.retreat_reached) {
+        for (const Q6& q : r.path) p.retreat_leg_deg.push_back(ToDeg(q));
+      }
+      if (const Approach* rule = FindApproach(L_, kind)) {
+        p.approach_length_m = rule->approach_m;
+        p.retreat_length_m = rule->retreat_m;
+      }
       out.push_back(p);
     }
   }
@@ -2065,14 +2275,22 @@ CheckReport CheckLayout(const Layout& layout, const ModelPaths& paths,
   const bool poses =
       want("reach") || want("clearance") || time || want("approach");
   if (poses) checker.SolveAll();
-  if (want("reach")) append(checker.ReachRows());
-  if (want("clearance")) append(checker.ClearanceRows());
+  if (want("reach")) {
+    append(checker.ReachRows());
+    append(checker.ToolChangeRows("reach"));
+  }
+  if (want("clearance")) {
+    append(checker.ClearanceRows());
+    append(checker.ToolChangeRows("clearance"));
+  }
   if (want("ways")) append(checker.WaysRows());
   if (time) append(checker.TimeRows(&report.steps, &report.bay_time_s));
   if (want("allowed")) append(AllowedRows(layout));
   if (want("port")) append(PortRows(layout, paths));
   if (want("approach")) append(checker.ApproachRows());
   if (poses) report.points = checker.Points();
+  report.tool_changes = checker.ToolChanges();
+  report.phases = checker.phases();
   report.pass = !report.rows.empty();
   for (const CheckRow& r : report.rows) report.pass &= r.pass;
   return report;
