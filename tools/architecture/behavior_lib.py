@@ -39,8 +39,9 @@ a single `-` for none:
                 column that holds a wall-clock time.
   tab:NAME[#K]  the same for an aligned table (the header is a line without a
                 digit that has the word NAME K+1 times; K counts from 0): in
-                the rows below it, up to a blank line, the value that ends
-                where the word ends.
+                the rows below it, up to a blank line, the number whose
+                columns overlap the word's. All tab: cuts of a line are
+                made in one pass, before the other cuts.
   re:PATTERN    in each line of the output, the text of every group of
                 PATTERN (a Python regular expression, applied line by line)
                 is replaced by <wall>. For a wall-clock time in a sentence.
@@ -112,30 +113,57 @@ def cut_col(text, name):
     return "\n".join(lines)
 
 
-def cut_tab(text, spec):
-    name, _, k = spec.partition("#")
-    k = int(k) if k else 0
+NUMBER = re.compile(r"^(?:[-+]?[0-9][-+0-9.eE]*\*?|-|nan|inf)$")
+
+
+def cut_tabs(text, specs):
+    """Applies every tab: cut of one program in a single pass.
+
+    All of them are placed on the line as the program printed it and then
+    replaced from the right, because the token is wider than most values and
+    a replacement moves everything to its right. A value belongs to a header
+    word when their spans of columns overlap (of several, the one that ends
+    nearest to where the word ends): the programs right-align a value under
+    its header, and one of them (print_check) prints it a column short. Only
+    a number, or a lone "-" for a missing one, is replaced, so a line of
+    words under a table is left alone.
+    """
+    wanted = []
+    for spec in specs:
+        name, _, k = spec.partition("#")
+        wanted.append((re.compile(r"(?<!\S)" + re.escape(name) + r"(?!\S)"),
+                       int(k) if k else 0))
     lines = text.split("\n")
-    edge = None
-    word = re.compile(r"(?<!\S)" + re.escape(name) + r"(?!\S)")
+    heads = [None] * len(wanted)
     for i, line in enumerate(lines):
         if not line.strip():
-            edge = None  # a table ends at a blank line
+            heads = [None] * len(wanted)  # a table ends at a blank line
             continue
         if line.startswith("#"):
             continue
-        found = list(word.finditer(line))
-        if len(found) > k and not re.search(r"\d", line):
-            edge = found[k].end()  # a header row has no digit
-            continue
-        if edge is None or len(line) < edge or line[edge - 1] == " ":
-            continue
-        if len(line) > edge and line[edge] not in " *":
-            continue
-        start = edge
-        while start > 0 and line[start - 1] != " ":
-            start -= 1
-        lines[i] = line[:start] + TOKEN + line[edge:]
+        if not re.search(r"\d", line):  # a header row has no digit
+            is_head = False
+            for j, (word, k) in enumerate(wanted):
+                found = list(word.finditer(line))
+                if len(found) > k:
+                    heads[j] = found[k].span()
+                    is_head = True
+            if is_head:
+                continue
+        tokens = [m.span() for m in re.finditer(r"\S+", line)]
+        chosen = set()
+        for head in heads:
+            if head is None:
+                continue
+            over = [t for t in tokens if t[0] < head[1] and t[1] > head[0]]
+            if not over:
+                continue
+            t = min(over, key=lambda t: abs(t[1] - head[1]))
+            if NUMBER.match(line[t[0]:t[1]]):
+                chosen.add(t)
+        for a, b in sorted(chosen, reverse=True):
+            line = line[:a] + TOKEN + line[b:]
+        lines[i] = line
     return "\n".join(lines)
 
 
@@ -154,6 +182,11 @@ def cut_re(text, pattern):
 
 
 def apply_cuts(text, cuts):
+    # The tab: cuts go first and together (see cut_tabs): they find a value by
+    # its columns, which every other cut would move.
+    tabs = [c[4:] for c in cuts if c.startswith("tab:")]
+    if tabs and "digest" not in cuts:
+        text = cut_tabs(text, tabs)
     for c in cuts:
         if c == "digest":
             b = text.encode("utf-8", "replace")
@@ -163,7 +196,7 @@ def apply_cuts(text, cuts):
         if kind == "col":
             text = cut_col(text, arg)
         elif kind == "tab":
-            text = cut_tab(text, arg)
+            pass
         elif kind == "re":
             text = cut_re(text, arg)
         else:
