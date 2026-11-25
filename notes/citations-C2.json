@@ -1,0 +1,65 @@
+[
+ {
+  "source": "S30",
+  "line": 140,
+  "old": "exceptions belongs in a hook, a deny rule or CI.",
+  "new": "exceptions belongs in a hook, a deny rule or a managed setting.",
+  "why": "best-practices page says: 'make it a hook, a deny rule, or a managed setting'; CI is not named for this."
+ },
+ {
+  "source": "S30",
+  "line": 437,
+  "old": "a rule with no exceptions belongs in a hook or CI [S29][S30].",
+  "new": "a rule with no exceptions belongs in a hook, a deny rule or a managed setting [S29][S30].",
+  "why": "same: CI not named as the home of a no-exceptions rule in S29 or S30."
+ },
+ {
+  "source": "S25",
+  "line": 387,
+  "old": "holds that mixing tutorial, how-to, reference and explanation causes most documentation\nproblems [S25].",
+  "new": "holds that mixing tutorial, how-to, reference and explanation is at the heart of a vast\nnumber of documentation problems [S25].",
+  "why": "source: 'at the heart of a vast number of problems in documentation'; 'most' overstates."
+ },
+ {
+  "source": "S31",
+  "line": 430,
+  "old": "and poorly when left to find it, and passing tests did not show the intended change was\nmade [S31].",
+  "new": "and poorly when left to find it, and the benchmark needed static checks beside tests to\nsee whether the intended change was made [S31].",
+  "why": "S31 abstract: 'combine repository test suites that measure functional correctness with tailored static checks that verify removal of undesired and introduction of desired code patterns'. It does not state that passing tests failed to show the change; only a case study notes tests passing while residual old patterns remained."
+ },
+ {
+  "source": "S32",
+  "line": 431,
+  "old": "LLM refactorings of single\nfunctions not equivalent",
+  "new": "LLM refactorings of function-level\nand program-level code not equivalent",
+  "why": "S32 used HumanEval and MBPP (function-level) and APPS (program-level) with two refactoring types, not single functions only."
+ },
+ {
+  "source": "S34",
+  "line": 459,
+  "old": "a selective\n`-Werror=<flag>` over a blanket one,",
+  "new": "a selective\n`-Werror=<flag>` rather than a blanket one when distributing source,",
+  "why": "S34: 'We recommend developers to additionally use a blanket -Werror ... during development. However, -Werror should not be used in this blanket form when distributing source code'; selective form usable in both."
+ },
+ {
+  "source": "S37",
+  "line": 168,
+  "old": "template instantiations, which matters for Eigen code.",
+  "new": "template instantiations (the Eigen remark is this document's inference; the page does not mention Eigen).",
+  "why": "The word Eigen does not occur on the check page."
+ },
+ {
+  "source": "S38",
+  "line": 169,
+  "old": "https://gcc.gnu.org/onlinedocs/gcc-14.2.0/gcc/Static-Analyzer-Options.html\n  Primary. Read 2026-11-25, in part (the `-fanalyzer` sentences).",
+  "new": "https://gcc.gnu.org/onlinedocs/gcc-14.2.0/gcc/Static-Analyzer-Options.html and https://gcc.gnu.org/gcc-14/changes.html\n  Primary. Read 2026-11-25, in part (the `-fanalyzer` sentences; the quotation is from the release notes, in GCC 13, 14 and 15, not on the 14.2 options page).",
+  "why": "Quotation is absent from the Static Analyzer Options page; it is in gcc-13/14/15 changes.html, which the entry names but does not give a URL for."
+ },
+ {
+  "source": "S23",
+  "line": 397,
+  "old": "home, `src/bay_hardware.h`, from which `models/bay.xml` is generated [S23].",
+  "new": "home, `src/bay_hardware.h`, from which `models/bay.xml` is generated, as DRY asks [S23].",
+  "why": "The sentence states a repository fact that S23 does not say; the citation should attach to the principle."
+ }
+]

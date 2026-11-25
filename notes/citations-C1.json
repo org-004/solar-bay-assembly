@@ -1,0 +1,51 @@
+[
+ {
+  "source": "S14",
+  "line": 75,
+  "old": "Fused multiply-add changes rounding; \"The default is",
+  "new": "Fused multiply-add is formed where the target supports it; \"The default is",
+  "why": "The -ffp-contract entry says '-ffp-contract=fast enables floating-point expression contraction such as forming of fused multiply-add operations if the target has native support for them'; it never says rounding changes."
+ },
+ {
+  "source": "S14",
+  "line": 314,
+  "old": "fuse multiply and add by target, which changes rounding [S14].",
+  "new": "fuse multiply and add where the target supports it, and the default depends on\nthe language mode [S14].",
+  "why": "Same: the page does not say contraction changes rounding."
+ },
+ {
+  "source": "S10",
+  "line": 311,
+  "old": "asks that another convention be named and justified [S10].",
+  "new": "asks that another convention be well justified and well documented [S10].",
+  "why": "REP 103 text: 'choosing different conventions should be well justified and well documented.' It does not ask for naming."
+ },
+ {
+  "source": "S10",
+  "line": 327,
+  "old": "which REP 103's named-suffix practice covers if written down\n[S10].",
+  "new": "which REP 103 allows if it is well justified and well documented [S10].",
+  "why": "REP 103 suffixes ('_optical', '_ned') name coordinate frames, not units or angle measures; they do not cover degrees in a JSON field."
+ },
+ {
+  "source": "S11",
+  "line": 343,
+  "old": "[S17] is what a simulator's documentation warns against [S11].",
+  "new": "[S17] is what a simulator's documentation shows to be fragile across versions and\nsystems [S11].",
+  "why": "MuJoCo's Reproducibility section says exact reproducibility holds only within one version and architecture; it does not mention golden files or warn against them."
+ },
+ {
+  "source": "S17",
+  "line": 356,
+  "old": "with stated tolerances and leave out columns of time [S17].",
+  "new": "with stated tolerances (a custom comparator allows it [S17]) and leave out columns\nof time.",
+  "why": "S17 documents custom comparators for tiny differences; it says nothing about columns of time."
+ },
+ {
+  "source": "S6",
+  "line": 611,
+  "old": "1. `layering_check` and `parse_headers` [S6]: they need a Clang toolchain; this",
+  "new": "1. `layering_check` [S6]: it needs a Clang toolchain; this",
+  "why": "S6 (Bazel C/C++ rules page) has no mention of parse_headers (0 occurrences); it supports only layering_check needing clang."
+ }
+]

@@ -1,0 +1,93 @@
+[
+ {
+  "source": "S41",
+  "line": 182,
+  "old": "A new check needs a count and 30 or more reviewed findings; old code",
+  "new": "A new check needs a count and a sample of more than 30 reviewed findings; old code",
+  "why": "Source: 'a random sample (>30) of places where the check fires'; 30 or more would admit exactly 30."
+ },
+ {
+  "source": "S42",
+  "line": 186,
+  "old": "Each disabled check has a reason; the numeric checks are listed as \"not activated yet\"\n  because of existing findings.",
+  "new": "Each check disabled on purpose in the comment block has a reason; the checks to enable\n  later (numeric ones among them) share one: \"it's not activated yet due to the existing\n  issues\".",
+  "why": "The Checks list disables about 12 checks (e.g. bugprone-casting-through-void, performance-enum-size) with no comment; the 'future' list carries one shared reason, and holds 40 checks, not only numeric ones."
+ },
+ {
+  "source": "S42",
+  "line": 409,
+  "old": "lists in its configuration the checks deferred for existing findings, each with a reason\n[S42].",
+  "new": "lists in its configuration the checks deferred for existing findings, with one reason for\nall [S42].",
+  "why": "The deferred list has a single shared comment ('existing issues with the checks'), not a reason per check."
+ },
+ {
+  "source": "S42",
+  "line": 484,
+  "old": "defers exactly the numeric checks because of existing findings [S42]",
+  "new": "defers, among others, the numeric checks because of existing findings [S42]",
+  "why": "The deferred list has 40 entries (modernize-*, readability-*, performance-*, google-*, and bugprone-*), not only numeric checks."
+ },
+ {
+  "source": "S42",
+  "line": 497,
+  "old": "each check entering with its count of findings and deferred\nwith a reason when it has many, as gRPC does [S42]",
+  "new": "each check entering with its count of findings and deferred\nwith a stated reason when it has many, as gRPC does with one shared reason [S42]",
+  "why": "Reason in gRPC's file is one shared comment."
+ },
+ {
+  "source": "S45",
+  "line": 199,
+  "old": "  code; the tool is built on Clang.",
+  "new": "  code.",
+  "why": "WhyIWYU.md never mentions Clang (0 occurrences); the claim is not in the source."
+ },
+ {
+  "source": "S47",
+  "line": 410,
+  "old": "Drake attaches lint tests to every BUILD file [S47] but",
+  "new": "Drake's math/BUILD.bazel ends with a lint-test call [S49] but",
+  "why": "drake_cc.bzl has no add_lint_tests; the call is on line 610 of math/BUILD.bazel (S49); 'every BUILD file' was not read."
+ },
+ {
+  "source": "S54",
+  "line": 234,
+  "old": "one `cc_library` per C file; its",
+  "new": "one `cc_library` per one to three C files; its",
+  "why": "Several libraries list 2-3 C files (engine_forward: forward, inverse, ipc; engine_derivative: derivative, metric, passive; engine_core; engine_vis; engine_collision_convex; engine_collision_raysdf)."
+ },
+ {
+  "source": "S54",
+  "line": 564,
+  "old": "engine's build file names one library per C file [S54].",
+  "new": "engine's build file names one library per one to three C files [S54].",
+  "why": "Same as line 234."
+ },
+ {
+  "source": "S57",
+  "line": 513,
+  "old": "MoveIt keeps planner and\ncollision implementations out of its core, behind abstract interfaces [S57].",
+  "new": "MoveIt keeps planner and\nkinematics implementations out of its core, behind abstract interfaces [S57].",
+  "why": "AGENTS.md lists 'collision detection (FCL, Bullet, distance field)' inside moveit_core (moveit_core/collision_detection_fcl and _bullet exist at the commit); only planners, kinematics, controllers are separate plugin packages."
+ },
+ {
+  "source": "S58",
+  "line": 621,
+  "old": "[S50][S58]: style findings by the",
+  "new": "[S50]: style findings by the",
+  "why": "MoveIt's .clang-tidy starts from -* and lists single checks (plus performance-*), no wholesale modernize-*/readability-* group; S50 is the one with the groups."
+ },
+ {
+  "source": "S51",
+  "line": 499,
+  "old": "`.bazelrc` work with GCC [S39][S51];",
+  "new": "`.bazelrc` [S51] work with GCC [S39];",
+  "why": "S51 labels ASan and LSan 'Clang only'; GCC support comes from S39 alone."
+ },
+ {
+  "source": "S48",
+  "line": 537,
+  "old": "- The tree: top-level areas (common, math, solvers, systems, geometry, multibody,",
+  "new": "- The tree: top-level areas (among them common, math, solvers, systems, geometry, multibody,",
+  "why": "Root also holds bindings, lcm, manipulation, perception, visualization, tutorials; list is not complete."
+ }
+]
