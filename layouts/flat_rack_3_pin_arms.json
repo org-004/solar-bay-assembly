@@ -12,7 +12,7 @@
   "margins": {
     "clearance_m": 0.015,
     "joint_margin_deg": 5.0,
-    "reason": "Clearance half again over the floor of 0.010 m: the tightest pose that is not near by design, the pin tool's nose beside the next module's flange, has 0.0187 m, so 0.020 m would not pass. Joint margin at the floor of 5 degrees: the module arm's joint 2 has 8.6 degrees while it draws the last modules from the pallet.",
+    "reason": "Clearance half again over the floor of 0.010 m: the tightest pose that is not near by design, the pin tool's nose beside the next module's flange, has 0.0187 m, so 0.020 m would not pass. Joint margin at the floor of 5 degrees: the least over the planned bay is 8.6 degrees, at the module arm's joint 3.",
     "basis": "ours"
   },
   "tube": {

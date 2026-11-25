@@ -187,17 +187,39 @@ int PrintMargins(const Layout& layout, const ModelPaths& paths,
                      Num(j.margin_deg, 2), "deg", Num(fig.joint_margin_deg, 1),
                      j.joint, "", j.arm, std::to_string(j.step), Num(j.t), ""});
   }
+  // The checker's rows of a kind, tightest first: by how far the figure is
+  // inside its limit (for a mass, the share of the limit that is left).
   auto add_rows = [&](const std::string& kind, const std::string& check_name,
                       const std::string& prefix) {
-    int n = 0;
+    std::vector<const CheckRow*> rows;
     for (const CheckRow& r : check.rows) {
       if (r.check != check_name) continue;
       if (r.item.compare(0, prefix.size(), prefix) != 0) continue;
       all_pass = all_pass && r.pass;
+      rows.push_back(&r);
+    }
+    auto tightness = [](const CheckRow* r) {
+      if (r->unit == "kg" && r->limit > 0.0) {
+        return (r->limit - r->figure) / r->limit;
+      }
+      return r->figure;
+    };
+    std::stable_sort(rows.begin(), rows.end(),
+                     [&](const CheckRow* x, const CheckRow* y) {
+                       return tightness(x) < tightness(y);
+                     });
+    int n = 0;
+    for (const CheckRow* r : rows) {
       const bool tool = kind == "tool_fit";
-      table.push_back({kind, std::to_string(++n), Num(r.figure, 4), r.unit,
-                       Num(r.limit, 4), tool ? r.tool : r.item, "", r.arm, "",
-                       "", r.detail});
+      // A tool's row names the kind of work after "tool in free space".
+      std::string work;
+      if (tool && r->item.size() > prefix.size() + 1) {
+        work = r->item.substr(prefix.size() + 1);
+        work = work.substr(0, work.find(' '));
+      }
+      table.push_back({kind, std::to_string(++n), Num(r->figure, 4), r->unit,
+                       Num(r->limit, 4), tool ? r->tool : r->item, work,
+                       r->arm, "", "", r->detail});
     }
   };
   add_rows("tool_fit", "clearance", "tool in free space");
