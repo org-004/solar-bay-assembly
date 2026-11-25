@@ -85,4 +85,3 @@ jobs:
               echo "unknown part: $PART"; exit 1
               ;;
           esac
-# Probe by run 013-r2: can the token push a workflow file? Taken back in the next commit.
