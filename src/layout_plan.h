@@ -42,6 +42,15 @@
 //             `path` holds the leg's samples, work pose first.
 // Two steps of one arm that follow each other at the same work pose (locate
 // and pin at one hole) have no retreat, move or approach between them.
+// Parking: after its last step of phase "rails" an arm that follows another
+// (bolts, pins) and has steps in a later phase moves to its wait pose as
+// soon as that step has ended. The move belongs to the arm's next step,
+// which is then preceded by two moves, retreat -> wait and wait -> its goal
+// (for the arms of these layouts, the tool-change pose), with the arm's
+// wait segment between them. The module arm does not park. After the last
+// tool change of the bay, which puts the arm's first tool back, the arm
+// moves from the tool-change pose to its wait pose: that step's segments
+// are move, work, move.
 //
 // What an arm has and holds. `tool` is on the flange during the whole
 // segment and `held` is in it during the whole segment. Things change only
@@ -59,8 +68,9 @@
 // The planning world of a move (R16): the moving set is the arm's links,
 // carriage, the tool on its flange and the part it holds (LayoutScene::
 // Moving); the obstacles are LayoutScene::Obstacles for the move's `built`,
-// with no pair by design and without the other arms' links, carriages and
-// tools on the flange (their beams and waiting tools are there). A
+// with no pair by design, and the other arms where they wait (links,
+// carriages, first tools on the flange, beams and waiting tools), so that
+// no move passes through an arm that stands at its wait pose. A
 // configuration is free when the least distance is at least clearance_m.
 // `built` is the bay as it is when the move's step begins by the checker's
 // rule and, for an arm that follows another (bolts, pins), also every part
@@ -73,8 +83,11 @@
 // steps. A strap bolt's step starts only after its rail's set has ended; a
 // hole's step (locate, pin, swage) only after its module's set has ended and
 // after the step before it in the module's order of holes has ended; the
-// first module is taken only when every strap bolt is driven; release
-// follows the last step of the module phase and bay_out starts when release
+// first module is taken only when every strap bolt is driven. Just in
+// time: a step of phase modules of an arm that is neither a take nor a set
+// (its tool change, the take of its pin magazine) starts only when what
+// that arm's next hole step waits for has happened, so that the arm does
+// not stand over the lane before its module is set. Release follows the last step of the module phase and bay_out starts when release
 // has ended and every arm stands at its wait pose with its first tool. An
 // arm whose next step may not start yet waits where it is, and the wait is a
 // segment with its reason. At every instant, sampled every sample_s, every
@@ -85,7 +98,13 @@
 // design at that work point (LayoutScene::AtWorkPoint) are held as the
 // checker's approach rows hold them: never into each other. Where two arms
 // would come too near, the one that is scheduled later waits and the wait's
-// reason names the other arm.
+// reason names the other arm. The blocks are placed one at a time: of the
+// arms whose next block may start, the one that can start earliest (ties by
+// the layout's order of arms), put off by 0.25 s at a time while another
+// arm is in its way. Ready blocks are tried in order of their earliest
+// start; one that meets an arm standing still for good, or that 2,000
+// delays of 0.25 s do not clear, gives way to the next, and the schedule
+// is blocked only when no ready block can start. No evasive move is made.
 //
 // Repeatable (R18). Every move has a seed drawn through
 // src/portable_random.h from PlanFigures::seed and the move's ordinal, and

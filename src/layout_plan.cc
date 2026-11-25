@@ -133,6 +133,7 @@ struct Block {
   std::vector<Segment> segs;
   std::vector<int> moves;  // Indices into the moves, in segment order.
   bool in_range = true;
+  bool parking = false;  // The move to the wait pose before the step.
   // Placed.
   bool placed = false;
   double start = 0.0, end = 0.0, work_end = 0.0;
@@ -158,8 +159,11 @@ MoveWorld::MoveWorld(const LayoutScene& scene, int arm, const std::string& tool,
                      double clearance_m)
     : scene_(scene), arm_(arm), clearance_m_(clearance_m) {
   moving_ = scene.Moving(arm, tool, held);
+  // The other arms where the data has them (at their wait poses, with
+  // their first tools), so that no move passes through an arm that stands
+  // at its wait pose.
   ObstacleOptions options;
-  options.other_arms = false;
+  options.other_arms = true;
   obstacles_ = scene.Obstacles(arm, tool, built, DesignPairs{}, options);
 }
 
@@ -290,6 +294,7 @@ bool Planner::Assemble() {
     const SolvedPoint* last_point = nullptr;  // Of its last working step.
     int last_block = -1;
     bool last_retreat = false;  // The last block ends with a retreat.
+    std::string last_phase;     // Of its last step.
   };
   std::vector<Now> now(n);
   for (int a = 0; a < n; ++a) {
@@ -362,6 +367,37 @@ bool Planner::Assemble() {
     }
     const bool leader =
         std::find(leaders.begin(), leaders.end(), st.arm) != leaders.end();
+    // Parking: after its last step of the rail phase an arm that follows
+    // another goes to its wait pose. The move belongs to the arm's next
+    // step and is a block of its own, which starts as soon as the arm is
+    // free; the next step then starts from the wait pose when it may.
+    if (!leader && now[a].last_phase == "rails" && st.phase != "rails") {
+      Block park;
+      park.arm = a;
+      park.step_index = static_cast<int>(si);
+      park.number = st.number;
+      park.in_range = InRange(st.number);
+      park.parking = true;
+      const SceneArm& sa = scene_->arm(a);
+      Config w{};
+      for (int j = 0; j < 6; ++j) w[j] = sa.wait[j];
+      w[6] = sa.wait_track;
+      if (!now[a].held.empty()) {
+        Fault(Fmt("step %d (%s): %s still holds %s when it parks", st.number,
+                  st.what.c_str(), st.arm.c_str(), now[a].held.c_str()));
+        ok = false;
+      }
+      double tp = 0.0;
+      const int pi = static_cast<int>(blocks_.size());
+      add_move(a, park, pi, w, "wait", bay_after(a, st.phase), tp);
+      if (!park.segs.empty()) {
+        blocks_.push_back(park);
+        arm_blocks_[a].push_back(pi);
+        now[a].last_retreat = false;
+        now[a].last_block = pi;
+      }
+    }
+    now[a].last_phase = st.phase;
     Block block;
     block.arm = a;
     block.step_index = static_cast<int>(si);
@@ -554,6 +590,12 @@ void Planner::PlanOne(MoveJob& job, mjData* d) {
                    job.found ? "found" : job.note.c_str());
     }
   } report{job, begun};
+  // The other arms (their waiting tools ride their carriages) stand at
+  // their wait poses, whatever moves this data was used for before: a
+  // thread plans moves of several arms, and the plan must not depend on
+  // which.
+  scene_->AllAtWait(d);
+  job.log.clear();
   const MoveWorld world(*scene_, job.arm, job.tool, job.held, job.built,
                         f_.clearance_m);
   const ArmMotion& m = motions_[job.arm];
@@ -792,7 +834,7 @@ Planner::Conflict Planner::Check(int a, const Block& b, double s, mjData* d) {
       tool = last.tool;
       held = last.held;
       // A tool change's work ends with the other tool on the flange.
-      if (report_.steps[b.step_index].kind == "tool_change") {
+      if (report_.steps[b.step_index].kind == "tool_change" && !b.parking) {
         tool = report_.steps[b.step_index].tool_after;
       }
       kind = "end of its step";
@@ -891,7 +933,7 @@ void Planner::Place(int a, Block& b, double s, double ready,
   st.end.tool = last.tool;
   st.end.held = last.held;
   const BayStep& step = report_.steps[b.step_index];
-  if (step.kind == "tool_change") st.end.tool = step.tool_after;
+  if (step.kind == "tool_change" && !b.parking) st.end.tool = step.tool_after;
 }
 
 bool Planner::Schedule() {
@@ -970,6 +1012,8 @@ bool Planner::Schedule() {
   };
   auto needs_of = [&](const Block& block) {
     std::vector<Need> needs;
+    // A parking move waits for nothing.
+    if (block.parking) return needs;
     const int hole = next_hole(block);
     Block b = block;
     if (hole >= 0) b.step_index = hole;
@@ -1182,6 +1226,12 @@ void Planner::FillPlan() {
     auto it = block_of_step_.find(st.number);
     if (it != block_of_step_.end() && blocks_[it->second].placed) {
       s.start = blocks_[it->second].start;
+      // A step whose arm parks before it starts with the parking move.
+      for (const Block& pb : blocks_) {
+        if (pb.parking && pb.placed && pb.number == st.number) {
+          s.start = std::min(s.start, pb.start);
+        }
+      }
       s.end = blocks_[it->second].end;
       have = true;
       if (st.kind == "strap_bolt") last_bolt = std::max(last_bolt, s.end);
@@ -1328,6 +1378,7 @@ std::vector<std::string> Planner::Why(const std::vector<int>& steps) {
       for (int k : job.built.modules) bay += Fmt(" %d", k);
       bay += Fmt(", %d on the pallets", job.built.on_pallets);
       out.push_back(bay);
+      scene_->AllAtWait(d.get());
       const MoveWorld world(*scene_, job.arm, job.tool, job.held, job.built,
                             f_.clearance_m);
       for (int end = 0; end < 2; ++end) {
