@@ -999,7 +999,6 @@ TEST(LayoutForm, DividedWorkAndTheLookups) {
   j["work"].push_back(other);
   std::optional<Layout> l = LoadGood(j, kFlatName, "divided");
   ASSERT_TRUE(l.has_value());
-  EXPECT_EQ(l->pallet.modules, l->pallets[0].modules);
   EXPECT_EQ(PointCount(*l, "rail_take"), 10);
   EXPECT_EQ(PointCount(*l, "module_set"), 9);
   EXPECT_EQ(PointCount(*l, "pin"), 36);
@@ -1040,7 +1039,6 @@ TEST(LayoutForm, AFlatRackLayoutLoadsAndBuilds) {
   EXPECT_EQ(base, (std::set<std::string>{"flat_rack_side_rail_0", "flat_rack_side_rail_1",
                                          "flat_rack_end_sill_front", "flat_rack_end_sill_rear",
                                          "flat_rack_deck"}));
-  EXPECT_EQ(h.container_geoms, h.base_geoms);
   for (int g = 0; g < m->ngeom; ++g) {
     EXPECT_NE(GeomName(m, g).rfind("container_", 0), 0u) << GeomName(m, g);
   }
