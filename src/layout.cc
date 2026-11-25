@@ -682,7 +682,6 @@ Layout ReadLayout(const Json& j) {
   for (size_t i = 0; i < pallets.size(); ++i) {
     l.pallets.push_back(ReadPallet(pallets[i], At("pallets", i)));
   }
-  l.pallet = l.pallets[0];
   if (flat_rack) {
     if (!l.holder.travels_inside) {
       throw LayoutError("holder.travels_inside",

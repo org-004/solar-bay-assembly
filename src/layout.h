@@ -339,9 +339,6 @@ struct Layout {
   Holder holder;
   std::vector<ArmUse> arms;
   std::vector<Pallet> pallets;   // At least one.
-  // TRANSITIONAL, removed before this work lands: a copy of pallets[0], so
-  // that code not yet moved to `pallets` still compiles.
-  Pallet pallet;
   std::vector<Stock> stocks;
   std::string strap_bolts_from;  // In words.
   Way tube_in;

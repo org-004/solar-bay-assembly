@@ -2048,25 +2048,83 @@ cc_test(
 )
 # END locate
 
-# BEGIN layout_moves
-# R16: the layout check's time model against the repository's planner
-# (src/rrt.h, src/path_timing.h) for a few of a layout's moves.
-#   bazel run --config=opt //:print_layout_moves -- below
-cc_binary(
-    name = "print_layout_moves",
-    srcs = ["src/print_layout_moves.cc"],
-    data = LAYOUT_FILES + LAYOUT_MODEL_FILES,
-    env = LAYOUT_ENV,
+# BEGIN layout_plan
+# One whole bay of a layout as planned motion (src/layout_plan.h): every move
+# planned, all arms on one clock, the plan as a file under plans/, and the
+# test that replays the committed plan of the chosen layout without planning.
+PLAN_FILES = glob(["plans/*.json"], allow_empty = True)
+
+cc_library(
+    name = "layout_plan",
+    srcs = [
+        "src/layout_plan.cc",
+        "src/layout_replay.cc",
+    ],
+    hdrs = ["src/layout_plan.h"],
     deps = [
+        ":bay_hardware",
         ":joint_move",
         ":layout",
         ":layout_check",
         ":layout_model",
         ":mj_handles",
         ":path_timing",
+        ":portable_random",
         ":rrt",
         "@eigen",
         "@mujoco",
+        "@nlohmann_json//:json",
     ],
 )
-# END layout_moves
+
+# Plans one bay of a layout and prints one row per move.
+#   bazel run --config=opt //:plan_layout -- flat_rack_3_pin_arms [--summary]
+#   bazel run --config=opt //:plan_layout -- flat_rack_3_pin_arms --out /tmp/a.json
+cc_binary(
+    name = "plan_layout",
+    srcs = ["src/plan_layout.cc"],
+    data = LAYOUT_FILES + LAYOUT_MODEL_FILES + PLAN_FILES,
+    env = LAYOUT_ENV | {"PLAN_DIR": "plans"},
+    deps = [
+        ":layout",
+        ":layout_check",
+        ":layout_model",
+        ":layout_plan",
+    ],
+)
+
+# The planner's pieces on small cases; no whole bay is planned.
+#   bazel test --config=opt //:layout_plan_test
+cc_test(
+    name = "layout_plan_test",
+    size = "medium",
+    srcs = ["tests/layout_plan_test.cc"],
+    data = LAYOUT_FILES + LAYOUT_MODEL_FILES + PLAN_FILES,
+    env = LAYOUT_ENV | {"PLAN_DIR": "plans"},
+    deps = [
+        ":layout",
+        ":layout_check",
+        ":layout_model",
+        ":layout_plan",
+        "@googletest//:gtest_main",
+    ],
+)
+
+# Replays the committed plan of the chosen layout without planning anything.
+#   bazel test --config=opt //:plan_replay_test
+cc_test(
+    name = "plan_replay_test",
+    size = "medium",
+    srcs = ["tests/plan_replay_test.cc"],
+    data = LAYOUT_FILES + LAYOUT_MODEL_FILES + PLAN_FILES,
+    env = LAYOUT_ENV | {"PLAN_DIR": "plans"},
+    deps = [
+        ":layout",
+        ":layout_check",
+        ":layout_model",
+        ":layout_plan",
+        "@googletest//:gtest_main",
+        "@nlohmann_json//:json",
+    ],
+)
+# END layout_plan

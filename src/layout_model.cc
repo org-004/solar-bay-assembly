@@ -815,7 +815,6 @@ LayoutHandles FindHandles(const mjModel& model, const Layout& layout) {
 
   h.base_body = BaseBody(layout);
   h.base_geoms = geoms_of_body(body_id(h.base_body));
-  h.container_geoms = h.base_geoms;  // TRANSITIONAL copy; see the header.
   h.holder_geoms = geoms_of_body(body_id("holder"));
   h.tube_geoms = geoms_of_body(body_id(bay::TubeName()));
   for (int k = 0; k < bay::kRailCount; ++k) {

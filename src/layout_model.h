@@ -136,9 +136,6 @@ struct LayoutHandles {
   std::vector<ArmHandle> arms;  // In the layout's order.
   std::string base_body;         // "container_frame" or "flat_rack_frame".
   std::vector<int> base_geoms;   // The base's members, whichever base.
-  // TRANSITIONAL: a copy of base_geoms for code not yet moved to it; it is
-  // removed before this work lands.
-  std::vector<int> container_geoms;
   std::vector<int> holder_geoms;
   std::vector<int> tube_geoms;
   std::vector<std::vector<int>> rail_geoms;           // [rail], strap included.
