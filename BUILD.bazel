@@ -1937,10 +1937,12 @@ cc_library(
     srcs = [
         "src/layout_check.cc",
         "src/layout_rows.cc",
+        "src/layout_scene.cc",
     ],
     hdrs = [
         "src/layout_check.h",
         "src/layout_rows.h",
+        "src/layout_scene.h",
     ],
     deps = [
         ":bay_hardware",

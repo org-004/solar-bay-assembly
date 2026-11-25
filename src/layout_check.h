@@ -232,15 +232,19 @@ struct BayStep {
 };
 
 struct CheckOptions {
-  double joint_margin_deg = 5.0;  // Kept from each end of a joint's range.
-  double clearance_m = 0.010;     // The least distance that counts as clear.
-  // Which kinds of check to make (a row's `check`); empty: all of them.
-  // Reach, clearance and time all need the poses; asking for any of them
-  // solves the poses of the work kinds below.
+  // Kept from each end of a joint's range. For a layout on the flat rack the
+  // larger of this and the layout's margins.joint_margin_deg is used.
+  double joint_margin_deg = 5.0;
+  // The least distance that counts as clear. For a layout on the flat rack
+  // the larger of this and the layout's margins.clearance_m is used.
+  double clearance_m = 0.010;
+  // Which kinds of check to make (a row's `check`, one of CheckKinds());
+  // empty: all of them. Reach, clearance, time and approach all need the
+  // poses; asking for any of them solves the poses of the work kinds below.
   std::vector<std::string> checks;
-  // Which kinds of work (src/layout.h's WorkKinds) the reach and clearance
-  // checks look at; empty: all. The time check needs all of them and is
-  // left out when this is not empty.
+  // Which kinds of work (src/layout.h's WorkKinds) the reach, clearance and
+  // approach checks look at; empty: all. The time check needs all of them
+  // and is left out when this is not empty.
   std::vector<std::string> work_kinds;
   // The ways' sweep is sampled at least this often.
   double sweep_step_m = 0.025;
@@ -249,14 +253,46 @@ struct CheckOptions {
   int ik_seeds = 16;
 };
 
+// The poses solved for one work point, for a planner: the work pose and,
+// where the kind has an approach, the far ends of its two legs.
+struct SolvedPoint {
+  std::string kind;
+  int index = 0;
+  std::string item;           // "module_set 3"
+  std::string arm;            // The arm the layout gives the point.
+  std::string tool;
+  // The part held on each leg and at the work pose: "module", "rail",
+  // "pin magazine" or "" (src/layout_scene.h, Leg).
+  std::string held_approach;
+  std::string held_work;
+  std::string held_retreat;
+  double track = 0.0;         // The carriage's value, the same on both legs.
+  std::array<double, 6> work_deg{};
+  std::array<double, 6> approach_deg{};
+  std::array<double, 6> retreat_deg{};
+  bool work_reached = false;
+  // Every sample of the leg reached inside the joint margin; set only when
+  // the kind has an approach and the approach rows were made.
+  bool approach_reached = false;
+  bool retreat_reached = false;
+};
+
 struct CheckReport {
   std::vector<CheckRow> rows;
   std::vector<BayStep> steps;
   double bay_time_s = 0.0;
   std::string time_model;  // The model of a move, in words, for the output.
+  double clearance_m = 0.0;       // The margins used.
+  double joint_margin_deg = 0.0;
+  // Every work point whose pose was looked for, kinds in WorkKinds() order,
+  // points in index order. Empty when no check that needs poses was made.
+  std::vector<SolvedPoint> points;
   bool pass = false;       // Every row passes.
   std::string error;       // Set when the model could not be built.
 };
+
+// The kinds of check, in the order of the output.
+const std::vector<std::string>& CheckKinds();
 
 CheckReport CheckLayout(const Layout& layout, const ModelPaths& paths,
                         const CheckOptions& options = {});
@@ -282,7 +318,8 @@ struct WorkPoint {
   int rail = -1;             // The rail worked on, if any.
   int module = -1;           // The module worked on, if any.
   int hole = -1;             // The hole of the module, 0..3.
-  int pallet_modules = -1;   // module_take: modules on the pallet.
+  int pallet = -1;           // module_take: the pallet place.
+  int pallet_modules = -1;   // module_take: modules on its pallet, j's included.
 };
 
 // The points of one kind of work, in index order. Empty for a kind that

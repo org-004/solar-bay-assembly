@@ -1,9 +1,12 @@
 // The layout checker: the reference layout's report, and copies of it broken
-// in memory, one check at a time, which must fail that check.
+// in memory, one check at a time, which must fail that check; the choice of
+// kinds of check; work divided among arms; the approach rows; the margins.
 
 #include "src/layout_check.h"
 
+#include <algorithm>
 #include <cmath>
+#include <cstdio>
 #include <cstdlib>
 #include <map>
 #include <optional>
@@ -111,9 +114,9 @@ TEST(LayoutCheck, WorkPointsOfOneBay) {
   // Standing on their long edge: one pitch further along the pallet's y
   // each take, level, the tool pressing along +y.
   const auto takes = WorkPoints(layout, "module_take");
-  EXPECT_NEAR((takes[1].pos - takes[0].pos).norm(), layout.pallet.pitch, 1e-12);
+  EXPECT_NEAR((takes[1].pos - takes[0].pos).norm(), layout.pallets[0].pitch, 1e-12);
   EXPECT_NEAR(takes[0].pos.z(),
-              layout.pallet.pos[2] + layout.pallet.base_height +
+              layout.pallets[0].pos[2] + layout.pallets[0].base_height +
                   bay::kModuleWidth / 2.0,
               1e-12);
   EXPECT_NEAR(takes[0].z.z(), 0.0, 1e-12);
@@ -484,6 +487,289 @@ TEST(LayoutCheck, StateAtModuleEight) {
   EXPECT_EQ(state.tool.at("module_arm"), "module_gripper");
   EXPECT_NEAR(state.track.at("module_arm"), 3.432, 1e-9);
   EXPECT_FALSE(StateAt(Reference(), Paths(), "module_set", 9, &state, &error));
+}
+
+}  // namespace
+}  // namespace cell::layout
+
+namespace cell::layout {
+namespace {
+
+Layout Named(const std::string& name) {
+  std::string error;
+  const std::optional<Layout> layout =
+      LoadLayout(Dir() + "/" + name + ".json", &error);
+  EXPECT_TRUE(layout.has_value()) << error;
+  return layout.value_or(Layout{});
+}
+
+int CountKind(const CheckReport& report, const std::string& check) {
+  int n = 0;
+  for (const CheckRow& r : report.rows) n += r.check == check;
+  return n;
+}
+
+// Only the kinds asked for are made, and the report passes by them alone.
+TEST(LayoutCheck, ChecksChooseTheKinds) {
+  const std::vector<std::string>& kinds = CheckKinds();
+  ASSERT_EQ(kinds.size(), 10u);
+  EXPECT_EQ(kinds[0], "transport");
+  EXPECT_EQ(kinds[6], "time");
+  EXPECT_EQ(kinds[9], "approach");
+  const Layout layout = Reference();
+  CheckOptions options;
+  options.checks = {"load", "hold"};
+  const CheckReport some = CheckLayout(layout, Paths(), options);
+  ASSERT_FALSE(some.rows.empty());
+  for (const CheckRow& r : some.rows) {
+    EXPECT_TRUE(r.check == "load" || r.check == "hold") << r.check;
+  }
+  EXPECT_GT(CountKind(some, "load"), 0);
+  EXPECT_GT(CountKind(some, "hold"), 0);
+  EXPECT_TRUE(some.pass) << Failures(some);
+  EXPECT_TRUE(some.steps.empty());
+  EXPECT_TRUE(some.points.empty());
+  // An old layout has no approach: asking for it fails the report.
+  options.checks = {"load", "approach"};
+  const CheckReport with = CheckLayout(layout, Paths(), options);
+  EXPECT_GT(CountKind(with, "approach"), 0);
+  EXPECT_FALSE(with.pass);
+}
+
+// The old layouts' bay times, as at the base of this work.
+TEST(LayoutCheck, OldBayTimesUnchanged) {
+  const std::map<std::string, double> expect = {
+      {"above", 832.2021},
+      {"below", 738.8765},
+      {"below_each_rail", 874.1356},
+      {"below_rails_by_module_arm", 628.5435},
+      {"beside", 747.3109}};
+  for (const auto& [name, seconds] : expect) {
+    CheckOptions options;
+    options.checks = {"time"};
+    const CheckReport report = CheckLayout(Named(name), Paths(), options);
+    EXPECT_NEAR(report.bay_time_s, seconds, 0.05) << name;
+    // One busy row per arm.
+    EXPECT_EQ(CountKind(report, "time"), 3) << name;
+  }
+}
+
+// below_rails_by_module_arm with a second small arm on the same track line
+// (it waits at the track's other end; the beams are one and the clearance
+// rows are not asked for), and the holes divided: 0-17 to the new arm,
+// 18-35 to the old one, each with its own stock of pins at its end.
+Layout Divided() {
+  Layout layout = Named("below_rails_by_module_arm");
+  ArmUse* a = nullptr;
+  for (ArmUse& arm : layout.arms) {
+    if (arm.name == "small_arm") a = &arm;
+  }
+  EXPECT_NE(a, nullptr);
+  if (a == nullptr) return layout;
+  EXPECT_TRUE(a->track.has_value());
+  ArmUse b = *a;
+  b.name = "small_arm_b";
+  b.first_tool = "pin_tool";
+  b.wait_track = b.track->lo;
+  b.stow_track = b.track->lo;
+  b.stops = {{"pins_take", {b.track->lo}}};
+  layout.arms.push_back(b);
+  Stock pins_b = *FindStock(layout, "pins");
+  pins_b.name = "pins_b";
+  pins_b.pick_pos[1] = -pins_b.pick_pos[1];
+  for (Box& box : pins_b.boxes) box.pos[1] = -box.pos[1];
+  layout.stocks.push_back(pins_b);
+  std::vector<Work> work;
+  for (const Work& w : layout.work) {
+    if (w.kind == "locate" || w.kind == "pin" || w.kind == "swage") {
+      Work mine = w, theirs = w;
+      mine.points = "18-35";
+      theirs.arm = "small_arm_b";
+      theirs.points = "0-17";
+      work.push_back(mine);
+      work.push_back(theirs);
+    } else if (w.kind == "pins_take") {
+      Work mine = w, theirs = w;
+      mine.points = "0";
+      theirs.arm = "small_arm_b";
+      theirs.points = "1";
+      work.push_back(mine);
+      work.push_back(theirs);
+    } else {
+      work.push_back(w);
+    }
+  }
+  layout.work = work;
+  return layout;
+}
+
+TEST(LayoutCheck, WorkDividedAmongArms) {
+  const Layout layout = Divided();
+  ASSERT_EQ(PointCount(layout, "pins_take"), 2);
+  CheckOptions options;
+  options.checks = {"reach", "time"};
+  const CheckReport report = CheckLayout(layout, Paths(), options);
+  ASSERT_TRUE(report.error.empty()) << report.error;
+  auto expected = [](int index) {
+    return index < 18 ? std::string("small_arm_b") : std::string("small_arm");
+  };
+  // The jobs: each point with the arm the division gives it.
+  for (const char* kind : {"locate", "pin", "swage"}) {
+    for (int index : {0, 17, 18, 35}) {
+      const std::string item = std::string(kind) + " " +
+                               std::to_string(index / 4) + "/" +
+                               std::to_string(index % 4);
+      const CheckRow* r = FindRow(report, "reach", item);
+      ASSERT_NE(r, nullptr) << item;
+      EXPECT_EQ(r->arm, expected(index)) << item;
+    }
+  }
+  const CheckRow* magazine = FindRow(report, "reach", "pins_take 1");
+  ASSERT_NE(magazine, nullptr);
+  EXPECT_EQ(magazine->arm, "small_arm_b");
+  // The steps: each hole by its arm, each arm's magazine before its first
+  // hole, every arm back at the end.
+  std::map<std::string, int> first_hole, first_magazine, magazines;
+  for (const BayStep& s : report.steps) {
+    int m = -1, i = -1;
+    char what[16];
+    if (std::sscanf(s.what.c_str(), "%15s %d/%d", what, &m, &i) == 3) {
+      EXPECT_EQ(s.arm, expected(4 * m + i)) << s.what;
+      if (!first_hole.count(s.arm)) first_hole[s.arm] = s.number;
+    }
+    if (s.what == "take a pin magazine") {
+      ++magazines[s.arm];
+      if (!first_magazine.count(s.arm)) first_magazine[s.arm] = s.number;
+    }
+  }
+  for (const char* arm : {"small_arm", "small_arm_b"}) {
+    EXPECT_EQ(magazines[arm], 1) << arm;
+    ASSERT_TRUE(first_hole.count(arm)) << arm;
+    EXPECT_LT(first_magazine[arm], first_hole[arm]) << arm;
+  }
+  // A busy row for each of the three arms, and the module phase by three.
+  for (const char* arm : {"module_arm", "small_arm", "small_arm_b"}) {
+    const CheckRow* busy = FindRow(report, "time", std::string("busy ") + arm);
+    ASSERT_NE(busy, nullptr) << arm;
+    EXPECT_GT(busy->figure, 0.0) << arm;
+  }
+  const CheckRow* bay = FindRow(report, "time", "bay");
+  ASSERT_NE(bay, nullptr);
+  EXPECT_NE(bay->detail.find("pin arms"), std::string::npos) << bay->detail;
+  EXPECT_NE(bay->detail.find("3 arms"), std::string::npos) << bay->detail;
+  std::printf("divided bay %.1f s: %s\n", report.bay_time_s,
+              bay->detail.c_str());
+  // Two pin arms share the holes: the bay is no longer than with one.
+  EXPECT_LT(report.bay_time_s, 628.5435 + 1e-6);
+}
+
+Approach Rule(const std::string& kind, const std::string& frame, Vec3 dir,
+              double m) {
+  Approach a;
+  a.kind = kind;
+  a.approach_frame = frame;
+  a.approach_dir = dir;
+  a.approach_m = m;
+  a.retreat_frame = frame;
+  a.retreat_dir = dir;
+  a.retreat_m = m;
+  return a;
+}
+
+// A layout without rules: one failing row per kind.
+TEST(LayoutCheck, NoApproachRulesFailOncePerKind) {
+  CheckOptions options;
+  options.checks = {"approach"};
+  const CheckReport report = CheckLayout(Reference(), Paths(), options);
+  std::set<std::string> kinds;
+  for (const CheckRow& r : report.rows) {
+    ASSERT_EQ(r.check, "approach");
+    EXPECT_FALSE(r.pass);
+    EXPECT_EQ(r.detail, "the layout gives no approach for " + r.item);
+    EXPECT_TRUE(kinds.insert(r.item).second) << r.item;
+  }
+  EXPECT_EQ(kinds.size(), WorkKinds().size());
+}
+
+// Rules added in memory: two rows per point; a module set down from above
+// passes, one brought up from below runs into the bay.
+TEST(LayoutCheck, ApproachRows) {
+  Layout layout = Named("below_rails_by_module_arm");
+  layout.approaches = {Rule("module_set", "world", {0, 0, 1}, 0.10),
+                       Rule("strap_bolt", "tool", {0, 0, -1}, 0.03)};
+  CheckOptions options;
+  options.checks = {"approach"};
+  options.work_kinds = {"module_set", "strap_bolt", "pin"};
+  const CheckReport report = CheckLayout(layout, Paths(), options);
+  ASSERT_TRUE(report.error.empty()) << report.error;
+  int set_rows = 0, bolt_rows = 0;
+  for (const CheckRow& r : report.rows) {
+    if (r.item.rfind("module_set ", 0) == 0) ++set_rows;
+    if (r.item.rfind("strap_bolt ", 0) == 0) ++bolt_rows;
+  }
+  EXPECT_EQ(set_rows, 2 * bay::kModuleCount);
+  EXPECT_EQ(bolt_rows, 2 * bay::kRailCount);
+  const CheckRow* no_rule = FindRow(report, "approach", "pin");
+  ASSERT_NE(no_rule, nullptr);
+  EXPECT_FALSE(no_rule->pass);
+  const CheckRow* up = FindRow(report, "approach", "module_set 3 approach");
+  const CheckRow* away = FindRow(report, "approach", "module_set 3 retreat");
+  ASSERT_NE(up, nullptr);
+  ASSERT_NE(away, nullptr);
+  EXPECT_TRUE(up->pass) << up->detail;
+  EXPECT_TRUE(away->pass) << away->detail;
+  EXPECT_EQ(up->unit, "m");
+  EXPECT_DOUBLE_EQ(up->limit, 0.010);
+  EXPECT_NE(up->detail.find("20 samples over 100.0 mm"), std::string::npos)
+      << up->detail;
+  // The poses for a planner: the approach pose 100 mm above, the module held
+  // on the way in and nothing on the way out.
+  const SolvedPoint* point = nullptr;
+  for (const SolvedPoint& p : report.points) {
+    if (p.kind == "module_set" && p.index == 3) point = &p;
+  }
+  ASSERT_NE(point, nullptr);
+  EXPECT_EQ(point->item, "module_set 3");
+  EXPECT_EQ(point->arm, "module_arm");
+  EXPECT_TRUE(point->work_reached);
+  EXPECT_TRUE(point->approach_reached);
+  EXPECT_TRUE(point->retreat_reached);
+  EXPECT_EQ(point->held_approach, "module");
+  EXPECT_EQ(point->held_work, "module");
+  EXPECT_EQ(point->held_retreat, "");
+  EXPECT_NE(point->approach_deg, point->work_deg);
+  for (int j = 0; j < 6; ++j) {
+    EXPECT_NEAR(point->approach_deg[j], point->retreat_deg[j], 1e-6);
+  }
+  // From below: the held module goes through its rails and the tube.
+  layout.approaches = {Rule("module_set", "world", {0, 0, -1}, 0.30)};
+  options.work_kinds = {"module_set"};
+  const CheckReport below = CheckLayout(layout, Paths(), options);
+  const CheckRow* into = FindRow(below, "approach", "module_set 3 approach");
+  ASSERT_NE(into, nullptr);
+  EXPECT_FALSE(into->pass) << into->detail;
+  std::printf("from below: %.4f %s\n", into->figure, into->detail.c_str());
+}
+
+// On the flat rack the layout's margins count where they are larger; on the
+// container they are not read.
+TEST(LayoutCheck, MarginsOfAFlatRackLayout) {
+  Layout layout = Reference();
+  layout.margins.clearance_m = 0.02;
+  layout.margins.joint_margin_deg = 7.0;
+  CheckOptions options;
+  options.checks = {"load"};
+  const CheckReport container = CheckLayout(layout, Paths(), options);
+  EXPECT_DOUBLE_EQ(container.clearance_m, 0.010);
+  EXPECT_DOUBLE_EQ(container.joint_margin_deg, 5.0);
+  layout.base = "flat_rack";
+  const CheckReport rack = CheckLayout(layout, Paths(), options);
+  EXPECT_DOUBLE_EQ(rack.clearance_m, 0.02);
+  EXPECT_DOUBLE_EQ(rack.joint_margin_deg, 7.0);
+  options.clearance_m = 0.03;
+  const CheckReport more = CheckLayout(layout, Paths(), options);
+  EXPECT_DOUBLE_EQ(more.clearance_m, 0.03);
+  EXPECT_DOUBLE_EQ(more.joint_margin_deg, 7.0);
 }
 
 }  // namespace

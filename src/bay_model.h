@@ -90,8 +90,22 @@ std::string TubeBodyXml();
 // 0 .. kRailCount - 1 it has the sites of that rail of the bay (the strap
 // bolt's _a, the locator's _a, the _a of the pins that go through it);
 // without, none.
+//
+// The strap is closed by default: a square U under the tube (_strap_neg,
+// _strap_pos, _strap_bottom, _strap_ears), as on a rail that is on the tube.
+// With `strap_open` it hangs open, as on a rail that is carried to the tube:
+// its two ends are rolled round pins in the webs' notches and swing open to
+// pass the tube (docs/bay-hardware.md, Rail, "Strap"). Each half is then one
+// box swung outward about its pin until it lies level under the rail,
+// _strap_open_neg and _strap_open_pos: from |x| = kTubeRadius outward by half
+// the strap's developed length (0.174 m), kStrapWidth along the tube, 0.020 m
+// thick, its top at the webs' lower edges. Nothing of the open strap is
+// between the webs under the tube or below that slab. The rail's mass is the
+// same either way. src/layout_model.cc draws a rail an arm holds open and the
+// rails on the tube closed; models/bay.xml has only closed straps.
 std::string RailBodyXml(const std::string& name,
-                        const std::array<double, 3>& pos, int index = -1);
+                        const std::array<double, 3>& pos, int index = -1,
+                        bool strap_open = false);
 
 // One module, as a body of the given name at `pos`: nine geoms, and with
 // `index` 0 .. kModuleCount - 1 the _b site of each of that module's pins.

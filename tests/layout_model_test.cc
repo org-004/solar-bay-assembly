@@ -1126,5 +1126,50 @@ TEST(LayoutForm, SeveralArmsOfOneModelBuild) {
   }
 }
 
+// A held rail has its strap open: the two open halves and none of the four
+// boxes of the closed strap, and nothing of it below the open halves'
+// underside, which is 20 mm below the webs' lower edges. The rails on the
+// tube keep the closed strap.
+TEST(ChosenLayout, AHeldRailHasItsStrapOpen) {
+  const Layout layout = Chosen();
+  LayoutState state;
+  state.everything = true;
+  Built b = Build(layout, state);
+  ASSERT_TRUE(b.model);
+  const mjModel* m = b.model.get();
+  const mjData* d = b.data.get();
+  const std::vector<std::string> rail_arms = ArmsDoing(layout, {"rail_set"});
+  ASSERT_FALSE(rail_arms.empty());
+  for (const std::string& arm : rail_arms) {
+    const std::string held = arm + "_held_rail";
+    for (const char* open : {"_strap_open_neg", "_strap_open_pos"}) {
+      EXPECT_GE(mj_name2id(m, mjOBJ_GEOM, (held + open).c_str()), 0) << held << open;
+    }
+    for (const char* closed : {"_strap_neg", "_strap_pos", "_strap_bottom", "_strap_ears"}) {
+      EXPECT_EQ(mj_name2id(m, mjOBJ_GEOM, (held + closed).c_str()), -1) << held << closed;
+    }
+    const int body = mj_name2id(m, mjOBJ_BODY, held.c_str());
+    ASSERT_GE(body, 0) << held;
+    // The rail's frame: origin on the tube's axis, z up through the rail.
+    const Eigen::Vector3d origin = V(d->xpos + 3 * body);
+    const Eigen::Vector3d down = -M(d->xmat + 9 * body).col(2);
+    const double underside = bay::kRailTopHeight - bay::kRailDepth - 0.020;
+    int geoms = 0;
+    for (int g = 0; g < m->ngeom; ++g) {
+      if (m->geom_bodyid[g] != body) continue;
+      ++geoms;
+      // The lowest point of the geom, as a height in the rail's frame.
+      const double lowest = -(Extent(m, d, g, down) - down.dot(origin));
+      EXPECT_GE(lowest, underside - 1e-9) << GeomName(m, g);
+    }
+    EXPECT_GT(geoms, 2);
+  }
+  const std::string on_tube = bay::RailName(0);
+  for (const char* closed : {"_strap_neg", "_strap_pos", "_strap_bottom", "_strap_ears"}) {
+    EXPECT_GE(mj_name2id(m, mjOBJ_GEOM, (on_tube + closed).c_str()), 0) << on_tube << closed;
+  }
+  EXPECT_EQ(mj_name2id(m, mjOBJ_GEOM, (on_tube + "_strap_open_neg").c_str()), -1);
+}
+
 }  // namespace
 }  // namespace cell::layout

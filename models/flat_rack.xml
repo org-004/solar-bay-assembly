@@ -30,7 +30,9 @@
   cell may be. flat_rack_closed_inside_envelope is what a container that
   closes would give the cell, the closed container's inside envelope of
   11.830 x 2.330 x 2.240 m standing on this deck; nothing is held to it.
-  Sites collide with nothing.
+  Sites collide with nothing and are in group 4, which a viewer does not
+  draw unless asked: drawn, the envelopes look like walls and a roof, and
+  the flat rack has none.
 
   Nothing but the base is here. Part file: loaded only through a scene that
   includes common.xml first.
@@ -48,7 +50,7 @@
         <geom rgba="0.55 0.45 0.3 1"/>
       </default>
       <default class="flat_rack_envelope">
-        <site type="box" rgba="0.9 0.6 0.1 0.08"/>
+        <site type="box" group="4" rgba="0.9 0.6 0.1 0.08"/>
       </default>
     </default>
   </default>

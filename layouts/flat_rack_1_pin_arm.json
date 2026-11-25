@@ -653,7 +653,7 @@
     {
       "name": "rails",
       "part": "rail",
-      "how": "Rails with their straps and bolts on, in a rack at the rails' port outside the +X side beside the pallet, which presents one rail at a time, top up, long side along X.",
+      "how": "Rails with their straps and bolts on, in a rack at the rails' port outside the +X side beside the pallet, which presents one rail at a time on two pegs, top up, long side along X, its strap hanging open, its top 0.20 m above the rack's body.",
       "pick_pos": [
         2.37,
         1.75,
@@ -672,12 +672,12 @@
           "size": [
             0.6,
             0.4,
-            1.198
+            1.078
           ],
           "pos": [
             2.37,
             1.75,
-            0.599
+            0.539
           ]
         }
       ],
@@ -1158,7 +1158,7 @@
         0,
         1
       ],
-      "approach_m": 0.25,
+      "approach_m": 0.15,
       "retreat_frame": "world",
       "retreat_dir": [
         0,

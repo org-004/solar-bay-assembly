@@ -339,7 +339,9 @@ std::string ToolMountContents(const Layout& layout, const ArmUse& arm,
       body = bay::ModuleBodyXml("held_module",
                                 {0.0, 0.0, -bay::kModuleThickness / 2.0});
     } else {
-      body = bay::RailBodyXml("held_rail", {0.0, 0.0, -bay::kRailTopHeight});
+      // A held rail's strap hangs open (src/bay_model.h, RailBodyXml).
+      body = bay::RailBodyXml("held_rail", {0.0, 0.0, -bay::kRailTopHeight},
+                              -1, /*strap_open=*/true);
     }
     ReplaceAll(&body, "class=\"bay_", "class=\"" + cls + "bay_");
     t += body;
