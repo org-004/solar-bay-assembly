@@ -158,7 +158,6 @@ TEST(PortRows, ReferencePasses) {
 TEST(PortRows, PalletHalfOutOfItsZone) {
   Layout l = FlatLayout();
   l.pallets[0].pos[0] += 1.6;
-  l.pallet = l.pallets[0];
   const std::vector<CheckRow> rows = PortRows(l, Paths());
   ExpectFails(rows, "pallet 0 in a zone");
   EXPECT_LT(Find(rows, "pallet 0 in a zone")->figure, 0.0);
