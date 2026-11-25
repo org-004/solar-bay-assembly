@@ -1,0 +1,82 @@
+P1 5 file-to-header pairs (a file and a project header it includes) against the groups' allowed direction (deps.json)
+P1.cycles 0 header cycles
+P1.namespace 0 files under src/ that open a namespace their group does not allow (deps.json namespaces), and #define lines with the word namespace
+P1.allowed 24 pairs (group, group it may include) (a rule of deps.json; may not grow)
+P1.listed 20 departures on the list of deps.json (a rule of deps.json; may not grow)
+P1.frozen_files 66 files in frozen groups (a rule of deps.json; may not grow)
+P1.frozen 4 of them in the stand-in cell's files, which a refactoring does not edit
+P2 6 files under src/ that no test and no captured program (programs.txt) depends on (bazel)
+P2.untested 24 files under src/ that no test target depends on (bazel)
+P2.unrun 11 cc_binary targets that programs.txt does not capture
+P2.frozen 2 of them in the stand-in cell's files, which a refactoring does not edit (bazel)
+P3 5 files that read the simulation's truth and are not allowed to (deps.json truth)
+P3.allowed 55 files that may read the truth, by exact name (a rule of deps.json; may not grow)
+P3.frozen 5 of them in the stand-in cell's files, which a refactoring does not edit
+P4 26 outside dependencies in MODULE.bazel (bazel_dep, fetches, use_repo names, overrides; may not grow)
+P4.unpinned 0 of them not pinned by a version, a commit, an integrity or a sha256
+P4.mujoco 67 targets that list @mujoco directly (may not grow)
+P4.eigen 78 targets that list @eigen directly (may not grow)
+P4.googletest 42 targets that list @googletest directly (may not grow)
+P4.nlohmann_json 4 targets that list @nlohmann_json directly (may not grow)
+P4.ompl 1 targets that list @ompl directly (may not grow)
+P4.glfw 1 targets that list @glfw directly (may not grow)
+P4.mujoco_files 70 files that include mujoco/ (may not grow)
+P4.group 0 #include lines of an outside library from a group that may not include it, and files that reach one through project headers
+P4.allowed 22 pairs (group, outside library) (a rule of deps.json; may not grow)
+P5 16 unused and missing deps of targets, and files in the srcs and hdrs of no target or of several
+P5.unused_project 10 targets' deps on project libraries none of whose headers the target includes
+P5.unused_outside 4 targets' deps on outside libraries none of whose headers the target includes
+P5.missing 1 targets that include a header of a library they do not list
+P5.files 1 files under src/ and tests/ in the srcs and hdrs of no target or of more than one
+P5.frozen 7 of them in the stand-in cell's files, which a refactoring does not edit
+P6 13 files that use what differs between platforms or runs outside src/portable_random.h, or that read steady_clock for more than a print
+P6.clock 6 files that read steady_clock and are not in clock_printed_only of deps.json
+P6.allowed 20 files excused from a pattern or from the clock reading (a rule of deps.json; may not grow)
+P6.frozen 7 of them in the stand-in cell's files, which a refactoring does not edit
+P7 17 places in src/ where a fact that has a home is written again (file and fact; deps.json single_home)
+P7.geom_distance 3 files under src/ outside its home that write the distance between two geoms
+P7.standin_module 2 files under src/ outside its home that write the stand-in module's size, 2.3 by 1.1 by 0.035 m
+P7.gate 1 files under src/ outside its home that write the gate's figures, 3 mm and 0.15 degrees
+P7.container_base 1 files under src/ outside its home that write the figures of a 40 ft container's base
+P7.pi 10 files under src/ outside its home that write pi as a literal
+P7.frozen 9 of them in the stand-in cell's files, which a refactoring does not edit
+P8 2 committed generated files with no test that compares them to their source and no reason why none can
+P8.unmatched 0 generated entries that match no tracked file, and plans and models that match no entry
+P8.no_test 6 entries excused from a test (a rule of deps.json; may not grow)
+P9 0 places that silence a compiler's or analyzer's finding (deps.json silenced)
+P9.allowed 2 silencers excused (a rule of deps.json; may not grow)
+P9.held 74 -Werror= flags in .bazelrc plus enabled entries of Checks and WarningsAsErrors in .clang-tidy (a guard; may not fall)
+P9.frozen 0 of them in the stand-in cell's files, which a refactoring does not edit
+P10 15 backticked paths and Bazel labels, and relative links, in AGENTS.md, README.md and docs/**/*.md that do not exist
+P10.left_out 1 documents left out of P10 (a rule of deps.json; may not grow)
+P11 7 files under src/ too long, and headers whose opening comment is too short
+P11.cc 5 .cc files under src/ over the line limit of deps.json size
+P11.h 2 headers under src/ over the line limit of deps.json size
+P11.comment 0 headers whose opening comment is shorter than deps.json size says
+P11.frozen 3 of them in the stand-in cell's files, which a refactoring does not edit
+# not compared by measure.sh --check: the places each flag of --config=strict finds (W, from tools/architecture/warnings.sh) and each check of .clang-tidy finds (T, from tools/architecture/tidy.sh). They may not grow.
+W -Wcast-align 0
+W -Wcomment 3
+W -Wconversion 61
+W -Wdangling-reference 0
+W -Wduplicated-branches 0
+W -Wmissing-field-initializers 11
+W -Wnull-dereference 2
+W -Wold-style-cast 0
+W -Woverloaded-virtual 0
+W -Wparentheses 4
+W -Wshadow 8
+W -Wtype-limits 0
+T bugprone-branch-clone 3
+T bugprone-integer-division 3
+T bugprone-macro-parentheses 2
+T bugprone-misplaced-widening-cast 2
+T bugprone-suspicious-memory-comparison 1
+T cert-err34-c 60
+T cert-flp30-c 11
+T clang-analyzer-core.CallAndMessage 2
+T clang-analyzer-cplusplus.StringChecker 3
+T clang-analyzer-deadcode.DeadStores 1
+T cppcoreguidelines-init-variables 12
+T cppcoreguidelines-pro-type-member-init 23
+T cppcoreguidelines-special-member-functions 5

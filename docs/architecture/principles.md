@@ -49,7 +49,8 @@ new one at once: a departure must be on the list in `deps.json`, the list can on
 shrink, and a file in no group is an error. It cannot see a forward declaration of
 another group's name; that is a dependency too, and review holds it.
 
-**Now.** NOW_P1
+**Now.** `P1 5`, of which `P1.frozen 4`; the fifth is `src/collision.cc` including
+`src/pallet.h`. `P1.cycles 0`, `P1.namespace 0`.
 
 **Target.** `P1` equals `P1.frozen`, then 0 when the stand-in cell is removed;
 `P1.cycles` and `P1.namespace` stay 0. Never worse meanwhile.
@@ -84,7 +85,8 @@ or a capture of `--help` lowers it and holds nothing. A new test or capture coun
 when it fails after the result it names is changed by hand; try that before relying
 on it.
 
-**Now.** NOW_P2
+**Now.** `P2 6`: the three viewers' files, `src/viewer_lib.h` and `.cc`, and `src/run_gate.cc`.
+`P2.untested 24`, `P2.unrun 11`.
 
 **Target.** `P2` is 0 but for the programs that need a display; `P2.untested` falls as
 tests are written. Never worse meanwhile.
@@ -117,7 +119,7 @@ and `true_...` accessors and a body's pose (`xpos`, `xquat`, `xmat`); a pose rea
 under another field of `mjData`, or through a helper added to an allowed file, is not
 seen, and the allowed files are the stand-in's, which a refactoring does not edit.
 
-**Now.** NOW_P3
+**Now.** `P3 5`, `P3.frozen 5`.
 
 **Target.** `P3` equals `P3.frozen`, which it does today: the five files counted are
 the stand-in's runner and programs that score or report against truth. The line is
@@ -155,7 +157,8 @@ counts fetches without a version, commit or hash, `P4.group` the includes of a l
 from a group that may not, one line per library counts the targets that list it, and
 `P4.mujoco_files` the files that include MuJoCo.
 
-**Now.** NOW_P4
+**Now.** `P4 26`, `P4.unpinned 0`, `P4.group 0`; `@eigen` 78 targets, `@mujoco` 67,
+`@googletest` 42, `@nlohmann_json` 4, `@ompl` 1, `@glfw` 1; `P4.mujoco_files 70`.
 
 **Target.** `P4` does not grow without a decision record; `P4.unpinned` and `P4.group`
 stay 0; the lines per library do not grow.
@@ -186,7 +189,9 @@ files include, plus includes of a library that is not in `deps`, plus files unde
 one. It compares `#include` lines with `deps`: an include that nothing needs, and a
 name used only through another header's include, are not seen.
 
-**Now.** NOW_P5
+**Now.** `P5 16`: `P5.unused_project 10`, `P5.unused_outside 4`, `P5.missing 1`
+(`//:layout_plan_test` without `@mujoco`), `P5.files 1` (`src/viewer.cc`, in eight
+programs). `P5.frozen 7`.
 
 **Target.** 0. Never worse meanwhile.
 
@@ -215,7 +220,7 @@ distribution of `<random>`, `std::shuffle`, `std::rand` and its kin,
 `std::random_device` or a wall clock, or that read `std::chrono::steady_clock`
 anywhere but in the files `deps.json` lists as only printing the time (`P6.clock`).
 
-**Now.** NOW_P6
+**Now.** `P6 13`, of which `P6.clock 6` and `P6.frozen 7`.
 
 **Target.** `P6` equals `P6.frozen`, then 0. Never worse meanwhile.
 
@@ -249,7 +254,8 @@ of known duplicates, found by the spelling each has today; a fact found written 
 is added to it with its home, in the commit that finds it. A home must be in a group
 that every user may include (P1); where it is not, the home moves first.
 
-**Now.** NOW_P7
+**Now.** `P7 17`: `mj_geomDistance` in 3 files beside its home, the module's size in 2, the
+gate's figures in 1, the container's base in 1, pi as a literal in 10. `P7.frozen 9`.
 
 **Target.** `P7` equals `P7.frozen`, then 0. Never worse meanwhile.
 
@@ -277,7 +283,7 @@ be read.
 **Check.** `measure.sh` line `P8`: entries of `generated` with neither a test nor a
 stated reason why no test can compare them.
 
-**Now.** NOW_P8
+**Now.** `P8 2`: `plans/flat_rack_2_pin_arms.json` and `MODULE.bazel.lock`.
 
 **Target.** 0. Never worse meanwhile.
 
@@ -309,7 +315,9 @@ fall.
 `baseline.txt`. `tools/architecture/tidy.sh`: the places each check finds, against the
 `T` lines, and no check under `WarningsAsErrors` fires.
 
-**Now.** NOW_P9
+**Now.** `P9 0`. Under `--config=strict`: `-Wconversion` 61, `-Wmissing-field-initializers`
+11, `-Wshadow` 8, `-Wparentheses` 4, `-Wcomment` 3, `-Wnull-dereference` 2, six flags
+at 0. `clang-tidy`: 13 checks with 128 places, the largest `cert-err34-c` 60.
 
 **Target.** `P9` stays 0; every `W` and `T` line reaches 0, and the commit that brings
 one there makes the flag or the check an error. No line ever grows.
@@ -338,7 +346,7 @@ wrong.
 `AGENTS.md`, `README.md` and the documents under `docs/`, that do not exist. For the
 documents under `docs/architecture/` and `docs/adr/`, `measure.sh --check` fails on one.
 
-**Now.** NOW_P10
+**Now.** `P10 1`: `docs/layout.md:667`.
 
 **Target.** 0. Never worse meanwhile.
 
@@ -373,7 +381,7 @@ opening comment says what the piece is for without naming the file it was cut fr
 `src/layout_rows.h:1` passes (the rows of a check that need no pose of an arm, taken
 out of `src/layout_check.h`); a `src/layout_check_part2.cc` would not.
 
-**Now.** NOW_P11
+**Now.** `P11 7`: `P11.cc 5`, `P11.h 2`, `P11.comment 0`; `P11.frozen 3`.
 
 **Target.** `P11` equals `P11.frozen` plus one, the header excepted below;
 `P11.comment` stays 0. Never worse meanwhile.
