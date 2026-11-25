@@ -34,7 +34,7 @@ input that this run checks.
 3. Memory is a hard 7,445 MiB for the whole machine and a process past it is killed.
    Every heavy command (any `bazel build`, `bazel test`, `bazel run`, any compiler or
    `clang-tidy` run over many files, anything in Docker that compiles) runs under the
-   one lock: `flock /root/work/013-design-principles-and-r2/heavy.lock <command>`.
+   one lock: `flock -o /root/work/013-design-principles-and-r2/heavy.lock <command>` (with `-o`: without it a Bazel server that the command starts inherits the lock and holds it for hours).
    Hold it only for the command itself. Never more than 3 parallel jobs inside it
    (`--jobs=3 --local_resources=cpu=3`). `bazel query`, `bazel aquery` and `bazel info`
    are light and need no lock (Bazel queues them itself). `Killed` or `terminated`

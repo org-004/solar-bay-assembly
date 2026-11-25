@@ -1,0 +1,139 @@
+Computing main repo mapping: 
+Loading: 
+Loading: 0 packages loaded
+Analyzing: 107 targets (4 packages loaded, 6 targets configured)
+Analyzing: 107 targets (4 packages loaded, 7 targets configured)
+
+Analyzing: 107 targets (237 packages loaded, 6974 targets configured)
+
+DEBUG: /root/.cache/bazel/ob-ubuntu/external/rules_python+/python/private/py_executable.bzl:1582:14: 
+======================================================================
+WARNING: Target @@libxcb+//:c_client is using implicit __init__.py creation.
+  This diabolic behavior is deprecated and will be disabled by default in a
+  future release.
+  See https://github.com/bazel-contrib/rules_python/issues/2945
+
+  Ensure all __init__.py files are explicitly created and
+  added to the srcs or deps of your targets.
+
+  Disable implicit creation for your module in MODULE.bazel:
+
+    rules_python_config = use_extension("@rules_python//python/extensions:config.bzl", "config")
+    rules_python_config.explicit_init_py(default = True)
+
+  Or for a specific target by setting:
+
+    legacy_create_init = 0
+
+  Or globally with the following Bazel flag:
+
+    --incompatible_default_to_explicit_init_py
+======================================================================
+Analyzing: 107 targets (314 packages loaded, 16473 targets configured)
+[3 / 24] Compiling src/layout.cc; 0s processwrapper-sandbox ... (3 actions, 2 running)
+INFO: Analyzed 107 targets (319 packages loaded, 16908 targets configured).
+[4 / 60] Compiling src/layout.cc; 1s processwrapper-sandbox ... (3 actions, 2 running)
+[129 / 522] Compiling src/layout.cc; 3s processwrapper-sandbox ... (3 actions running)
+[131 / 522] Compiling src/layout.cc; 4s processwrapper-sandbox ... (3 actions running)
+[212 / 535] Compiling tests/joint_move_test.cc; 1s processwrapper-sandbox ... (3 actions running)
+[214 / 535] Compiling src/path_timing.cc; 1s processwrapper-sandbox ... (3 actions running)
+[217 / 535] Compiling src/bay_model.cc; 0s processwrapper-sandbox ... (3 actions, 2 running)
+[219 / 535] Compiling tests/path_timing_test.cc; 1s processwrapper-sandbox ... (3 actions, 2 running)
+[222 / 535] Compiling src/plane_fit.cc; 0s processwrapper-sandbox ... (3 actions running)
+[225 / 535] Compiling tests/rrt_test.cc; 2s processwrapper-sandbox ... (3 actions, 2 running)
+[229 / 561] Compiling tests/plane_fit_test.cc; 1s processwrapper-sandbox ... (3 actions running)
+[232 / 561] Compiling tests/bay_hardware_test.cc; 2s processwrapper-sandbox ... (3 actions, 2 running)
+[233 / 561] Compiling tests/bay_hardware_test.cc; 3s processwrapper-sandbox ... (3 actions, 2 running)
+[234 / 561] Compiling tests/bay_hardware_test.cc; 4s processwrapper-sandbox ... (3 actions running)
+[235 / 561] Compiling tests/depth_camera_test.cc; 2s processwrapper-sandbox ... (3 actions running)
+[236 / 561] Compiling tests/depth_camera_test.cc; 3s processwrapper-sandbox ... (3 actions running)
+[238 / 561] Compiling tests/container_test.cc; 1s processwrapper-sandbox ... (3 actions running)
+[242 / 561] Compiling src/cell.cc; 0s processwrapper-sandbox ... (3 actions, 2 running)
+[245 / 561] Compiling tests/layout_model_test.cc; 1s processwrapper-sandbox ... (3 actions, 2 running)
+[277 / 561] Compiling tests/layout_model_test.cc; 2s processwrapper-sandbox ... (3 actions, 2 running)
+[297 / 561] Compiling tests/layout_model_test.cc; 3s processwrapper-sandbox ... (3 actions, 2 running)
+[319 / 561] Compiling tests/layout_model_test.cc; 5s processwrapper-sandbox ... (3 actions, 2 running)
+[351 / 561] Compiling tests/layout_model_test.cc; 6s processwrapper-sandbox ... (3 actions, 2 running)
+[377 / 561] Compiling tests/layout_model_test.cc; 7s processwrapper-sandbox ... (3 actions running)
+[403 / 561] Compiling tests/suction_test.cc; 1s processwrapper-sandbox ... (3 actions running)
+[405 / 561] Compiling src/layout_model.cc; 1s processwrapper-sandbox ... (3 actions, 2 running)
+[415 / 561] Compiling src/layout_model.cc; 2s processwrapper-sandbox ... (3 actions, 2 running)
+[436 / 561] Compiling src/depth_camera.cc; 0s processwrapper-sandbox ... (3 actions, 2 running)
+[469 / 561] Compiling tests/layout_scene_test.cc; 0s processwrapper-sandbox ... (3 actions, 2 running)
+[477 / 561] Compiling tests/layout_scene_test.cc; 1s processwrapper-sandbox ... (3 actions, 2 running)
+[486 / 561] Compiling src/module_finder.cc; 2s processwrapper-sandbox ... (3 actions, 2 running)
+[494 / 561] Compiling src/layout_check.cc; 1s processwrapper-sandbox ... (3 actions, 2 running)
+[500 / 561] Compiling src/layout_check.cc; 2s processwrapper-sandbox ... (3 actions running)
+[505 / 561] Compiling src/layout_check.cc; 3s processwrapper-sandbox ... (3 actions, 2 running)
+[510 / 561] Compiling src/layout_check.cc; 4s processwrapper-sandbox ... (3 actions, 2 running)
+[512 / 561] Compiling src/layout_check.cc; 5s processwrapper-sandbox ... (3 actions, 2 running)
+[513 / 561] Compiling tests/arm_follower_test.cc; 2s processwrapper-sandbox ... (3 actions running)
+[514 / 561] Compiling tests/arm_follower_test.cc; 3s processwrapper-sandbox ... (3 actions, 2 running)
+[516 / 561] Compiling tests/arm_follower_test.cc; 5s processwrapper-sandbox ... (3 actions running)
+[518 / 561] Compiling tests/held_module_finder_test.cc; 2s processwrapper-sandbox ... (3 actions, 2 running)
+[519 / 561] Compiling src/ompl_search.cc; 1s processwrapper-sandbox ... (3 actions, 2 running)
+[521 / 561] Compiling tests/check_camera_cell_test.cc; 1s processwrapper-sandbox ... (3 actions running)
+[524 / 561] Compiling src/check_rig.cc; 1s processwrapper-sandbox ... (3 actions, 2 running)
+[526 / 561] Compiling tests/layout_check_test.cc; 1s processwrapper-sandbox ... (3 actions running)
+[527 / 561] Compiling tests/layout_check_test.cc; 3s processwrapper-sandbox ... (3 actions running)
+[528 / 561] Compiling tests/layout_check_test.cc; 6s processwrapper-sandbox ... (3 actions, 2 running)
+INFO: From Compiling tests/layout_check_test.cc:
+tests/layout_check_test.cc: In member function 'virtual void cell::layout::{anonymous}::LayoutCheck_AboveFailsOnClearanceOnly_Test::TestBody()':
+tests/layout_check_test.cc:242:8: warning: suggest explicit braces to avoid ambiguous 'else' [-Wdangling-else]
+  242 |     if (!r.pass) EXPECT_EQ(r.check, "clearance") << r.item << ": " << r.detail;
+      |        ^
+tests/layout_check_test.cc: In member function 'virtual void cell::layout::{anonymous}::LayoutCheck_SetsGoOnInOrder_Test::TestBody()':
+tests/layout_check_test.cc:879:8: warning: suggest explicit braces to avoid ambiguous 'else' [-Wdangling-else]
+  879 |     if (s.what == "set module 2") EXPECT_EQ(s.arm, "module_arm") << s.what;
+      |        ^
+[530 / 561] Compiling src/pallet.cc; 1s processwrapper-sandbox ... (3 actions, 2 running)
+[531 / 561] Compiling tests/motion_planner_test.cc; 1s processwrapper-sandbox ... (3 actions running)
+[532 / 561] Compiling tests/motion_planner_test.cc; 3s processwrapper-sandbox ... (3 actions running)
+[533 / 561] Compiling tests/ik_test.cc; 3s processwrapper-sandbox ... (3 actions, 2 running)
+INFO: From Compiling tests/ik_test.cc:
+tests/ik_test.cc: In member function 'virtual void {anonymous}::IkSceneTest_LeavesTheRestOfScratchAlone_Test::TestBody()':
+tests/ik_test.cc:971:8: warning: suggest explicit braces to avoid ambiguous 'else' [-Wdangling-else]
+  971 |     if (!is_arm[i]) EXPECT_EQ(data_->qpos[i], qpos[i]) << "qpos " << i;
+      |        ^
+[535 / 561] Compiling src/cycle_check.cc; 1s processwrapper-sandbox ... (3 actions, 2 running)
+[536 / 561] Compiling src/layout_plan.cc; 1s processwrapper-sandbox ... (3 actions running)
+[537 / 561] Compiling src/layout_plan.cc; 3s processwrapper-sandbox ... (3 actions running)
+[538 / 561] Compiling tests/camera_cycle_test.cc; 3s processwrapper-sandbox ... (3 actions running)
+[540 / 561] Compiling src/layout_replay.cc; 2s processwrapper-sandbox ... (3 actions running)
+[541 / 561] Compiling src/layout_replay.cc; 3s processwrapper-sandbox ... (3 actions running)
+[542 / 561] Compiling src/layout_replay.cc; 4s processwrapper-sandbox ... (3 actions, 2 running)
+[543 / 561] Compiling tests/planned_carry_test.cc; 3s processwrapper-sandbox ... (3 actions, 2 running)
+[544 / 561] Compiling tests/planned_carry_test.cc; 4s processwrapper-sandbox ... (3 actions running)
+INFO: From Compiling tests/planned_carry_test.cc:
+tests/planned_carry_test.cc: In member function 'virtual void {anonymous}::PlannedCarryAcrossATubeSwap_SceneAfterTheSwapMatchesTheCell_Test::TestBody()':
+tests/planned_carry_test.cc:997:8: warning: suggest explicit braces to avoid ambiguous 'else' [-Wdangling-else]
+  997 |     if (i < 10) EXPECT_EQ(L.states[i], cell::ModuleState::kParked) << i;
+      |        ^
+[545 / 561] Compiling src/view_layout.cc; 2s processwrapper-sandbox ... (3 actions running)
+INFO: From Compiling src/view_layout.cc:
+src/view_layout.cc:9:1: warning: multi-line comment [-Wcomment]
+    9 | //   tools/video/shot_viewer.sh //:viewer_layout out.png 1600x1000 below \
+      | ^
+[546 / 561] Compiling tests/trial_runner_test.cc; 2s processwrapper-sandbox ... (3 actions running)
+[549 / 561] Compiling src/arm_follower.cc; 1s processwrapper-sandbox ... (3 actions, 2 running)
+INFO: From Compiling tests/gate_test.cc:
+tests/gate_test.cc:18:1: warning: multi-line comment [-Wcomment]
+   18 | //   bazel test --config=opt //:gate_test --test_sharding_strategy=disabled \
+      | ^
+tests/gate_test.cc:25:1: warning: multi-line comment [-Wcomment]
+   25 | //   bazel run --config=opt --test_sharding_strategy=disabled //:gate_test \
+      | ^
+[551 / 561] Compiling tests/plan_replay_test.cc; 1s processwrapper-sandbox ... (3 actions running)
+[552 / 561] Compiling tests/plan_replay_test.cc; 2s processwrapper-sandbox ... (3 actions, 2 running)
+[553 / 561] Compiling tests/plan_replay_test.cc; 4s processwrapper-sandbox ... (3 actions running)
+[554 / 561] Compiling src/pick_place.cc; 2s processwrapper-sandbox ... (3 actions running)
+[555 / 561] Compiling src/pick_place.cc; 4s processwrapper-sandbox ... (3 actions, 2 running)
+[557 / 561] Compiling tests/check_cycle_test.cc; 3s processwrapper-sandbox ... (3 actions, 2 running)
+[557 / 561] Compiling tests/check_cycle_test.cc; 4s processwrapper-sandbox ... (3 actions running)
+[558 / 561] Compiling tests/check_cycle_test.cc; 5s processwrapper-sandbox ... (3 actions running)
+[559 / 561] Compiling tests/check_cycle_test.cc; 4s processwrapper-sandbox ... (2 actions running)
+INFO: Found 107 targets...
+INFO: Elapsed time: 94.902s, Critical Path: 7.79s
+INFO: 561 processes: 220 internal, 341 processwrapper-sandbox.
+INFO: Build completed successfully, 561 total actions
+rc=0

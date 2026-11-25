@@ -1,0 +1,1 @@
+-*,bugprone-*,cert-*,cppcoreguidelines-*,misc-*,performance-*,portability-*,concurrency-*,readability-misleading-indentation,readability-suspicious-call-argument,readability-container-data-pointer,hicpp-multiway-paths-covered,hicpp-signed-bitwise,-misc-include-cleaner,-misc-const-correctness,-cppcoreguidelines-avoid-magic-numbers

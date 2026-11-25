@@ -1,0 +1,1 @@
+docker exec -w /root/work/013-design-principles-and-r2/repo -e BAZEL=bazel\ --output_base=/root/.cache/bazel/ob-ubuntu sba-ci
