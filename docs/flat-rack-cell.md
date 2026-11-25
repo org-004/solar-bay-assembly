@@ -82,7 +82,7 @@ stands outside.
 
 | Row | Figure | What stands outside | Basis |
 |---|---|---|---|
-| closed container x (2.330 m across) | -0.0360 m | 14 geoms: the module arm's base (-0.036), beam and carriage (-0.035); the holder's four saddles and end column (-0.025), its end head (-0.015) and the four -X cheeks (-0.010) | derived |
+| closed container x (2.330 m across) | -0.0360 m | 14 geoms: the module arm's base (-0.036, and -0.025 for its collision geom), beam and carriage (-0.035); the holder's four saddles and end column (-0.025), its end head (-0.015) and the four -X cheeks (-0.010) | derived |
 | closed container y (11.830 m along) | -0.1750 m | the pin lane (-0.175) | derived |
 | closed container top (2.240 m above the deck) | 0.2664 m | nothing | derived |
 | between end frames y (11.652 m) | -0.2640 m | the pin lane (-0.264) | derived |
@@ -416,7 +416,7 @@ because the time model does not time the legs and never holds one arm back for a
   0.015 m along the schedule has room.
 
 The tables below are `bazel run --config=opt //:plan_layout -- flat_rack_3_pin_arms
---margins` (plan sha256 `f7fef2604cb4...`), least clearance over the schedule 0.0181 m,
+--margins` (plan sha256 `41247743a71c...`), least clearance over the schedule 0.0181 m,
 arm to arm 0.0187 m. Every figure is derived.
 
 ### The twenty least distances over the schedule
@@ -477,17 +477,17 @@ limit 0. Each row is printed for all three pin arms, with the same figure.
 | Ranks | Tool | Margin | Free space | Tool reaches |
 |---|---|---|---|---|
 | 1-3 | nutrunner (strap bolt) | 0.0007 m | radius 0.012 over 0.100 m behind the working point | socket 0.0113 from the axis |
-| 4-6 | pin tool (locate) | 0.0077 m | radius 0.019 over 0.080 m | nose 0.0113 from the axis |
-| 7-9 | pin tool (pin) | 0.0017 m | radius 0.013 over 0.080 m | nose 0.0113 from the axis |
-| 10-12 | pin tool (swage) | 0.0017 m | radius 0.013 over 0.080 m | nose 0.0113 from the axis |
+| 4-6 | pin tool (pin) | 0.0017 m | radius 0.013 over 0.080 m | nose 0.0113 from the axis |
+| 7-9 | pin tool (swage) | 0.0017 m | radius 0.013 over 0.080 m | nose 0.0113 from the axis |
+| 10-12 | pin tool (locate) | 0.0077 m | radius 0.019 over 0.080 m | nose 0.0113 from the axis |
 
 ### The loads
 
 | Arm and tool | Load | Rated | Centre of mass: along, across the flange | Detail |
 |---|---|---|---|---|
+| each pin arm, pin tool | 8.5 kg | 12.5 kg | 0.090 m, 0.000 m (none stated) | tool 8.00 + a pin magazine 0.50 (ours) |
 | module_arm, combined gripper | 68.4 kg | 210.0 kg | 0.276 m (rated to 0.310), 0.000 m (rated to 0.355) | tool 36.00 + a module 32.40 |
 | each pin arm, nutrunner | 3.0 kg | 12.5 kg | 0.077 m, 0.000 m (none stated) | tool 3.00 |
-| each pin arm, pin tool | 8.5 kg | 12.5 kg | 0.090 m, 0.000 m (none stated) | tool 8.00 + a pin magazine 0.50 (ours) |
 
 The KR 210's datasheet gives no numeric load centre; its payload diagram was read by
 eye (the 210 kg curve flat at 355 mm across out to 310 mm along), and the row holds the
