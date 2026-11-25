@@ -1830,6 +1830,7 @@ LAYOUT_FILES = glob(["layouts/*.json"])
 LAYOUT_MODEL_FILES = MODELS_COMMON + [
     "models/arm.xml",
     "models/container.xml",
+    "models/flat_rack.xml",
     ":arm_meshes",
 ] + UR10E_FILES
 
