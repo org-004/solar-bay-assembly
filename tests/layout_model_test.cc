@@ -1191,5 +1191,58 @@ TEST(FlatRackLayout, AHeldRailHasItsStrapOpen) {
   EXPECT_EQ(mj_name2id(m, mjOBJ_GEOM, (on_tube + "_strap_open_neg").c_str()), -1);
 }
 
+// Stowed, a stock whose "outside" is false travels with the cell and is in
+// the model; one that stands outside is not.
+TEST(LayoutForm, StowedHasTheStocksThatTravel) {
+  std::string error;
+  std::optional<Layout> l = LoadLayout(LayoutPath("flat_rack_3_pin_arms"), &error);
+  ASSERT_TRUE(l.has_value()) << error;
+  Stock* pins = nullptr;
+  for (Stock& s : l->stocks) {
+    if (s.name == "pins") pins = &s;
+  }
+  ASSERT_NE(pins, nullptr);
+  ASSERT_FALSE(pins->outside);
+  pins->boxes = {Box{"magazine", {0.2, 0.2, 0.2}, {0.0, 0.0, 1.0}}};
+  LayoutState state;
+  state.stowed = true;
+  Built b = Build(*l, state);
+  ASSERT_TRUE(b.model);
+  EXPECT_GE(mj_name2id(b.model.get(), mjOBJ_GEOM, "stock_pins_magazine"), 0);
+  EXPECT_EQ(b.handles.stock_geoms.count("pins"), 1u);
+  EXPECT_EQ(b.handles.stock_geoms.count("rails"), 0u);  // It stands outside.
+  EXPECT_TRUE(b.handles.pallet_base_geoms.empty());     // Every pallet is outside.
+}
+
+// On the flat rack a pallet stands outside and the holder travels; on the
+// container either may be otherwise, as before.
+TEST(LayoutForm, FlatRackRefusesAPalletInsideAndAHolderLeftBehind) {
+  const nlohmann::json flat =
+      nlohmann::json::parse(ReadText(LayoutPath("flat_rack_3_pin_arms")));
+  {
+    nlohmann::json j = flat;
+    j["pallets"][0]["outside"] = false;
+    const std::string e = LoadBroken(j, "flat_rack_3_pin_arms", "pallet_inside");
+    EXPECT_NE(e.find("pallets[0].outside"), std::string::npos) << e;
+    EXPECT_NE(e.find("on the flat rack a pallet stands at a port, outside the base"),
+              std::string::npos)
+        << e;
+  }
+  {
+    nlohmann::json j = flat;
+    j["holder"]["travels_inside"] = false;
+    const std::string e = LoadBroken(j, "flat_rack_3_pin_arms", "holder_stays");
+    EXPECT_NE(e.find("on the flat rack the holder travels with the cell and stands on the deck"),
+              std::string::npos)
+        << e;
+  }
+  {
+    nlohmann::json j = nlohmann::json::parse(ReadText(LayoutPath("below")));
+    j["pallets"][0]["outside"] = false;
+    j["holder"]["travels_inside"] = false;
+    EXPECT_TRUE(LoadGood(j, "below", "container_pallet_inside").has_value());
+  }
+}
+
 }  // namespace
 }  // namespace cell::layout

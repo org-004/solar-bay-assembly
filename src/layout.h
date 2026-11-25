@@ -69,7 +69,8 @@
 // run through the pallets in order: point j of pallet p has the number
 // (modules of the pallets before p) + j. The bay that is checked takes its
 // module m as point m, so from the first pallet; the points of the other
-// pallets are checked for reach and clearance only.
+// pallets are checked for reach, clearance and approach and are in no step
+// of the bay.
 //
 // Ports (flat rack). A port is where a separate unit, one that can be
 // exchanged, stands against the cell: what feeds it parts or takes bays

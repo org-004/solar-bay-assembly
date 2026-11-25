@@ -79,6 +79,18 @@
 // wrist_3_link, the KUKA's link 6 and its flange), to which the tool is
 // bolted and which the part cannot but be near.
 //
+// The ways (WayMoving, WayObstacles). Along tube_in the tube alone moves;
+// along bay_out the finished bay (tube, ten rails, nine modules). What is
+// there: the base, the holder, every pallet's deck and every pallet module,
+// the stocks, the items but the way's carriers, and every arm at its wait
+// pose with its beam, carriage, first tool on the flange and other tools
+// where they wait. The carriers (WayCarriers): for a layout with ports, the
+// items named "item:<name>" in hands_over of the ports that name
+// "way:tube_in" (for the tube's way) or "way:bay_out" (for the bay's), and
+// of the ports that share a zone with one of them; for a layout without
+// ports (run 011's five on the container), run 011's rule, kept for its
+// record: every item whose `does` mentions "tube" or "bay".
+//
 // The bay at a work point (AtWorkPoint), with Leg::kWork: at rail_take k and
 // rail_set k rails 0 .. k-1; at strap_bolt k all rails if the order is
 // all_rails_then_all_bolts, otherwise rails 0 .. k; at module_take j, for a
@@ -195,6 +207,9 @@ struct StepScene {
   std::string error;         // No arm, no tool, no work: nothing else is set.
 };
 
+// The two ways of a layout (src/layout.h, Way).
+enum class WayKind { kTubeIn, kBayOut };
+
 // Whether the other arms are obstacles, and with which tools.
 struct ObstacleOptions {
   // The other arms' links, carriages and tools on the flange, where the
@@ -267,6 +282,12 @@ class LayoutScene {
   // (c) The bay, the arm, its tool and part and the pairs by design at a
   // work point of the kind, on one of its legs.
   StepScene AtWorkPoint(const WorkPoint& point, Leg leg = Leg::kWork) const;
+
+  // What moves along a way (group kHeld), what is there, and the items
+  // that carry it and are left out.
+  std::vector<MovingGeom> WayMoving(WayKind way) const;
+  std::vector<Obstacle> WayObstacles(WayKind way) const;
+  std::vector<std::string> WayCarriers(WayKind way) const;
 
   // (d) The least distance between the moving geoms and the obstacles, as
   // of the data's geom poses, out to `far`.

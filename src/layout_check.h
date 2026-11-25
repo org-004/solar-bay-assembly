@@ -129,12 +129,12 @@
 // "free space bolt k", "free space pin m/i", "free space locate m/i" (the
 // worse of its two cylinders).
 //
-// The ways. The tube alone along tube_in.path and the finished bay (tube,
-// ten rails, nine modules) along bay_out.path, sampled every sweep_step_m
-// or less along each segment, by moving the geoms' world positions in the
-// model's data (exact for a translation), against everything there with
-// every arm at its wait pose; the items whose `does` names the tube or the
-// bay (the cart that carries it) are left out, and a holder geom that is
+// The ways. What moves along each way and what is there are
+// src/layout_scene.h's (WayMoving, WayObstacles; the carriers left out are
+// WayCarriers): the tube alone along tube_in.path and the finished bay
+// along bay_out.path, sampled every sweep_step_m or less along each
+// segment, by moving the geoms' world positions in the model's data (exact
+// for a translation), every arm at its wait pose; a holder geom that is
 // within clearance_m of the moving set in its place is left out while the
 // offset is straight up from the place (lifting out of a saddle is the
 // design). A sample is the figure; between two samples the true least
@@ -151,7 +151,18 @@
 // Load. For each arm and each of its tools: the tool's mass and the
 // heaviest part it holds in the layout's work (a module 32.4 kg, a rail
 // with its strap 2.35 kg, a pin magazine 0.5 kg `ours`) against the
-// catalogue's rated payload.
+// catalogue's rated payload. On the flat rack the row also holds the load
+// under the datasheet's conditions: the load's centre of mass in the
+// flange's frame, the tool's mass at the volume-weighted centre of its
+// boxes (ours: uniform density) and the part's at the working point
+// (0, 0, length), must lie, where the catalogue has the distances
+// (ArmModel::payload_centre_axial_m, payload_centre_lateral_m), within them
+// along the flange's axis and across it: inside the rectangle under the
+// rated payload's curve of the datasheet's payload diagram, whatever the
+// load's mass. That reading of a payload diagram is ours. The detail adds
+// "centre of mass <a> m along the flange's axis (rated to <A>|none
+// stated), <l> m across (rated to <L>|none stated)". On the container the
+// row is run 011's, by mass alone.
 //
 // Approach. For each kind of work that has points: without a rule
 // (FindApproach) one failing row, item "<kind>", detail "the layout gives no
@@ -163,28 +174,37 @@
 // the retreat pose likewise with retreat_dir and retreat_m. Each leg is
 // walked from the work pose along the straight line in n equal steps of at
 // most 5 mm, each sample solved by the inverse kinematics above from the
-// sample before, the carriage at the work pose's track value, so the arm
-// stays on the work pose's branch; every sample must be reached within the
-// usual tolerances and inside the joint margin. What is there and what
+// sample before, the carriage at the work pose's track value; every sample
+// must be reached within the
+// usual tolerances and inside the joint margin, and no joint may turn by
+// more than 10 degrees from one sample to the next (the arm stays on the
+// work pose's branch, which is checked, not assumed). What is there and what
 // moves on each leg is src/layout_scene.h's (Leg): on the approach of a take
 // nothing is held and the tool is near the part it is about to take; on the
 // retreat of a set nothing is held and the part lies in the bay, the tool
-// near it; otherwise the work point's own part, Builts and pairs. A leg
-// passes when every sample is reached inside the joint margin; at the far
-// pose (the last sample) every pair, the work point's pairs by design
-// included, is at least clearance_m apart; and along the move (samples 1 to
-// n-1) no other pair is nearer than clearance_m and no pair that touches or
-// is near by design goes below zero. The figure is the least distance over
-// the samples of a pair not by design, and at the far pose of every pair;
-// when a pair by design goes below zero along the move its distance is the
-// figure ("(near by design, but into each other)"), and when the far pose's
-// nearest pair is one by design the detail adds "(by design at the work
-// point)". The detail: "<pair> at <s> mm along" or "<pair> at the
-// approach|retreat pose", then "least joint margin <deg> deg at <joint>;
-// <n> samples over <length> mm". A sample not reached fails the row with
-// "not reached at <s> of <length> mm: <mm> mm and <deg> deg off[; joint J
-// held at its margin]" or "...: joint J inside its margin (<deg> deg)"; a
-// point without a work pose fails both its rows with "no work pose: ...".
+// near it; otherwise the work point's own part, Builts and pairs. Every
+// point of a kind is walked, the takes from the other pallets included. A
+// leg passes when every sample is reached inside the joint margin without a
+// jump; at the work pose (sample 0), measured in the leg's own scene, no
+// pair is nearer than clearance_m but those that touch there by design
+// (the held part on what it is set on or taken from, the tool on the part
+// it is about to take or has let go: not counted) or are near by design
+// (counted only below zero); along the move (samples 1 to n-1) no other
+// pair is nearer than clearance_m and no pair that touches or is near by
+// design goes below zero; and at the far pose (sample n) every pair, the
+// work point's pairs by design included, is at least clearance_m apart.
+// The figure is the least distance over the samples of a pair not by
+// design, and at the far pose of every pair; when a pair by design goes
+// below zero its distance is the figure ("(near by design, but into each
+// other)"), and when the far pose's nearest pair is one by design the
+// detail adds "(by design at the work point)". The detail: "<pair> at <s>
+// mm along" or "<pair> at the approach|retreat pose", then "least joint
+// margin <deg> deg at <joint>; <n> samples over <length> mm". A sample not
+// reached fails the row with "not reached at <s> of <length> mm: <mm> mm
+// and <deg> deg off[; joint J held at its margin]" or "...: joint J inside
+// its margin (<deg> deg)"; a jump with "joint J jumps <D> deg at <s> mm:
+// another branch"; a point without a work pose fails both its rows with "no
+// work pose: ...".
 //
 // The order of the steps of one bay (BaySteps): tube in, clamp; the rails
 // and their bolts in the layout's rail_order (take rail k, set rail k, then
@@ -200,7 +220,9 @@
 // modules) is TimeModelText(): each unit has a leading piece (its take and
 // set) and following pieces (its bolt; its holes), a following piece
 // starting when the unit's leading pieces have ended and its arm has ended
-// the pieces before it; with one leading and one following arm this is
+// the pieces before it, and a set of unit k starting no earlier than the end
+// of unit k-1's leading pieces (rails and modules are set in order); with
+// one leading and one following arm this is
 // SideBySide, with one arm the plain sum. The time rows: "bay", whose detail
 // gives the phases, and "busy <arm>" for each arm, the sum of its steps.
 // The time row has no limit: it passes when every step it needs has a pose.
@@ -354,6 +376,21 @@ inline constexpr double kSettleS = 0.3;
 // either is empty.
 double SideBySide(const std::vector<double>& lead,
                   const std::vector<double>& follow);
+
+// One piece of a phase of the time model (see TimeModelText): an arm's
+// working step on a unit (a rail, a module), its tool change included.
+struct TimePiece {
+  int arm = -1;           // Index of the arm in the layout.
+  int unit = 0;
+  bool lead = false;      // The unit's take or set.
+  bool set = false;       // The unit's set (lead too).
+  bool magazine = false;  // A pin magazine taken before the arm's first hole.
+  double t = 0.0;
+};
+
+// When a phase of `units` units ends, its pieces in the order of the steps.
+double PhaseEnd(const std::vector<TimePiece>& pieces, int units,
+                int arm_count);
 
 // The model of a move and of the bay's time, in words.
 std::string TimeModelText();

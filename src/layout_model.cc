@@ -521,10 +521,12 @@ std::string BuildLayoutXml(const Layout& layout, const LayoutState& state,
   // The pallets: each one's deck, and the modules still on it. Module j is
   // the j-th taken (src/layout.h, Pallet, gives the pallet's frame and the
   // places); with n left on the first pallet, j = modules - n .. modules - 1
-  // are there; the other pallets are full.
-  if (!inside_only) {
+  // are there; the other pallets are full. Stowed, only the pallets that
+  // are not outside are there, and of the stocks the same.
+  {
     for (size_t pi = 0; pi < layout.pallets.size(); ++pi) {
       const Pallet& p = layout.pallets[pi];
+      if (inside_only && p.outside) continue;
       const std::string prefix = PalletPrefix(pi);
       const int left = pi == 0 ? pallet_modules : p.modules;
       const bool upright = p.stands == "on_long_edge";
@@ -560,6 +562,7 @@ std::string BuildLayoutXml(const Layout& layout, const LayoutState& state,
       t += "    </body>\n";
     }
     for (const Stock& s : layout.stocks) {
+      if (inside_only && s.outside) continue;
       t += "    <body name=\"stock_" + s.name + "\">\n";
       t += BoxGeoms(s.boxes, "stock_" + s.name + "_", "layout_stock", s.mass_kg);
       t += "    </body>\n";

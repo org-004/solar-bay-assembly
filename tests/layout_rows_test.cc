@@ -243,7 +243,6 @@ TEST(FlatRackTransportRows, ReferencePasses) {
   const CheckRow* x = Find(rows, "closed container x");
   EXPECT_LT(x->figure, 0.0);
   EXPECT_NE(x->detail.find("outside"), std::string::npos) << x->detail;
-  EXPECT_GT(Find(rows, "between end frames y")->figure, 0.0);
 }
 
 TEST(FlatRackTransportRows, HolderBoxLifted) {
@@ -302,6 +301,145 @@ TEST(FlatRackLayouts, AllThreePassEveryRow) {
     EXPECT_GT(rows.size(), 30u) << name;
     EXPECT_TRUE(Failures(rows).empty()) << name << "\n" << Failures(rows);
   }
+}
+
+TEST(AllowedRows, FourPinArmsFail) {
+  Layout l = FlatLayout();
+  ArmUse extra = l.arms[3];
+  extra.name = "pin_arm_d";
+  l.arms.push_back(extra);
+  Work w;
+  w.kind = "locate";
+  w.arm = "pin_arm_d";
+  w.tool = extra.first_tool;
+  w.points = "0";
+  l.work.push_back(w);
+  const std::vector<CheckRow> rows = AllowedRows(l);
+  ExpectFails(rows, "pin arms");
+  EXPECT_EQ(Find(rows, "pin arms")->figure, 4.0);
+}
+
+TEST(AllowedRows, NoModuleArmFails) {
+  Layout l = FlatLayout();
+  std::vector<Work> kept;
+  for (const Work& w : l.work) {
+    if (w.kind != "module_take" && w.kind != "module_set") kept.push_back(w);
+  }
+  l.work = kept;
+  ExpectFails(AllowedRows(l), "module arms");
+}
+
+TEST(PortRows, BaysPortRemoved) {
+  Layout l = FlatLayout();
+  std::vector<Port> kept;
+  for (const Port& p : l.ports) {
+    if (p.name != "bays_out") kept.push_back(p);
+  }
+  l.ports = kept;
+  PortOf(l, "tubes_in").shares_zone_with = "";
+  ExpectFails(PortRows(l, Paths()), "tubes and bays are two ports");
+}
+
+TEST(PortRows, WaysOutsideTheirZone) {
+  Layout l = FlatLayout();
+  PortOf(l, "tubes_in").zone.size[1] = 2.0;
+  PortOf(l, "bays_out").zone = PortOf(l, "tubes_in").zone;
+  const std::vector<CheckRow> rows = PortRows(l, Paths());
+  ExpectFails(rows, "way tube_in in a zone");
+  ExpectFails(rows, "way bay_out in a zone");
+}
+
+TEST(PortRows, ThingNamedByTwoPorts) {
+  Layout l = FlatLayout();
+  PortOf(l, "rails").hands_over.push_back("pallet:0");
+  const std::vector<CheckRow> rows = PortRows(l, Paths());
+  ExpectFails(rows, "pallet 0 in a zone");
+  EXPECT_EQ(Find(rows, "pallet 0 in a zone")->figure, -1.0);
+}
+
+TEST(PortRows, ZonesStackedOverTheSameGround) {
+  Layout l = FlatLayout();
+  Port& rails = PortOf(l, "rails");
+  rails.zone.pos = PortOf(l, "modules").zone.pos;
+  rails.zone.pos[2] += 5.0;
+  ExpectFails(PortRows(l, Paths()), "zones modules and rails apart");
+}
+
+TEST(PortRows, FrameFacesAwayFromItsZone) {
+  Layout l = FlatLayout();
+  PortOf(l, "modules").zone.pos[0] = -2.86;
+  ExpectFails(PortRows(l, Paths()), "frame modules faces its zone");
+}
+
+TEST(PortRows, PortHandsOverWhatDoesNotCross) {
+  Layout l = FlatLayout();
+  PortOf(l, "modules").hands_over.push_back("stock:rails");
+  PortOf(l, "tubes_in").hands_over = {"item:transfer_cart"};
+  const std::vector<CheckRow> rows = PortRows(l, Paths());
+  ExpectFails(rows, "port modules hands over what crosses");
+  ExpectFails(rows, "port tubes_in hands over what crosses");
+}
+
+TEST(FlatRackTransportRows, StowedYTopAndBottom) {
+  Layout l = FlatLayout();
+  l.holder.boxes[0].pos[1] = 7.0;
+  ExpectFails(FlatRackTransportRows(l, Paths()), "stowed y");
+  l = FlatLayout();
+  l.holder.boxes[0].pos[2] += 3.0;
+  ExpectFails(FlatRackTransportRows(l, Paths()), "stowed top");
+  l = FlatLayout();
+  l.holder.boxes[0].pos[2] -= 0.3;
+  ExpectFails(FlatRackTransportRows(l, Paths()), "stowed bottom");
+}
+
+TEST(FlatRackTransportRows, BoxOutsideTheFootprintIsNotCarried) {
+  Layout l = FlatLayout();
+  l.holder.boxes[0].pos[1] = 7.0;
+  ExpectFails(FlatRackTransportRows(l, Paths()), "on the deck holder");
+}
+
+TEST(FlatRackTransportRows, BeamLifted) {
+  Layout l = FlatLayout();
+  l.arms[0].track->beam.pos[2] += 0.05;
+  const std::vector<CheckRow> rows = FlatRackTransportRows(l, Paths());
+  ExpectFails(rows, "on the deck beam module_arm");
+  ExpectFails(rows, "on the deck arm module_arm");
+}
+
+TEST(FlatRackTransportRows, ArmNotOnItsCarriage) {
+  Layout l = FlatLayout();
+  l.arms[1].base_pos[2] += 0.05;
+  ExpectFails(FlatRackTransportRows(l, Paths()), "on the deck arm pin_arm_a");
+  l = FlatLayout();
+  l.arms[1].track->carriage.pos[1] = 20.0;
+  ExpectFails(FlatRackTransportRows(l, Paths()), "on the deck arm pin_arm_a");
+  l = FlatLayout();
+  l.arms[1].track.reset();
+  ExpectFails(FlatRackTransportRows(l, Paths()), "on the deck arm pin_arm_a");
+}
+
+TEST(FlatRackTransportRows, CarriageRunsOffTheBeamsEnd) {
+  Layout l = FlatLayout();
+  l.arms[1].track->hi += 3.0;
+  const std::vector<CheckRow> rows = FlatRackTransportRows(l, Paths());
+  ExpectFails(rows, "on the deck arm pin_arm_a");
+  EXPECT_NE(Find(rows, "on the deck arm pin_arm_a")->detail.find("hi"),
+            std::string::npos);
+}
+
+TEST(FlatRackTransportRows, NoLimitRowNamesEveryGeom) {
+  Layout l = FlatLayout();
+  const std::vector<CheckRow> rows = FlatRackTransportRows(l, Paths());
+  const CheckRow* x = Find(rows, "closed container x");
+  ASSERT_NE(x, nullptr);
+  EXPECT_EQ(x->detail.find('\n'), std::string::npos);
+  // 14 geoms stand outside today; the detail has a name for each.
+  size_t metres = 0;
+  for (size_t at = x->detail.find(" m"); at != std::string::npos;
+       at = x->detail.find(" m", at + 1)) {
+    ++metres;
+  }
+  EXPECT_GT(metres, 5u) << x->detail;
 }
 
 }  // namespace

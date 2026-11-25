@@ -683,6 +683,20 @@ Layout ReadLayout(const Json& j) {
     l.pallets.push_back(ReadPallet(pallets[i], At("pallets", i)));
   }
   l.pallet = l.pallets[0];
+  if (flat_rack) {
+    if (!l.holder.travels_inside) {
+      throw LayoutError("holder.travels_inside",
+                        "on the flat rack the holder travels with the cell and "
+                        "stands on the deck");
+    }
+    for (size_t i = 0; i < l.pallets.size(); ++i) {
+      if (!l.pallets[i].outside) {
+        throw LayoutError(At("pallets", i) + ".outside",
+                          "on the flat rack a pallet stands at a port, outside "
+                          "the base");
+      }
+    }
+  }
   const Json& stocks = j.at("stocks");
   Array(stocks, "stocks");
   for (size_t i = 0; i < stocks.size(); ++i) {

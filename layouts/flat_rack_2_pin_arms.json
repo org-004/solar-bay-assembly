@@ -1126,20 +1126,20 @@
     },
     {
       "name": "pin_lane",
-      "does": "Carries pin magazines along the deck from the +Y end to a nest beside each pin arm; travels with the cell.",
+      "does": "Carries pin magazines along the deck from the base's +Y edge to a nest beside each pin arm; travels with the cell.",
       "travels_inside": true,
-      "mass_kg": 100.8,
+      "mass_kg": 103.1,
       "boxes": [
         {
           "name": "lane",
           "size": [
             0.1,
-            11.35,
+            11.64,
             0.25
           ],
           "pos": [
             0.1,
-            0.125,
+            0.27,
             0.773
           ]
         },
@@ -1299,7 +1299,7 @@
     {
       "name": "pin_magazines",
       "crosses": "pin_magazines",
-      "unit": "A feeder that puts magazines of 36 pins and collars on the lane's outer end.",
+      "unit": "A feeder that stands against the +Y end and puts magazines of 36 pins and collars on the lane's outer end, at the base's edge.",
       "frame_pos": [
         0.1,
         6.096,
@@ -1314,7 +1314,7 @@
         ],
         "pos": [
           0.1,
-          6.56,
+          6.546,
           1.2
         ]
       },
@@ -1322,7 +1322,7 @@
         "item:pin_feeder"
       ],
       "shares_zone_with": "",
-      "presents": "A magazine set upright on the lane's outer end, 0.296 m inside the base's +Y edge and 0.25 m above the deck; the feeder reaches that far over the edge.",
+      "presents": "A magazine set upright on the lane's outer end, which ends 6 mm inside the base's +Y edge, 0.25 m above the deck.",
       "per_bay": 2.0,
       "basis": "ours"
     }

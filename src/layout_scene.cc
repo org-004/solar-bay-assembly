@@ -4,6 +4,7 @@
 #include "src/layout_scene.h"
 
 #include <algorithm>
+#include <cctype>
 #include <cmath>
 #include <numbers>
 #include <string>
@@ -429,6 +430,102 @@ StepScene LayoutScene::AtWorkPoint(const WorkPoint& p, Leg leg) const {
     }
   }
   return s;
+}
+
+std::vector<std::string> LayoutScene::WayCarriers(WayKind way) const {
+  std::vector<std::string> out;
+  auto lower = [](std::string t) {
+    for (char& c : t) c = static_cast<char>(std::tolower(c));
+    return t;
+  };
+  if (layout_.ports.empty()) {
+    // Run 011's rule, kept for its record.
+    for (const Item& item : layout_.items) {
+      const std::string does = lower(item.does);
+      if (does.find("tube") != std::string::npos ||
+          does.find("bay") != std::string::npos) {
+        out.push_back(item.name);
+      }
+    }
+    return out;
+  }
+  const std::string named = way == WayKind::kTubeIn ? "way:tube_in" : "way:bay_out";
+  std::set<std::string> ports;
+  for (const Port& p : layout_.ports) {
+    if (std::find(p.hands_over.begin(), p.hands_over.end(), named) !=
+        p.hands_over.end()) {
+      ports.insert(p.name);
+    }
+  }
+  // The ports that share a zone with one of those, either way round.
+  std::set<std::string> sharing = ports;
+  for (const Port& p : layout_.ports) {
+    if (ports.count(p.name) && !p.shares_zone_with.empty()) {
+      sharing.insert(p.shares_zone_with);
+    }
+    if (!p.shares_zone_with.empty() && ports.count(p.shares_zone_with)) {
+      sharing.insert(p.name);
+    }
+  }
+  std::set<std::string> carriers;
+  for (const Port& p : layout_.ports) {
+    if (!sharing.count(p.name)) continue;
+    for (const std::string& h : p.hands_over) {
+      if (h.rfind("item:", 0) == 0) carriers.insert(h.substr(5));
+    }
+  }
+  for (const Item& item : layout_.items) {
+    if (carriers.count(item.name)) out.push_back(item.name);
+  }
+  return out;
+}
+
+std::vector<MovingGeom> LayoutScene::WayMoving(WayKind way) const {
+  const LayoutHandles& H = handles_;
+  std::vector<int> geoms = H.tube_geoms;
+  if (way == WayKind::kBayOut) {
+    for (const auto& r : H.rail_geoms) geoms.insert(geoms.end(), r.begin(), r.end());
+    for (const auto& r : H.module_geoms) {
+      geoms.insert(geoms.end(), r.begin(), r.end());
+    }
+  }
+  std::vector<MovingGeom> out;
+  for (int g : geoms) out.push_back({g, kHeld});
+  return out;
+}
+
+std::vector<Obstacle> LayoutScene::WayObstacles(WayKind way) const {
+  const LayoutHandles& H = handles_;
+  std::vector<Obstacle> out;
+  auto add = [&](const std::vector<int>& g) {
+    for (int x : g) out.push_back({x, 0u, 0u});
+  };
+  add(H.base_geoms);
+  add(H.holder_geoms);
+  add(H.pallet_base_geoms);
+  for (const auto& p : H.pallet_module_geoms) add(p);
+  for (const auto& s : H.stock_geoms) add(s.second);
+  const std::vector<std::string> carriers = WayCarriers(way);
+  for (const Item& item : layout_.items) {
+    if (std::find(carriers.begin(), carriers.end(), item.name) !=
+        carriers.end()) {
+      continue;
+    }
+    auto it = H.item_geoms.find(item.name);
+    if (it != H.item_geoms.end()) add(it->second);
+  }
+  for (const SceneArm& a : arms_) {
+    const std::string& first = a.use->first_tool;
+    add(a.h->beam_geoms);
+    add(a.h->link_geoms);
+    add(a.h->carriage_geoms);
+    auto t = a.h->tool_geoms.find(first);
+    if (t != a.h->tool_geoms.end()) add(t->second);
+    for (const auto& w : a.h->waiting_tool_geoms) {
+      if (w.first != first) add(w.second);
+    }
+  }
+  return out;
 }
 
 Nearest LayoutScene::LeastDistance(mjData* d,

@@ -8,6 +8,7 @@
 #include <cstdarg>
 #include <cstdio>
 #include <limits>
+#include <numbers>
 #include <map>
 #include <set>
 #include <string>
@@ -206,6 +207,15 @@ double Separation(const Vec& alo, const Vec& ahi, const Vec& blo,
   return s;
 }
 
+// The same in the plane only: zones are compared by their rectangles.
+double PlaneSeparation(const BoxLoHi& a, const BoxLoHi& b) {
+  double s = -kInf;
+  for (int i = 0; i < 2; ++i) {
+    s = std::max(s, std::max(a.lo[i] - b.hi[i], b.lo[i] - a.hi[i]));
+  }
+  return s;
+}
+
 double DeckHeight(const Layout& layout) {
   return layout.base == "container" ? container::kFloorHeight
                                     : flat_rack::kDeckHeight;
@@ -315,6 +325,49 @@ std::vector<CheckRow> PortRows(const Layout& layout, const ModelPaths& paths) {
                            out, up, deck)));
   }
   for (const Port& p : ports) {
+    const BoxLoHi z = Zone(p);
+    const double yaw = p.frame_yaw_deg * std::numbers::pi / 180.0;
+    const double along = (((z.lo.x() + z.hi.x()) / 2.0) - p.frame_pos[0]) * std::cos(yaw) +
+                         (((z.lo.y() + z.hi.y()) / 2.0) - p.frame_pos[1]) * std::sin(yaw);
+    rows.push_back(Row(kind, "frame " + p.name + " faces its zone", "", along,
+                       "m", 0.0, along > 0.0,
+                       "the zone's centre along the frame's x axis"));
+  }
+  for (const Port& p : ports) {
+    auto has = [&](const std::string& prefix, bool exact) {
+      int n = 0;
+      for (const std::string& h : p.hands_over) {
+        n += exact ? h == prefix : h.rfind(prefix, 0) == 0;
+      }
+      return n;
+    };
+    const int pallets = has("pallet:", false);
+    bool ok = false;
+    std::string need;
+    if (p.crosses == "tubes") {
+      ok = has("way:tube_in", true) > 0;
+      need = "way:tube_in";
+    } else if (p.crosses == "bays") {
+      ok = has("way:bay_out", true) > 0;
+      need = "way:bay_out";
+    } else if (p.crosses == "modules") {
+      ok = pallets > 0 && pallets == static_cast<int>(p.hands_over.size());
+      need = "pallet:<p> and nothing else";
+    } else if (p.crosses == "rails") {
+      ok = has("stock:rails", true) > 0;
+      need = "stock:rails";
+    } else if (p.crosses == "pin_magazines") {
+      ok = has("stock:pins", false) + has("item:", false) > 0;
+      need = "stock:pins... or item:...";
+    } else {
+      need = "a kind this check knows";
+    }
+    rows.push_back(Row(kind, "port " + p.name + " hands over what crosses", "",
+                       ok ? 1.0 : 0.0, "ok", 1.0, ok,
+                       "crosses " + p.crosses + " needs " + need + "; has " +
+                           Join(p.hands_over)));
+  }
+  for (const Port& p : ports) {
     const double gap = FootprintGap(Zone(p));
     rows.push_back(Row(kind, "zone " + p.name + " off the base", "", gap, "m",
                        0.0, gap >= -kPortTol,
@@ -326,7 +379,7 @@ std::vector<CheckRow> PortRows(const Layout& layout, const ModelPaths& paths) {
       const Port& a = ports[i];
       const Port& b = ports[j];
       const BoxLoHi za = Zone(a), zb = Zone(b);
-      const double gap = Separation(za.lo, za.hi, zb.lo, zb.hi);
+      const double gap = PlaneSeparation(za, zb);
       const bool a_names = a.shares_zone_with == b.name;
       const bool b_names = b.shares_zone_with == a.name;
       bool pass = gap >= -kPortTol;
@@ -362,7 +415,6 @@ std::vector<CheckRow> PortRows(const Layout& layout, const ModelPaths& paths) {
   std::vector<Thing> things;
   const LayoutHandles& h = work.handles;
   for (size_t p = 0; p < layout.pallets.size(); ++p) {
-    if (!layout.pallets[p].outside) continue;
     things.push_back({"pallet " + std::to_string(p),
                       "pallet:" + std::to_string(p),
                       ExtentOf(work, PalletGeoms(h, static_cast<int>(p))), {}});
@@ -486,7 +538,7 @@ CheckRow NoLimitRow(const std::string& item, const Scene& s,
     detail += "everything inside";
   } else {
     detail += Fmt("%zu outside: ", out.size());
-    for (size_t i = 0; i < out.size() && i < 5; ++i) {
+    for (size_t i = 0; i < out.size(); ++i) {
       detail += (i ? ", " : "") + GeomName(*s.model, out[i].second) +
                 Fmt(" %.3f m", out[i].first);
     }
@@ -503,8 +555,12 @@ int NotCarried(const std::vector<Box>& boxes, double deck, std::string* first) {
   for (const Box& x : boxes) b.push_back(LayoutBox(x));
   std::vector<bool> carried(n, false);
   std::vector<size_t> queue;
+  auto in_footprint = [](const BoxLoHi& x) {
+    return x.lo.x() >= -kFootHalfX - 1e-6 && x.hi.x() <= kFootHalfX + 1e-6 &&
+           x.lo.y() >= -kFootHalfY - 1e-6 && x.hi.y() <= kFootHalfY + 1e-6;
+  };
   for (size_t i = 0; i < n; ++i) {
-    if (std::abs(b[i].lo.z() - deck) <= kDeckTol) {
+    if (in_footprint(b[i]) && std::abs(b[i].lo.z() - deck) <= kDeckTol) {
       carried[i] = true;
       queue.push_back(i);
     }
@@ -513,7 +569,7 @@ int NotCarried(const std::vector<Box>& boxes, double deck, std::string* first) {
     const size_t i = queue.back();
     queue.pop_back();
     for (size_t j = 0; j < n; ++j) {
-      if (carried[j]) continue;
+      if (carried[j] || !in_footprint(b[j])) continue;
       if (Separation(b[i].lo, b[i].hi, b[j].lo, b[j].hi) <= kDeckTol) {
         carried[j] = true;
         queue.push_back(j);
@@ -598,6 +654,55 @@ std::vector<CheckRow> FlatRackTransportRows(const Layout& layout,
   if (layout.holder.travels_inside) on_deck("holder", layout.holder.boxes);
   for (const ArmUse& a : layout.arms) {
     if (a.track) on_deck("beam " + a.name, {a.track->beam});
+  }
+  for (const ArmUse& a : layout.arms) {
+    double gap = 0.0;
+    std::string detail;
+    if (!a.track) {
+      gap = std::abs(a.base_pos[2] - deck);
+      detail = Fmt("base %.3f m from the deck", gap);
+    } else {
+      const Track& t = *a.track;
+      const double yaw = a.base_rpy_deg[2] * std::numbers::pi / 180.0;
+      const double c = std::cos(yaw), sn = std::sin(yaw);
+      const BoxLoHi beam = LayoutBox(t.beam);
+      const int along = std::abs(t.direction[0]) > std::abs(t.direction[1]) ? 0 : 1;
+      const int across = 1 - along;
+      double worst = -1.0;
+      std::string worst_detail, worst_end;
+      // The base stands at base_pos + s * direction, s from lo to hi: look
+      // at both ends, and so everywhere between.
+      for (int end = 0; end < 2; ++end) {
+        const double sv = end == 0 ? t.lo : t.hi;
+        const Vec base = V(a.base_pos) + sv * V(t.direction);
+        const double cx = base.x() + c * t.carriage.pos[0] - sn * t.carriage.pos[1];
+        const double cy = base.y() + sn * t.carriage.pos[0] + c * t.carriage.pos[1];
+        const double hx = (std::abs(c) * t.carriage.size[0] + std::abs(sn) * t.carriage.size[1]) / 2.0;
+        const double hy = (std::abs(sn) * t.carriage.size[0] + std::abs(c) * t.carriage.size[1]) / 2.0;
+        const double ctr[2] = {cx, cy}, half[2] = {hx, hy};
+        const double under = base.z() + t.carriage.pos[2] - t.carriage.size[2] / 2.0;
+        const double top = base.z() + t.carriage.pos[2] + t.carriage.size[2] / 2.0;
+        const double g_under = std::abs(under - beam.hi.z());
+        const double g_past = std::max({0.0, beam.lo[along] - (ctr[along] - half[along]),
+                                        (ctr[along] + half[along]) - beam.hi[along]});
+        const double g_across = std::max(0.0, std::max(beam.lo[across] - (ctr[across] + half[across]),
+                                                       (ctr[across] - half[across]) - beam.hi[across]));
+        const double g_base = std::abs(base.z() - top);
+        const double g = std::max({g_under, g_past, g_across, g_base});
+        if (g > worst) {
+          worst = g;
+          worst_end = end == 0 ? "lo" : "hi";
+          worst_detail = Fmt("carriage %.4f m from the beam's top, %.4f m "
+                             "past the beam's end, %.4f m off the beam "
+                             "across, base %.4f m from the carriage's top",
+                             g_under, g_past, g_across, g_base);
+        }
+      }
+      gap = worst;
+      detail = "worst at " + worst_end + ": " + worst_detail;
+    }
+    rows.push_back(Row(kind, "on the deck arm " + a.name, a.name, gap, "m",
+                       kDeckTol, gap <= kDeckTol, detail));
   }
   for (const Stock& st : layout.stocks) {
     if (!st.outside) on_deck("stock " + st.name, st.boxes);
