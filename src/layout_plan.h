@@ -269,19 +269,7 @@ struct PlanOptions {
   int first_step = 0, last_step = 0;
 };
 
-struct PlanResult {
-  Plan plan;
-  std::vector<MoveRow> rows;   // Every move, in the order of the steps.
-  std::int64_t queries = 0;    // All collision queries of planning.
-  double seconds = 0.0;        // Wall time of planning (steady clock).
-  std::vector<std::string> faults;  // Why the plan is not complete.
-};
-
-// Plans and schedules one bay. `layout_sha256` goes into the plan. The
-// figures' margins are the checker's for the layout.
-PlanResult PlanLayout(const Layout& layout, const ModelPaths& paths,
-                      const std::string& layout_sha256,
-                      const PlanOptions& options = {});
+// PlanResult and PlanLayout are declared at the end, after VerifyReport.
 
 // ----------------------------------------------------------------- replay
 // (src/layout_replay.cc)
@@ -410,6 +398,24 @@ struct VerifyReport {
 VerifyReport VerifyPlan(const Layout& layout, const ModelPaths& paths,
                         const Plan& plan, const std::string& layout_sha256,
                         const VerifyOptions& options = {});
+
+// --------------------------------------------------------------- planning
+// (src/layout_plan.cc)
+
+struct PlanResult {
+  Plan plan;
+  std::vector<MoveRow> rows;   // Every move, in the order of the steps.
+  std::int64_t queries = 0;    // All collision queries of planning.
+  double seconds = 0.0;        // Wall time of planning (steady clock).
+  std::vector<std::string> faults;  // Why the plan is not complete.
+  VerifyReport verify;         // VerifyPlan's report on the plan, when run.
+};
+
+// Plans and schedules one bay. `layout_sha256` goes into the plan. The
+// figures' margins are the checker's for the layout.
+PlanResult PlanLayout(const Layout& layout, const ModelPaths& paths,
+                      const std::string& layout_sha256,
+                      const PlanOptions& options = {});
 
 }  // namespace cell::layout
 
