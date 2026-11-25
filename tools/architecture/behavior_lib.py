@@ -42,8 +42,8 @@ a single `-` for none:
                 the rows below it, up to a blank line, the number whose
                 columns overlap the word's. All tab: cuts of a line are
                 made in one pass, before the other cuts.
-  re:PATTERN    in each line of the output, the text of every group of
-                PATTERN (a Python regular expression, applied line by line)
+  re:PATTERN    in each line of the output, at every match, the text of every
+                group of PATTERN (a Python regular expression, applied line by line)
                 is replaced by <wall>. For a wall-clock time in a sentence.
   digest        the output is replaced by its line count, byte count and
                 SHA-256: for an output too large to keep, which still shows
@@ -171,12 +171,10 @@ def cut_re(text, pattern):
     rx = re.compile(pattern)
     out = []
     for line in text.split("\n"):
-        m = rx.search(line)
-        if m:
-            spans = [m.span(g) for g in range(1, (rx.groups or 0) + 1)
-                     if m.span(g)[0] >= 0]
-            for a, b in sorted(spans, reverse=True):
-                line = line[:a] + TOKEN + line[b:]
+        spans = [m.span(g) for m in rx.finditer(line)
+                 for g in range(1, (rx.groups or 0) + 1) if m.span(g)[0] >= 0]
+        for a, b in sorted(spans, reverse=True):
+            line = line[:a] + TOKEN + line[b:]
         out.append(line)
     return "\n".join(out)
 
