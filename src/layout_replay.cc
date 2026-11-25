@@ -13,6 +13,7 @@
 #include <map>
 #include <set>
 #include <stdexcept>
+#include <tuple>
 #include <utility>
 
 #include <nlohmann/json.hpp>
@@ -879,8 +880,10 @@ struct PoseRef {
 class Verifier {
  public:
   Verifier(const Layout& layout, const Plan& plan, const CheckReport& report,
-           const LayoutScene& scene, const VerifyOptions& options, VerifyReport* r)
-      : L_(layout), plan_(plan), report_(report), scene_(scene), o_(options), r_(r),
+           const LayoutScene& scene, const PlanPlayer& player, const VerifyOptions& options,
+           VerifyReport* r)
+      : L_(layout), plan_(plan), report_(report), scene_(scene), player_(player), o_(options),
+        r_(r),
         f_(plan.figures), data_(scene.MakeData()) {
     for (const BayStep& s : report.steps) steps_[s.number] = &s;
     for (const SolvedPoint& p : report.points) points_[{p.kind, p.index}] = &p;
@@ -1090,6 +1093,16 @@ class Verifier {
       }
       if (s.kind == "wait") {
         if (s.reason.empty()) Fault(where + " is a wait with no reason");
+        // R21: an arm waits at its wait pose or where its last retreat ended.
+        int before = static_cast<int>(g) - 1;
+        while (before >= 0 && segs[before].kind == "wait") --before;
+        const bool after_retreat = before >= 0 && segs[before].kind == "retreat" &&
+                                   !segs[before].path.empty() &&
+                                   MaxDiff(segs[before].path.back(), s.path.front()) <= kSameConfig;
+        if (!after_retreat && !Off(i, s.tool, s.path.front(), WaitPose(i)).empty()) {
+          Fault(where + " stands neither at the arm's wait pose nor where a retreat just before "
+                        "it ended");
+        }
         if (s.t1 - s.t0 > tol) {
           ++r_->waits;
           r_->wait_s += s.t1 - s.t0;
@@ -1098,7 +1111,9 @@ class Verifier {
                  s.kind != "retreat") {
         Fault(where + " is of no known kind");
       }
+      if (s.kind == "move") MoveBuilt(s, where);
       if (s.kind == "move" && o_.edges) Edges(i, s, motion, where);
+      if (s.kind == "approach" || s.kind == "retreat") Leg(i, s, where);
     }
     if (std::abs(segs.back().t1 - bay_end_) > tol) {
       Fault(Fmt("arm %s ends at %.3f s, the bay at %.3f s", name.c_str(), segs.back().t1,
@@ -1129,6 +1144,74 @@ class Verifier {
       }
     }
     Sequence(i, segs, motion);
+  }
+
+  // The world a move was planned in holds at least the bay as it is while
+  // the move runs: every rail and module there at its end, and at least the
+  // pallet modules there at its start.
+  void MoveBuilt(const Segment& s, const std::string& where) {
+    const Built at_end = player_.BuiltAt(player_.At(s.t1));
+    const Built at_start = player_.BuiltAt(player_.At(s.t0));
+    std::string missing;
+    for (int k : at_end.rails) {
+      if (std::find(s.built.rails.begin(), s.built.rails.end(), k) == s.built.rails.end()) {
+        missing += Fmt(" rail %d", k);
+      }
+    }
+    for (int k : at_end.modules) {
+      if (std::find(s.built.modules.begin(), s.built.modules.end(), k) == s.built.modules.end()) {
+        missing += Fmt(" module %d", k);
+      }
+    }
+    if (s.built.on_pallets < at_start.on_pallets) {
+      missing += Fmt(" %d pallet modules (it has %d)", at_start.on_pallets, s.built.on_pallets);
+    }
+    if (!missing.empty()) {
+      Fault(where + " was planned in a bay without what is there while it runs:" + missing);
+    }
+  }
+
+  // A leg's samples: on the straight line between its ends, the tool's axes
+  // those of the work pose, at most 5.5 mm and 10 degrees of any joint apart.
+  void Leg(int arm, const Segment& s, const std::string& where) {
+    const size_t n = s.path.size();
+    if (n < 2) return;
+    std::vector<Eigen::Vector3d> pos(n);
+    std::vector<Eigen::Matrix3d> rot(n);
+    for (size_t k = 0; k < n; ++k) Frame(arm, s.tool, s.path[k], &pos[k], &rot[k]);
+    const Eigen::Matrix3d& work = s.kind == "approach" ? rot[n - 1] : rot[0];
+    const Eigen::Vector3d a = pos[0], b = pos[n - 1];
+    const double length = (b - a).norm();
+    for (size_t k = 0; k < n; ++k) {
+      double off = (pos[k] - a).norm();
+      if (length > 0.0) {
+        const double u = std::clamp((pos[k] - a).dot(b - a) / (length * length), 0.0, 1.0);
+        off = (pos[k] - (a + u * (b - a))).norm();
+      }
+      double deg = 0.0;
+      for (int c = 0; c < 3; ++c) {
+        deg = std::max(deg, std::acos(std::clamp(rot[k].col(c).dot(work.col(c)), -1.0, 1.0)) *
+                                180.0 / kPi);
+      }
+      std::string why;
+      if (off > o_.pose_tolerance_m) {
+        why = Fmt("its working point is %.2f mm off the leg's straight line", off * 1000.0);
+      } else if (deg > o_.pose_tolerance_deg) {
+        why = Fmt("its tool's axes are %.3f deg off the work pose's", deg);
+      } else if (k > 0 && (pos[k] - pos[k - 1]).norm() > 0.0055) {
+        why = Fmt("its working point is %.2f mm from the sample before",
+                  (pos[k] - pos[k - 1]).norm() * 1000.0);
+      } else if (k > 0) {
+        for (int j = 0; j < 6 && why.empty(); ++j) {
+          const double turn = std::abs(s.path[k][j] - s.path[k - 1][j]) * 180.0 / kPi;
+          if (turn > 10.0) why = Fmt("joint %d turns %.2f deg from the sample before", j + 1, turn);
+        }
+      }
+      if (!why.empty()) {
+        Fault(where + Fmt(": at sample %zu of %zu ", k, n) + why);
+        return;
+      }
+    }
   }
 
   void Edges(int arm, const Segment& s, const ArmMotion& motion, const std::string& where) {
@@ -1218,6 +1301,8 @@ class Verifier {
       if (found == mine.size()) {
         Fault(Fmt("arm %s does %s at %.3f s out of the order of the bay's steps", name.c_str(),
                   StepName(step, grp.step).c_str(), first.t0));
+        // Its time still counts for R21's order of the steps.
+        times_[grp.step] = {grp.step, step->what, name, first.t0, segs[grp.segs.back()].t1};
         continue;
       }
       for (size_t k = next; k < found; ++k) {
@@ -1230,8 +1315,19 @@ class Verifier {
       for (int g = grp.segs.front() - 1; g >= 0 && segs[g].kind == "wait"; --g) {
         WaitHas(i, segs[g], tool, held);
       }
-      StepSegments(i, *step, found + 1 == mine.size(), segs, grp.segs, motion, &tool, &held,
-                   &at);
+      // Parking is allowed directly after the arm's last step of phase
+      // "rails", for an arm that does not lead the phase.
+      bool park = false;
+      if (found > 0 && mine[found - 1]->phase == "rails") {
+        park = true;
+        for (size_t k = found; k < mine.size(); ++k) {
+          if (mine[k]->phase == "rails") park = false;
+        }
+        const Work* lead = FindWork(L_, "rail_set");
+        if (lead != nullptr && lead->arm == name) park = false;
+      }
+      StepSegments(i, *step, found + 1 == mine.size(), park, segs, grp.segs, motion, &tool,
+                   &held, &at);
     }
     for (size_t k = next; k < mine.size(); ++k) {
       Fault(Fmt("arm %s leaves out %s", name.c_str(), StepName(mine[k], mine[k]->number).c_str()));
@@ -1266,7 +1362,8 @@ class Verifier {
   // `last`: the arm's last step of the bay. After its last tool change an
   // arm goes back to its wait pose, so that it stands there when the bay
   // goes out: that move is the tool change's.
-  void StepSegments(int i, const BayStep& step, bool last, const std::vector<Segment>& segs,
+  void StepSegments(int i, const BayStep& step, bool last, bool park,
+                    const std::vector<Segment>& segs,
                     const std::vector<int>& idx, const ArmMotion& motion, std::string* tool,
                     std::string* held, PoseRef* at) {
     const std::string name = Arm(i);
@@ -1276,6 +1373,11 @@ class Verifier {
     size_t own = 0;
     if (idx.size() >= 2 && segs[idx[0]].kind == "move" && segs[idx[1]].kind == "move") {
       const Segment& s = segs[idx[0]];
+      if (!park) {
+        Fault(Fmt("arm %s, %s: it parks at its wait pose from %.3f s, which only an arm that "
+                  "follows the rails' leader may do, after its last step of the rails",
+                  name.c_str(), label.c_str(), s.t0));
+      }
       if (s.tool != *tool || s.held != *held) {
         Fault(Fmt("arm %s, %s: its move to park from %.3f s has tool \"%s\" holding \"%s\"; "
                   "the step gives tool \"%s\" holding \"%s\"",
@@ -1528,6 +1630,7 @@ class Verifier {
   const Plan& plan_;
   const CheckReport& report_;
   const LayoutScene& scene_;
+  const PlanPlayer& player_;
   const VerifyOptions& o_;
   VerifyReport* r_;
   const PlanFigures& f_;
@@ -1556,6 +1659,7 @@ void Schedule(const LayoutScene& scene, const CheckReport& report, const Plan& p
   for (long k = 0; k <= n; ++k) times.push_back(k * sample);
   if (times.empty() || times.back() < end - 1e-9) times.push_back(end);
   for (double t : times) {
+    if (t < o.from_s - 1e-9 || (o.to_s >= 0.0 && t > o.to_s + 1e-9)) continue;
     const WorldAt w = player.At(t);
     for (int i = 0; i < scene.ArmCount(); ++i) {
       const SceneArm& a = scene.arm(i);
@@ -1659,6 +1763,34 @@ VerifyReport VerifyPlan(const Layout& layout, const ModelPaths& paths, const Pla
                            report.clearance_m, report.joint_margin_deg));
   }
   if (!plan.complete) r.faults.push_back("the plan is not complete");
+  // Every figure but the margins and the budgets is ours and fixed: a plan
+  // that brings its own cannot loosen what is checked.
+  {
+    const PlanFigures d;
+    const PlanFigures& f = plan.figures;
+    const std::vector<std::tuple<const char*, double, double>> figures = {
+        {"plan_pad_m", f.plan_pad_m, d.plan_pad_m},
+        {"to_full_speed_s", f.to_full_speed_s, d.to_full_speed_s},
+        {"jerk_rise_s", f.jerk_rise_s, d.jerk_rise_s},
+        {"settle_s", f.settle_s, d.settle_s},
+        {"leg_speed", f.leg_speed, d.leg_speed},
+        {"leg_accel", f.leg_accel, d.leg_accel},
+        {"max_deviation", f.max_deviation, d.max_deviation},
+        {"edge_resolution", f.edge_resolution, d.edge_resolution},
+        {"sample_s", f.sample_s, d.sample_s}};
+    for (const auto& [name, value, want] : figures) {
+      if (!(std::abs(value - want) <= 1e-12)) {
+        r.faults.push_back(Fmt("the plan's figure %s is %.9g, not ours, %.9g", name, value, want));
+      }
+    }
+    if (f.shorten_tries != d.shorten_tries) {
+      r.faults.push_back(Fmt("the plan's figure shorten_tries is %d, not ours, %d",
+                             f.shorten_tries, d.shorten_tries));
+    }
+    if (f.seed != d.seed) {
+      r.faults.push_back(Fmt("the plan's figure seed is %u, not ours, %u", f.seed, d.seed));
+    }
+  }
   if (plan.layout != layout.name) {
     r.faults.push_back("the plan is of layout " + plan.layout + ", not " + layout.name);
   }
@@ -1669,7 +1801,8 @@ VerifyReport VerifyPlan(const Layout& layout, const ModelPaths& paths, const Pla
     r.faults.push_back("the layout's scene cannot be loaded: " + error);
     return r;
   }
-  Verifier v(layout, plan, report, *scene, options, &r);
+  const PlanPlayer player(*scene, report, plan);
+  Verifier v(layout, plan, report, *scene, player, options, &r);
   v.Run();
   if (options.schedule) Schedule(*scene, report, plan, options, v.bay_end(), &r);
   r.ok = r.faults.empty();

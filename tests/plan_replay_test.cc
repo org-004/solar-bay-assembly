@@ -459,7 +459,10 @@ bool AnyFault(const VerifyReport& r, const std::vector<std::string>& words) {
   for (const std::string& f : r.faults) {
     bool all = true;
     for (const std::string& w : words) all = all && f.find(w) != std::string::npos;
-    if (all) return true;
+    if (all) {
+      std::printf("found: %s\n", f.c_str());
+      return true;
+    }
   }
   return false;
 }
@@ -667,6 +670,151 @@ TEST(Committed, BreakagesAreFound) {
     const VerifyReport r = VerifyPlan(c.layout, paths, p, c.sha256, Quick(false));
     EXPECT_FALSE(r.ok);
     EXPECT_TRUE(AnyFault(r, {"arm " + p.arms[pa].name, "wait with no reason"})) << Faults(r);
+  }
+}
+
+
+const StepTime* StepOf(const Plan& p, int number) {
+  for (const StepTime& t : p.steps) {
+    if (t.number == number) return &t;
+  }
+  return nullptr;
+}
+
+bool Begins(const std::string& s, const std::string& with) { return s.rfind(with, 0) == 0; }
+
+TEST(Committed, TamperingIsFound) {
+  NEED_COMMITTED(c);
+  const ModelPaths paths = ModelPaths::FromEnvironment();
+  const int ma = ModuleArmPlan(c);
+  ASSERT_GE(ma, 0);
+  const std::string arm = c.plan.arms[ma].name;
+  const std::vector<Segment>& segs = c.plan.arms[ma].segments;
+  {
+    // Figures of the plan's own that would loosen the checks.
+    Plan p = c.plan;
+    p.figures.sample_s = 10.0;
+    p.figures.edge_resolution = 5.0;
+    const VerifyReport r = VerifyPlan(c.layout, paths, p, c.sha256, Quick(false));
+    EXPECT_TRUE(AnyFault(r, {"figure sample_s is 10"})) << Faults(r);
+    EXPECT_TRUE(AnyFault(r, {"figure edge_resolution is 5"})) << Faults(r);
+  }
+  {
+    // One move's world emptied.
+    Plan p = c.plan;
+    int g = -1;
+    for (size_t i = 0; i < segs.size(); ++i) {
+      if (segs[i].kind == "move" && !segs[i].built.modules.empty()) g = static_cast<int>(i);
+    }
+    ASSERT_GE(g, 0);
+    p.arms[ma].segments[g].built = Built{};
+    const VerifyReport r = VerifyPlan(c.layout, paths, p, c.sha256, Quick(false));
+    EXPECT_TRUE(AnyFault(r, {"arm " + arm, "its move", "planned in a bay without"})) << Faults(r);
+  }
+  {
+    // A middle sample of a leg moved 0.05 rad.
+    Plan p = c.plan;
+    int g = -1;
+    for (size_t i = 0; i < segs.size() && g < 0; ++i) {
+      if (segs[i].kind == "approach" && segs[i].path.size() >= 3) g = static_cast<int>(i);
+    }
+    ASSERT_GE(g, 0);
+    std::vector<Config>& path = p.arms[ma].segments[g].path;
+    path[path.size() / 2][1] += 0.05;
+    const VerifyReport r = VerifyPlan(c.layout, paths, p, c.sha256, Quick(false));
+    EXPECT_TRUE(AnyFault(r, {"arm " + arm, "its approach", "at sample"})) << Faults(r);
+  }
+  {
+    // A wait that stands neither at the wait pose nor where a retreat ended:
+    // the first wait of the module arm put at the next move's second waypoint.
+    Plan p = c.plan;
+    std::vector<Segment>& ps = p.arms[ma].segments;
+    int g = -1;
+    for (size_t i = 0; i + 1 < ps.size() && g < 0; ++i) {
+      if (ps[i].kind == "wait" && ps[i + 1].kind == "move" && ps[i + 1].path.size() >= 2) {
+        g = static_cast<int>(i);
+      }
+    }
+    ASSERT_GE(g, 0);
+    ps[g].path[0] = ps[g + 1].path[1];
+    ps[g + 1].path[0] = ps[g + 1].path[1];
+    const VerifyReport r = VerifyPlan(c.layout, paths, p, c.sha256, Quick(false));
+    EXPECT_TRUE(AnyFault(r, {"arm " + arm, "its wait", "stands neither"})) << Faults(r);
+  }
+  // R22 along the schedule, in a short stretch of it.
+  {
+    // A pin arm's longest wait put at the work pose of its next locate: the
+    // tool's nose then stands 5 to 10 mm from the rail outside its work.
+    Plan p = c.plan;
+    int pa = -1, g = -1, w = -1;
+    double longest = 0.0;
+    for (size_t k = 0; k < p.arms.size(); ++k) {
+      if (static_cast<int>(k) == ma) continue;
+      const std::vector<Segment>& as = p.arms[k].segments;
+      for (size_t i = 0; i < as.size(); ++i) {
+        if (as[i].kind != "wait" || as[i].t1 - as[i].t0 <= longest) continue;
+        for (size_t j = i + 1; j < as.size(); ++j) {
+          if (as[j].kind != "work") continue;
+          const StepTime* st = StepOf(p, as[j].step);
+          if (st != nullptr && Begins(st->what, "locate ")) {
+            pa = static_cast<int>(k);
+            g = static_cast<int>(i);
+            w = static_cast<int>(j);
+            longest = as[i].t1 - as[i].t0;
+            break;
+          }
+        }
+      }
+    }
+    ASSERT_GE(g, 0);
+    Segment& wait = p.arms[pa].segments[g];
+    wait.path[0] = p.arms[pa].segments[w].path[0];
+    VerifyOptions o = Quick(false);
+    o.schedule = true;
+    o.from_s = wait.t0;
+    o.to_s = std::min(wait.t1, wait.t0 + 1.0);
+    const VerifyReport r = VerifyPlan(c.layout, paths, p, c.sha256, o);
+    const std::string name = p.arms[pa].name;
+    EXPECT_TRUE(AnyFault(r, {"(step " + std::to_string(wait.step) + ") arm " + name, " to ",
+                             "below"}))
+        << Faults(r);
+  }
+  {
+    // A locate and the pin after it at the same hole exchanged in time.
+    Plan p = c.plan;
+    int pa = -1, a = -1, b = -1;
+    for (size_t k = 0; k < p.arms.size() && pa < 0; ++k) {
+      const std::vector<Segment>& as = p.arms[k].segments;
+      for (size_t i = 0; i + 1 < as.size() && pa < 0; ++i) {
+        const StepTime* s0 = StepOf(p, as[i].step);
+        const StepTime* s1 = StepOf(p, as[i + 1].step);
+        if (as[i].kind == "work" && as[i + 1].kind == "work" && s0 && s1 &&
+            Begins(s0->what, "locate ") && Begins(s1->what, "pin ")) {
+          pa = static_cast<int>(k);
+          a = as[i].step;
+          b = as[i + 1].step;
+        }
+      }
+    }
+    ASSERT_GE(pa, 0);
+    double t = 0.0;
+    for (Segment& g : p.arms[pa].segments) {
+      if (g.step == a && g.kind != "wait") {
+        g.step = b;
+        t = g.t0;
+      } else if (g.step == b && g.kind != "wait") {
+        g.step = a;
+      }
+    }
+    VerifyOptions o = Quick(false);
+    o.schedule = true;
+    o.from_s = t;
+    o.to_s = t + 0.2;
+    const VerifyReport r = VerifyPlan(c.layout, paths, p, c.sha256, o);
+    const StepTime* sa = StepOf(p, a);
+    EXPECT_TRUE(AnyFault(r, {"before step " + std::to_string(a) + " (" + sa->what +
+                             ") has ended"}))
+        << Faults(r);
   }
 }
 

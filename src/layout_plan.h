@@ -24,8 +24,8 @@
 // t0 of the next, the first starting at 0 and the last ending when the bay's
 // time ends:
 //   wait      the arm stands still at `path[0]`, which is its wait pose or
-//             the retreat pose (or work pose) it last came to; `reason` says
-//             what it waits for;
+//             the retreat pose it last came to; `reason` says what it waits
+//             for;
 //   move      a planned move from path.front() to path.back(): the waypoints
 //             found by RRT-Connect and shortening (src/rrt.h), timed by
 //             Trajectory::Plan (src/path_timing.h) within the arm's limits,
@@ -246,10 +246,13 @@ struct Plan {
 // duration through the waypoints. Negative if the path cannot be timed.
 double MoveDuration(const std::vector<Config>& path, const ArmMotion& motion,
                     const PlanFigures& f);
-// How long a leg takes: the working point runs the leg's length (the sum of
-// the distances between the samples' working points, given as `length_m`)
-// with a trapezoid of leg_speed and leg_accel, stretched where a joint
-// would otherwise pass its limit of speed.
+// How long a leg takes. The arm runs through the leg's samples by straight
+// joint-space pieces, at the fraction s(u) = 3u^2 - 2u^3 of the path's
+// joint-space length, u = (t - t0) / T. T is the largest of
+// 1.5 * length_m / leg_speed (the working point's peak speed is leg_speed;
+// `length_m` is the rule's distance of the leg), sqrt(6 * length_m /
+// leg_accel) (its peak acceleration is leg_accel) and what keeps every joint
+// within its speed on every piece. A leg of zero length takes 0.
 double LegDuration(const std::vector<Config>& path, double length_m,
                    const ArmMotion& motion, const PlanFigures& f);
 // Where the arm is at time t of a segment (t0 <= t <= t1; clamped).
@@ -389,6 +392,9 @@ struct VerifyOptions {
   double pose_tolerance_deg = 0.2;
   double time_tolerance_s = 1e-3;
   int keep = 20;           // How many least distances to keep.
+  // The schedule's samples are taken from from_s to to_s only (to_s < 0:
+  // to the end), for a test that looks at one stretch of time.
+  double from_s = 0.0, to_s = -1.0;
 };
 
 struct VerifyReport {
