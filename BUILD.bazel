@@ -1817,6 +1817,29 @@ cc_library(
     hdrs = ["src/flat_rack.h"],
     deps = ["@eigen"],
 )
+
+FLAT_RACK_SCENE = "models/flat_rack_scene.xml"
+
+# The model against the header: members, sites, no frame above the deck,
+# the footprint, the derived figures.
+#   bazel test //:flat_rack_test --test_output=all
+cc_test(
+    name = "flat_rack_test",
+    size = "small",
+    srcs = ["tests/flat_rack_test.cc"],
+    data = MODELS_COMMON + [
+        "models/flat_rack.xml",
+        FLAT_RACK_SCENE,
+    ],
+    env = {"MODEL_PATH": "$(rootpath %s)" % FLAT_RACK_SCENE},
+    deps = [
+        ":flat_rack",
+        ":mj_handles",
+        "@eigen",
+        "@googletest//:gtest_main",
+        "@mujoco",
+    ],
+)
 # END flat_rack
 
 # BEGIN layout
@@ -1966,6 +1989,26 @@ cc_test(
     ],
 )
 # END layout_check
+
+# BEGIN layout_rows
+# The allowed, port and flat rack transport rows (src/layout_rows.h), whose
+# code is part of the library layout_check.
+cc_test(
+    name = "layout_rows_test",
+    size = "small",
+    srcs = ["tests/layout_rows_test.cc"],
+    data = LAYOUT_FILES + LAYOUT_MODEL_FILES,
+    env = LAYOUT_ENV,
+    deps = [
+        ":container",
+        ":flat_rack",
+        ":layout",
+        ":layout_check",
+        ":layout_model",
+        "@googletest//:gtest_main",
+    ],
+)
+# END layout_rows
 
 # BEGIN locate
 # R8: the locating move on one module in physics (tests/locate_physics_test.cc).

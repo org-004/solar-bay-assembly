@@ -748,6 +748,24 @@ the two envelopes are the sites `container_transport_envelope` and
 every `ours` row above; the rows that would change a layout most are the opening's
 length, the floor's height and the tare.
 
+The flat rack this project assumes:
+
+| Figure | Value | Source, computation or reason | Basis |
+|---|---|---|---|
+| Outside length and width of the base | 12,192 x 2,438 | ISO 668's 40 ft outside [S34] | published |
+| State in which it works | the base alone: no post, side, roof or end frame; the end frames dropped or taken off | The owner's decision of 2026-11-24, so that nothing stands in an arm's way above the deck | ours |
+| Height of the deck above the ground | 648 | The base's height of a 40 ft high-cube flat rack [S58]; a lessor's flat rack of standard height is 648 high with its end frames folded [S59] | published |
+| Members the base is drawn with | 2 side rails 150 wide, an end sill 181 long at each end, a deck 200 thick | The sills as the container's posts, 181; not a structural calculation | ours |
+| Envelope everything must be inside for transport | 12,192 x 2,438 x 2,896, from the ground, the base included | The manager's decision: the outside of a 40 ft high cube [S34] | ours |
+| Height left for the stowed cell above the deck | 2,248 | 2,896 - 648 | derived |
+| Tare | 5,900 kg | The 40 ft high-cube flat rack [S58] | published |
+| Gross mass for transport | 23,800 kg | As for the container, above | ours |
+| Mass left for the cell | 17,900 kg | 23,800 - 5,900 | derived |
+| Height of the stowed cell on a chassis | 4,115, which is 13 ft 6 in | 1,219 + 2,896, as for the high cube above | derived |
+| What a container that closes would give the cell (reported, not required) | 11,830 x 2,330 x 2,240, on the deck | The closed container's clear inside envelope of this document | ours |
+| Least length between a flat rack's end frames (reported, not required) | 11,652 | Hapag-Lloyd [S58] | published |
+| Where the figures live | `src/flat_rack.h`, `models/flat_rack.xml`, `//:flat_rack_test` | The test checks that the header and the model agree | ours |
+
 ## Against the cell today
 
 What the cell's models and headers assume now, beside the reference. Nothing here is

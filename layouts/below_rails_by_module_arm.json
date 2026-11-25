@@ -4,6 +4,7 @@
  "summary": "The layout 'below' with the rails put on by the big arm. Its gripper carries a clamp for a rail between its suction cups, so it needs no tool change. It takes each rail from a rack that stands outside the +X side beside the pallet and sets it down from one pitch along the tube, while the small arm, which starts with the nutrunner, drives the strap bolts one rail behind and then goes on to the pins as in 'below'.",
  "chosen": true,
  "small_arms_stand": "below",
+ "base": "container",
  "container": {
   "sides_open": [
    "-x",
@@ -628,7 +629,8 @@
    "tool_change_s": 8.0
   }
  ],
- "pallet": {
+ "pallets": [
+  {
   "pos": [
    2.85,
    0.0,
@@ -643,7 +645,8 @@
   "basis": "ours",
   "source": "36 to a pallet is the maker's figure (docs/bay-hardware.md, Module). That they stand on their long edge is read from the maker's unpacking manual and a sibling datasheet's pallet size; which way the glass faces, the deck's height and the pitch of one frame thickness are ours.",
   "stands": "on_long_edge"
- },
+  }
+ ],
  "stocks": [
   {
    "name": "rails",
@@ -766,6 +769,7 @@
    "kind": "rail_take",
    "arm": "module_arm",
    "tool": "combined_gripper",
+   "points": "all",
    "process_s": 2.0,
    "note": "Close on the rail's top.",
    "basis": "ours"
@@ -774,6 +778,7 @@
    "kind": "rail_set",
    "arm": "module_arm",
    "tool": "combined_gripper",
+   "points": "all",
    "process_s": 3.0,
    "note": "Lower over the tube until the tab is in its hole, level, let go.",
    "basis": "ours"
@@ -782,6 +787,7 @@
    "kind": "strap_bolt",
    "arm": "small_arm",
    "tool": "nutrunner",
+   "points": "all",
    "process_s": 6.0,
    "note": "Run down and tighten to 17.6 N m, measured.",
    "basis": "ours"
@@ -790,6 +796,7 @@
    "kind": "module_take",
    "arm": "module_arm",
    "tool": "combined_gripper",
+   "points": "all",
    "process_s": 2.0,
    "note": "Suction on.",
    "basis": "ours"
@@ -798,6 +805,7 @@
    "kind": "module_set",
    "arm": "module_arm",
    "tool": "combined_gripper",
+   "points": "all",
    "process_s": 3.0,
    "note": "Lay down, suction off, lift clear.",
    "basis": "ours"
@@ -806,6 +814,7 @@
    "kind": "locate",
    "arm": "small_arm",
    "tool": "pin_tool",
+   "points": "all",
    "process_s": 3.0,
    "note": "Tip up, once round the slot at most, nose in, nose out.",
    "basis": "ours"
@@ -814,6 +823,7 @@
    "kind": "pin",
    "arm": "small_arm",
    "tool": "pin_tool",
+   "points": "all",
    "process_s": 2.0,
    "note": "The finger puts the pin in from above.",
    "basis": "ours"
@@ -822,6 +832,7 @@
    "kind": "swage",
    "arm": "small_arm",
    "tool": "pin_tool",
+   "points": "all",
    "process_s": 3.0,
    "note": "Collar on, swaged.",
    "basis": "ours"
@@ -830,6 +841,7 @@
    "kind": "pins_take",
    "arm": "small_arm",
    "tool": "pin_tool",
+   "points": "all",
    "process_s": 4.0,
    "note": "Change the magazine.",
    "basis": "ours"

@@ -1,0 +1,8 @@
+<!--
+  The flat rack in its working state, alone, for tests/flat_rack_test.cc and
+  for looking at. It stands at the world's origin.
+-->
+<mujoco model="flat rack scene">
+  <include file="common.xml"/>
+  <include file="flat_rack.xml"/>
+</mujoco>

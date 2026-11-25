@@ -2,7 +2,11 @@
 // src/layout_model.h).
 //
 // Every file in layouts/ loads, and broken copies are refused with a message
-// that names the field. For the layout marked "chosen" the model compiles in
+// that names the field: of the old form and of the wider one (the base, the
+// flat rack's margins, work divided among arms, ports, approaches). A layout
+// moved onto the flat rack as a file loads and builds with the flat rack's
+// base, two pallet places and a port's sites, and a layout with three arms of
+// one model builds. For the layout marked "chosen" the model compiles in
 // the states that matter, agrees with the file, and nothing in it overlaps:
 // every pair of geoms of two different things is further apart than zero by
 // mj_geomDistance, except the pairs that touch by design (TouchesByDesign
@@ -102,9 +106,9 @@ TEST(Layouts, BrokenCopiesAreRefused) {
   }
   {
     nlohmann::json j = good;
-    j["pallet"].erase("pitch");
+    j["pallets"][0].erase("pitch");
     const std::string e = LoadBroken(j, "below", "missing_field");
-    EXPECT_NE(e.find("pallet.pitch"), std::string::npos) << e;
+    EXPECT_NE(e.find("pallets[0].pitch"), std::string::npos) << e;
     EXPECT_NE(e.find("missing"), std::string::npos) << e;
   }
   {
@@ -246,9 +250,10 @@ TEST(ChosenLayout, CompilesWithABareTubeAndAFinishedBay) {
     EXPECT_EQ(b.handles.rail_geoms.size(), static_cast<size_t>(state.rails));
     EXPECT_EQ(b.handles.module_geoms.size(), static_cast<size_t>(state.modules));
     EXPECT_EQ(b.handles.pallet_module_geoms.size(),
-              static_cast<size_t>(layout.pallet.modules));
+              static_cast<size_t>(layout.pallets[0].modules));
     EXPECT_EQ(b.handles.tube_geoms.size(), 2u);
-    EXPECT_FALSE(b.handles.container_geoms.empty());
+    EXPECT_FALSE(b.handles.base_geoms.empty());
+    EXPECT_EQ(b.handles.base_body, "container_frame");
     EXPECT_EQ(b.handles.holder_geoms.size(), layout.holder.boxes.size());
     EXPECT_EQ(b.handles.pallet_base_geoms.size(), 1u);
     EXPECT_EQ(b.handles.stock_geoms.size(), layout.stocks.size());
@@ -372,7 +377,7 @@ TEST(ChosenLayout, AgreesWithTheFile) {
   EXPECT_NEAR(m->body_mass[holder], layout.holder.mass_kg, 1e-6);
 
   // The pallet's place, its deck and its stack.
-  const Pallet& p = layout.pallet;
+  const Pallet& p = layout.pallets[0];
   const int deck = b.handles.pallet_base_geoms.at(0);
   EXPECT_LT((V(d->geom_xpos + 3 * deck) - (V(p.pos) + Eigen::Vector3d(0, 0, p.base_height / 2))).norm(),
             tol);
@@ -463,7 +468,7 @@ TEST(ChosenLayout, FlangeZPointsOut) {
 // not measured against each other.
 struct Thing {
   std::string kind;  // "links", "tool", "held", "waiting", "carriage", "beam",
-                     // "container", "holder", "tube", "rail", "module",
+                     // "base", "holder", "tube", "rail", "module",
                      // "pallet_base", "pallet_module", "stock", "item".
   std::string arm;   // For an arm's things.
   int index = -1;    // Rail, module or pallet module number.
@@ -493,7 +498,7 @@ std::map<int, Thing> Things(const mjModel* m, const Layout& layout, const Layout
     put(a.carriage_geoms, {"carriage", a.name});
     put(a.beam_geoms, {"beam", a.name});
   }
-  put(h.container_geoms, {"container"});
+  put(h.base_geoms, {"base"});
   put(h.holder_geoms, {"holder"});
   put(h.tube_geoms, {"tube"});
   for (size_t k = 0; k < h.rail_geoms.size(); ++k) put(h.rail_geoms[k], {"rail", "", int(k)});
@@ -532,10 +537,11 @@ std::string TouchesByDesign(const mjModel* m, const Layout& layout, const Thing&
     return std::string(n != nullptr ? n : "");
   };
   // Beams and stands on the container's floor (the floor panel and the bottom
-  // side rails it rests on, both at z = 0.45).
-  if (either("beam", "container") || either("holder", "container")) {
-    const std::string n = name(is(a, "container") ? ga : gb);
-    if (n == "container_floor" || n.rfind("container_bottom_rail_", 0) == 0) {
+  // side rails it rests on, both at z = 0.45), or on the flat rack's deck.
+  if (either("beam", "base") || either("holder", "base")) {
+    const std::string n = name(is(a, "base") ? ga : gb);
+    if (n == "container_floor" || n.rfind("container_bottom_rail_", 0) == 0 ||
+        n == "flat_rack_deck") {
       return "beams and stands stand on the floor";
     }
   }
@@ -585,8 +591,8 @@ std::string TouchesByDesign(const mjModel* m, const Layout& layout, const Thing&
   // on their neighbours; flat ones lie each on the one below, the lowest
   // (the last taken) on the deck.
   if (either("pallet_module", "pallet_base") &&
-      (layout.pallet.stands == "on_long_edge" ||
-       thing_of("pallet_module").index == layout.pallet.modules - 1)) {
+      (layout.pallets[0].stands == "on_long_edge" ||
+       thing_of("pallet_module").index == layout.pallets[0].modules - 1)) {
     return "a pallet module stands on the deck";
   }
   if (is(a, "pallet_module") && is(b, "pallet_module") && std::abs(a.index - b.index) == 1) {
@@ -757,7 +763,7 @@ TEST(ChosenLayout, EverythingHasEveryToolPartAndTheProbe) {
   const LayoutHandles& h = b.handles;
   EXPECT_EQ(h.rail_geoms.size(), static_cast<size_t>(bay::kRailCount));
   EXPECT_EQ(h.module_geoms.size(), static_cast<size_t>(bay::kModuleCount));
-  EXPECT_EQ(h.pallet_module_geoms.size(), static_cast<size_t>(layout.pallet.modules));
+  EXPECT_EQ(h.pallet_module_geoms.size(), static_cast<size_t>(layout.pallets[0].modules));
   for (size_t i = 0; i < layout.arms.size(); ++i) {
     const ArmUse& arm = layout.arms[i];
     const ArmHandle& a = h.arms[i];
@@ -766,10 +772,10 @@ TEST(ChosenLayout, EverythingHasEveryToolPartAndTheProbe) {
       EXPECT_EQ(a.waiting_tool_geoms.count(tool.name), tool.wait_size[0] > 0 ? 1u : 0u);
     }
     for (const char* kind : {"module_set", "rail_set"}) {
-      const Work* w = FindWork(layout, kind);
+      const std::vector<std::string> doing = ArmsDoing(layout, {kind});
+      const bool does = std::find(doing.begin(), doing.end(), arm.name) != doing.end();
       const std::string part = std::string(kind) == "module_set" ? "module" : "rail";
-      EXPECT_EQ(a.held_geoms.count(part), w != nullptr && w->arm == arm.name ? 1u : 0u)
-          << arm.name << " " << part;
+      EXPECT_EQ(a.held_geoms.count(part), does ? 1u : 0u) << arm.name << " " << part;
     }
   }
   const mjModel* m = b.model.get();
@@ -797,6 +803,327 @@ TEST(ChosenLayout, EverythingHasEveryToolPartAndTheProbe) {
   d->mocap_pos[3 * h.probe_mocap + 0] = 1.0;
   mj_forward(m, d);
   EXPECT_NEAR(d->geom_xpos[3 * h.probe_pin_geom + 0], 1.0, 1e-12);
+}
+
+// ------------------------------------------------- the wider form of a file
+
+// Writes `j` as <tmp>/<which>/<name>.json and loads it; the load must work.
+std::optional<Layout> LoadGood(const nlohmann::json& j, const std::string& name,
+                               const std::string& which) {
+  const char* tmp = std::getenv("TEST_TMPDIR");
+  const std::filesystem::path dir =
+      std::filesystem::path(tmp != nullptr ? tmp : "/tmp") / which;
+  std::filesystem::create_directories(dir);
+  const std::string path = (dir / (name + ".json")).string();
+  std::ofstream(path) << j.dump(1);
+  std::string error;
+  std::optional<Layout> l = LoadLayout(path, &error);
+  EXPECT_TRUE(l.has_value()) << which << ": " << error;
+  return l;
+}
+
+constexpr const char* kFlatName = "below_rails_by_module_arm";
+
+// below_rails_by_module_arm moved onto the flat rack as a file: base
+// flat_rack with its fields, one port that hands over both pallets, an
+// approach for each of the nine kinds, and a second pallet place 1 m beyond
+// the first. Nothing is moved to suit the deck's height: this is a test of
+// the form and the model's names, not a layout to check.
+nlohmann::json FlatRackJson() {
+  nlohmann::json j = nlohmann::json::parse(ReadText(LayoutPath(kFlatName)));
+  j["base"] = "flat_rack";
+  j.erase("container");
+  j["flat_rack"] = {{"end_frames", "taken_off"}, {"note", "The base alone."}};
+  j["margins"] = {{"clearance_m", 0.010},
+                  {"joint_margin_deg", 5.0},
+                  {"reason", "The floors."},
+                  {"basis", "ours"}};
+  nlohmann::json second = j["pallets"][0];
+  second["pos"][0] = second["pos"][0].get<double>() + 1.0;
+  j["pallets"].push_back(second);
+  j["ports"] = nlohmann::json::array();
+  j["ports"].push_back({{"name", "modules_in"},
+                        {"crosses", "modules"},
+                        {"unit", "A forklift sets pallets down here."},
+                        {"frame_pos", {1.219, 0.0, 0.648}},
+                        {"frame_yaw_deg", 0.0},
+                        {"zone", {{"size", {3.0, 3.0, 2.0}}, {"pos", {3.2, 0.0, 1.0}}}},
+                        {"hands_over", {"pallet:0", "pallet:1"}},
+                        {"shares_zone_with", ""},
+                        {"presents", "Standing on their long edge."},
+                        {"per_bay", 9.0},
+                        {"basis", "ours"}});
+  j["approaches"] = nlohmann::json::array();
+  for (const std::string& kind : WorkKinds()) {
+    j["approaches"].push_back({{"kind", kind},
+                               {"approach_frame", "tool"},
+                               {"approach_dir", {0.0, 0.0, -1.0}},
+                               {"approach_m", 0.05},
+                               {"retreat_frame", "world"},
+                               {"retreat_dir", {0.0, 0.0, 1.0}},
+                               {"retreat_m", 0.05},
+                               {"note", "Straight back."},
+                               {"basis", "ours"}});
+  }
+  return j;
+}
+
+TEST(LayoutForm, RefusalsOfTheWiderForm) {
+  const nlohmann::json good = nlohmann::json::parse(ReadText(LayoutPath(kFlatName)));
+  const nlohmann::json flat = FlatRackJson();
+  auto has = [](const std::string& e, const std::string& words) {
+    return e.find(words) != std::string::npos;
+  };
+  {
+    nlohmann::json j = good;
+    j.erase("base");
+    const std::string e = LoadBroken(j, kFlatName, "missing_base");
+    EXPECT_TRUE(has(e, "base: missing field")) << e;
+  }
+  {
+    nlohmann::json j = good;
+    j["base"] = "raft";
+    const std::string e = LoadBroken(j, kFlatName, "unknown_base");
+    EXPECT_TRUE(has(e, "\"container\" or \"flat_rack\"")) << e;
+  }
+  {
+    nlohmann::json j = flat;
+    j["container"] = good["container"];
+    const std::string e = LoadBroken(j, kFlatName, "flat_rack_with_container");
+    EXPECT_TRUE(has(e, "container: unknown field")) << e;
+  }
+  {
+    nlohmann::json j = good;
+    j["ports"] = flat["ports"];
+    const std::string e = LoadBroken(j, kFlatName, "container_with_ports");
+    EXPECT_TRUE(has(e, "ports: unknown field")) << e;
+  }
+  {
+    nlohmann::json j = flat;
+    j.erase("margins");
+    const std::string e = LoadBroken(j, kFlatName, "flat_rack_without_margins");
+    EXPECT_TRUE(has(e, "margins: missing field")) << e;
+  }
+  {
+    nlohmann::json j = flat;
+    j["margins"]["clearance_m"] = 0.005;
+    const std::string e = LoadBroken(j, kFlatName, "clearance_below_floor");
+    EXPECT_TRUE(has(e, "margins.clearance_m")) << e;
+    EXPECT_TRUE(has(e, "floor of 0.010 m")) << e;
+  }
+  {
+    nlohmann::json j = flat;
+    j["margins"]["joint_margin_deg"] = 4.0;
+    const std::string e = LoadBroken(j, kFlatName, "joint_margin_below_floor");
+    EXPECT_TRUE(has(e, "margins.joint_margin_deg")) << e;
+    EXPECT_TRUE(has(e, "floor of 5.0 degrees")) << e;
+  }
+  {
+    nlohmann::json j = good;
+    j["work"][0]["points"] = "0-8";
+    const std::string e = LoadBroken(j, kFlatName, "point_to_no_arm");
+    EXPECT_TRUE(has(e, "point rail_take 9 is given to no arm")) << e;
+  }
+  {
+    // rail_take split between the two arms, point 3 given to both.
+    nlohmann::json j = good;
+    j["work"][0]["points"] = "0-5";
+    nlohmann::json other = j["work"][0];
+    other["arm"] = "small_arm";
+    other["tool"] = "nutrunner";
+    other["points"] = "3,6-9";
+    j["work"].push_back(other);
+    const std::string e = LoadBroken(j, kFlatName, "point_to_two_arms");
+    EXPECT_TRUE(has(e, "point rail_take 3 is given to two arms (module_arm and small_arm)"))
+        << e;
+  }
+  for (const char* bad : {"0-3,x", "", "1-", "-2", "5-2", "0,,1", "1 2", "0-9,4"}) {
+    nlohmann::json j = good;
+    j["work"][0]["points"] = bad;
+    const std::string e = LoadBroken(j, kFlatName, "bad_points");
+    EXPECT_TRUE(has(e, "work[0].points")) << bad << ": " << e;
+  }
+  {
+    nlohmann::json j = good;
+    j["work"][0]["points"] = "0-10";
+    const std::string e = LoadBroken(j, kFlatName, "point_out_of_range");
+    EXPECT_TRUE(has(e, "the point 10 is outside 0..9")) << e;
+  }
+  {
+    nlohmann::json j = flat;
+    j["ports"][0]["crosses"] = "people";
+    const std::string e = LoadBroken(j, kFlatName, "unknown_crosses");
+    EXPECT_TRUE(has(e, "ports[0].crosses")) << e;
+    EXPECT_TRUE(has(e, "\"people\"")) << e;
+  }
+  for (const char* bad : {"stock:nails", "pallet:2", "item:crane", "way:sideways", "shelf"}) {
+    nlohmann::json j = flat;
+    j["ports"][0]["hands_over"].push_back(bad);
+    const std::string e = LoadBroken(j, kFlatName, "hands_over_nothing");
+    EXPECT_TRUE(has(e, "ports[0].hands_over[2]")) << bad << ": " << e;
+  }
+  {
+    nlohmann::json j = flat;
+    j["ports"][0]["shares_zone_with"] = "bays_out";
+    const std::string e = LoadBroken(j, kFlatName, "shares_with_nothing");
+    EXPECT_TRUE(has(e, "is not the name of another port")) << e;
+  }
+  {
+    nlohmann::json j = flat;
+    j["approaches"][2]["approach_dir"] = {0.0, 0.0, 2.0};
+    const std::string e = LoadBroken(j, kFlatName, "approach_not_unit");
+    EXPECT_TRUE(has(e, "approaches[2].approach_dir")) << e;
+    EXPECT_TRUE(has(e, "not of unit length")) << e;
+  }
+  {
+    nlohmann::json j = flat;
+    j["approaches"].erase(j["approaches"].begin() + 4);
+    const std::string e = LoadBroken(j, kFlatName, "missing_approach");
+    EXPECT_TRUE(has(e, "\"module_set\" has points and no approach")) << e;
+  }
+  {
+    nlohmann::json j = flat;
+    j["approaches"].push_back(j["approaches"][0]);
+    const std::string e = LoadBroken(j, kFlatName, "two_approaches");
+    EXPECT_TRUE(has(e, "has an approach already")) << e;
+  }
+}
+
+TEST(LayoutForm, DividedWorkAndTheLookups) {
+  nlohmann::json j = nlohmann::json::parse(ReadText(LayoutPath(kFlatName)));
+  j["work"][0]["points"] = "0-5,9";
+  nlohmann::json other = j["work"][0];
+  other["arm"] = "small_arm";
+  other["tool"] = "nutrunner";
+  other["points"] = " 6 - 8 ";
+  j["work"].push_back(other);
+  std::optional<Layout> l = LoadGood(j, kFlatName, "divided");
+  ASSERT_TRUE(l.has_value());
+  EXPECT_EQ(l->pallet.modules, l->pallets[0].modules);
+  EXPECT_EQ(PointCount(*l, "rail_take"), 10);
+  EXPECT_EQ(PointCount(*l, "module_set"), 9);
+  EXPECT_EQ(PointCount(*l, "pin"), 36);
+  EXPECT_EQ(PointCount(*l, "module_take"), 36);
+  EXPECT_EQ(PointCount(*l, "pins_take"), 1);
+  EXPECT_EQ(PinStocks(*l).size(), 1u);
+  EXPECT_EQ(PointsOf(*l, l->work[0]), (std::vector<int>{0, 1, 2, 3, 4, 5, 9}));
+  EXPECT_EQ(PointsOf(*l, l->work.back()), (std::vector<int>{6, 7, 8}));
+  EXPECT_EQ(FindWork(*l, "rail_take", 9)->arm, "module_arm");
+  EXPECT_EQ(FindWork(*l, "rail_take", 7)->arm, "small_arm");
+  EXPECT_EQ(FindWork(*l, "rail_take", 10), nullptr);
+  EXPECT_EQ(PointsOf(*l, *FindWork(*l, "swage")).size(), 36u);
+  EXPECT_EQ(ArmsDoing(*l, {"rail_take"}), (std::vector<std::string>{"module_arm", "small_arm"}));
+  EXPECT_EQ(ArmsDoing(*l, {"pin"}), (std::vector<std::string>{"small_arm"}));
+  EXPECT_EQ(FindApproach(*l, "pin"), nullptr);
+  EXPECT_EQ(FindPort(*l, "modules_in"), nullptr);
+}
+
+TEST(LayoutForm, AFlatRackLayoutLoadsAndBuilds) {
+  std::optional<Layout> l = LoadGood(FlatRackJson(), kFlatName, "flat_rack");
+  ASSERT_TRUE(l.has_value());
+  EXPECT_EQ(l->base, "flat_rack");
+  EXPECT_EQ(l->flat_rack.end_frames, "taken_off");
+  ASSERT_EQ(l->pallets.size(), 2u);
+  EXPECT_EQ(PointCount(*l, "module_take"), 72);
+  ASSERT_NE(FindPort(*l, "modules_in"), nullptr);
+  EXPECT_EQ(FindPort(*l, "modules_in")->zone.size[0], 3.0);
+  ASSERT_NE(FindApproach(*l, "swage"), nullptr);
+  EXPECT_EQ(FindApproach(*l, "swage")->retreat_frame, "world");
+
+  Built b = Build(*l, Bay(0, 0));
+  ASSERT_TRUE(b.model);
+  const mjModel* m = b.model.get();
+  const LayoutHandles& h = b.handles;
+  EXPECT_EQ(h.base_body, "flat_rack_frame");
+  std::set<std::string> base;
+  for (int g : h.base_geoms) base.insert(GeomName(m, g));
+  EXPECT_EQ(base, (std::set<std::string>{"flat_rack_side_rail_0", "flat_rack_side_rail_1",
+                                         "flat_rack_end_sill_front", "flat_rack_end_sill_rear",
+                                         "flat_rack_deck"}));
+  EXPECT_EQ(h.container_geoms, h.base_geoms);
+  for (int g = 0; g < m->ngeom; ++g) {
+    EXPECT_NE(GeomName(m, g).rfind("container_", 0), 0u) << GeomName(m, g);
+  }
+  // Both pallets: the first keeps its old names, the second has its own.
+  EXPECT_EQ(h.pallet_base_geoms.size(), 2u);
+  EXPECT_GE(mj_name2id(m, mjOBJ_GEOM, "pallet_base"), 0);
+  EXPECT_GE(mj_name2id(m, mjOBJ_GEOM, "pallet1_base"), 0);
+  ASSERT_EQ(h.pallet_module_geoms.size(), 72u);
+  for (const auto& g : h.pallet_module_geoms) EXPECT_FALSE(g.empty());
+  EXPECT_NE(mj_name2id(m, mjOBJ_BODY, "pallet1_module_4"), -1);
+  EXPECT_EQ(m->geom_bodyid[h.pallet_module_geoms[40][0]],
+            mj_name2id(m, mjOBJ_BODY, "pallet1_module_4"));
+  ASSERT_EQ(h.pallet_place_geoms.size(), 2u);
+  EXPECT_EQ(h.pallet_place_geoms[1][0], mj_name2id(m, mjOBJ_GEOM, "pallet1_base"));
+  // The ports' sites, in group 4, of the zone's size.
+  const int zone = mj_name2id(m, mjOBJ_SITE, "port_modules_in_zone");
+  const int frame = mj_name2id(m, mjOBJ_SITE, "port_modules_in_frame");
+  ASSERT_GE(zone, 0);
+  ASSERT_GE(frame, 0);
+  EXPECT_EQ(m->site_group[zone], 4);
+  EXPECT_EQ(m->site_group[frame], 4);
+  EXPECT_NEAR(m->site_size[3 * zone], 1.5, 1e-12);
+  EXPECT_NEAR(b.data->site_xpos[3 * frame], 1.219, 1e-12);
+
+  // With one module taken the first pallet has 35, the second 36.
+  {
+    LayoutState s = Bay(0, 0);
+    s.pallet_modules = 35;
+    Built few = Build(*l, s);
+    ASSERT_TRUE(few.model);
+    EXPECT_TRUE(few.handles.pallet_module_geoms[0].empty());
+    EXPECT_FALSE(few.handles.pallet_module_geoms[36].empty());
+  }
+  // Stowed: no pallet, no port.
+  {
+    LayoutState s;
+    s.stowed = true;
+    Built stowed = Build(*l, s);
+    ASSERT_TRUE(stowed.model);
+    EXPECT_TRUE(stowed.handles.pallet_base_geoms.empty());
+    EXPECT_TRUE(stowed.handles.pallet_place_geoms.empty());
+    EXPECT_EQ(mj_name2id(stowed.model.get(), mjOBJ_SITE, "port_modules_in_zone"), -1);
+    EXPECT_EQ(stowed.handles.base_geoms.size(), 5u);
+  }
+}
+
+// Several arms of one model in one layout: three UR10e, and separately two
+// KR 210, each built from a layout changed in memory.
+TEST(LayoutForm, SeveralArmsOfOneModelBuild) {
+  std::string error;
+  std::optional<Layout> below = LoadLayout(LayoutPath("below"), &error);
+  ASSERT_TRUE(below.has_value()) << error;
+  for (const std::string model : {"ur10e", "kr210_r2700_2"}) {
+    Layout l = *below;
+    const ArmUse* source = nullptr;
+    for (const ArmUse& a : l.arms) {
+      if (a.model == model) source = &a;
+    }
+    ASSERT_NE(source, nullptr) << model;
+    const ArmUse copy = *source;
+    const int extra = model == "ur10e" ? 2 : 1;
+    for (int k = 1; k <= extra; ++k) {
+      ArmUse a = copy;
+      a.name = copy.name + "_" + std::to_string(k + 1);
+      a.base_pos[1] += 3.0 * k;
+      l.arms.push_back(a);
+    }
+    LayoutState state;
+    state.everything = true;
+    Built b = Build(l, state);
+    ASSERT_TRUE(b.model) << model;
+    ASSERT_EQ(b.handles.arms.size(), l.arms.size());
+    std::set<int> qpos;
+    for (const ArmHandle& a : b.handles.arms) {
+      for (int j = 0; j < 6; ++j) {
+        EXPECT_GE(a.qpos[j], 0) << a.name;
+        qpos.insert(a.qpos[j]);
+      }
+      EXPECT_GE(a.flange_site, 0) << a.name;
+      EXPECT_FALSE(a.link_geoms.empty()) << a.name;
+    }
+    EXPECT_EQ(qpos.size(), 6 * l.arms.size()) << model;
+  }
 }
 
 }  // namespace
