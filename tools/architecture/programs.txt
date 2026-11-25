@@ -37,8 +37,9 @@ print_bay.capture | //:print_bay | --capture | -
 # print_cell: the two wall-clock sentences, src/print_cell.cc lines 102 and 119.
 print_cell.default | //:print_cell | - | re:settled \S+ s in (\S+) s wall ;; re:^\d+ steps \(\S+ s\) in (\S+) s wall: (\S+) steps/s, (\S+)x real time
 print_cell.seed_3_2s | //:print_cell | 3 2 | re:settled \S+ s in (\S+) s wall ;; re:^\d+ steps \(\S+ s\) in (\S+) s wall: (\S+) steps/s, (\S+)x real time
-# print_check: render_ms and fit_ms are times, src/print_check.cc lines 274 and
-# 275 (the CSV), 387 to 389 (the table), 411 and 412 (the summary on stderr).
+# print_check: render_ms and fit_ms are times, src/print_check.cc lines 364 and
+# 365 (the row, CSV and table), 274 and 275 (what the summary adds up), 411 and
+# 412 (the summary on stderr). The --verbose line at 385 to 389 is not captured.
 print_check.csv | //:print_check | --trials 2 | col:render_ms ;; col:fit_ms ;; re:^(?:render|fit) ms +(\S+) +(\S+) +(\S+)$
 print_check.pretty | //:print_check | --trials 2 --pretty | tab:render ;; tab:fit ;; re:^(?:render|fit) ms +(\S+) +(\S+) +(\S+)$
 print_check.noise_calibrated | //:print_check | --trials 2 --first-seed 5 --noise --calibration 1,0.05 | col:render_ms ;; col:fit_ms ;; re:^(?:render|fit) ms +(\S+) +(\S+) +(\S+)$
@@ -49,12 +50,16 @@ print_depth.noise_last | //:print_depth | --seed 2 --noise --last | re:cast in (
 print_depth.points | //:print_depth | --nominal --points | digest ;; re:cast in (\S+) ms
 # print_pallet: "N steps in T s wall ...", src/print_pallet.cc line 116.
 print_pallet.default | //:print_pallet | - | re:^\d+ steps in (\S+) s wall: (\S+) steps/s, (\S+)x real time
-# print_perception: render_ms and fit_ms, src/print_perception.cc lines 264 and
-# 265 (the CSV), 333 to 335 (the table), 368 and 369 (the summary on stderr).
+# print_perception: render_ms and fit_ms, src/print_perception.cc lines 307 and
+# 308 (the row, CSV and table; the render time is taken with the clock at 241 to
+# 246), 264 and 265 (what the summary adds up), 368 and 369 (the summary on
+# stderr). The --verbose line at 333 to 335 is not captured.
 print_perception.csv | //:print_perception | --trials 2 | col:render_ms ;; col:fit_ms ;; re:^(?:render|fit) ms +(\S+) +(\S+) +(\S+)$
 print_perception.pretty | //:print_perception | --trials 2 --pretty | tab:render ;; tab:fit ;; re:^(?:render|fit) ms +(\S+) +(\S+) +(\S+)$
 print_perception.noise_depths | //:print_perception | --trials 2 --first-seed 3 --noise --calibration-error 1,0.05 --depths 0,29 --no-creases --arm-home | col:render_ms ;; col:fit_ms ;; re:^(?:render|fit) ms +(\S+) +(\S+) +(\S+)$
-# print_plan: search_ms and shorten_ms, src/print_plan.cc lines 440 to 448.
+# print_plan: search_ms and shorten_ms, src/print_plan.cc line 440 (the row),
+# 446 to 448 (what the summary adds up), 467 to 471 (ms_median and ms_worst of
+# --summary), 478 to 481 (the "# planning ms" line).
 print_plan.pretty | //:print_plan | --pretty --seeds 5 | tab:search_ms ;; tab:shorten_ms ;; re:^# planning ms, median / worst: search (\S+) / (\S+), shorten (\S+) / (\S+), both (\S+) / (\S+)$
 print_plan.module_29_slot_9 | //:print_plan | --pretty --module 29 --slot 9 --seeds 3 | tab:search_ms ;; tab:shorten_ms ;; re:^# planning ms, median / worst: search (\S+) / (\S+), shorten (\S+) / (\S+), both (\S+) / (\S+)$
 print_plan.return | //:print_plan | --pretty --return --seeds 3 | tab:search_ms ;; tab:shorten_ms ;; re:^# planning ms, median / worst: search (\S+) / (\S+), shorten (\S+) / (\S+), both (\S+) / (\S+)$
@@ -68,9 +73,10 @@ print_profile.csv | //:print_profile | - | -
 print_profile.pretty | //:print_profile | --pretty | -
 print_rrt.circle | //:print_rrt | - | -
 print_rrt.gap_seed_2 | //:print_rrt | gap 2 | -
-# run_cell: finder_ms, plan_ms, check_finder_ms and replan_ms are times
-# (src/run_cell.cc lines 165 to 169, 220, 273, 744 to 786) and so is the last
-# line on stderr (line 791). With --phases the lines of the looks end in
+# run_cell: finder_ms (src/run_cell.cc line 265; "ms" of --pretty, line 220),
+# plan_ms (line 278), check_finder_ms and replan_ms (lines 242 and 243) are
+# times, and so are the summary lines at 744, 761, 771 and 782 to 786 and the
+# last line on stderr (line 791). With --phases the lines of the looks end in
 # "(finder N ms)", src/pick_place.cc lines 1576 and 1892.
 run_cell.nominal_2_modules | //:run_cell | --nominal --modules 2 | col:finder_ms ;; col:plan_ms ;; col:check_finder_ms ;; col:replan_ms ;; re:planning \(wall\): mean (\S+) ms, worst (\S+) ms|finder (\S+) ms at most|rechecked with the measured grip: \d+ \(mean (\S+) ms, worst (\S+) ms\); replanned: \d+ \(mean (\S+) ms, worst (\S+) ms\)|in (\S+) s of wall time: (\S+)x real time
 run_cell.nominal_2_modules_pretty | //:run_cell | --nominal --modules 2 --pretty | tab:ms ;; re:planning \(wall\): mean (\S+) ms, worst (\S+) ms|finder (\S+) ms at most|rechecked with the measured grip: \d+ \(mean (\S+) ms, worst (\S+) ms\); replanned: \d+ \(mean (\S+) ms, worst (\S+) ms\)|in (\S+) s of wall time: (\S+)x real time

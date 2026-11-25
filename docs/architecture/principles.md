@@ -379,7 +379,7 @@ does from one cut at a line count, nor a comment that explains from five lines o
 filler. So a split also answers a question: does each new file have a header whose
 opening comment says what the piece is for without naming the file it was cut from?
 `src/layout_rows.h:1` passes (the rows of a check that need no pose of an arm, taken
-out of `src/layout_check.h`); a `src/layout_check_part2.cc` would not.
+out of `src/layout_check.h`); a file named `layout_check_part2.cc` would not.
 
 **Now.** `P11 7`: `P11.cc 5`, `P11.h 2`, `P11.comment 0`; `P11.frozen 3`.
 

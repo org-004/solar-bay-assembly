@@ -16,8 +16,8 @@ decision with its forces and consequences is the known cure ([S19], [S21] of
 edited after the fact, or pile up as unread essays ([S20], [S22]).
 
 **Decision.** A decision about the repository's structure, its build, its tools or
-its rules of work is one file `docs/adr/NNNN-short-title.md`, numbered from 0001 in
-the order written, in the form `docs/adr/README.md` gives: a title that states the
+its rules of work is one file `NNNN-short-title.md` under `docs/adr/`, numbered from
+0001 in the order written, in the form `docs/adr/README.md` gives: a title that states the
 decision, `Status:`, `Date:`, `Decided by:`, then Context, Decision, Alternatives,
 Consequences, Check and Migration, in at most 80 lines. `docs/adr/README.md` lists
 every record in one table.
