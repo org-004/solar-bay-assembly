@@ -5,6 +5,8 @@
 
 #include <algorithm>
 #include <cstdio>
+#include <cstdlib>
+#include <cstring>
 #include <string>
 #include <vector>
 
@@ -201,7 +203,158 @@ std::string StatusText(const Viewer& viewer, double speed) {
   return text + line;
 }
 
+bool ParseNumber(const char* text, double* out) {
+  char* end = nullptr;
+  *out = std::strtod(text, &end);
+  return end != text && *end == '\0';
+}
+
 }  // namespace
+
+bool ParseViewerArgs(int argc, char** argv, int first, ViewerOptions* options,
+                     ViewerRun* run, std::string* error) {
+  for (int i = first; i < argc; ++i) {
+    const std::string name = argv[i];
+    if (name == "--no-overlay") {
+      options->viewer_line = false;
+      continue;
+    }
+    const bool known =
+        name == "--lookat" || name == "--distance" || name == "--azimuth" ||
+        name == "--elevation" || name == "--speed" || name == "--overlay" ||
+        name == "--overlay-at" || name == "--caption" ||
+        name == "--font-scale" || name == "--size" || name == "--record" ||
+        name == "--fps" || name == "--quit-at" || name == "--key" ||
+        name == "--groups";
+    if (!known) {
+      *error = "unknown option " + name;
+      return false;
+    }
+    if (i + 1 >= argc) {
+      *error = name + " needs a value";
+      return false;
+    }
+    const char* arg = argv[++i];
+    const std::string bad = "bad value for " + name + ": " + arg;
+    double value = 0.0;
+    if (name == "--lookat") {
+      std::array<double, 3> at;
+      if (std::sscanf(arg, "%lf,%lf,%lf", &at[0], &at[1], &at[2]) != 3) {
+        *error = bad;
+        return false;
+      }
+      options->lookat = at;
+    } else if (name == "--distance" || name == "--azimuth" ||
+               name == "--elevation") {
+      if (!ParseNumber(arg, &value)) {
+        *error = bad;
+        return false;
+      }
+      if (name == "--distance") options->distance = value;
+      if (name == "--azimuth") options->azimuth = value;
+      if (name == "--elevation") options->elevation = value;
+    } else if (name == "--speed" || name == "--fps") {
+      if (!ParseNumber(arg, &value) || !(value > 0.0)) {
+        *error = bad;
+        return false;
+      }
+      (name == "--speed" ? options->speed : options->record_fps) = value;
+    } else if (name == "--overlay") {
+      if (std::strcmp(arg, "full") == 0) {
+        options->viewer_line = true;
+      } else if (std::strcmp(arg, "none") == 0) {
+        options->viewer_line = false;
+      } else {
+        *error = bad;
+        return false;
+      }
+    } else if (name == "--overlay-at") {
+      if (std::strcmp(arg, "top") == 0) {
+        options->text_at_bottom = false;
+      } else if (std::strcmp(arg, "bottom") == 0) {
+        options->text_at_bottom = true;
+      } else {
+        *error = bad;
+        return false;
+      }
+    } else if (name == "--caption") {
+      options->caption = arg;
+    } else if (name == "--font-scale") {
+      options->font_scale = std::atoi(arg);
+      if (options->font_scale < 50 || options->font_scale > 300 ||
+          options->font_scale % 50 != 0) {
+        *error = bad;
+        return false;
+      }
+    } else if (name == "--size") {
+      if (std::sscanf(arg, "%dx%d", &options->width, &options->height) != 2 ||
+          options->width < 64 || options->height < 64) {
+        *error = bad;
+        return false;
+      }
+    } else if (name == "--record") {
+      options->record_path = arg;
+    } else if (name == "--quit-at") {
+      if (!ParseNumber(arg, &value) || !(value >= 0.0)) {
+        *error = bad;
+        return false;
+      }
+      run->quit_at = value;
+    } else if (name == "--key") {
+      run->key = arg;
+    } else if (name == "--groups") {
+      std::vector<int> groups;
+      const char* p = arg;
+      while (true) {
+        char* end = nullptr;
+        const long g = std::strtol(p, &end, 10);
+        if (end == p || g < 0 || g >= mjNGROUP ||
+            (*end != ',' && *end != '\0')) {
+          *error = bad;
+          return false;
+        }
+        groups.push_back(static_cast<int>(g));
+        if (*end == '\0') break;
+        p = end + 1;
+      }
+      options->extra_groups.insert(options->extra_groups.end(), groups.begin(),
+                                   groups.end());
+    }
+  }
+  return true;
+}
+
+const char* ViewerArgsUsage() {
+  return "    [--key NAME_OR_INDEX] [--groups LIST] [--lookat X,Y,Z] "
+         "[--distance D] [--azimuth DEG] [--elevation DEG] [--speed K]\n"
+         "    [--overlay full|none | --no-overlay] [--overlay-at top|bottom] "
+         "[--caption TEXT] [--font-scale P] [--size WxH]\n"
+         "    [--record PATH] [--fps F] [--quit-at T]\n";
+}
+
+bool ResolveKeyframe(const mjModel* model, const std::string& key, int* index,
+                     std::string* error) {
+  *index = -1;
+  if (key.empty()) {
+    *index = model->nkey > 0 ? 0 : -1;
+    return true;
+  }
+  const int named = mj_name2id(model, mjOBJ_KEY, key.c_str());
+  if (named >= 0) {
+    *index = named;
+    return true;
+  }
+  char* end = nullptr;
+  const long number = std::strtol(key.c_str(), &end, 10);
+  if (end != key.c_str() && *end == '\0' && number >= 0 &&
+      number < model->nkey) {
+    *index = static_cast<int>(number);
+    return true;
+  }
+  *error = "no keyframe " + key + " in the model (it has " +
+           std::to_string(model->nkey) + ")";
+  return false;
+}
 
 int RunViewer(const mjModel* model, mjData* data, const ViewerHooks& hooks,
               const char* title) {
@@ -250,6 +403,12 @@ int RunViewer(const mjModel* model, mjData* data, const ViewerHooks& hooks,
   if (options.azimuth) viewer.camera.azimuth = *options.azimuth;
   if (options.elevation) viewer.camera.elevation = *options.elevation;
   mjv_defaultOption(&viewer.options);
+  for (int g : options.extra_groups) {
+    if (g >= 0 && g < mjNGROUP) {
+      viewer.options.geomgroup[g] = 1;
+      viewer.options.sitegroup[g] = 1;
+    }
+  }
   mjv_defaultScene(&viewer.scene);
   mjr_defaultContext(&viewer.context);
   mjv_makeScene(model, &viewer.scene, /*maxgeom=*/2000);

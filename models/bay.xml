@@ -1,13 +1,13 @@
 <!--
   One bay of a single-axis solar tracker as it really is: a round torque tube
-  section, the eleven rails across it, the ten modules on the rails, and a
+  section, the ten rails across it, the nine modules on the rails, and a
   site at every point where one part is fastened to another.
 
-  The tube is a round steel tube 124 mm across and 11.66 m long, with a neck
-  0.1 m long and 118 mm across at its swaged end. Eleven rails sit across it,
+  The tube is a round steel tube 124 mm across and 10.516 m long, with a neck
+  0.1 m long and 118 mm across at its swaged end. Ten rails sit across it,
   1.144 m apart, the first 0.16 m from the plain end. A rail is a hat
   section, open side down, whose webs straddle the tube, with a strap under
-  the tube that is closed by one bolt through the strap's two ears. Ten
+  the tube that is closed by one bolt through the strap's two ears. Nine
   modules lie between the rails, glass up, long side across the tube, each
   with its two long edges on two rails, so that neighbouring modules share a
   rail and are 10 mm apart. docs/bay-hardware.md says where each figure comes
@@ -17,10 +17,10 @@
   origin is on the tube's axis at the plain end of the section, +Y runs
   along the tube to the swaged end, +Z points up through the locating holes
   and +X is across the tube. Metres, kilograms, radians. This file places
-  that frame at (-1.219, -5.880, 1.200) in the world, 1.2 m above the floor;
+  that frame at (-1.219, -5.308, 1.200) in the world, 1.2 m above the floor;
   where it stands is the scene's choice and not a figure of the bay. The
   body "bay_frame" has no geoms of its own. Its children are bay_tube,
-  bay_rail_0 .. bay_rail_10 and bay_module_0 .. bay_module_9, each fixed in
+  bay_rail_0 .. bay_rail_9 and bay_module_0 .. bay_module_8, each fixed in
   its place: there is no joint, no actuator and no weld, because this is
   the finished bay. Every geom collides.
 
@@ -35,9 +35,9 @@
   the middle of the rail's top sheet, its _b site on the module in the
   middle of the frame's flange, and the tool travels up. locate_<k>_a is
   rail k's locating tab and locate_<k>_b the hole on top of the tube it
-  drops into; their z axis points down. hold_0 .. hold_11 are the stretches
+  drops into; their z axis points down. hold_0 .. hold_10 are the stretches
   of the tube that a holder may grip, given as see-through cylinders along
-  the tube: the plain end, the ten stretches between neighbouring rails, and
+  the tube: the plain end, the nine stretches between neighbouring rails, and
   the neck. Fastening sites are orange (_a) and green (_b), locators
   magenta.
 
@@ -55,8 +55,11 @@
 
   src/bay_hardware.h holds the same numbers for code, and
   tests/bay_hardware_test.cc checks that this model and the header agree.
-  This file was written out from those numbers by a script, so a change is
-  made in the header and here together.
+  This file is generated: //:gen_bay prints it from src/bay_model.cc and
+  the header, and //:bay_model_test fails when the file differs from that
+  output. After a change to either, write it again with
+    bazel run //:gen_bay > models/bay.xml
+  built in the opt configuration, as AGENTS.md says.
 
   Part file: loaded only through a scene that includes common.xml first.
 -->
@@ -94,11 +97,11 @@
   </default>
 
   <worldbody>
-    <body name="bay_frame" pos="-1.219 -5.880 1.200">
+    <body name="bay_frame" pos="-1.219 -5.308 1.200">
       <!-- The tube: from the plain end to the shoulder, then the neck. -->
       <body name="bay_tube" pos="0 0 0">
-        <geom name="bay_tube" class="bay_steel" type="cylinder" size="0.062" fromto="0 0 0 0 11.66 0" mass="104.567"/>
-        <geom name="bay_tube_neck" class="bay_steel" type="cylinder" size="0.059" fromto="0 11.66 0 0 11.76 0" mass="0.852"/>
+        <geom name="bay_tube" class="bay_steel" type="cylinder" size="0.062" fromto="0 0 0 0 10.516 0" mass="94.307"/>
+        <geom name="bay_tube_neck" class="bay_steel" type="cylinder" size="0.059" fromto="0 10.516 0 0 10.616 0" mass="0.852"/>
         <!-- Where each strap's bolt passes under the tube. -->
         <site name="bay_fasten_rail_0_0_b" class="bay_site_b" pos="0 0.16 -0.08" quat="0.707106781187 0 -0.707106781187 0"/>
         <site name="bay_fasten_rail_1_0_b" class="bay_site_b" pos="0 1.304 -0.08" quat="0.707106781187 0 -0.707106781187 0"/>
@@ -110,7 +113,6 @@
         <site name="bay_fasten_rail_7_0_b" class="bay_site_b" pos="0 8.168 -0.08" quat="0.707106781187 0 -0.707106781187 0"/>
         <site name="bay_fasten_rail_8_0_b" class="bay_site_b" pos="0 9.312 -0.08" quat="0.707106781187 0 -0.707106781187 0"/>
         <site name="bay_fasten_rail_9_0_b" class="bay_site_b" pos="0 10.456 -0.08" quat="0.707106781187 0 -0.707106781187 0"/>
-        <site name="bay_fasten_rail_10_0_b" class="bay_site_b" pos="0 11.6 -0.08" quat="0.707106781187 0 -0.707106781187 0"/>
         <!-- The locating holes on top of the tube. -->
         <site name="bay_locate_0_b" class="bay_site_locate" pos="0 0.111 0.062" quat="0 1 0 0"/>
         <site name="bay_locate_1_b" class="bay_site_locate" pos="0 1.255 0.062" quat="0 1 0 0"/>
@@ -122,7 +124,6 @@
         <site name="bay_locate_7_b" class="bay_site_locate" pos="0 8.119 0.062" quat="0 1 0 0"/>
         <site name="bay_locate_8_b" class="bay_site_locate" pos="0 9.263 0.062" quat="0 1 0 0"/>
         <site name="bay_locate_9_b" class="bay_site_locate" pos="0 10.407 0.062" quat="0 1 0 0"/>
-        <site name="bay_locate_10_b" class="bay_site_locate" pos="0 11.551 0.062" quat="0 1 0 0"/>
         <!-- The stretches a holder may grip. -->
         <site name="bay_hold_0" class="bay_site_hold" size="0.062 0.05" pos="0 0.05 0" quat="0.707106781187 -0.707106781187 0 0"/>
         <site name="bay_hold_1" class="bay_site_hold" size="0.062 0.522" pos="0 0.732 0" quat="0.707106781187 -0.707106781187 0 0"/>
@@ -134,8 +135,7 @@
         <site name="bay_hold_7" class="bay_site_hold" size="0.062 0.522" pos="0 7.596 0" quat="0.707106781187 -0.707106781187 0 0"/>
         <site name="bay_hold_8" class="bay_site_hold" size="0.062 0.522" pos="0 8.74 0" quat="0.707106781187 -0.707106781187 0 0"/>
         <site name="bay_hold_9" class="bay_site_hold" size="0.062 0.522" pos="0 9.884 0" quat="0.707106781187 -0.707106781187 0 0"/>
-        <site name="bay_hold_10" class="bay_site_hold" size="0.062 0.522" pos="0 11.028 0" quat="0.707106781187 -0.707106781187 0 0"/>
-        <site name="bay_hold_11" class="bay_site_hold" size="0.059 0.05" pos="0 11.71 0" quat="0.707106781187 -0.707106781187 0 0"/>
+        <site name="bay_hold_10" class="bay_site_hold" size="0.059 0.05" pos="0 10.566 0" quat="0.707106781187 -0.707106781187 0 0"/>
       </body>
 
       <!-- Rail 0. -->
@@ -382,31 +382,6 @@
         <site name="bay_locate_9_a" class="bay_site_locate" pos="0 -0.049 0.062" quat="0 1 0 0"/>
         <site name="bay_fasten_module_8_2_a" class="bay_site_a" pos="-0.2 -0.024 0.123" quat="1 0 0 0"/>
         <site name="bay_fasten_module_8_3_a" class="bay_site_a" pos="0.2 -0.024 0.123" quat="1 0 0 0"/>
-        <site name="bay_fasten_module_9_0_a" class="bay_site_a" pos="-0.2 0.024 0.123" quat="1 0 0 0"/>
-        <site name="bay_fasten_module_9_1_a" class="bay_site_a" pos="0.2 0.024 0.123" quat="1 0 0 0"/>
-      </body>
-
-      <!-- Rail 10. -->
-      <body name="bay_rail_10" pos="0 11.6 0">
-        <geom name="bay_rail_10_top" class="bay_steel" pos="0 0 0.123" size="0.23 0.05 0.001" mass="0.713381"/>
-        <geom name="bay_rail_10_web_a_mid" class="bay_steel" pos="0 -0.049 0.092" size="0.044 0.001 0.03" mass="0.081884"/>
-        <geom name="bay_rail_10_web_a_neg" class="bay_steel" pos="-0.137 -0.049 0.083" size="0.093 0.001 0.039" mass="0.224994"/>
-        <geom name="bay_rail_10_web_a_pos" class="bay_steel" pos="0.137 -0.049 0.083" size="0.093 0.001 0.039" mass="0.224994"/>
-        <geom name="bay_rail_10_web_b_mid" class="bay_steel" pos="0 0.049 0.092" size="0.044 0.001 0.03" mass="0.081884"/>
-        <geom name="bay_rail_10_web_b_neg" class="bay_steel" pos="-0.137 0.049 0.083" size="0.093 0.001 0.039" mass="0.224994"/>
-        <geom name="bay_rail_10_web_b_pos" class="bay_steel" pos="0.137 0.049 0.083" size="0.093 0.001 0.039" mass="0.224994"/>
-        <geom name="bay_rail_10_foot_a_neg" class="bay_steel" pos="-0.137 -0.055 0.045" size="0.093 0.005 0.001" mass="0.028845"/>
-        <geom name="bay_rail_10_foot_a_pos" class="bay_steel" pos="0.137 -0.055 0.045" size="0.093 0.005 0.001" mass="0.028845"/>
-        <geom name="bay_rail_10_foot_b_neg" class="bay_steel" pos="-0.137 0.055 0.045" size="0.093 0.005 0.001" mass="0.028845"/>
-        <geom name="bay_rail_10_foot_b_pos" class="bay_steel" pos="0.137 0.055 0.045" size="0.093 0.005 0.001" mass="0.028845"/>
-        <geom name="bay_rail_10_strap_neg" class="bay_steel" pos="-0.06325 0 -0.01025" size="0.00125 0.02 0.05425" mass="0.084132"/>
-        <geom name="bay_rail_10_strap_pos" class="bay_steel" pos="0.06325 0 -0.01025" size="0.00125 0.02 0.05425" mass="0.084132"/>
-        <geom name="bay_rail_10_strap_bottom" class="bay_steel" pos="0 0 -0.06325" size="0.0645 0.02 0.00125" mass="0.100028"/>
-        <geom name="bay_rail_10_strap_ears" class="bay_steel" pos="0 0 -0.07975" size="0.01 0.02 0.01525" mass="0.189203"/>
-        <site name="bay_fasten_rail_10_0_a" class="bay_site_a" pos="0.01 0 -0.08" quat="0.707106781187 0 -0.707106781187 0"/>
-        <site name="bay_locate_10_a" class="bay_site_locate" pos="0 -0.049 0.062" quat="0 1 0 0"/>
-        <site name="bay_fasten_module_9_2_a" class="bay_site_a" pos="-0.2 -0.024 0.123" quat="1 0 0 0"/>
-        <site name="bay_fasten_module_9_3_a" class="bay_site_a" pos="0.2 -0.024 0.123" quat="1 0 0 0"/>
       </body>
 
       <!-- Module 0, on rails 0 and 1. -->
@@ -560,23 +535,6 @@
         <site name="bay_fasten_module_8_1_b" class="bay_site_b" pos="0.2 -0.548 -0.01415" quat="1 0 0 0"/>
         <site name="bay_fasten_module_8_2_b" class="bay_site_b" pos="-0.2 0.548 -0.01415" quat="1 0 0 0"/>
         <site name="bay_fasten_module_8_3_b" class="bay_site_b" pos="0.2 0.548 -0.01415" quat="1 0 0 0"/>
-      </body>
-
-      <!-- Module 9, on rails 9 and 10. -->
-      <body name="bay_module_9" pos="0 11.028 0.139">
-        <geom name="bay_module_9_frame_long_a" class="bay_aluminium" pos="0 -0.562 0" size="1.191 0.005 0.015" mass="1.620618"/>
-        <geom name="bay_module_9_frame_long_b" class="bay_aluminium" pos="0 0.562 0" size="1.191 0.005 0.015" mass="1.620618"/>
-        <geom name="bay_module_9_flange_long_a" class="bay_aluminium" pos="0 -0.553 -0.01415" size="1.191 0.014 0.00085" mass="0.257138"/>
-        <geom name="bay_module_9_flange_long_b" class="bay_aluminium" pos="0 0.553 -0.01415" size="1.191 0.014 0.00085" mass="0.257138"/>
-        <geom name="bay_module_9_frame_short_a" class="bay_aluminium" pos="-1.186 0 0" size="0.005 0.567 0.015" mass="0.771529"/>
-        <geom name="bay_module_9_frame_short_b" class="bay_aluminium" pos="1.186 0 0" size="0.005 0.567 0.015" mass="0.771529"/>
-        <geom name="bay_module_9_flange_short_a" class="bay_aluminium" pos="-1.1852 0 -0.01415" size="0.0058 0.567 0.00085" mass="0.050715"/>
-        <geom name="bay_module_9_flange_short_b" class="bay_aluminium" pos="1.1852 0 -0.01415" size="0.0058 0.567 0.00085" mass="0.050715"/>
-        <geom name="bay_module_9_laminate" class="bay_laminate" pos="0 0 0.0125" size="1.186 0.562 0.0025" mass="27.000000"/>
-        <site name="bay_fasten_module_9_0_b" class="bay_site_b" pos="-0.2 -0.548 -0.01415" quat="1 0 0 0"/>
-        <site name="bay_fasten_module_9_1_b" class="bay_site_b" pos="0.2 -0.548 -0.01415" quat="1 0 0 0"/>
-        <site name="bay_fasten_module_9_2_b" class="bay_site_b" pos="-0.2 0.548 -0.01415" quat="1 0 0 0"/>
-        <site name="bay_fasten_module_9_3_b" class="bay_site_b" pos="0.2 0.548 -0.01415" quat="1 0 0 0"/>
       </body>
     </body>
   </worldbody>

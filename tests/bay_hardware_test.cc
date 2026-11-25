@@ -18,7 +18,15 @@
 //   - the box round all the bay's geoms is the header's BayBoxMin/BayBoxMax;
 //   - no two parts overlap. MuJoCo makes no contacts between bodies fixed to
 //     the world, so this test gives every part a slide joint in a copy of the
-//     model, and shows with a module moved 1 mm down that an overlap is seen.
+//     model, and shows with a module moved 1 mm down that an overlap is seen;
+//   - the locating move (docs/bay-hardware.md, "Locating a module before
+//     pinning"), from the header's constants alone: over the corners of what
+//     the gate accepts the tip enters every hole, the least opening is the
+//     document's, the nose fully in leaves every hole inside the pin's play,
+//     the nose fits, rises under the laminate and needs only the free space
+//     the rail and the frame leave, the holes not yet located stay captured
+//     after the first, and the lift does not raise the module; and with
+//     deliberately bad slots or a bad nose the same check fails.
 //
 //   bazel test //:bay_hardware_test --test_output=all
 //
@@ -257,9 +265,9 @@ TEST_F(BayHardwareTest, Sites) {
       EXPECT_TRUE(expected_hold.count(name)) << "unexpected site " << name;
     }
   }
-  EXPECT_EQ(fasten_in_model, 102);
-  EXPECT_EQ(locate_in_model, 22);
-  EXPECT_EQ(hold_in_model, 12);
+  EXPECT_EQ(fasten_in_model, 92);
+  EXPECT_EQ(locate_in_model, 20);
+  EXPECT_EQ(hold_in_model, 11);
   EXPECT_EQ(fasten.found, 2 * bay::kFasteningCount);
   EXPECT_EQ(locate.found, 2 * bay::kLocatorCount);
   EXPECT_EQ(hold.found, bay::kHoldCount);
@@ -368,11 +376,14 @@ TEST_F(BayHardwareTest, Counts) {
   EXPECT_EQ(module_fastenings, bay::kModuleFasteningCount);
   EXPECT_EQ(fastenings, bay::kFasteningCount);
   // The document's numbers.
-  EXPECT_EQ(rails, 11);
-  EXPECT_EQ(modules, 10);
-  EXPECT_EQ(rail_fastenings, 11);
-  EXPECT_EQ(module_fastenings, 40);
-  EXPECT_EQ(fastenings, 51);
+  EXPECT_EQ(rails, 10);
+  EXPECT_EQ(modules, 9);
+  EXPECT_EQ(rail_fastenings, 10);
+  EXPECT_EQ(module_fastenings, 36);
+  EXPECT_EQ(fastenings, 46);
+  EXPECT_EQ(bay::kLocatorCount, 10);
+  EXPECT_EQ(bay::kHoldCount, 11);
+  EXPECT_NEAR(bay::kSectionLength, 10.616, 1e-9);
 }
 
 TEST_F(BayHardwareTest, Bodies) {
@@ -584,6 +595,326 @@ TEST_F(BayHardwareTest, NoOverlap) {
   std::printf("control, module 0 moved %.4f m down: ncon %d, deepest "
               "penetration with a rail %.3g m\n",
               kControlShift, control_data->ncon, -control_deepest);
+}
+
+// ------------------------------------------------------ the locating move
+
+constexpr double kMm = 1e-3;
+constexpr double kPi = 3.14159265358979323846;
+// Every 5 degrees round the disc's rim, the exact axes among them.
+constexpr int kTestRimSteps = 72;
+
+// The least opening over the rim at every step, both signs of yaw, every
+// combination of tolerance signs and all four holes, checked hole by hole.
+struct RimCheck {
+  int cases = 0;
+  int tip_misses = 0;
+  int outside_pin_play = 0;
+  double least_opening = 1e9;
+  double least_opening_direction_deg = -1.0;
+  double largest_located_gap = 0.0;
+};
+RimCheck CheckRim(const bay::LocatingDims& d, int steps) {
+  RimCheck r;
+  for (int step = 0; step < steps; ++step) {
+    for (int ys : {1, -1}) {
+      const bay::ModulePlacement p =
+          bay::RimPlacement(bay::kGateOffset, ys * bay::kGateYaw, step, steps);
+      for (int hole = 0; hole < 4; ++hole) {
+        for (int sa : {-1, 0, 1}) {
+          for (int sl : {-1, 0, 1}) {
+            ++r.cases;
+            const Eigen::Vector2d e = bay::HoleError(p, hole, sa, sl, d);
+            const double o = bay::Opening(e.x(), e.y(), d);
+            if (!bay::TipEnters(e.x(), e.y(), d)) ++r.tip_misses;
+            if (o < r.least_opening) {
+              r.least_opening = o;
+              r.least_opening_direction_deg = 360.0 * step / steps;
+            }
+            const Eigen::Vector2d at = bay::LocatedHole(e.x(), e.y(), d);
+            if (!bay::InsidePinPlay(at.x(), at.y(), d)) ++r.outside_pin_play;
+            r.largest_located_gap =
+                std::max(r.largest_located_gap, bay::SegmentGap(at.x(), at.y(), d));
+          }
+        }
+      }
+    }
+  }
+  return r;
+}
+
+TEST(LocatingMove, TipEntersEveryHoleTheGateAccepts) {
+  const bay::LocatingDims d;
+  for (int steps : {kTestRimSteps, 360, bay::kRimSteps}) {
+    const RimCheck r = CheckRim(d, steps);
+    EXPECT_EQ(r.tip_misses, 0) << steps << " steps";
+    EXPECT_GE(r.least_opening, bay::kNoseTipDiameter + bay::kNoseTipClearance);
+    // The document's least opening, 3.615 mm, straight across the tube.
+    EXPECT_NEAR(r.least_opening, 3.615 * kMm, 1e-6) << steps << " steps";
+    EXPECT_TRUE(r.least_opening_direction_deg == 0.0 ||
+                r.least_opening_direction_deg == 180.0)
+        << r.least_opening_direction_deg;
+    std::printf("rim in %d steps: %d cases, least opening %.4f mm at %.1f deg, "
+                "tip needs %.1f mm\n",
+                steps, r.cases, r.least_opening / kMm,
+                r.least_opening_direction_deg, bay::TipNeeds(d) / kMm);
+  }
+  const bay::GateWorst w = bay::WorstOverGate();
+  EXPECT_NEAR(w.opening, 3.615 * kMm, 1e-6);
+  EXPECT_NEAR(w.error_across, 4.935 * kMm, 1e-6);
+  EXPECT_NEAR(w.error_along, 4.524 * kMm, 1e-6);
+  EXPECT_DOUBLE_EQ(w.placement.dy, 0.0);
+  EXPECT_TRUE(bay::CapturesGate());
+}
+
+TEST(LocatingMove, CaptureRangeCoversTheGate) {
+  const Eigen::Vector2d capture = bay::CaptureLimit();
+  EXPECT_NEAR(capture.x(), 6.05 * kMm, 1e-9);
+  EXPECT_NEAR(capture.y(), 7.50 * kMm, 1e-9);
+  const double offset = bay::CaptureOffsetAtYaw();
+  const double yaw = bay::CaptureYawAtOffset();
+  EXPECT_GT(offset, bay::kGateOffset);
+  EXPECT_GT(yaw, bay::kGateYaw);
+  EXPECT_NEAR(offset, 4.115 * kMm, 1e-6);
+  EXPECT_NEAR(yaw, (6.05 - 3.0 - 0.5) / 548.0, 1e-6);
+  std::printf("capture: %.3f x %.3f mm of hole error; %.3f mm at the gate's "
+              "yaw, %.4f deg at the gate's offset\n",
+              capture.x() / kMm, capture.y() / kMm, offset / kMm,
+              yaw * 180.0 / kPi);
+}
+
+TEST(LocatingMove, NoseInLeavesHolesInsidePinPlay) {
+  const bay::LocatingDims d;
+  const RimCheck r = CheckRim(d, kTestRimSteps);
+  EXPECT_EQ(r.outside_pin_play, 0);
+  EXPECT_LE(r.largest_located_gap, bay::GapFor(d.nose, d) + 1e-12);
+  const Eigen::Vector2d leaves = bay::NoseLeaves(d);
+  const Eigen::Vector2d play = bay::PinPlay(d);
+  EXPECT_NEAR(leaves.x(), 1.95 * kMm, 1e-9);
+  EXPECT_NEAR(leaves.y(), 3.40 * kMm, 1e-9);
+  // The pin's play is the header's, and the nose leaves 0.25 of it each way.
+  EXPECT_NEAR(play.x(), bay::kModulePlayAcrossTube, 1e-12);
+  EXPECT_NEAR(play.y(), bay::kModulePlayAlongTube, 1e-12);
+  EXPECT_NEAR(play.x() - leaves.x(), 0.25 * kMm, 1e-9);
+  EXPECT_NEAR(play.y() - leaves.y(), 0.25 * kMm, 1e-9);
+  // A hole already inside what the nose leaves is not moved.
+  const Eigen::Vector2d still = bay::LocatedHole(1.0 * kMm, -2.0 * kMm, d);
+  EXPECT_NEAR(still.x(), 1.0 * kMm, 1e-12);
+  EXPECT_NEAR(still.y(), -2.0 * kMm, 1e-12);
+  // The worst hole slides to the edge of what the nose leaves.
+  const Eigen::Vector2d slide = bay::Slide(4.935 * kMm, 0.0, d);
+  EXPECT_NEAR(slide.x(), 2.985 * kMm, 1e-9);
+  EXPECT_NEAR(slide.y(), 0.0, 1e-12);
+  std::printf("nose in: within %.2f x %.2f mm, pin's play %.2f x %.2f mm; "
+              "largest gap of a located hole %.3f mm\n",
+              leaves.x() / kMm, leaves.y() / kMm, play.x() / kMm,
+              play.y() / kMm, r.largest_located_gap / kMm);
+}
+
+TEST(LocatingMove, NoseFitsAndRisesUnderTheLaminate) {
+  const bay::LocatingDims d;
+  EXPECT_TRUE(bay::NoseFits(d));
+  EXPECT_LT(bay::kNoseDiameter, bay::kRailSlotAcrossTube);
+  EXPECT_LT(bay::kNoseDiameter, bay::kModuleSlotAlongTube);
+  EXPECT_GE(bay::kNoseDiameter, bay::kPinDiameter);
+  EXPECT_NEAR(bay::kNoseLength, 15.6 * kMm, 1e-12);
+  EXPECT_NEAR(bay::kNoseRise, 10.6 * kMm, 1e-12);
+  // The land holds both sheets and the over-travel.
+  EXPECT_GE(bay::kNoseLandLength,
+            bay::kNoseOverTravel + bay::kRailSheet + bay::kFlangeThickness);
+  // The free height over the flange, from the module's constants: 30 - 1.7
+  // - 5 = 23.3, which the document rounds to 23.
+  EXPECT_NEAR(bay::kFreeAboveFlange, 23.3 * kMm, 1e-12);
+  EXPECT_LT(bay::kNoseRise, 23.0 * kMm);
+  EXPECT_LE(bay::kNoseRise, bay::kLocateFreeHeightAbove);
+  EXPECT_LT(bay::kLocateFreeHeightAbove, bay::kFreeAboveFlange);
+  const double half_angle = bay::NoseHalfAngle(d) * 180.0 / kPi;
+  EXPECT_NEAR(half_angle, 14.97, 0.01);
+  std::printf("nose: %.1f long, rises %.1f of %.1f mm free, half angle "
+              "%.2f deg\n",
+              bay::kNoseLength / kMm, bay::kNoseRise / kMm,
+              bay::kFreeAboveFlange / kMm, half_angle);
+}
+
+TEST(LocatingMove, NominalPlaceIsInsideWhatTheNoseLeaves) {
+  const bay::LocatingDims d;
+  for (int hole = 0; hole < 4; ++hole) {
+    for (int sa : {-1, 0, 1}) {
+      for (int sl : {-1, 0, 1}) {
+        const Eigen::Vector2d e = bay::HoleError(0.0, 0.0, 0.0, hole, sa, sl, d);
+        EXPECT_LE(bay::SegmentGap(e.x(), e.y(), d), bay::GapFor(d.nose, d))
+            << "hole " << hole;
+        const Eigen::Vector2d at = bay::LocatedHole(e.x(), e.y(), d);
+        EXPECT_NEAR((at - e).norm(), 0.0, 1e-12) << "hole " << hole;
+      }
+    }
+  }
+}
+
+TEST(LocatingMove, LaterHolesStayCapturedAfterTheFirst) {
+  const bay::LocatingDims d;
+  EXPECT_EQ(bay::kLocateOrder[0], 0);
+  for (bay::LocateMotion m : {bay::LocateMotion::kShift, bay::LocateMotion::kTurn}) {
+    // Hole 0 ends where LocatedHole puts it, by either motion.
+    for (int step = 0; step < kTestRimSteps; ++step) {
+      for (int ys : {1, -1}) {
+        const bay::ModulePlacement p = bay::RimPlacement(
+            bay::kGateOffset, ys * bay::kGateYaw, step, kTestRimSteps);
+        for (int sa : {-1, 1}) {
+          for (int sl : {-1, 1}) {
+            const Eigen::Vector2d e = bay::HoleError(p, 0, sa, sl, d);
+            const bay::ModulePlacement q = bay::AfterLocating(p, 0, sa, sl, m, d);
+            const Eigen::Vector2d after = bay::HoleError(q, 0, sa, sl, d);
+            const Eigen::Vector2d want = bay::LocatedHole(e.x(), e.y(), d);
+            EXPECT_NEAR((after - want).norm(), 0.0, 1e-9) << bay::MotionName(m);
+            EXPECT_TRUE(bay::InsidePinPlay(after.x(), after.y(), d));
+            for (int hole = 1; hole < 4; ++hole) {
+              for (int ha : {-1, 1}) {
+                for (int hl : {-1, 1}) {
+                  const Eigen::Vector2d later = bay::HoleError(q, hole, ha, hl, d);
+                  EXPECT_TRUE(bay::TipEnters(later.x(), later.y(), d))
+                      << bay::MotionName(m) << " hole " << hole;
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    const bay::LaterHoles l = bay::LaterHolesAfterFirst(m);
+    EXPECT_TRUE(l.captured) << bay::MotionName(m);
+    EXPECT_GE(l.opening, bay::TipNeeds(d));
+    // Never further out than the gate's worst.
+    EXPECT_LE(l.error_across, 4.935 * kMm + 1e-6);
+    EXPECT_LE(l.error_along, 4.524 * kMm + 1e-6);
+    std::printf("after hole 0 by %s: later holes at most %.3f across, %.3f "
+                "along, least opening %.3f mm\n",
+                bay::MotionName(m), l.error_across / kMm, l.error_along / kMm,
+                l.opening / kMm);
+  }
+}
+
+TEST(LocatingMove, FreeSpaceIsInsideTheHatAndTheFrame) {
+  // Below: inside the hat the web's inner face is 100 / 2 - 2 - 24 = 24 from
+  // the hole's axis, along the tube; across it the rail's end is 230 - 200 =
+  // 30 from it; and the tube, 62 in radius, is 200 away.
+  const double inset = bay::kModuleGap / 2.0 + bay::kHoleFromLongEdge;
+  const double web = bay::kRailTopWidth / 2.0 - bay::kRailSheet - inset;
+  EXPECT_NEAR(web, 24.0 * kMm, 1e-12);
+  EXPECT_LT(bay::kLocateFreeRadiusBelow, web);
+  EXPECT_LT(bay::kLocateFreeRadiusBelow,
+            bay::kRailLength / 2.0 - bay::kHolePairSpacing / 2.0);
+  EXPECT_LT(bay::kLocateFreeRadiusBelow + bay::kTubeRadius,
+            bay::kHolePairSpacing / 2.0);
+  EXPECT_LE(bay::kLocateFreeLengthBelow, bay::kRailDepth);
+  // The swaging tool and the tip's travel along the rail's slot.
+  EXPECT_GE(bay::kLocateFreeRadiusBelow,
+            bay::kPinFreeRadius +
+                (bay::kRailSlotAlongTube - bay::kNoseTipDiameter) / 2.0);
+  EXPECT_GE(bay::kLocateFreeLengthBelow, bay::kPinToolLength);
+  // Above: the nose stays within the rail's slot's outline, 6.5 from the
+  // axis, and the frame's upright part is 19 - 10 = 9 from the hole.
+  EXPECT_GE(bay::kLocateFreeRadiusAbove, bay::kRailSlotAlongTube / 2.0);
+  EXPECT_LT(bay::kLocateFreeRadiusAbove,
+            bay::kHoleFromLongEdge - bay::kFrameUprightWidth);
+  std::printf("free space: below %.0f of %.0f to the web, above %.0f of %.0f "
+              "to the frame's upright\n",
+              bay::kLocateFreeRadiusBelow / kMm, web / kMm,
+              bay::kLocateFreeRadiusAbove / kMm,
+              (bay::kHoleFromLongEdge - bay::kFrameUprightWidth) / kMm);
+}
+
+TEST(LocatingMove, ForcesDoNotLiftTheModule) {
+  const bay::LocatingDims d;
+  EXPECT_NEAR(bay::ModuleWeight(), 317.844, 1e-9);
+  EXPECT_NEAR(bay::SlideForce(d), 0.61 * 317.844, 1e-9);
+  EXPECT_NEAR(bay::TurnForce(d), bay::SlideForce(d) / 2.0, 1e-12);
+  // The push and the lift balance the friction with the weight the lift
+  // takes off: H = mu (W - V).
+  EXPECT_NEAR(bay::NosePush(d),
+              d.friction * (bay::ModuleWeight() - bay::NoseLift(d)), 1e-9);
+  EXPECT_LT(bay::NosePush(d), bay::SlideForce(d));
+  EXPECT_LT(bay::NoseLift(d), bay::ModuleWeight() / 2.0);
+  EXPECT_LT(bay::NoseThrust(d), bay::kNoseToolThrust);
+  std::printf("forces: slide %.1f, turn %.1f, push %.1f, lift %.1f (half the "
+              "weight %.1f), thrust %.1f of %.0f N\n",
+              bay::SlideForce(d), bay::TurnForce(d), bay::NosePush(d),
+              bay::NoseLift(d), bay::ModuleWeight() / 2.0, bay::NoseThrust(d),
+              bay::kNoseToolThrust);
+}
+
+// The capture takes the rails' slots at their nominal places; measured from
+// the tube's nominal frame, the rail's own play would put a hole outside it.
+// So the assumption that the gate is measured from the rails matters.
+TEST(LocatingMove, RailPlayWouldExceedTheCaptureFromTheTubeFrame) {
+  const bay::LocatingDims d;
+  EXPECT_NEAR(bay::RailPlayAlongAtHole(),
+              bay::kRailPlayAlongTube + bay::kRailPlayYaw * 0.200, 1e-12);
+  const double along = bay::HoleErrorAlongFromTubeFrame(d);
+  EXPECT_NEAR(along, 4.524 * kMm + bay::RailPlayAlongAtHole(), 1e-6);
+  EXPECT_GT(along, bay::CaptureLimit(d).y());
+  // Without the rail's play it is inside.
+  EXPECT_LT(bay::WorstOverGate().error_along, bay::CaptureLimit(d).y());
+  std::printf("from the tube's frame: %.3f along against the capture's "
+              "%.3f mm\n",
+              along / kMm, bay::CaptureLimit(d).y() / kMm);
+}
+
+// Above this friction the nose would lift the frame's edge, not slide it.
+TEST(LocatingMove, FrictionIsUnderTheLiftLimit) {
+  const bay::LocatingDims d;
+  const double limit = bay::LiftLimitFriction(d);
+  EXPECT_GT(limit, d.friction);
+  bay::LocatingDims at = d;
+  at.friction = limit;
+  EXPECT_NEAR(bay::NoseLift(at), bay::ModuleWeight() / 2.0, 1e-6);
+  std::printf("friction %.2f, lift limit %.3f\n", d.friction, limit);
+}
+
+// The check can fail: with a bad nose or a bad slot the capture is lost.
+TEST(LocatingMove, BadDimensionsFailTheCapture) {
+  bay::LocatingDims big_tip;
+  big_tip.tip = 4.0 * kMm;
+  EXPECT_FALSE(bay::CapturesGate(bay::kGateOffset, bay::kGateYaw, big_tip));
+  EXPECT_GT(CheckRim(big_tip, kTestRimSteps).tip_misses, 0);
+  EXPECT_LT(bay::CaptureOffsetAtYaw(bay::kGateYaw, big_tip), bay::kGateOffset);
+
+  // A frame slot shorter across the tube: at 8 mm the opening is still
+  // 2.615 mm, the capture is lost below 7.77 mm, and at 7.5 it is 2.365.
+  bay::LocatingDims eight;
+  eight.frame_slot_across = 8.0 * kMm;
+  EXPECT_NEAR(bay::WorstOverGate(bay::kGateOffset, bay::kGateYaw, eight).opening,
+              2.615 * kMm, 1e-6);
+  bay::LocatingDims short_slot;
+  short_slot.frame_slot_across = 7.5 * kMm;
+  EXPECT_FALSE(bay::CapturesGate(bay::kGateOffset, bay::kGateYaw, short_slot));
+  EXPECT_GT(CheckRim(short_slot, kTestRimSteps).tip_misses, 0);
+
+  bay::LocatingDims thin_nose;
+  thin_nose.nose = 6.0 * kMm;
+  EXPECT_FALSE(bay::NoseFits(thin_nose));
+  EXPECT_GT(CheckRim(thin_nose, kTestRimSteps).outside_pin_play, 0);
+
+  bay::LocatingDims fat_nose;
+  fat_nose.nose = 7.05 * kMm;
+  EXPECT_FALSE(bay::NoseFits(fat_nose));
+
+  // The later holes are no longer captured with the big tip.
+  EXPECT_FALSE(
+      bay::LaterHolesAfterFirst(bay::LocateMotion::kShift, bay::kGateOffset,
+                                bay::kGateYaw, big_tip, kTestRimSteps)
+          .captured);
+
+  // And a placement the gate does not accept is lost with the constants:
+  // 5 mm straight across at the gate's yaw.
+  const bay::LocatingDims d;
+  EXPECT_FALSE(bay::CapturesGate(5.0 * kMm, bay::kGateYaw, d));
+  std::printf("bad dimensions: tip 4 mm needs %.1f of %.3f mm; frame slot "
+              "7.5 mm across least opening %.3f mm (needs %.1f)\n",
+              bay::TipNeeds(big_tip) / kMm,
+              bay::WorstOverGate(bay::kGateOffset, bay::kGateYaw, big_tip).opening / kMm,
+              bay::WorstOverGate(bay::kGateOffset, bay::kGateYaw, short_slot).opening / kMm,
+              bay::TipNeeds(d) / kMm);
 }
 
 }  // namespace

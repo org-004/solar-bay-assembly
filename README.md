@@ -106,10 +106,21 @@ it, and can carry it to the other side along a planned path.
 
 **The bay's real parts and the container** exist as models beside the cell,
 which still uses its old square tube: a round torque tube with its rails,
-modules and 51 named fastening points (`models/bay.xml`,
+modules and 46 named fastening points (`models/bay.xml`,
 `src/bay_hardware.h`), and a 40 ft container with its long sides open
 (`models/container.xml`, `src/container.h`). Every figure and its source
 is in `docs/bay-hardware.md`.
+
+**The new cell is designed and not yet running.** The cell that will build
+bays from the real parts (rails fastened to the tube, modules located and
+pinned to the rails, inside the container) exists as layouts written as
+data (`layouts/`), each checked by a program for transport, reach,
+clearance, load, the ways in and out and time
+(`bazel run --config=opt //:check_layout -- --list`), and the chosen one as
+a model that can be looked at (`//:viewer_layout`). Nothing in it moves yet:
+it has no controllers, no cycle, no cameras and no gate.
+[`docs/layout.md`](docs/layout.md) holds the design, the comparison of the
+layouts and the reasons for the choice.
 
 **The cell** (`models/cell.xml`). A KUKA KR 210 R2700-2, converted from the
 vendor's robot description, with a suction tool. A pallet tilted 10 degrees

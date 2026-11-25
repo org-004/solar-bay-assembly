@@ -1651,6 +1651,50 @@ cc_library(
     deps = ["@eigen"],
 )
 
+# The text of models/bay.xml, computed from the header's constants, and the
+# shapes of its rail and its module one at a time.
+# Include as "src/bay_model.h".
+cc_library(
+    name = "bay_model",
+    srcs = ["src/bay_model.cc"],
+    hdrs = ["src/bay_model.h"],
+    deps = [
+        ":bay_hardware",
+        "@eigen",
+    ],
+)
+
+# Prints models/bay.xml and nothing else. To write the file again:
+#   bazel run --config=opt //:gen_bay > models/bay.xml
+cc_binary(
+    name = "gen_bay",
+    srcs = ["src/gen_bay.cc"],
+    deps = [":bay_model"],
+)
+
+# Fails when the committed models/bay.xml is not what the generator prints,
+# and checks the generator's options on models MuJoCo loads.
+#   bazel test //:bay_model_test --test_output=all
+cc_test(
+    name = "bay_model_test",
+    size = "small",
+    srcs = ["tests/bay_model_test.cc"],
+    data = MODELS_COMMON + ["models/bay.xml"],
+    env = {
+        "BAY_XML": "$(rootpath models/bay.xml)",
+        "COMMON_XML": "$(rootpath models/common.xml)",
+    },
+    deps = [
+        ":bay_hardware",
+        ":bay_model",
+        ":container",
+        ":mj_handles",
+        "@eigen",
+        "@googletest//:gtest_main",
+        "@mujoco",
+    ],
+)
+
 # Prints the bay's fastening points as CSV, one row each, or with --summary
 # the bay's counts, size and mass.
 #   bazel run //:print_bay
@@ -1693,6 +1737,19 @@ cc_binary(
         ":mj_handles",
         ":viewer_lib",
         "@mujoco",
+    ],
+)
+# The gate's figures as src/bay_hardware.h repeats them for the locating
+# move, against cell::PlacementTolerance.
+#   bazel test //:locating_gate_test
+cc_test(
+    name = "locating_gate_test",
+    size = "small",
+    srcs = ["tests/locating_gate_test.cc"],
+    deps = [
+        ":bay_hardware",
+        ":trial_runner",
+        "@googletest//:gtest_main",
     ],
 )
 # END bay
@@ -1750,3 +1807,183 @@ cc_binary(
     ],
 )
 # END container
+
+# BEGIN layout
+# A layout of the new cell as data (layouts/*.json, src/layout.h), the arms
+# it may use (src/arm_catalog.h), and the MuJoCo model made from a layout
+# (src/layout_model.h). docs/layout.md explains the layouts.
+LAYOUT_FILES = glob(["layouts/*.json"])
+
+# What a layout's model is built from at run time: the container, the
+# common settings, the KUKA with its meshes, and Menagerie's UR10e.
+LAYOUT_MODEL_FILES = MODELS_COMMON + [
+    "models/arm.xml",
+    "models/container.xml",
+    ":arm_meshes",
+] + UR10E_FILES
+
+# What every program that builds a layout's model is started with.
+LAYOUT_ENV = {
+    "LAYOUT_DIR": "layouts",
+    "MODELS_DIR": "models",
+    "UR10E_XML": "$(rootpath %s)" % UR10E,
+}
+
+cc_library(
+    name = "layout",
+    srcs = ["src/layout.cc"],
+    hdrs = [
+        "src/arm_catalog.h",
+        "src/layout.h",
+    ],
+    deps = ["@nlohmann_json//:json"],
+)
+
+cc_library(
+    name = "layout_model",
+    srcs = ["src/layout_model.cc"],
+    hdrs = ["src/layout_model.h"],
+    deps = [
+        ":bay_hardware",
+        ":bay_model",
+        ":container",
+        ":layout",
+        ":mj_handles",
+        "@eigen",
+        "@mujoco",
+    ],
+)
+
+# Every layout loads; the chosen one's model agrees with its file and
+# nothing in it overlaps.
+#   bazel test --config=opt //:layout_model_test --test_output=all
+cc_test(
+    name = "layout_model_test",
+    size = "small",
+    srcs = ["tests/layout_model_test.cc"],
+    data = LAYOUT_FILES + LAYOUT_MODEL_FILES,
+    env = LAYOUT_ENV,
+    deps = [
+        ":bay_hardware",
+        ":container",
+        ":layout",
+        ":layout_model",
+        ":mj_handles",
+        "@eigen",
+        "@googletest//:gtest_main",
+        "@mujoco",
+        "@nlohmann_json//:json",
+    ],
+)
+
+# Draws a layout in a window, in a state of the bay or at a work point.
+#   bazel run --config=opt //:viewer_layout -- below --state finished
+cc_binary(
+    name = "viewer_layout",
+    srcs = ["src/view_layout.cc"],
+    data = LAYOUT_FILES + LAYOUT_MODEL_FILES,
+    env = LAYOUT_ENV,
+    deps = [
+        ":layout",
+        ":layout_check",
+        ":layout_model",
+        ":mj_handles",
+        ":viewer_lib",
+        "@mujoco",
+    ],
+)
+# END layout
+
+# BEGIN layout_check
+# The checks on a layout (src/layout_check.h) and the program that prints
+# them.
+cc_library(
+    name = "layout_check",
+    srcs = ["src/layout_check.cc"],
+    hdrs = ["src/layout_check.h"],
+    deps = [
+        ":bay_hardware",
+        ":container",
+        ":layout",
+        ":layout_model",
+        ":mj_handles",
+        ":portable_random",
+        "@eigen",
+        "@mujoco",
+    ],
+)
+
+# One row per check of a layout, or the layouts' names.
+#   bazel run --config=opt //:check_layout -- --list
+#   bazel run --config=opt //:check_layout -- below [--summary|--steps] [--pretty]
+cc_binary(
+    name = "check_layout",
+    srcs = ["src/check_layout.cc"],
+    data = LAYOUT_FILES + LAYOUT_MODEL_FILES,
+    env = LAYOUT_ENV,
+    deps = [
+        ":layout",
+        ":layout_check",
+        ":layout_model",
+    ],
+)
+
+# The reference layout passes; a copy broken in memory fails each check.
+#   bazel test --config=opt //:layout_check_test
+cc_test(
+    name = "layout_check_test",
+    size = "small",
+    srcs = ["tests/layout_check_test.cc"],
+    data = LAYOUT_FILES + LAYOUT_MODEL_FILES,
+    env = LAYOUT_ENV,
+    deps = [
+        ":bay_hardware",
+        ":container",
+        ":layout",
+        ":layout_check",
+        ":layout_model",
+        "@eigen",
+        "@googletest//:gtest_main",
+    ],
+)
+# END layout_check
+
+# BEGIN locate
+# R8: the locating move on one module in physics (tests/locate_physics_test.cc).
+cc_test(
+    name = "locate_physics_test",
+    size = "medium",
+    srcs = ["tests/locate_physics_test.cc"],
+    deps = [
+        ":bay_hardware",
+        ":bay_model",
+        ":mj_handles",
+        "@eigen",
+        "@googletest//:gtest_main",
+        "@mujoco",
+    ],
+)
+# END locate
+
+# BEGIN layout_moves
+# R16: the layout check's time model against the repository's planner
+# (src/rrt.h, src/path_timing.h) for a few of a layout's moves.
+#   bazel run --config=opt //:print_layout_moves -- below
+cc_binary(
+    name = "print_layout_moves",
+    srcs = ["src/print_layout_moves.cc"],
+    data = LAYOUT_FILES + LAYOUT_MODEL_FILES,
+    env = LAYOUT_ENV,
+    deps = [
+        ":joint_move",
+        ":layout",
+        ":layout_check",
+        ":layout_model",
+        ":mj_handles",
+        ":path_timing",
+        ":rrt",
+        "@eigen",
+        "@mujoco",
+    ],
+)
+# END layout_moves

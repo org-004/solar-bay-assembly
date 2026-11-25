@@ -30,6 +30,7 @@
 #include <functional>
 #include <optional>
 #include <string>
+#include <vector>
 
 #include <mujoco/mujoco.h>
 
@@ -80,6 +81,21 @@ struct ViewerOptions {
   // A named pipe works.
   std::string record_path;
   double record_fps = 15.0;
+  // Geom and site groups (0 to 5) to draw in addition to the defaults, which
+  // are groups 0, 1 and 2. Empty leaves the defaults as they are.
+  std::vector<int> extra_groups;
+};
+
+// What a program that loads a model and hands it to RunViewer needs besides
+// ViewerOptions, as ParseViewerArgs reads it from the command line.
+struct ViewerRun {
+  // The keyframe to start from, by name or by index, as the user typed it.
+  // Empty means the first one, if the model has keyframes. ResolveKeyframe
+  // turns it into an index.
+  std::string key;
+  // When not negative, the program closes the viewer this many simulated
+  // seconds after the start (--quit-at). The caller makes the quit hook.
+  double quit_at = -1.0;
 };
 
 // Opens a window and runs until it is closed. Returns 0, or 1 if no window could be opened.
@@ -96,6 +112,35 @@ int RunViewer(const mjModel* model, mjData* data, const ViewerHooks& hooks = {},
 // The same, started and run as `options` say. Returns 1 also if the recording
 // file cannot be opened or written.
 int RunViewer(const mjModel* model, mjData* data, const ViewerHooks& hooks, const char* title, const ViewerOptions& options);
+
+// Reads the options that every plain viewer program shares, from argv[first]
+// to the end, into `options` and `run`. The options are --lookat X,Y,Z,
+// --distance D, --azimuth DEG, --elevation DEG, --speed K, --overlay
+// full|none, --no-overlay, --overlay-at top|bottom, --caption TEXT,
+// --font-scale P, --size WxH, --record PATH, --fps F, --quit-at T, --key
+// NAME_OR_INDEX and --groups LIST. They are spelled, valued and checked as
+// src/view_cell.cc does for the ones it has: --overlay short is not accepted
+// because it shows the cell's step, and --overlay none or --no-overlay turns
+// off the viewer's own corner line (options->viewer_line). --groups takes
+// comma-separated numbers from 0 to 5 and adds them to
+// options->extra_groups. Fields whose option is absent are left as the caller
+// set them. Returns true on success. On the first bad, unknown or incomplete
+// option it returns false and sets *error to one line that says which. The
+// caller then prints *error and ViewerArgsUsage() and exits with 1.
+bool ParseViewerArgs(int argc, char** argv, int first, ViewerOptions* options,
+                     ViewerRun* run, std::string* error);
+
+// The usage lines for the options ParseViewerArgs reads, to follow the
+// program's own "usage: NAME MODEL" line. Each line ends with a newline.
+const char* ViewerArgsUsage();
+
+// Finds the keyframe that `key` names: the name of a keyframe in the model,
+// or else a whole number from 0 to nkey - 1. An empty `key` is the first
+// keyframe. Sets *index and returns true; returns false with *error set when
+// the model has no such keyframe (an empty `key` on a model without
+// keyframes gives *index -1 and succeeds).
+bool ResolveKeyframe(const mjModel* model, const std::string& key, int* index,
+                     std::string* error);
 
 }  // namespace cell
 
