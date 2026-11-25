@@ -85,16 +85,22 @@ for the same thing, the checker's figure is given.
   neighbouring module. Standing one pitch (1.144 m) along the tube, opposite the next
   slot, which is still empty, it clears. So modules are set in order from the front wall
   toward the rear doors, the arm always one pitch ahead, and the last module is set from
-  one pitch behind. In the chosen layout that last set-down is the module arm's
-  tightest pose: 0.0477 m from its link 2 to module 7's frame (`check_layout` row
-  `module_set 8`).
+  one pitch behind. In the chosen layout that last set-down is the tightest of the nine
+  set-downs: 0.0477 m from the arm's link 2 to module 7's frame (`check_layout` row
+  `module_set 8`). The module arm has tighter rows elsewhere: `rail_set 0` and 34 of
+  the 36 `module_take` rows, at 0.0300 m.
 - **Nine modules need a track.** From one stand the KR 210 covers three modules; nine
   need a track, or three such arms.
-- **The tubes come in from the side.** The tube's axis has to be 1.75 m from the module
+- **Where the tube lies, and the door.** The tube's axis has to be 1.75 m from the module
   arm's axis. With the arm's base inside the inside envelope (x up to 0.70), the tube's
-  axis lies at x = -1.05. A tube that came in through the rear door frame (opening
-  +/-1.039 wide) could lie no further out than x = -0.95. So tubes come in through the
-  -X side.
+  axis lies at x = -1.05, 1.05 m from the centre line. `docs/bay-hardware.md` (The
+  container) gives what an end door lets through: between the corner posts as this
+  project's container assumes them (180 mm across each, `ours`; 2,078 mm apart) a tube's
+  axis could lie up to 0.977 m from the centre line; through a usual container door
+  opening of 2,340 mm, up to 1.108 m. The tube at 1.05 m would therefore not pass the
+  posts as assumed here, and would pass a usual door opening, by 58 mm. The layouts bring
+  tubes in through the -X side (Decision 2); with a usual door opening, the rear doors
+  would also do, and a later spec can reopen this.
 - **The tube's height.** With the axis at z = 1.25 the small arm below could not reach the
   +X pins clear of the floor. At z = 1.40 (0.95 above the floor) everything from below
   was reached with about 0.1 m to spare in the probe, and the module arm still cleared the
@@ -149,10 +155,11 @@ above, bolts along -X, and the pins from below with the tool pointing up, as in 
 
 **`above`.** The small arm hangs upside down (base roll 180 degrees) from a carriage on a
 beam under the roof at x = -0.55, base 2.20 above the ground, running along the
-container above the bay. It sets the rails from above and drives the bolts, and is meant
-to locate, pin and swage from above; the layout's own summary expected that it could
-not reach the undersides of the rails once the modules lie on them. Its tools and work
-are otherwise those of `below`.
+container above the bay. It sets the rails from above and drives the bolts, and is given
+the locating, the pins and the swaging too. The checker finds a pose for every such
+point, but only with the arm passing through the modules that lie on the rails, and its
+beam is where the module arm's upper arm has to be, so the layout fails the clearance
+check (What makes `above` fail). Its tools and work are otherwise those of `below`.
 
 ![`above`: the small arm hangs from its roof carriage and sets rail 4 with its rail gripper; rails already set lie on the tube to the left; the module arm waits beside it with its gripper raised](img/layout_above.png)
 
@@ -160,8 +167,19 @@ are otherwise those of `below`.
 
 Each check's cell gives rows passed of rows; where a check fails, its worst row as
 `check_layout -- <name> --summary` prints it. All figures are from the result of
-`check_layout -- <name>` for each layout. The times rest on the time model described in
-Building one bay, whose process times are ours.
+`check_layout -- <name>` for each layout. The `time` rows have no limit: they pass when
+every step has a pose, so the bay's time is compared here, not judged by the checker.
+
+The times rest on the time model printed in Building one bay, whose process times are
+ours. Where two arms share a phase, the model works them side by side by a fixed rule:
+the following arm (the bolting arm in the rail phase, the pin arm in the module phase)
+starts rail or module k when the leading arm has finished k and it has itself finished
+k-1, so the phase is the largest over k of the leading arm's steps on 0..k plus the
+following arm's steps on k to the last. The rule assumes that the two arms can work at
+the same time without waiting for each other except at that hand-over, that each arm's
+moves take what the model says, and that the following arm can stand where it works
+while the leading arm works one rail or one module ahead. None of this is checked: each
+pose is checked with the other arm at its wait pose.
 
 | | `above` | `below` | `below_each_rail` | `below_rails_by_module_arm` | `beside` |
 |---|---|---|---|---|---|
@@ -169,17 +187,18 @@ Building one bay, whose process times are ours.
 | Small arm stands | above, hanging from a roof track | below, on a floor track | below, on a floor track | below, on a floor track | beside, on a raised beam |
 | Rails set by | small arm | small arm | small arm | module arm | small arm |
 | Rail order | all rails, then all bolts | all rails, then all bolts | each rail, then its bolt | module arm sets, small arm bolts one rail behind | all rails, then all bolts |
-| transport | 5 of 5 | 5 of 5 | 5 of 5 | 5 of 5 | 5 of 5 |
+| transport | 7 of 7 | 7 of 7 | 7 of 7 | 7 of 7 | 7 of 7 |
 | hold | 8 of 8 | 8 of 8 | 8 of 8 | 8 of 8 | 8 of 8 |
 | load | 4 of 4 | 4 of 4 | 4 of 4 | 3 of 3 | 4 of 4 |
-| reach | 184 of 184 | 184 of 184 | 184 of 184 | 184 of 184 | 184 of 184 |
-| clearance | **161 of 266; worst `module_set 8` -0.2100 m** | 266 of 266 | 266 of 266 | 266 of 266 | 266 of 266 |
+| reach | 186 of 186 | 186 of 186 | 186 of 186 | 186 of 186 | 186 of 186 |
+| clearance | **165 of 270; worst `module_set 8` -0.2100 m** | 270 of 270 | 270 of 270 | 270 of 270 | 270 of 270 |
 | ways | 2 of 2 | 2 of 2 | 2 of 2 | 2 of 2 | 2 of 2 |
 | time | 3 of 3 | 3 of 3 | 3 of 3 | 3 of 3 | 3 of 3 |
 | Exit code of `check_layout -- <name>` | 1 | 0 | 0 | 0 | 0 |
-| Tightest clearance row (`--summary` worst) | `module_set 8` -0.2100 m (fails) | `locate 8/1` 0.0184 m | `locate 8/1` 0.0184 m | `locate 8/1` 0.0184 m | `locate 0/3` 0.0173 m |
-| Time for a bay | 832.2 s | 739.1 s | 870.6 s | 628.5 s | 747.3 s |
-| Its phases | tube in 40.0 + clamp 5.0 + rails 240.4 (setting 148.3, bolting 92.1, one arm) + modules 501.8 (module arm 106.6, pin arm 491.4) + end 45.0 | tube in 40.0 + clamp 5.0 + rails 236.0 (setting 143.7, bolting 92.2, one arm) + modules 413.1 (module arm 106.6, pin arm 402.7) + end 45.0 | tube in 40.0 + clamp 5.0 + rails 367.5 (setting 215.7, bolting 151.7, one arm) + modules 413.1 (module arm 106.6, pin arm 402.7) + end 45.0 | tube in 40.0 + clamp 5.0 + rails 123.2 (setting 115.4, bolting 84.4) + modules 415.3 (module arm 108.8, pin arm 402.7) + end 45.0 | tube in 40.0 + clamp 5.0 + rails 237.9 (setting 145.7, bolting 92.2, one arm) + modules 419.4 (module arm 106.6, pin arm 409.0) + end 45.0 |
+| Clearance's worst row (`--summary`) | `module_set 8` -0.2100 m (fails) | `tool in free space pin pin_tool` 0.0003 m | `tool in free space pin pin_tool` 0.0003 m | `tool in free space pin pin_tool` 0.0003 m | `tool in free space pin pin_tool` 0.0003 m |
+| Tightest pose of an arm (least distance, limit 0.010 m) | 9 `module_set` rows at -0.2100 m (fail) | 48 `locate`, `pin` and `swage` rows at 0.0184 m (e.g. `locate 0/3`) | as `below` | as `below` | `rail_take 0` to `rail_take 9` at 0.0121 m: the held rail against the small arm's own forearm |
+| Time for a bay | 832.2 s | 738.9 s | 874.1 s | 628.5 s | 747.3 s |
+| Its phases | tube in 40.0 + clamp 5.0 + rails 240.4 (setting 148.3, bolting 92.1, one arm) + modules 501.8 (module arm 106.6, pin arm 491.4) + end 45.0 | tube in 40.0 + clamp 5.0 + rails 236.3 (setting 144.1, bolting 92.2, one arm) + modules 412.6 (module arm 106.6, pin arm 402.2) + end 45.0 | tube in 40.0 + clamp 5.0 + rails 371.6 (setting 216.1, bolting 155.5, one arm) + modules 412.6 (module arm 106.6, pin arm 402.2) + end 45.0 | tube in 40.0 + clamp 5.0 + rails 123.2 (setting 115.4, bolting 84.4) + modules 415.3 (module arm 108.8, pin arm 402.7) + end 45.0 | tube in 40.0 + clamp 5.0 + rails 237.9 (setting 145.7, bolting 92.2, one arm) + modules 419.4 (module arm 106.6, pin arm 409.0) + end 45.0 |
 | Arms | 2: one KUKA KR 210 R2700-2 on a floor track; one UR10e on a roof track, upside down | 2: one KR 210 on a floor track; one UR10e on a floor track | 2: as `below` | 2: as `below` | 2: one KR 210 on a floor track; one UR10e on a raised beam |
 | Tools | module gripper; rail gripper, nutrunner, pin tool | module gripper; rail gripper, nutrunner, pin tool | as `below` | combined gripper (modules and rails); nutrunner, pin tool | as `below` |
 | Mass that travels inside, of 17,200 kg | 3,223.3 kg: arms 1110, tracks 1850, tools 43.0, holder 220, items 0 | 3,223.3 kg: the same | 3,223.3 kg: the same | 3,227.3 kg: arms 1110, tracks 1850, tools 47.0, holder 220, items 0 | 3,348.3 kg: arms 1110, tracks 1900, tools 43.0, holder 220, items 75 (the beam's posts) |
@@ -193,19 +212,20 @@ The figures are each layout's `time,bay` and `time,busy` rows.
 
 | Way | Layout | Bay | Rail phase | Small arm busy | Module arm busy | Basis |
 |---|---|---|---|---|---|---|
-| The small arm sets all ten rails, then drives all ten bolts | `below` | 739.1 s | 236.0 s (setting 143.7, bolting 92.2, one arm) | 648.7 s | 110.2 s | derived |
-| The small arm sets and bolts each rail in turn, two tool changes a rail | `below_each_rail` | 870.6 s | 367.5 s (setting 215.7, bolting 151.7, one arm) | 780.2 s | 110.2 s | derived |
+| The small arm sets all ten rails, then drives all ten bolts | `below` | 738.9 s | 236.3 s (setting 144.1, bolting 92.2, one arm) | 648.4 s | 110.2 s | derived |
+| The small arm sets and bolts each rail in turn, two tool changes a rail | `below_each_rail` | 874.1 s | 371.6 s (setting 216.1, bolting 155.5, one arm) | 783.7 s | 110.2 s | derived |
 | The module arm sets the rails; the small arm bolts one rail behind | `below_rails_by_module_arm` | 628.5 s | 123.2 s (setting 115.4, bolting 84.4) | 497.1 s | 227.8 s | derived |
 
 Setting each rail and bolting it at once is the slowest: the tool changes cost more than
 the moves they save. The module arm setting the rails is the fastest, because its gripper
 needs no change and the two arms work side by side; the price is a more complicated
 gripper (see The layout chosen). In all three the module phase is held by the pin arm
-(402.7 s of it), not by the module arm.
+(402.2 s of it in `below` and `below_each_rail`, 402.7 s in the chosen layout), not by
+the module arm.
 
 ### What makes `above` fail
 
-`check_layout -- above` exits 1. Every failing row is a clearance row: 105 of its 266.
+`check_layout -- above` exits 1. Every failing row is a clearance row: 105 of its 270.
 Transport, hold, load, reach, ways and time all pass, reach included: the checker found
 poses that reach every pin from the hanging arm, but they do not clear.
 
@@ -225,8 +245,10 @@ stand above this module arm's work.
 ### Why `beside` was not chosen, though it passes
 
 `beside` passes every check. With the same way of putting rails on as `below` it takes
-747.3 s for a bay against `below`'s 739.1 s: its pin arm needs 409.0 s in the module
-phase against 402.7 s. Its tightest clearance is 0.0173 m against 0.0184 m. It needs five
+747.3 s for a bay against `below`'s 738.9 s: its pin arm needs 409.0 s in the module
+phase against 402.2 s. Its tightest pose is `rail_take 0` to `rail_take 9` at 0.0121 m
+(the held rail against its own forearm), against `below`'s 0.0184 m; its pin poses clear
+by 0.0173 m against 0.0184 m. It needs five
 posts and a raised beam inside the container (items 75 kg against 0, tracks 1900 kg
 against 1850), where `below`'s track lies on the floor. Nothing it offers is better than
 `below`'s on any row of the comparison table. The way of putting rails on that the chosen layout uses was written only on
@@ -296,7 +318,7 @@ was read, not every mesh file.
 | Tool | What it does | Mass, length (flange to working point), envelope | Basis |
 |---|---|---|---|
 | Combined gripper (module arm) | Holds a module by its glass with suction cups, or a rail by its top with a clamp between the cups that draws back behind them | 36.0 kg; 0.30 m; plate 1.2 x 0.6 x 0.04, cups 1.0 x 0.44 x 0.02 | ours |
-| Nutrunner (small arm) | Drives the strap's M8 bolt to 17.6 N m and measures the torque | 3.0 kg; 0.25 m; body 0.07 x 0.07 x 0.17, socket 0.016 x 0.016 x 0.075 | ours |
+| Nutrunner (small arm) | Drives the strap's M8 bolt to 17.6 N m and measures the torque | 3.0 kg; 0.25 m; body 0.07 x 0.07 x 0.145, socket and extension 0.016 x 0.016 x 0.105, which fits the bolt's free space of 12 mm radius over 100 mm (`docs/bay-hardware.md`, Fastenings) | ours |
 | Pin tool (small arm) | Carries the locating nose, the finger that puts the pin in from above, and the swaging nose, on the hole's axis from below | 8.0 kg; 0.25 m; body 0.09 x 0.09 x 0.155, nose 0.018 x 0.018 x 0.095 | ours |
 | Pin magazine | 36 pins and their collars | 0.5 kg | ours |
 | Tool change, small arm | | 8.0 s | ours |
@@ -333,20 +355,27 @@ The `load` rows of `check_layout -- below_rails_by_module_arm`:
 | `transport,stowed y` | 0.1650 m inside | +/-5.915 | the small arm's beam | derived |
 | `transport,stowed top` | 0.2664 m under | 2.690 | the module arm's link 3 | derived |
 | `transport,stowed bottom` | 0.0000 m above | 0.450 | the end unit's column, standing on the floor | derived |
+| `transport,stow track module_arm` and `small_arm` | 4.1000 m and 5.3000 m inside the track's range | 0 | stow track 0.000 on -4.100..4.700 and on -5.300..5.400 | derived |
 | `transport,mass` | 3,227.3 kg: arms 1110, tracks 1850, tools 47.0, holder 220, items inside 0 | 17,200 kg | | derived |
+| `reach,wait track small_arm` (the reach summary's worst) | 0.0000 m inside the track's range | 0 | wait track 5.400, the end of -5.300..5.400 | derived |
 | Least joint margin, `reach,module_take 35` | 11.1764 degrees | 5 | the module arm's joint 2, at the last module of the pallet | derived |
-| Tightest clearance, `locate 8/1` (the summary's worst) | 0.0184 m | 0.010 | the pin tool's nose against module 7's frame; the same figure at other holes, against a neighbouring module | derived |
+| The layout's tightest clearance row, `tool in free space pin pin_tool` (the summary's worst), and the same for `swage` | 0.0003 m | 0 | free radius 0.013 over the 0.080 behind the working point; the pin tool's nose reaches 0.0127 from the axis | derived |
+| `tool in free space strap_bolt nutrunner` | 0.0007 m | 0 | free radius 0.012 over 0.100; the socket reaches 0.0113 from the axis | derived |
+| `tool in free space locate pin_tool` | 0.0063 m | 0 | free radius 0.019 over 0.080; the nose reaches 0.0127 | derived |
 | Tightest free space, `free space locate 0/2` and others | 0.0102 m | more than 0 | the locating move's space below the hole against a neighbouring module's flange or frame | derived |
-| Module arm's tightest, `module_set 8` | 0.0477 m | 0.010 | its link 2 against module 7's frame | derived |
-| `rail_set 0` | 0.0300 m | 0.010 | the gripper's cups against the end unit's head | derived |
-| `module_take 0` | 0.0300 m | 0.010 | the held module against pallet module 2's frame | derived |
-| `strap_bolt 0` | 0.0305 m | 0.010 | the nutrunner's body against rail 0's strap | derived |
+| Small arm's tightest pose: 48 `locate`, `pin` and `swage` rows at holes 1 and 3, e.g. `locate 0/3` | 0.0184 m | 0.010 | the pin tool's nose against a neighbouring module's flange or frame | derived |
+| Module arm's tightest pose: `rail_set 0` | 0.0300 m | 0.010 | the gripper's cups against the end unit's head | derived |
+| Module arm, `module_take 0` and 33 other takes | 0.0300 m | 0.010 | the held module against a pallet module's frame | derived |
+| Tightest of the module set-downs, `module_set 8` | 0.0477 m | 0.010 | its link 2 against module 7's frame | derived |
+| `strap_bolt 0` | 0.0555 m | 0.010 | the nutrunner's body against rail 0's strap | derived |
 | `ways,tube in` and `ways,bay out` | 0.0220 m | 0.010 | the tube against the end unit's head, 122 samples at most 0.025 m apart | derived |
 
-### The four pictures and the commands that made them
+### The pictures and the commands that made them
 
-Each was made with `tools/video/shot_viewer.sh`, which runs the viewer and saves one
-frame (`/root/logs/layout_results/picture_commands.txt`):
+Seven pictures: the chosen layout's four (`layout_cell.png`, `layout_rail.png`,
+`layout_pin.png`, `layout_stowed.png`) and the three candidates' (`layout_below.png`,
+`layout_above.png`, `layout_beside.png`). Each was made with
+`tools/video/shot_viewer.sh`, which runs the viewer and saves one frame:
 
 | Picture | Command (after `tools/video/shot_viewer.sh //:viewer_layout docs/img/<file> 1600x1000`) |
 |---|---|
@@ -358,7 +387,7 @@ frame (`/root/logs/layout_results/picture_commands.txt`):
 | `layout_above.png` | `above --at rail_set:4 --lookat -0.7,-0.6,1.7 --distance 4.5 --azimuth 140 --elevation -6 --no-overlay --quit-at 0` |
 | `layout_beside.png` | `beside --at rail_set:4 --lookat -0.7,-0.6,1.3 --distance 4.0 --azimuth 140 --elevation -10 --no-overlay --quit-at 0` |
 
-![The module arm sets rail 4 on the tube with the clamp of its combined gripper; a rail already set lies on the tube to the left, the holder's stands carry the tube, and the small arm waits at the far end of its track](img/layout_rail.png)
+![The module arm at `rail_set:4`: its gripper's plate lies over the tube at rail 4's place; a rail already set lies on the tube to the left, the holder's stands carry the tube, and the small arm waits at the far end of its track](img/layout_rail.png)
 
 ![Seen from low down beside the tube, under the modules: the small arm on its floor carriage holds the pin tool up under a rail at a pin of module 2 (`pin:9`); a waiting tool stands on its carriage; the holder's stands carry the tube; the module arm and its gripper stand at the right](img/layout_pin.png)
 
@@ -427,20 +456,22 @@ The time model, as `check_layout` prints it in its `#` lines:
 > checked.
 >
 > A working step is its move from the arm's last pose and the layout's process time for
-> the kind. A tool change takes the arm's tool_change_s; the move to where the tools wait
-> is not counted. Every arm starts the bay at its wait pose with its first tool.
+> the kind. A tool change takes the arm's tool_change_s; the move to where the tools
+> wait is not counted. Every arm starts the bay at its wait pose with its first tool.
 >
 > The bay: tube in + clamp + the rail phase + the module phase + the end. In the rail
 > phase, when one arm sets the rails and another drives the strap bolts, the bolting arm
-> works one rail behind: max(the setting arm's steps + the bolting arm's steps on the
-> last rail, the setting arm's steps on the first rail + the bolting arm's steps), each
-> rail's take counted with the arm that takes; when one arm does both, the plain sum in
-> the layout's rail_order. In the module phase the module arm and the pin arm work side
-> by side the same way, the pin arm one module behind: max(the module arm's steps + the
-> pin arm's steps on the last module, the module arm's steps on the first module + the
-> pin arm's steps), the magazine taken with the first module's; if one arm does both, the
-> plain sum. An arm's steps include its tool changes. The end: release + bay out, or the
-> longest of the arms' moves back to their wait poses and first tools if that is longer.
+> works one rail behind: it starts rail k when the setting arm has finished rail k and
+> it has finished rail k-1, so the phase is the largest over k of (the setting arm's
+> steps on rails 0..k + the bolting arm's steps on rails k..9), each rail's take counted
+> with the arm that takes; when one arm does both, the plain sum in the layout's
+> rail_order. In the module phase the module arm and the pin arm work side by side the
+> same way, the pin arm one module behind: the largest over m of (the module arm's steps
+> on modules 0..m + the pin arm's steps on modules m..8), the magazine taken with the
+> first module's; if one arm does both, the plain sum. An arm's steps include its tool
+> changes. The time has no limit: its row passes when every step has a pose. The end:
+> release + bay out, or the longest of the arms' moves back to their wait poses and
+> first tools if that is longer.
 
 The steps, from `check_layout -- below_rails_by_module_arm --steps` (times in seconds;
 `from` and `to` are work points, poses or places; every time is derived from the
@@ -626,20 +657,22 @@ The command is `bazel run --config=opt //:print_layout_moves -- below_rails_by_m
 --iterations 40000`; it runs with a fixed seed (1) and prints the same rows every run.
 With the program's default budget of 5000 iterations six of the seven moves are planned
 and the last module's take-to-set is not; with 40000 all seven are, and the six common
-rows are the same in both runs.
+rows are the same in both runs. The table is generated from the two runs' CSVs; its
+waypoints, planned times and ratios are the 40000-iteration run's.
 
-| Move | Arm | Time model | Straight line free | Planner | Waypoints | Planned | Planned / model | Basis |
-|---|---|---|---|---|---|---|---|---|
-| take module 0 to set module 0 | `module_arm` | 3.59 s | no | found | 9 | 8.93 s | 2.488 | derived |
-| take module 4 to set module 4 | `module_arm` | 3.32 s | no | found | 12 | 11.57 s | 3.488 | derived |
-| take module 8 to set module 8 | `module_arm` | 3.59 s | no | found only with 40000 iterations | 10 | 10.79 s | 3.007 | derived |
-| set module 3 to take module 4, empty | `module_arm` | 3.32 s | no | found | 11 | 7.23 s | 2.180 | derived |
-| take rail 5 to set rail 5 | `module_arm` | 2.96 s | no | found | 8 | 5.79 s | 1.953 | derived |
-| pin at hole 0 to locate hole 2, module 0 | `small_arm` | 1.78 s | no | found | 5 | 3.38 s | 1.896 | derived |
-| strap bolt 3 to strap bolt 4 | `small_arm` | 1.81 s | no | found | 4 | 3.05 s | 1.681 | derived |
+| Move | Arm | Time model | Straight line free | 5000 iterations | 40000 iterations | Waypoints | Planned | Planned / model | Basis |
+|---|---|---|---|---|---|---|---|---|---|
+| take module 0 to set module 0 | `module_arm` | 3.59 s | no | found | found | 9 | 8.93 s | 2.488 | derived |
+| take module 4 to set module 4 | `module_arm` | 3.32 s | no | found | found | 12 | 11.57 s | 3.488 | derived |
+| take module 8 to set module 8 | `module_arm` | 3.59 s | no | not found | found | 10 | 10.79 s | 3.007 | derived |
+| set module 3 to take module 4, empty | `module_arm` | 3.32 s | no | found | found | 11 | 7.23 s | 2.180 | derived |
+| take rail 5 to set rail 5 | `module_arm` | 2.96 s | no | found | found | 8 | 5.79 s | 1.953 | derived |
+| pin at hole 0 to locate hole 2, module 0 | `small_arm` | 1.78 s | no | found | found | 5 | 3.38 s | 1.896 | derived |
+| strap bolt 3 to strap bolt 4 | `small_arm` | 1.81 s | no | found | found | 4 | 3.14 s | 1.731 | derived |
 
-Over the seven moves the planned time is 1.681 to 3.488 times the model's, 2.180 at the
-median. How the planner was run:
+Over the seven moves of the 40000-iteration run the planned time is 1.731 to 3.488
+times the model's, 2.180 at the median (over the six moves of the 5000-iteration run,
+1.731 to 3.488, median 2.067). How the planner was run:
 
 - "Free" is its own test: at least 0.010 m between the moving set (links, carriage, tool
   on the flange, held part) and everything else there, in the bay as built at the start
@@ -664,8 +697,8 @@ on the straight line the module starts to turn from upright to flat at once and 
 into the pallet's deck or the next module, where a real move first draws it out of the
 pack. The empty return cuts into the module just set down; the pin tool has to come
 down out of the rail's hat before it goes to the next hole; the nutrunner passes a
-holder's saddle. The last module's take-to-set, which ends at the module arm's tightest
-pose (0.0477 m), was not found in 5000 iterations and was found in 40000: a path exists
+holder's saddle. The last module's take-to-set, which ends at the tightest of the
+module set-downs (`module_set 8`, 0.0477 m), was not found in 5000 iterations and was found in 40000: a path exists
 by the planner's test, but it is the hardest move of the bay to plan.
 
 Its limits: the state is the bay at the start of each move; the short back-off segments
@@ -681,9 +714,16 @@ Every decision the brief left open, with its reason.
    feasibility findings above. The bay then sticks out of the -X side while it is built,
    which the open side allows.
 2. **Tubes in and bays out through the -X side, on one transfer cart** (an outside
-   conveyor in the owner's sense). The door's width (above); one device for both ways;
-   the cart lowers a tube into open saddles and lifts a bay out of them, so nothing has
-   to slide along the tube past the straps.
+   conveyor in the owner's sense). Two reasons. First, the end door as this project's
+   container is assumed to be (corner posts 180 mm across, `ours`, leaving 2,078 mm):
+   between those posts a tube's axis could lie at most 0.977 m from the centre line, and
+   the layouts put it at 1.05 m (What had to be possible at all). Through a usual
+   container door opening of 2,340 mm it could lie up to 1.108 m out, so the tube at
+   1.05 m would pass, by 58 mm; this reason rests on the assumed posts, and a later spec
+   can reopen it. Second, one device serves both ways: the cart lowers a tube into open
+   saddles and lifts a bay out of them, and a bay can only leave through a side
+   (`docs/bay-hardware.md`, The container), so nothing has to slide along the tube past
+   the straps.
 3. **The module arm is the KUKA KR 210 R2700-2.** Its description is already in the
    repository; its payload of 210 kg against the 68.4 kg it carries. A smaller arm was not
    modelled (it needs a new model file) and is the first thing to try next, because the
@@ -699,12 +739,15 @@ Every decision the brief left open, with its reason.
    checked.
 6. **The small arm stands below**, on a floor track at x = -0.35 under the bay's inner
    half, between the holder's stands and the module arm's track. Against `beside` (passes
-   every check, 747.3 s against `below`'s 739.1 s with the same rail method, five posts
+   every check, 747.3 s against `below`'s 738.9 s with the same rail method, five posts
    and a beam) and `above` (fails clearance, see The comparison).
 7. **The module arm puts the rails on, and the small arm bolts one rail behind.** The
    owner's rule: the shortest cycle. Of the three ways compared by the same time model it
-   is the fastest (628.5 s against 739.1 s and 870.6 s). The combined gripper is a more
-   complicated tool than two simple ones; that is the price.
+   is the fastest: a bay in 628.5 s with a rail phase of 123.2 s, against 738.9 s and
+   236.3 s when the small arm sets all rails and then bolts them (`below`), and 874.1 s
+   and 371.6 s when it sets and bolts each rail in turn (`below_each_rail`). The
+   combined gripper is a more complicated tool than two simple ones; that is the
+   price.
 8. **Strap bolts come with their rails**, each held in its strap's +X ear with its nut in
    the other. `docs/bay-hardware.md` already counts the bolt in the rail's 2.35 kg; one
    part to handle in place of two; no bolt feeder.
@@ -731,8 +774,9 @@ Every decision the brief left open, with its reason.
     the module arm; the four collars swaged after all four pins are in
     (`docs/bay-hardware.md`, Locating a module before pinning).
 14. **The checker's margins**: 5 degrees inside each joint's datasheet range; 0.010 m of
-    clearance; the free spaces of the fastenings and of the locating move empty; ways
-    sampled every 0.025 m. Stated figures, not tuned to the result; the tightest rows are
+    clearance; the free spaces of the fastenings and of the locating move empty, and
+    each fastening tool within its free space; ways sampled every 0.025 m. Stated
+    figures, not tuned to the result; the tightest rows are
     named in the tables above.
 15. **Process times (2 to 6 s each) and the move model are ours** and are the least
     certain figures of the comparison. They are the same for every layout, so the order
@@ -744,9 +788,22 @@ Every decision the brief left open, with its reason.
   module from upright to flat, the approach over the rails and the small arm's way out
   from under the tube are not shown to be free, except for the seven moves of The time model against the
   planner, found by the planner's own test.
-- **The two arms at work at the same time.** Each pose is checked against the other arm
-  at its wait pose, not where the schedule has it. That the two arms can work side by
-  side without meeting is assumed by the time model, not checked.
+- **The two arms at work at the same time.** The two arms are never checked at poses
+  they hold at the same time: each pose is checked against the other arm at its wait
+  pose, not where the schedule has it. That the two arms can work side by side without
+  meeting is assumed by the time model, not checked.
+- **Approach and retreat.** The checker checks the pose at a work point only; how a tool
+  comes to it and leaves it (a rail lowered over the tube, a nose raised into its hole,
+  a module lifted off the pallet) is not checked.
+- **The locating pose.** The `locate` rows use the pin's pose: the tool's working point
+  5 mm below the rail's site. The nose fully in, its tip 10.6 mm above the flange's top
+  face (`docs/bay-hardware.md`, Locating a module before pinning), is not posed or
+  checked.
+- **The pin tool's finger.** The finger that puts the pin in from above, reaching over
+  the flange, has no box in the tool's envelope and no free-space probe of its own; only
+  the nose and the body are checked.
+- **A limit on the time.** The `time` rows have no limit; they pass when every step has a
+  pose. No layout fails for being slow.
 - A smaller module arm, a gantry, or two or three module arms without a track.
 - **A tube that steps through fixed stations** (all work at one place, the tube moving):
   with the stations at one end the bare tube starts 10.6 m outside the container, and
