@@ -49,7 +49,9 @@ a single `-` for none:
                 SHA-256: for an output too large to keep, which still shows
                 any change.
 
-The cuts apply to both streams. What a cut replaces is a wall-clock time or
+A tab: or re: cut also turns the blanks before the value into one blank,
+because a right-aligned time of one digit and one of two are padded
+differently. The cuts apply to both streams. What a cut replaces is a wall-clock time or
 a figure derived from one; programs.txt's notes (and behavior.md) give the
 source line that shows it.
 """
@@ -80,6 +82,19 @@ def read_programs(path):
             cuts = [] if cuts == "-" else [c.strip() for c in cuts.split(" ;; ")]
             out.append((pid, target, args, cuts))
     return out
+
+
+def put_token(line, a, b):
+    """Replaces line[a:b] by the token, and the blanks before it by one.
+
+    The programs right-align their numbers, so a time of one digit and a time
+    of two leave a different number of blanks before them; without this two
+    captures would differ in white space alone.
+    """
+    s = a
+    while s > 0 and line[s - 1] == " ":
+        s -= 1
+    return line[:s] + (" " if s < a else "") + TOKEN + line[b:]
 
 
 def field_spans(line):
@@ -162,7 +177,7 @@ def cut_tabs(text, specs):
             if NUMBER.match(line[t[0]:t[1]]):
                 chosen.add(t)
         for a, b in sorted(chosen, reverse=True):
-            line = line[:a] + TOKEN + line[b:]
+            line = put_token(line, a, b)
         lines[i] = line
     return "\n".join(lines)
 
@@ -174,7 +189,7 @@ def cut_re(text, pattern):
         spans = [m.span(g) for m in rx.finditer(line)
                  for g in range(1, (rx.groups or 0) + 1) if m.span(g)[0] >= 0]
         for a, b in sorted(spans, reverse=True):
-            line = line[:a] + TOKEN + line[b:]
+            line = put_token(line, a, b)
         out.append(line)
     return "\n".join(out)
 
