@@ -1,0 +1,13 @@
+T bugprone-branch-clone 3
+T bugprone-integer-division 3
+T bugprone-macro-parentheses 2
+T bugprone-misplaced-widening-cast 2
+T bugprone-suspicious-memory-comparison 1
+T cert-err34-c 60
+T cert-flp30-c 11
+T clang-analyzer-core.CallAndMessage 2
+T clang-analyzer-cplusplus.StringChecker 3
+T clang-analyzer-deadcode.DeadStores 1
+T cppcoreguidelines-init-variables 12
+T cppcoreguidelines-pro-type-member-init 23
+T cppcoreguidelines-special-member-functions 5

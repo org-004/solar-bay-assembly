@@ -1,0 +1,12 @@
+W -Wcast-align 0
+W -Wcomment 3
+W -Wconversion 61
+W -Wdangling-reference 0
+W -Wduplicated-branches 0
+W -Wmissing-field-initializers 11
+W -Wnull-dereference 2
+W -Wold-style-cast 0
+W -Woverloaded-virtual 0
+W -Wparentheses 4
+W -Wshadow 8
+W -Wtype-limits 0
