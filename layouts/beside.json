@@ -4,6 +4,7 @@
  "summary": "The UR10e (small_arm) stands upright, base_rpy 0, on a track whose beam runs along Y beside the tube on its +X side, under the overhang of the modules: beam 0.20 wide by 0.10 deep, centred at x = -0.45 (0.50 to 0.70 m from the tube axis at x = -1.05), top at z = 0.95, carried by five 0.12 m square posts (y = -5.2, -2.6, 0, 2.6, 5.2) from the floor at z = 0.45 to 0.85. The arm base is 1.00 above the ground, 0.40 below the tube axis, 0.52 below the modules undersides, so it works from the side: rails set from above, strap bolts along -X, pins located, pinned and swaged from below with the tool pointing up, the arm reaching in sideways under the modules. The track runs y = -5.3 to 5.4, stocks, stops, wait and stow poses as in below.json. The module arm, its track (x 0.25 to 1.15), the pallet, the holder, the tube and the ways are unchanged. Nothing is fixed to the container but the posts standing on its floor.",
  "chosen": false,
  "small_arms_stand": "beside",
+ "base": "container",
  "container": {
   "sides_open": [
    "-x",
@@ -662,7 +663,8 @@
    "tool_change_s": 8.0
   }
  ],
- "pallet": {
+ "pallets": [
+  {
   "pos": [
    2.85,
    0.0,
@@ -677,7 +679,8 @@
   "basis": "ours",
   "source": "36 to a pallet is the maker's figure (docs/bay-hardware.md, Module). That they stand on their long edge is read from the maker's unpacking manual and a sibling datasheet's pallet size; which way the glass faces, the deck's height and the pitch of one frame thickness are ours.",
   "stands": "on_long_edge"
- },
+  }
+ ],
  "stocks": [
   {
    "name": "rails",
@@ -800,6 +803,7 @@
    "kind": "rail_take",
    "arm": "small_arm",
    "tool": "rail_gripper",
+   "points": "all",
    "process_s": 2.0,
    "note": "Close on the rail's top.",
    "basis": "ours"
@@ -808,6 +812,7 @@
    "kind": "rail_set",
    "arm": "small_arm",
    "tool": "rail_gripper",
+   "points": "all",
    "process_s": 3.0,
    "note": "Lower over the tube until the tab is in its hole, level, let go.",
    "basis": "ours"
@@ -816,6 +821,7 @@
    "kind": "strap_bolt",
    "arm": "small_arm",
    "tool": "nutrunner",
+   "points": "all",
    "process_s": 6.0,
    "note": "Run down and tighten to 17.6 N m, measured.",
    "basis": "ours"
@@ -824,6 +830,7 @@
    "kind": "module_take",
    "arm": "module_arm",
    "tool": "module_gripper",
+   "points": "all",
    "process_s": 2.0,
    "note": "Suction on.",
    "basis": "ours"
@@ -832,6 +839,7 @@
    "kind": "module_set",
    "arm": "module_arm",
    "tool": "module_gripper",
+   "points": "all",
    "process_s": 3.0,
    "note": "Lay down, suction off, lift clear.",
    "basis": "ours"
@@ -840,6 +848,7 @@
    "kind": "locate",
    "arm": "small_arm",
    "tool": "pin_tool",
+   "points": "all",
    "process_s": 3.0,
    "note": "Tip up, once round the slot at most, nose in, nose out.",
    "basis": "ours"
@@ -848,6 +857,7 @@
    "kind": "pin",
    "arm": "small_arm",
    "tool": "pin_tool",
+   "points": "all",
    "process_s": 2.0,
    "note": "The finger puts the pin in from above.",
    "basis": "ours"
@@ -856,6 +866,7 @@
    "kind": "swage",
    "arm": "small_arm",
    "tool": "pin_tool",
+   "points": "all",
    "process_s": 3.0,
    "note": "Collar on, swaged.",
    "basis": "ours"
@@ -864,6 +875,7 @@
    "kind": "pins_take",
    "arm": "small_arm",
    "tool": "pin_tool",
+   "points": "all",
    "process_s": 4.0,
    "note": "Change the magazine.",
    "basis": "ours"

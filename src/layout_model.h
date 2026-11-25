@@ -1,21 +1,28 @@
 // A layout as a MuJoCo model.
 //
 // BuildLayoutXml writes the model of a layout in a given state: the
-// container (models/container.xml), the bay as far as it is built
-// (src/bay_model.h, placed where the layout's "tube" says), the holder's
-// boxes, every arm from its public description with its track, its tools and
-// what it holds as simple shapes, the pallet with the modules still on it,
-// the stocks and the other items. LoadLayoutModel compiles it. The viewer
+// layout's base (models/container.xml, body "container_frame", for base
+// "container"; models/flat_rack.xml, body "flat_rack_frame", for base
+// "flat_rack"), the bay as far as it is built (src/bay_model.h, placed where
+// the layout's "tube" says), the holder's boxes, every arm from its public
+// description with its track, its tools and what it holds as simple shapes
+// (on the flat rack a rail an arm holds has its strap hanging open, the rails
+// on the tube have theirs closed; on the container the held rail is as run
+// 011 drew it, strap closed, so that its record stays as it was), every pallet place with the modules still on it, the
+// stocks, the other items and the ports' sites. LoadLayoutModel compiles it. The viewer
 // (//:viewer_layout), the test of the model and the layout checker all use
 // this one builder, so what is checked is what is looked at.
 //
 // States. A LayoutState says how far the bay is built, how many modules are
-// left on the pallet, which tool each arm has on its flange, what it holds,
-// and where each arm is. The default state is the cell waiting with a bare
-// tube in the holder. `stowed` gives the transport state instead: only what
-// travels inside, each arm at its stow pose. `everything` is for the
-// checker: all ten rails, all nine modules, all 36 pallet modules, every
-// tool of every arm on its flange at once and every part an arm can hold,
+// left on the first pallet (the other pallets are full), which tool each arm
+// has on its flange, what it holds, and where each arm is. The default state
+// is the cell waiting with a bare tube in the holder. `stowed` gives the
+// transport state instead: only what travels with the cell, each arm at its
+// stow pose: the holder if it travels inside, the items that travel inside,
+// every stock and every pallet (deck and modules) whose "outside" is false;
+// no tube, no port, nothing that stands outside. `everything` is for the
+// checker: all ten rails, all nine modules, every module of every pallet,
+// every tool of every arm on its flange at once and every part an arm can hold,
 // all in one model, so that one compiled model serves every check and the
 // checker leaves out what is not there at a step by leaving its geoms out of
 // the lists it measures against (LayoutHandles gives the lists).
@@ -26,12 +33,25 @@
 // distance). LoadLayoutModel therefore turns every capsule that can collide
 // into the cylinder that covers it; src/layout_model.cc gives the figures.
 //
+// Pallets. Every pallet place of layout.pallets is in the model. The first
+// pallet's names are body "pallet", geom "pallet_base" and bodies
+// "pallet_module_<j>"; pallet p >= 1 has "pallet<p>", "pallet<p>_base" and
+// "pallet<p>_module_<j>".
+//
+// Ports. Each port has two sites that collide with nothing, in site group 4
+// (hidden by default, as the other sites): "port_<name>_zone", a faint box of
+// the zone's size at its place, and "port_<name>_frame", at frame_pos turned
+// by frame_yaw_deg about z. They are not in the stowed state.
+//
+// Several arms of one model are allowed: each arm's part file, its asset and
+// every name in it carry the arm's name.
+//
 // Arms keep the joint ranges of their model files; the checker applies the
 // datasheet's ranges of src/arm_catalog.h. An arm on a track has one more
 // joint, a slide along the track, before its six.
 //
 // The model needs files beside the layout: models/common.xml,
-// models/container.xml, the KUKA's meshes as models/arm.xml names them, and
+// models/container.xml or models/flat_rack.xml, the KUKA's meshes as models/arm.xml names them, and
 // MuJoCo Menagerie's ur10e.xml with its assets. ModelPaths says where they
 // are; FromEnvironment reads MODELS_DIR and UR10E_XML, which the Bazel
 // targets set.
@@ -65,7 +85,7 @@ struct LayoutState {
   bool tube = true;                         // A tube lies in the holder.
   int rails = 0;                            // Rails 0 .. rails-1 are on the tube.
   int modules = 0;                          // Modules 0 .. modules-1 are on.
-  int pallet_modules = 36;                  // Modules left on the pallet.
+  int pallet_modules = 36;                  // Modules left on the first pallet.
   // For each arm by name; an arm that is not listed has its first tool,
   // holds nothing and stands at its wait pose.
   std::map<std::string, std::string> tool;  // "" for a bare flange.
@@ -100,7 +120,10 @@ struct ArmHandle {
   std::map<std::string, std::vector<int>> tool_geoms;
   std::map<std::string, std::vector<int>> waiting_tool_geoms;
   // The geoms of what it can hold, by part ("module", "rail"), fixed to the
-  // working point of the tool that holds that part.
+  // working point of the tool that holds that part. On the flat rack a held
+  // rail has its strap open (geoms ..._held_rail_strap_open_neg and _pos,
+  // src/bay_model.h); the rails on the tube have theirs closed, and so has a
+  // held rail in the five layouts on the container.
   std::map<std::string, std::vector<int>> held_geoms;
   std::vector<int> link_geoms;      // The arm's own collision geoms, base included.
   std::vector<int> carriage_geoms;  // Moves along the track.
@@ -111,16 +134,23 @@ struct ArmHandle {
 // state has none of the thing.
 struct LayoutHandles {
   std::vector<ArmHandle> arms;  // In the layout's order.
-  std::vector<int> container_geoms;
+  std::string base_body;         // "container_frame" or "flat_rack_frame".
+  std::vector<int> base_geoms;   // The base's members, whichever base.
   std::vector<int> holder_geoms;
   std::vector<int> tube_geoms;
   std::vector<std::vector<int>> rail_geoms;           // [rail], strap included.
   std::vector<std::vector<int>> module_geoms;         // [module]
-  std::vector<int> pallet_base_geoms;
-  // [j] is module j in the order of taking (src/layout.h, Pallet), one entry
-  // for each of the pallet's modules; an entry is empty when that module has
-  // been taken (state.pallet_modules = n leaves j = modules - n .. modules - 1).
+  std::vector<int> pallet_base_geoms;  // The decks of all pallets, in order.
+  // Indexed as the points of module_take (src/layout.h, Pallets): module j of
+  // pallet p is entry (modules of the pallets before p) + j, j in the order
+  // of taking (src/layout.h, Pallet). An entry is empty when that module has
+  // been taken: state.pallet_modules = n leaves j = modules - n .. modules - 1
+  // of the first pallet. The list is empty when no pallet module is there.
   std::vector<std::vector<int>> pallet_module_geoms;
+  // [p] is the deck and every module present of pallet place p, empty when
+  // that pallet is not in the state; the list is empty when no pallet is
+  // (stowed, with every pallet outside).
+  std::vector<std::vector<int>> pallet_place_geoms;
   std::map<std::string, std::vector<int>> stock_geoms;
   std::map<std::string, std::vector<int>> item_geoms;
   // A mocap body with one see-through cylinder for each free space of

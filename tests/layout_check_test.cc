@@ -1,9 +1,12 @@
 // The layout checker: the reference layout's report, and copies of it broken
-// in memory, one check at a time, which must fail that check.
+// in memory, one check at a time, which must fail that check; the choice of
+// kinds of check; work divided among arms; the approach rows; the margins.
 
 #include "src/layout_check.h"
 
+#include <algorithm>
 #include <cmath>
+#include <cstdio>
 #include <cstdlib>
 #include <map>
 #include <optional>
@@ -12,12 +15,17 @@
 #include <vector>
 
 #include <Eigen/Core>
+#include <Eigen/Geometry>
 #include <gtest/gtest.h>
+#include <mujoco/mujoco.h>
 
+#include "src/arm_catalog.h"
 #include "src/bay_hardware.h"
 #include "src/container.h"
 #include "src/layout.h"
 #include "src/layout_model.h"
+#include "src/layout_scene.h"
+#include "src/mj_handles.h"
 
 namespace cell::layout {
 namespace {
@@ -48,6 +56,14 @@ const CheckRow* FindRow(const CheckReport& report, const std::string& check,
     if (r.check == check && r.item == item) return &r;
   }
   return nullptr;
+}
+
+// The kinds of check of run 011. A layout on the container is held to these
+// alone; the kinds added since may fail on it (R13).
+const std::vector<std::string>& OldKinds() {
+  static const std::vector<std::string> kinds = {
+      "transport", "hold", "reach", "clearance", "load", "ways", "time"};
+  return kinds;
 }
 
 std::string Failures(const CheckReport& report) {
@@ -111,9 +127,9 @@ TEST(LayoutCheck, WorkPointsOfOneBay) {
   // Standing on their long edge: one pitch further along the pallet's y
   // each take, level, the tool pressing along +y.
   const auto takes = WorkPoints(layout, "module_take");
-  EXPECT_NEAR((takes[1].pos - takes[0].pos).norm(), layout.pallet.pitch, 1e-12);
+  EXPECT_NEAR((takes[1].pos - takes[0].pos).norm(), layout.pallets[0].pitch, 1e-12);
   EXPECT_NEAR(takes[0].pos.z(),
-              layout.pallet.pos[2] + layout.pallet.base_height +
+              layout.pallets[0].pos[2] + layout.pallets[0].base_height +
                   bay::kModuleWidth / 2.0,
               1e-12);
   EXPECT_NEAR(takes[0].z.z(), 0.0, 1e-12);
@@ -177,7 +193,8 @@ TEST(LayoutCheck, ReferenceReport) {
   std::printf("reference failures:\n%s", Failures(report).c_str());
 }
 
-// The layout marked chosen passes every row.
+// The layout marked chosen passes every row (of the old kinds, if it stands
+// on the container).
 TEST(LayoutCheck, ChosenLayoutPasses) {
   std::optional<Layout> chosen;
   for (const std::string& name : ListLayouts(Dir())) {
@@ -187,7 +204,9 @@ TEST(LayoutCheck, ChosenLayoutPasses) {
     if (layout->chosen) chosen = layout;
   }
   ASSERT_TRUE(chosen.has_value());
-  const CheckReport report = CheckLayout(*chosen, Paths());
+  CheckOptions options;
+  if (chosen->base == "container") options.checks = OldKinds();
+  const CheckReport report = CheckLayout(*chosen, Paths(), options);
   ASSERT_TRUE(report.error.empty()) << report.error;
   EXPECT_TRUE(report.pass) << chosen->name << " fails:\n" << Failures(report);
   std::map<std::string, int> kinds;
@@ -209,13 +228,15 @@ TEST(LayoutCheck, ChosenLayoutPasses) {
   EXPECT_GE(reach, 101);
 }
 
-// "above" fails, and only on clearance: its small arms cannot work under
-// the modules from above.
+// "above" fails, and of the old kinds only on clearance: its small arms
+// cannot work under the modules from above.
 TEST(LayoutCheck, AboveFailsOnClearanceOnly) {
   std::string error;
   const auto above = LoadLayout(Dir() + "/above.json", &error);
   ASSERT_TRUE(above.has_value()) << error;
-  const CheckReport report = CheckLayout(*above, Paths());
+  CheckOptions options;
+  options.checks = OldKinds();
+  const CheckReport report = CheckLayout(*above, Paths(), options);
   EXPECT_FALSE(report.pass);
   for (const CheckRow& r : report.rows) {
     if (!r.pass) EXPECT_EQ(r.check, "clearance") << r.item << ": " << r.detail;
@@ -484,6 +505,680 @@ TEST(LayoutCheck, StateAtModuleEight) {
   EXPECT_EQ(state.tool.at("module_arm"), "module_gripper");
   EXPECT_NEAR(state.track.at("module_arm"), 3.432, 1e-9);
   EXPECT_FALSE(StateAt(Reference(), Paths(), "module_set", 9, &state, &error));
+}
+
+}  // namespace
+}  // namespace cell::layout
+
+namespace cell::layout {
+namespace {
+
+Layout Named(const std::string& name) {
+  std::string error;
+  const std::optional<Layout> layout =
+      LoadLayout(Dir() + "/" + name + ".json", &error);
+  EXPECT_TRUE(layout.has_value()) << error;
+  return layout.value_or(Layout{});
+}
+
+int CountKind(const CheckReport& report, const std::string& check) {
+  int n = 0;
+  for (const CheckRow& r : report.rows) n += r.check == check;
+  return n;
+}
+
+// Only the kinds asked for are made, and the report passes by them alone.
+TEST(LayoutCheck, ChecksChooseTheKinds) {
+  const std::vector<std::string>& kinds = CheckKinds();
+  ASSERT_EQ(kinds.size(), 10u);
+  EXPECT_EQ(kinds[0], "transport");
+  EXPECT_EQ(kinds[6], "time");
+  EXPECT_EQ(kinds[9], "approach");
+  const Layout layout = Reference();
+  CheckOptions options;
+  options.checks = {"load", "hold"};
+  const CheckReport some = CheckLayout(layout, Paths(), options);
+  ASSERT_FALSE(some.rows.empty());
+  for (const CheckRow& r : some.rows) {
+    EXPECT_TRUE(r.check == "load" || r.check == "hold") << r.check;
+  }
+  EXPECT_GT(CountKind(some, "load"), 0);
+  EXPECT_GT(CountKind(some, "hold"), 0);
+  EXPECT_TRUE(some.pass) << Failures(some);
+  EXPECT_TRUE(some.steps.empty());
+  EXPECT_TRUE(some.points.empty());
+  // An old layout has no approach: asking for it fails the report.
+  options.checks = {"load", "approach"};
+  const CheckReport with = CheckLayout(layout, Paths(), options);
+  EXPECT_GT(CountKind(with, "approach"), 0);
+  EXPECT_FALSE(with.pass);
+}
+
+// The old layouts' bay times, as at the base of this work (68a1199).
+// "beside" is left out: the bay's model changed under it since (its time is
+// 750.3 s with the checker of that commit too).
+TEST(LayoutCheck, OldBayTimesUnchanged) {
+  const std::map<std::string, double> expect = {
+      {"above", 832.2021},
+      {"below", 738.8765},
+      {"below_each_rail", 874.1356},
+      {"below_rails_by_module_arm", 628.5435}};
+  for (const auto& [name, seconds] : expect) {
+    CheckOptions options;
+    options.checks = {"time"};
+    const CheckReport report = CheckLayout(Named(name), Paths(), options);
+    EXPECT_NEAR(report.bay_time_s, seconds, 0.05) << name;
+    // One busy row per arm.
+    EXPECT_EQ(CountKind(report, "time"), 3) << name;
+  }
+}
+
+// below_rails_by_module_arm with a second small arm on the same track line
+// (it waits at the track's other end; the beams are one and the clearance
+// rows are not asked for), and the holes divided: 0-17 to the new arm,
+// 18-35 to the old one, each with its own stock of pins at its end.
+Layout Divided() {
+  Layout layout = Named("below_rails_by_module_arm");
+  ArmUse* a = nullptr;
+  for (ArmUse& arm : layout.arms) {
+    if (arm.name == "small_arm") a = &arm;
+  }
+  EXPECT_NE(a, nullptr);
+  if (a == nullptr) return layout;
+  EXPECT_TRUE(a->track.has_value());
+  ArmUse b = *a;
+  b.name = "small_arm_b";
+  b.first_tool = "pin_tool";
+  b.wait_track = b.track->lo;
+  b.stow_track = b.track->lo;
+  b.stops = {{"pins_take", {b.track->lo}}};
+  layout.arms.push_back(b);
+  Stock pins_b = *FindStock(layout, "pins");
+  pins_b.name = "pins_b";
+  pins_b.pick_pos[1] = -pins_b.pick_pos[1];
+  for (Box& box : pins_b.boxes) box.pos[1] = -box.pos[1];
+  layout.stocks.push_back(pins_b);
+  std::vector<Work> work;
+  for (const Work& w : layout.work) {
+    if (w.kind == "locate" || w.kind == "pin" || w.kind == "swage") {
+      Work mine = w, theirs = w;
+      mine.points = "18-35";
+      theirs.arm = "small_arm_b";
+      theirs.points = "0-17";
+      work.push_back(mine);
+      work.push_back(theirs);
+    } else if (w.kind == "pins_take") {
+      Work mine = w, theirs = w;
+      mine.points = "0";
+      theirs.arm = "small_arm_b";
+      theirs.points = "1";
+      work.push_back(mine);
+      work.push_back(theirs);
+    } else {
+      work.push_back(w);
+    }
+  }
+  layout.work = work;
+  return layout;
+}
+
+TEST(LayoutCheck, WorkDividedAmongArms) {
+  const Layout layout = Divided();
+  ASSERT_EQ(PointCount(layout, "pins_take"), 2);
+  CheckOptions options;
+  options.checks = {"reach", "time"};
+  const CheckReport report = CheckLayout(layout, Paths(), options);
+  ASSERT_TRUE(report.error.empty()) << report.error;
+  auto expected = [](int index) {
+    return index < 18 ? std::string("small_arm_b") : std::string("small_arm");
+  };
+  // The jobs: each point with the arm the division gives it.
+  for (const char* kind : {"locate", "pin", "swage"}) {
+    for (int index : {0, 17, 18, 35}) {
+      const std::string item = std::string(kind) + " " +
+                               std::to_string(index / 4) + "/" +
+                               std::to_string(index % 4);
+      const CheckRow* r = FindRow(report, "reach", item);
+      ASSERT_NE(r, nullptr) << item;
+      EXPECT_EQ(r->arm, expected(index)) << item;
+    }
+  }
+  const CheckRow* magazine = FindRow(report, "reach", "pins_take 1");
+  ASSERT_NE(magazine, nullptr);
+  EXPECT_EQ(magazine->arm, "small_arm_b");
+  // The steps: each hole by its arm, each arm's magazine before its first
+  // hole, every arm back at the end.
+  std::map<std::string, int> first_hole, first_magazine, magazines;
+  for (const BayStep& s : report.steps) {
+    int m = -1, i = -1;
+    char what[16];
+    if (std::sscanf(s.what.c_str(), "%15s %d/%d", what, &m, &i) == 3) {
+      EXPECT_EQ(s.arm, expected(4 * m + i)) << s.what;
+      if (!first_hole.count(s.arm)) first_hole[s.arm] = s.number;
+    }
+    if (s.what == "take a pin magazine") {
+      ++magazines[s.arm];
+      if (!first_magazine.count(s.arm)) first_magazine[s.arm] = s.number;
+    }
+  }
+  for (const char* arm : {"small_arm", "small_arm_b"}) {
+    EXPECT_EQ(magazines[arm], 1) << arm;
+    ASSERT_TRUE(first_hole.count(arm)) << arm;
+    EXPECT_LT(first_magazine[arm], first_hole[arm]) << arm;
+  }
+  // A busy row for each of the three arms, and the module phase by three.
+  for (const char* arm : {"module_arm", "small_arm", "small_arm_b"}) {
+    const CheckRow* busy = FindRow(report, "time", std::string("busy ") + arm);
+    ASSERT_NE(busy, nullptr) << arm;
+    EXPECT_GT(busy->figure, 0.0) << arm;
+  }
+  const CheckRow* bay = FindRow(report, "time", "bay");
+  ASSERT_NE(bay, nullptr);
+  EXPECT_NE(bay->detail.find("pin arms"), std::string::npos) << bay->detail;
+  EXPECT_NE(bay->detail.find("3 arms"), std::string::npos) << bay->detail;
+  std::printf("divided bay %.1f s: %s\n", report.bay_time_s,
+              bay->detail.c_str());
+  // Two pin arms share the holes: the bay is no longer than with one.
+  EXPECT_LT(report.bay_time_s, 628.5435 + 1e-6);
+}
+
+Approach Rule(const std::string& kind, const std::string& frame, Vec3 dir,
+              double m) {
+  Approach a;
+  a.kind = kind;
+  a.approach_frame = frame;
+  a.approach_dir = dir;
+  a.approach_m = m;
+  a.retreat_frame = frame;
+  a.retreat_dir = dir;
+  a.retreat_m = m;
+  return a;
+}
+
+// A layout without rules: one failing row per kind.
+TEST(LayoutCheck, NoApproachRulesFailOncePerKind) {
+  CheckOptions options;
+  options.checks = {"approach"};
+  const CheckReport report = CheckLayout(Reference(), Paths(), options);
+  std::set<std::string> kinds;
+  for (const CheckRow& r : report.rows) {
+    ASSERT_EQ(r.check, "approach");
+    EXPECT_FALSE(r.pass);
+    EXPECT_EQ(r.detail, "the layout gives no approach for " + r.item);
+    EXPECT_TRUE(kinds.insert(r.item).second) << r.item;
+  }
+  EXPECT_EQ(kinds.size(), WorkKinds().size());
+}
+
+// Rules added in memory: two rows per point; a module set down from above
+// passes, one brought up from below runs into the bay.
+TEST(LayoutCheck, ApproachRows) {
+  Layout layout = Named("below_rails_by_module_arm");
+  layout.approaches = {Rule("module_set", "world", {0, 0, 1}, 0.10),
+                       Rule("strap_bolt", "tool", {0, 0, -1}, 0.03)};
+  CheckOptions options;
+  options.checks = {"approach"};
+  options.work_kinds = {"module_set", "strap_bolt", "pin"};
+  const CheckReport report = CheckLayout(layout, Paths(), options);
+  ASSERT_TRUE(report.error.empty()) << report.error;
+  int set_rows = 0, bolt_rows = 0;
+  for (const CheckRow& r : report.rows) {
+    if (r.item.rfind("module_set ", 0) == 0) ++set_rows;
+    if (r.item.rfind("strap_bolt ", 0) == 0) ++bolt_rows;
+  }
+  EXPECT_EQ(set_rows, 2 * bay::kModuleCount);
+  EXPECT_EQ(bolt_rows, 2 * bay::kRailCount);
+  const CheckRow* no_rule = FindRow(report, "approach", "pin");
+  ASSERT_NE(no_rule, nullptr);
+  EXPECT_FALSE(no_rule->pass);
+  const CheckRow* up = FindRow(report, "approach", "module_set 3 approach");
+  const CheckRow* away = FindRow(report, "approach", "module_set 3 retreat");
+  ASSERT_NE(up, nullptr);
+  ASSERT_NE(away, nullptr);
+  EXPECT_TRUE(up->pass) << up->detail;
+  EXPECT_TRUE(away->pass) << away->detail;
+  EXPECT_EQ(up->unit, "m");
+  EXPECT_DOUBLE_EQ(up->limit, 0.010);
+  EXPECT_NE(up->detail.find("20 samples over 100.0 mm"), std::string::npos)
+      << up->detail;
+  // The poses for a planner: the approach pose 100 mm above, the module held
+  // on the way in and nothing on the way out.
+  const SolvedPoint* point = nullptr;
+  for (const SolvedPoint& p : report.points) {
+    if (p.kind == "module_set" && p.index == 3) point = &p;
+  }
+  ASSERT_NE(point, nullptr);
+  EXPECT_EQ(point->item, "module_set 3");
+  EXPECT_EQ(point->arm, "module_arm");
+  EXPECT_TRUE(point->work_reached);
+  EXPECT_TRUE(point->approach_reached);
+  EXPECT_TRUE(point->retreat_reached);
+  EXPECT_EQ(point->held_approach, "module");
+  EXPECT_EQ(point->held_work, "module");
+  EXPECT_EQ(point->held_retreat, "");
+  EXPECT_NE(point->approach_deg, point->work_deg);
+  for (int j = 0; j < 6; ++j) {
+    EXPECT_NEAR(point->approach_deg[j], point->retreat_deg[j], 1e-6);
+  }
+  // From below: the held module goes through its rails and the tube.
+  layout.approaches = {Rule("module_set", "world", {0, 0, -1}, 0.30)};
+  options.work_kinds = {"module_set"};
+  const CheckReport below = CheckLayout(layout, Paths(), options);
+  const CheckRow* into = FindRow(below, "approach", "module_set 3 approach");
+  ASSERT_NE(into, nullptr);
+  EXPECT_FALSE(into->pass) << into->detail;
+  std::printf("from below: %.4f %s\n", into->figure, into->detail.c_str());
+}
+
+// On the flat rack the layout's margins count where they are larger; on the
+// container they are not read.
+TEST(LayoutCheck, MarginsOfAFlatRackLayout) {
+  Layout layout = Reference();
+  layout.margins.clearance_m = 0.02;
+  layout.margins.joint_margin_deg = 7.0;
+  CheckOptions options;
+  options.checks = {"load"};
+  const CheckReport container = CheckLayout(layout, Paths(), options);
+  EXPECT_DOUBLE_EQ(container.clearance_m, 0.010);
+  EXPECT_DOUBLE_EQ(container.joint_margin_deg, 5.0);
+  layout.base = "flat_rack";
+  const CheckReport rack = CheckLayout(layout, Paths(), options);
+  EXPECT_DOUBLE_EQ(rack.clearance_m, 0.02);
+  EXPECT_DOUBLE_EQ(rack.joint_margin_deg, 7.0);
+  options.clearance_m = 0.03;
+  const CheckReport more = CheckLayout(layout, Paths(), options);
+  EXPECT_DOUBLE_EQ(more.clearance_m, 0.03);
+  EXPECT_DOUBLE_EQ(more.joint_margin_deg, 7.0);
+}
+
+}  // namespace
+}  // namespace cell::layout
+
+namespace cell::layout {
+namespace {
+
+Layout FlatRack() {
+  std::string error;
+  const std::optional<Layout> layout =
+      LoadLayout(Dir() + "/flat_rack_1_pin_arm.json", &error);
+  EXPECT_TRUE(layout.has_value()) << error;
+  return layout.value_or(Layout{});
+}
+
+// On the flat rack the carriers of a way are the items its port names: a
+// travelling rack whose words mention the bay, standing in the tube's way,
+// fails the ways rows.
+TEST(LayoutCheck, WaysOnTheFlatRackLeaveOutOnlyThePortsCarriers) {
+  Layout layout = FlatRack();
+  CheckOptions options;
+  options.checks = {"ways"};
+  const CheckReport before = CheckLayout(layout, Paths(), options);
+  const CheckRow* in0 = FindRow(before, "ways", "tube in");
+  ASSERT_NE(in0, nullptr);
+  EXPECT_TRUE(in0->pass) << in0->detail;
+  Item rack;
+  rack.name = "rack_for_bay_parts";
+  rack.does = "A rack for bay parts.";
+  rack.travels_inside = true;
+  Box box;
+  box.name = "rack";
+  box.size = {0.3, 0.3, 0.3};
+  box.pos = {layout.tube.axis_x - 1.5, layout.tube.plain_end_y + 5.5,
+             layout.tube.axis_z + 0.12};
+  rack.boxes.push_back(box);
+  layout.items.push_back(rack);
+  const CheckReport after = CheckLayout(layout, Paths(), options);
+  const CheckRow* in = FindRow(after, "ways", "tube in");
+  ASSERT_NE(in, nullptr);
+  EXPECT_FALSE(in->pass) << in->detail;
+  EXPECT_NE(in->detail.find("rack_for_bay_parts"), std::string::npos)
+      << in->detail;
+}
+
+// Two leading arms: a set waits for the unit before it to be set, so the
+// rails and modules go on in order whoever sets them.
+TEST(LayoutCheck, SetsGoOnInOrder) {
+  // Arm 0 sets unit 0 in 10 s, arm 1 sets unit 1 in 5 s, arm 2 follows
+  // with 1 s on each: unit 1 is set from 10 to 15, its follower ends at 16.
+  std::vector<TimePiece> pieces(4);
+  pieces[0] = {0, 0, true, true, false, 10.0};
+  pieces[1] = {1, 1, true, true, false, 5.0};
+  pieces[2] = {2, 0, false, false, false, 1.0};
+  pieces[3] = {2, 1, false, false, false, 1.0};
+  EXPECT_DOUBLE_EQ(PhaseEnd(pieces, 2, 3), 16.0);
+  // A take does not wait: arm 1 takes unit 1 (4 s) while arm 0 sets unit 0.
+  std::vector<TimePiece> takes = {{0, 0, true, true, false, 10.0},
+                                  {1, 1, true, false, false, 4.0},
+                                  {1, 1, true, true, false, 5.0},
+                                  {2, 0, false, false, false, 1.0},
+                                  {2, 1, false, false, false, 1.0}};
+  EXPECT_DOUBLE_EQ(PhaseEnd(takes, 2, 3), 16.0);
+  // In a layout: a second module arm on the same track takes and sets the
+  // odd modules.
+  Layout layout = Named("below_rails_by_module_arm");
+  ArmUse b = layout.arms[0];
+  ASSERT_EQ(b.name, "module_arm");
+  b.name = "module_arm_b";
+  layout.arms.push_back(b);
+  for (Work& w : layout.work) {
+    if (w.kind == "module_take" || w.kind == "module_set") w.points = "0,2,4,6,8";
+  }
+  for (const char* kind : {"module_take", "module_set"}) {
+    Work w = *FindWork(layout, kind);
+    w.arm = "module_arm_b";
+    w.points = "1,3,5,7";
+    layout.work.push_back(w);
+  }
+  CheckOptions options;
+  options.checks = {"time"};
+  const CheckReport report = CheckLayout(layout, Paths(), options);
+  for (const BayStep& s : report.steps) {
+    if (s.what == "set module 1" || s.what == "take module 3") {
+      EXPECT_EQ(s.arm, "module_arm_b") << s.what;
+    }
+    if (s.what == "set module 2") EXPECT_EQ(s.arm, "module_arm") << s.what;
+  }
+  const CheckRow* bay = FindRow(report, "time", "bay");
+  ASSERT_NE(bay, nullptr);
+  EXPECT_NE(bay->detail.find("module arms"), std::string::npos) << bay->detail;
+  EXPECT_GT(report.bay_time_s, 0.0);
+}
+
+// Legs that fail: the far pose still too near what the tool works on, a
+// leg too long to reach, a take's approach that drives the tool into its
+// part.
+TEST(LayoutCheck, ApproachLegsThatFail) {
+  Layout layout = Named("below_rails_by_module_arm");
+  CheckOptions options;
+  options.checks = {"approach"};
+  // Backing the nutrunner off 3 mm leaves its socket by the strap and the
+  // tube, by design 5 to 10 mm away: under clearance at the retreat pose.
+  layout.approaches = {Rule("strap_bolt", "tool", {0, 0, -1}, 0.003),
+                       Rule("module_set", "world", {0, 0, 1}, 2.0),
+                       Rule("module_take", "tool", {0, 0, 1}, 0.05)};
+  options.work_kinds = {"strap_bolt", "module_set", "module_take"};
+  const CheckReport report = CheckLayout(layout, Paths(), options);
+  const CheckRow* bolt = FindRow(report, "approach", "strap_bolt 3 retreat");
+  ASSERT_NE(bolt, nullptr);
+  EXPECT_FALSE(bolt->pass) << bolt->detail;
+  EXPECT_LT(bolt->figure, 0.010);
+  EXPECT_NE(bolt->detail.find("by design at the work point"),
+            std::string::npos)
+      << bolt->detail;
+  EXPECT_NE(bolt->detail.find("at the retreat pose"), std::string::npos)
+      << bolt->detail;
+  const CheckRow* far = FindRow(report, "approach", "module_set 3 approach");
+  ASSERT_NE(far, nullptr);
+  EXPECT_FALSE(far->pass) << far->detail;
+  EXPECT_NE(far->detail.find("not reached at"), std::string::npos)
+      << far->detail;
+  // Forward along the tool's axis: into the glass it is about to take.
+  const CheckRow* into = FindRow(report, "approach", "module_take 3 approach");
+  ASSERT_NE(into, nullptr);
+  EXPECT_FALSE(into->pass) << into->detail;
+  EXPECT_LT(into->figure, 0.0) << into->detail;
+  EXPECT_NE(into->detail.find("pallet_module_3"), std::string::npos)
+      << into->detail;
+}
+
+// On the flat rack the load is held to the datasheet's load centre: the
+// module arm's gripper made 2 m long fails although its mass passes.
+TEST(LayoutCheck, LoadCentreOnTheFlatRack) {
+  Layout layout = FlatRack();
+  CheckOptions options;
+  options.checks = {"load"};
+  const CheckReport before = CheckLayout(layout, Paths(), options);
+  EXPECT_TRUE(before.pass) << Failures(before);
+  ArmUse* arm = nullptr;
+  for (ArmUse& a : layout.arms) {
+    if (a.model == "kr210_r2700_2") arm = &a;
+  }
+  ASSERT_NE(arm, nullptr);
+  const ArmModel* cat = FindArmModel(arm->model);
+  ASSERT_NE(cat, nullptr);
+  ASSERT_GT(cat->payload_centre_axial_m, 0.0);
+  const std::string item = arm->name + " " + arm->tools[0].name;
+  arm->tools[0].length = 2.0;
+  const CheckReport after = CheckLayout(layout, Paths(), options);
+  const CheckRow* row = FindRow(after, "load", item);
+  ASSERT_NE(row, nullptr);
+  EXPECT_LE(row->figure, row->limit);
+  EXPECT_FALSE(row->pass) << row->detail;
+  EXPECT_NE(row->detail.find("centre of mass"), std::string::npos)
+      << row->detail;
+}
+
+}  // namespace
+}  // namespace cell::layout
+
+namespace cell::layout {
+namespace {
+
+Layout FlatRackNamed(const std::string& name) {
+  std::string error;
+  const std::optional<Layout> layout =
+      LoadLayout(Dir() + "/" + name + ".json", &error);
+  EXPECT_TRUE(layout.has_value()) << error;
+  return layout.value_or(Layout{});
+}
+
+// The steps carry their kind, point, phase and the tool after a change.
+TEST(LayoutCheck, StepsCarryKindIndexAndPhase) {
+  const Layout layout = FlatRackNamed("flat_rack_2_pin_arms");
+  CheckOptions options;
+  options.checks = {"time"};
+  const CheckReport report = CheckLayout(layout, Paths(), options);
+  ASSERT_FALSE(report.steps.empty());
+  std::map<std::string, int> kinds;
+  std::map<std::string, std::set<int>> points;
+  const std::set<std::string> phases = {"tube in", "clamp", "rails", "modules",
+                                        "end"};
+  for (const BayStep& s : report.steps) {
+    ++kinds[s.kind];
+    EXPECT_TRUE(phases.count(s.phase)) << s.what << ": " << s.phase;
+    if (s.index >= 0) {
+      EXPECT_TRUE(points[s.kind].insert(s.index).second) << s.what;
+    }
+    if (s.kind == "tool_change") {
+      const ArmUse* arm = FindArm(layout, s.arm);
+      ASSERT_NE(arm, nullptr) << s.what;
+      EXPECT_NE(FindTool(*arm, s.tool_after), nullptr) << s.tool_after;
+    } else {
+      EXPECT_TRUE(s.tool_after.empty()) << s.what;
+    }
+  }
+  for (const char* k : {"tube_in", "clamp", "release", "bay_out"}) {
+    EXPECT_EQ(kinds[k], 1) << k;
+  }
+  for (const std::string& kind : WorkKinds()) {
+    const int expect = kind == "module_take" ? bay::kModuleCount
+                                             : PointCount(layout, kind);
+    EXPECT_EQ(kinds[kind], expect) << kind;
+  }
+  EXPECT_EQ(report.steps.front().phase, "tube in");
+  EXPECT_EQ(report.steps.back().phase, "end");
+  // The phases add up to the bay's time.
+  ASSERT_EQ(report.phases.size(), 5u);
+  double sum = 0.0;
+  for (const auto& [name, seconds] : report.phases) sum += seconds;
+  EXPECT_NEAR(sum, report.bay_time_s, 1e-9);
+  EXPECT_EQ(report.phases[2].first, "rails");
+}
+
+// A leg's samples start at the work pose and end at the far pose, as many
+// as the row says.
+TEST(LayoutCheck, LegSamplesForThePlanner) {
+  const Layout layout = FlatRackNamed("flat_rack_1_pin_arm");
+  CheckOptions options;
+  options.checks = {"approach"};
+  options.work_kinds = {"module_set", "pin"};
+  const CheckReport report = CheckLayout(layout, Paths(), options);
+  int checked = 0;
+  for (const SolvedPoint& p : report.points) {
+    if (p.item != "module_set 4" && p.item != "pin 3/2") continue;
+    ++checked;
+    const CheckRow* row = FindRow(report, "approach", p.item + " approach");
+    ASSERT_NE(row, nullptr);
+    int samples = 0;
+    ASSERT_NE(row->detail.find(" samples over "), std::string::npos);
+    const size_t at = row->detail.rfind("; ", row->detail.find(" samples over "));
+    samples = std::atoi(row->detail.c_str() + at + 2);
+    ASSERT_GT(samples, 0);
+    ASSERT_EQ(static_cast<int>(p.approach_leg_deg.size()), samples + 1);
+    ASSERT_EQ(static_cast<int>(p.retreat_leg_deg.size()), samples + 1)
+        << "the rules of these kinds have legs of one length";
+    for (int j = 0; j < 6; ++j) {
+      EXPECT_NEAR(p.approach_leg_deg.front()[j], p.work_deg[j], 1e-9);
+      EXPECT_NEAR(p.approach_leg_deg.back()[j], p.approach_deg[j], 1e-9);
+      EXPECT_NEAR(p.retreat_leg_deg.front()[j], p.work_deg[j], 1e-9);
+      EXPECT_NEAR(p.retreat_leg_deg.back()[j], p.retreat_deg[j], 1e-9);
+    }
+    const Approach* rule = FindApproach(layout, p.kind);
+    ASSERT_NE(rule, nullptr);
+    EXPECT_DOUBLE_EQ(p.approach_length_m, rule->approach_m);
+    EXPECT_DOUBLE_EQ(p.retreat_length_m, rule->retreat_m);
+  }
+  EXPECT_EQ(checked, 2);
+}
+
+// The tool-change pose: rows on the flat rack, and the flange where the
+// rule puts it.
+TEST(LayoutCheck, ToolChangePose) {
+  const Layout layout = FlatRackNamed("flat_rack_1_pin_arm");
+  CheckOptions options;
+  options.checks = {"reach", "clearance"};
+  options.work_kinds = {"pins_take"};
+  const CheckReport report = CheckLayout(layout, Paths(), options);
+  std::string error;
+  auto scene = LayoutScene::Load(layout, Paths(), 5.0, &error);
+  ASSERT_NE(scene, nullptr) << error;
+  int arms = 0;
+  for (const ArmUse& a : layout.arms) arms += a.tools.size() > 1 ? 1 : 0;
+  ASSERT_GT(arms, 0);
+  ASSERT_EQ(static_cast<int>(report.tool_changes.size()), arms);
+  for (const SolvedToolChange& tc : report.tool_changes) {
+    EXPECT_TRUE(tc.reached) << tc.arm;
+    const CheckRow* reach = FindRow(report, "reach", "tools " + tc.arm);
+    const CheckRow* clear = FindRow(report, "clearance", "tools " + tc.arm);
+    ASSERT_NE(reach, nullptr) << tc.arm;
+    ASSERT_NE(clear, nullptr) << tc.arm;
+    EXPECT_TRUE(reach->pass) << reach->detail;
+    // Where the rule puts the flange, by forward kinematics.
+    const ArmUse& use = *FindArm(layout, tc.arm);
+    const int ai = scene->ArmIndex(tc.arm);
+    Eigen::Vector3d lo = Eigen::Vector3d::Constant(1e9);
+    Eigen::Vector3d hi = -lo;
+    for (const Tool& t : use.tools) {
+      const Eigen::Vector3d c(t.waits_at[0], t.waits_at[1], t.waits_at[2]);
+      const Eigen::Vector3d h(t.wait_size[0] / 2, t.wait_size[1] / 2,
+                              t.wait_size[2] / 2);
+      lo = lo.cwiseMin(c - h);
+      hi = hi.cwiseMax(c + h);
+    }
+    const Eigen::Vector3d local((lo.x() + hi.x()) / 2, (lo.y() + hi.y()) / 2,
+                                hi.z() + kToolChangeHeight);
+    const double d = M_PI / 180.0;
+    const Eigen::Matrix3d r =
+        (Eigen::AngleAxisd(use.base_rpy_deg[2] * d, Eigen::Vector3d::UnitZ()) *
+         Eigen::AngleAxisd(use.base_rpy_deg[1] * d, Eigen::Vector3d::UnitY()) *
+         Eigen::AngleAxisd(use.base_rpy_deg[0] * d, Eigen::Vector3d::UnitX()))
+            .toRotationMatrix();
+    Eigen::Vector3d base(use.base_pos[0], use.base_pos[1], use.base_pos[2]);
+    if (use.track) {
+      const Eigen::Vector3d dir(use.track->direction[0],
+                                use.track->direction[1],
+                                use.track->direction[2]);
+      base += use.wait_track * dir.normalized();
+    }
+    const Eigen::Vector3d expect = base + r * local;
+    DataPtr data = scene->MakeData();
+    ArmPose pose;
+    for (int j = 0; j < 6; ++j) pose.q[j] = tc.deg[j] * d;
+    pose.track = use.wait_track;
+    scene->SetPose(data.get(), ai, pose);
+    mj_kinematics(&scene->model(), data.get());
+    const int site = scene->arm(ai).h->flange_site;
+    const Eigen::Vector3d at(data->site_xpos[3 * site],
+                             data->site_xpos[3 * site + 1],
+                             data->site_xpos[3 * site + 2]);
+    EXPECT_LT((at - expect).norm(), 2e-4) << tc.arm;
+    EXPECT_NEAR(data->site_xmat[9 * site + 8], -1.0, 1e-5) << tc.arm;
+    std::printf("tools %s: reach %.4f deg, clearance %.4f m (%s)\n",
+                tc.arm.c_str(), reach->figure, clear->figure,
+                clear->detail.c_str());
+  }
+}
+
+// On the three flat rack files every tool-change pose is clear.
+TEST(LayoutCheck, ToolChangePosesClearOnTheFlatRackFiles) {
+  for (const char* name :
+       {"flat_rack_1_pin_arm", "flat_rack_2_pin_arms", "flat_rack_3_pin_arms"}) {
+    CheckOptions options;
+    options.checks = {"reach", "clearance"};
+    options.work_kinds = {"pins_take"};
+    const CheckReport report = CheckLayout(FlatRackNamed(name), Paths(), options);
+    int rows = 0;
+    for (const CheckRow& r : report.rows) {
+      if (r.item.rfind("tools ", 0) != 0) continue;
+      ++rows;
+      EXPECT_TRUE(r.pass) << name << " " << r.check << " " << r.item << ": "
+                          << r.figure << " " << r.detail;
+    }
+    EXPECT_GT(rows, 0) << name;
+  }
+}
+
+}  // namespace
+}  // namespace cell::layout
+
+namespace cell::layout {
+namespace {
+
+// The windings brought near the anchor change the joints' numbers, not the
+// pose: every work pose still puts the tool's working point on its point.
+// And each arm's posture changes are reported, one line per arm.
+TEST(LayoutCheck, PostureKeptAndPosesUnchanged) {
+  std::string error;
+  const std::optional<Layout> layout =
+      LoadLayout(Dir() + "/flat_rack_1_pin_arm.json", &error);
+  ASSERT_TRUE(layout.has_value()) << error;
+  CheckOptions options;
+  options.checks = {"reach", "time"};
+  const CheckReport report = CheckLayout(*layout, Paths(), options);
+  auto scene = LayoutScene::Load(*layout, Paths(), 5.0, &error);
+  ASSERT_NE(scene, nullptr) << error;
+  DataPtr data = scene->MakeData();
+  std::map<std::string, std::vector<WorkPoint>> points;
+  int checked = 0;
+  for (const SolvedPoint& p : report.points) {
+    if (!p.work_reached) continue;
+    if (!points.count(p.kind)) points[p.kind] = WorkPoints(*layout, p.kind);
+    const WorkPoint& w = points[p.kind][p.index];
+    const int ai = scene->ArmIndex(p.arm);
+    ASSERT_GE(ai, 0);
+    ArmPose pose;
+    for (int j = 0; j < 6; ++j) pose.q[j] = p.work_deg[j] * M_PI / 180.0;
+    pose.track = p.track;
+    scene->AllAtWait(data.get());
+    scene->SetPose(data.get(), ai, pose);
+    mj_kinematics(&scene->model(), data.get());
+    const int site = scene->arm(ai).h->work_site.at(p.tool);
+    const Eigen::Vector3d at(data->site_xpos[3 * site],
+                             data->site_xpos[3 * site + 1],
+                             data->site_xpos[3 * site + 2]);
+    EXPECT_LT((at - w.pos).norm(), 1.5e-4) << p.item;
+    const Eigen::Vector3d z(data->site_xmat[9 * site + 2],
+                            data->site_xmat[9 * site + 5],
+                            data->site_xmat[9 * site + 8]);
+    EXPECT_GT(z.dot(w.z.normalized()), std::cos(1.5e-3)) << p.item;
+    ++checked;
+  }
+  EXPECT_GT(checked, 150);
+  ASSERT_EQ(report.postures.size(), layout->arms.size());
+  for (const PostureChanges& p : report.postures) {
+    EXPECT_FALSE(p.from.empty()) << p.arm;
+    EXPECT_GT(p.largest_s, 0.0) << p.arm;
+  }
 }
 
 }  // namespace

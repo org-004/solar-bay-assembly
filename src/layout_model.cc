@@ -1,8 +1,9 @@
 // Builds a layout's MuJoCo model. See src/layout_model.h.
 //
 // How the model is put together. The top-level text that BuildLayoutXml
-// returns includes common.xml and container.xml, holds the holder, the bay,
-// the pallet, the stocks, the items and each arm's track as plain bodies, and
+// returns includes common.xml and the base's file (container.xml or
+// flat_rack.xml), holds the holder, the bay, the pallets, the stocks, the
+// items, the ports' sites and each arm's track as plain bodies, and
 // attaches each arm with
 //   <asset><model name="<arm>_model" file="<arm>.arm.xml"/></asset>
 //   <body name="<arm>_carriage" ...><attach model="<arm>_model"
@@ -25,8 +26,8 @@
 //   - <actuator> and <keyframe> are removed: the model is for looking and
 //     measuring, its poses are set in qpos, and the one keyframe is the
 //     state's (see the end of BuildLayoutXml).
-// LoadLayoutModel hands MuJoCo the top-level text, the arms' part files and
-// common.xml and container.xml through an mjVFS, so nothing is written to
+// LoadLayoutModel hands MuJoCo the top-level text, the arms' part files,
+// common.xml and the base's file through an mjVFS, so nothing is written to
 // disk (Bazel's runfiles are read-only); the meshes, named by absolute path,
 // are not in the VFS and MuJoCo reads them from the file system. The text
 // that BuildLayoutXml returns is therefore loadable only together with those
@@ -61,6 +62,7 @@
 #include <fstream>
 #include <set>
 #include <sstream>
+#include <utility>
 
 #include <Eigen/Geometry>
 
@@ -174,6 +176,11 @@ std::string LayoutDefaults(const std::string& prefix) {
              std::string("<geom type=\"box\" group=\"0\" rgba=\"") + kToolRgb[i] +
                  " 0.45\"/>");
   }
+  t += cls("layout_port_zone",
+           "<site type=\"box\" group=\"4\" rgba=\"0.2 0.6 1 0.08\"/>");
+  t += cls("layout_port_frame",
+           "<site type=\"box\" size=\"0.15 0.02 0.02\" group=\"4\" "
+           "rgba=\"0.2 0.6 1 1\"/>");
   t += cls("layout_site",
            "<site type=\"sphere\" size=\"0.01\" group=\"4\" rgba=\"1 1 0 1\"/>");
   t += cls("layout_probe",
@@ -224,12 +231,16 @@ struct ArmSetup {
   double track = 0.0;
 };
 
-// The tool of the arm that does a kind of work, or "" if another arm does it.
+// The tool with which the arm does some points of a kind of work, or "" if
+// it does none.
 std::string ToolFor(const Layout& layout, const ArmUse& arm,
                     const std::string& kind) {
-  const Work* w = FindWork(layout, kind);
-  if (w == nullptr || w->arm != arm.name) return "";
-  return w->tool;
+  for (const Work& w : layout.work) {
+    if (w.kind == kind && w.arm == arm.name && !PointsOf(layout, w).empty()) {
+      return w.tool;
+    }
+  }
+  return "";
 }
 
 std::string HoldingTool(const Layout& layout, const ArmUse& arm,
@@ -328,7 +339,12 @@ std::string ToolMountContents(const Layout& layout, const ArmUse& arm,
       body = bay::ModuleBodyXml("held_module",
                                 {0.0, 0.0, -bay::kModuleThickness / 2.0});
     } else {
-      body = bay::RailBodyXml("held_rail", {0.0, 0.0, -bay::kRailTopHeight});
+      // On the flat rack a held rail's strap hangs open (src/bay_model.h,
+      // RailBodyXml): closed, it cannot be lowered over the tube. The five
+      // layouts on the container are run 011's record (docs/layout.md) and
+      // keep the held rail as run 011 drew and checked it, strap closed.
+      body = bay::RailBodyXml("held_rail", {0.0, 0.0, -bay::kRailTopHeight},
+                              -1, /*strap_open=*/layout.base == "flat_rack");
     }
     ReplaceAll(&body, "class=\"bay_", "class=\"" + cls + "bay_");
     t += body;
@@ -404,6 +420,22 @@ bool ArmPartXml(const Layout& layout, const ArmUse& arm, const ArmModel& model,
 std::string ArmPartName(const ArmUse& arm) { return arm.name + ".arm.xml"; }
 std::string TopName(const Layout& layout) { return "layout_" + layout.name + ".xml"; }
 
+bool OnFlatRack(const Layout& layout) { return layout.base == "flat_rack"; }
+
+// The base's part file and its body.
+std::string BaseFile(const Layout& layout) {
+  return OnFlatRack(layout) ? "flat_rack.xml" : "container.xml";
+}
+std::string BaseBody(const Layout& layout) {
+  return OnFlatRack(layout) ? "flat_rack_frame" : "container_frame";
+}
+
+// The prefix of pallet place p's names: "pallet" for the first,
+// "pallet<p>" for the others.
+std::string PalletPrefix(size_t p) {
+  return p == 0 ? std::string("pallet") : "pallet" + std::to_string(p);
+}
+
 bool HasTube(const LayoutState& state) {
   return state.everything || (!state.stowed && state.tube);
 }
@@ -427,11 +459,13 @@ std::string BuildLayoutXml(const Layout& layout, const LayoutState& state,
   };
   const bool inside_only = state.stowed && !state.everything;
   int rails = state.rails, modules = state.modules;
+  if (layout.pallets.empty()) return fail("no pallet place");
+  const int first_modules = layout.pallets[0].modules;
   int pallet_modules = state.pallet_modules;
   if (state.everything) {
     rails = bay::kRailCount;
     modules = bay::kModuleCount;
-    pallet_modules = layout.pallet.modules;
+    pallet_modules = first_modules;
   }
   if (rails < 0 || rails > bay::kRailCount) return fail("rails out of 0..10");
   if (modules < 0 || modules > bay::kModuleCount) return fail("modules out of 0..9");
@@ -439,18 +473,23 @@ std::string BuildLayoutXml(const Layout& layout, const LayoutState& state,
     return fail("module " + std::to_string(modules - 1) + " needs rail " +
                 std::to_string(modules));
   }
-  if (pallet_modules < 0 || pallet_modules > layout.pallet.modules) {
-    return fail("pallet_modules out of 0.." + std::to_string(layout.pallet.modules));
+  if (pallet_modules < 0 || pallet_modules > first_modules) {
+    return fail("pallet_modules out of 0.." + std::to_string(first_modules));
   }
 
   std::string t;
   t += "<mujoco model=\"layout " + layout.name + "\">\n";
   t += "  <include file=\"common.xml\"/>\n";
-  t += "  <include file=\"container.xml\"/>\n";
+  t += "  <include file=\"" + BaseFile(layout) + "\"/>\n";
   t += "  <statistic center=\"0 0 1.5\" extent=\"8\"/>\n";
   t += LayoutDefaults("");
   t += BayDefaults();
   t += "  <asset>\n";
+  // A pale sky, so that a picture taken from below the bay or toward the
+  // horizon has no black in it.
+  t += "    <texture name=\"layout_sky\" type=\"skybox\" builtin=\"gradient\" "
+       "rgb1=\"0.80 0.86 0.93\" rgb2=\"0.96 0.97 0.98\" width=\"64\" "
+       "height=\"64\"/>\n";
   for (const ArmUse& arm : layout.arms) {
     t += "    <model name=\"" + arm.name + "_model\" file=\"" + ArmPartName(arm) +
          "\"/>\n";
@@ -484,43 +523,51 @@ std::string BuildLayoutXml(const Layout& layout, const LayoutState& state,
     t += "    </body>\n";
   }
 
-  // The pallet: its deck, and the modules still on it. Module j is the j-th
-  // taken (src/layout.h, Pallet, gives the pallet's frame and the places);
-  // with n left, j = modules - n .. modules - 1 are there.
-  if (!inside_only) {
-    const Pallet& p = layout.pallet;
-    const bool upright = p.stands == "on_long_edge";
-    const Eigen::Vector3d deck =
-        upright ? Eigen::Vector3d(bay::kModuleLength / 2.0 + kPalletDeckMargin,
-                                  (p.modules * p.pitch) / 2.0 + kPalletDeckMargin,
-                                  p.base_height / 2.0)
-                : Eigen::Vector3d(bay::kModuleLength / 2.0 + kPalletDeckMargin,
-                                  bay::kModuleWidth / 2.0 + kPalletDeckMargin,
-                                  p.base_height / 2.0);
-    t += "    <body name=\"pallet\" pos=\"" + V3(p.pos) + "\" quat=\"" +
-         Quat(Rpy({0.0, 0.0, p.yaw_deg})) + "\">\n";
-    t += "      <geom name=\"pallet_base\" class=\"layout_pallet\" pos=\"0 0 " +
-         Num(p.base_height / 2.0) + "\" size=\"" + V3(deck) + "\"/>\n";
-    for (int j = p.modules - pallet_modules; j < p.modules; ++j) {
-      const std::string name = "pallet_module_" + std::to_string(j);
-      if (upright) {
-        // Standing on its long edge: a quarter turn about x takes the
-        // module's z (its glass's normal) to -y.
-        t += "      <body name=\"" + name + "_place\" pos=\"0 " +
-             Num((j - (p.modules - 1) / 2.0) * p.pitch) + " " +
-             Num(p.base_height + bay::kModuleWidth / 2.0) +
-             "\" quat=\"0.70710678118654757 0.70710678118654757 0 0\">\n";
-        t += bay::ModuleBodyXml(name, {0.0, 0.0, 0.0});
-        t += "      </body>\n";
-      } else {
-        t += bay::ModuleBodyXml(
-            name, {0.0, 0.0,
-                   p.base_height + (p.modules - 1 - j) * p.pitch +
-                       bay::kModuleThickness / 2.0});
+  // The pallets: each one's deck, and the modules still on it. Module j is
+  // the j-th taken (src/layout.h, Pallet, gives the pallet's frame and the
+  // places); with n left on the first pallet, j = modules - n .. modules - 1
+  // are there; the other pallets are full. Stowed, only the pallets that
+  // are not outside are there, and of the stocks the same.
+  {
+    for (size_t pi = 0; pi < layout.pallets.size(); ++pi) {
+      const Pallet& p = layout.pallets[pi];
+      if (inside_only && p.outside) continue;
+      const std::string prefix = PalletPrefix(pi);
+      const int left = pi == 0 ? pallet_modules : p.modules;
+      const bool upright = p.stands == "on_long_edge";
+      const Eigen::Vector3d deck =
+          upright ? Eigen::Vector3d(bay::kModuleLength / 2.0 + kPalletDeckMargin,
+                                    (p.modules * p.pitch) / 2.0 + kPalletDeckMargin,
+                                    p.base_height / 2.0)
+                  : Eigen::Vector3d(bay::kModuleLength / 2.0 + kPalletDeckMargin,
+                                    bay::kModuleWidth / 2.0 + kPalletDeckMargin,
+                                    p.base_height / 2.0);
+      t += "    <body name=\"" + prefix + "\" pos=\"" + V3(p.pos) + "\" quat=\"" +
+           Quat(Rpy({0.0, 0.0, p.yaw_deg})) + "\">\n";
+      t += "      <geom name=\"" + prefix + "_base\" class=\"layout_pallet\" pos=\"0 0 " +
+           Num(p.base_height / 2.0) + "\" size=\"" + V3(deck) + "\"/>\n";
+      for (int j = p.modules - left; j < p.modules; ++j) {
+        const std::string name = prefix + "_module_" + std::to_string(j);
+        if (upright) {
+          // Standing on its long edge: a quarter turn about x takes the
+          // module's z (its glass's normal) to -y.
+          t += "      <body name=\"" + name + "_place\" pos=\"0 " +
+               Num((j - (p.modules - 1) / 2.0) * p.pitch) + " " +
+               Num(p.base_height + bay::kModuleWidth / 2.0) +
+               "\" quat=\"0.70710678118654757 0.70710678118654757 0 0\">\n";
+          t += bay::ModuleBodyXml(name, {0.0, 0.0, 0.0});
+          t += "      </body>\n";
+        } else {
+          t += bay::ModuleBodyXml(
+              name, {0.0, 0.0,
+                     p.base_height + (p.modules - 1 - j) * p.pitch +
+                         bay::kModuleThickness / 2.0});
+        }
       }
+      t += "    </body>\n";
     }
-    t += "    </body>\n";
     for (const Stock& s : layout.stocks) {
+      if (inside_only && s.outside) continue;
       t += "    <body name=\"stock_" + s.name + "\">\n";
       t += BoxGeoms(s.boxes, "stock_" + s.name + "_", "layout_stock", s.mass_kg);
       t += "    </body>\n";
@@ -531,6 +578,17 @@ std::string BuildLayoutXml(const Layout& layout, const LayoutState& state,
     t += "    <body name=\"item_" + item.name + "\">\n";
     t += BoxGeoms(item.boxes, "item_" + item.name + "_", "layout_item", item.mass_kg);
     t += "    </body>\n";
+  }
+
+  // The ports' sites: the zone, and the port's frame.
+  if (!inside_only) {
+    for (const Port& port : layout.ports) {
+      t += "    <site name=\"port_" + port.name + "_zone\" class=\"layout_port_zone\" pos=\"" +
+           V3(port.zone.pos) + "\" size=\"" + Half(port.zone.size) + "\"/>\n";
+      t += "    <site name=\"port_" + port.name + "_frame\" class=\"layout_port_frame\" pos=\"" +
+           V3(port.frame_pos) + "\" quat=\"" + Quat(Rpy({0.0, 0.0, port.frame_yaw_deg})) +
+           "\"/>\n";
+    }
   }
 
   // The arms, each on its track. qpos runs through them in this order: the
@@ -631,11 +689,11 @@ ModelPtr LoadLayoutModel(const Layout& layout, const LayoutState& state,
     return mj_addBufferVFS(&vfs, name.c_str(), text.data(),
                            static_cast<int>(text.size())) == 0;
   };
-  for (const char* file : {"common.xml", "container.xml"}) {
+  for (const std::string& file : {std::string("common.xml"), BaseFile(layout)}) {
     std::string text;
     const std::string path = paths.models_dir + "/" + file;
     if (!ReadFile(path, &text)) return fail("cannot read " + path);
-    if (!add(file, text)) return fail(std::string("cannot add ") + file);
+    if (!add(file, text)) return fail("cannot add " + file);
   }
   for (const ArmUse& arm : layout.arms) {
     ArmSetup setup;
@@ -760,7 +818,8 @@ LayoutHandles FindHandles(const mjModel& model, const Layout& layout) {
     h.arms.push_back(a);
   }
 
-  h.container_geoms = geoms_of_body(body_id("container_frame"));
+  h.base_body = BaseBody(layout);
+  h.base_geoms = geoms_of_body(body_id(h.base_body));
   h.holder_geoms = geoms_of_body(body_id("holder"));
   h.tube_geoms = geoms_of_body(body_id(bay::TubeName()));
   for (int k = 0; k < bay::kRailCount; ++k) {
@@ -773,16 +832,30 @@ LayoutHandles FindHandles(const mjModel& model, const Layout& layout) {
     if (b < 0) break;
     h.module_geoms.push_back(geoms_of_body(b));
   }
-  push_if(&h.pallet_base_geoms, geom_id("pallet_base"));
-  // Indexed by the order of taking: [j] is module j, empty when it is gone.
+  // The pallets, their modules indexed as the points of module_take: [j]
+  // runs through the pallets in order, empty when the module is gone.
   {
-    std::vector<std::vector<int>> pallet(layout.pallet.modules);
-    bool any = false;
-    for (int j = 0; j < layout.pallet.modules; ++j) {
-      pallet[j] = geoms_of_body(body_id("pallet_module_" + std::to_string(j)));
-      any = any || !pallet[j].empty();
+    std::vector<std::vector<int>> modules;
+    std::vector<std::vector<int>> places;
+    bool any_module = false, any_place = false;
+    for (size_t pi = 0; pi < layout.pallets.size(); ++pi) {
+      const std::string prefix = PalletPrefix(pi);
+      std::vector<int> place;
+      const int base = geom_id(prefix + "_base");
+      push_if(&h.pallet_base_geoms, base);
+      push_if(&place, base);
+      any_place = any_place || base >= 0;
+      for (int j = 0; j < layout.pallets[pi].modules; ++j) {
+        std::vector<int> g =
+            geoms_of_body(body_id(prefix + "_module_" + std::to_string(j)));
+        any_module = any_module || !g.empty();
+        place.insert(place.end(), g.begin(), g.end());
+        modules.push_back(std::move(g));
+      }
+      places.push_back(std::move(place));
     }
-    if (any) h.pallet_module_geoms = pallet;
+    if (any_module) h.pallet_module_geoms = std::move(modules);
+    if (any_place) h.pallet_place_geoms = std::move(places);
   }
   for (const Stock& s : layout.stocks) {
     std::vector<int> g = geoms_of_body(body_id("stock_" + s.name));

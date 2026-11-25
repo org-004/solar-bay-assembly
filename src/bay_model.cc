@@ -93,9 +93,18 @@ struct Box {
   double Volume() const { return 8.0 * half.x() * half.y() * half.z(); }
 };
 
+// The open strap, ours: each half of the strap swung outward about its pin
+// until it lies level under the rail. A half is half the strap's developed
+// length, 348 mm (docs/bay-hardware.md, Rail, "Mass of rail, strap, pins and
+// bolt"), and it is drawn 20 mm thick: the strap's 2.5 mm with its ear, which
+// is 20 mm across.
+constexpr double kStrapOpenLength = 0.348 / 2.0;
+constexpr double kStrapOpenThickness = 0.020;
+
 // The boxes of a rail with its strap, in the rail's frame (origin on the
-// tube's axis, the rail's long side along X), in the order of the file.
-std::vector<Box> RailBoxes() {
+// tube's axis, the rail's long side along X), in the order of the file. With
+// `strap_open` the strap is drawn open (see RailBodyXml in the header).
+std::vector<Box> RailBoxes(bool strap_open) {
   const double half_length = kRailLength / 2.0;
   const double half_top = kRailTopWidth / 2.0;
   const double half_sheet = kRailSheet / 2.0;
@@ -137,6 +146,17 @@ std::vector<Box> RailBoxes() {
   const double side_top = bottom;
   const double side_bottom = -strap_outer;
   const double strap_y = kStrapWidth / 2.0;
+  if (strap_open) {
+    // Each half from |x| = kTubeRadius outward, its top where the closed
+    // strap's sides end at the webs' lower edges.
+    for (const auto& [end, x_sign] : {std::pair{"neg", -1.0}, std::pair{"pos", 1.0}}) {
+      boxes.push_back({std::string("_strap_open_") + end,
+                       {x_sign * (kTubeRadius + kStrapOpenLength / 2.0), 0,
+                        side_top - kStrapOpenThickness / 2.0},
+                       {kStrapOpenLength / 2.0, strap_y, kStrapOpenThickness / 2.0}});
+    }
+    return boxes;
+  }
   for (const auto& [end, x_sign] : {std::pair{"neg", -1.0}, std::pair{"pos", 1.0}}) {
     boxes.push_back({std::string("_strap_") + end,
                      {x_sign * (kTubeRadius + half_strap), 0, (side_top + side_bottom) / 2.0},
@@ -418,8 +438,9 @@ std::string TubeBodyXml() {
 }
 
 std::string RailBodyXml(const std::string& name,
-                        const std::array<double, 3>& pos, int index) {
-  const std::vector<Box> boxes = RailBoxes();
+                        const std::array<double, 3>& pos, int index,
+                        bool strap_open) {
+  const std::vector<Box> boxes = RailBoxes(strap_open);
   double volume = 0.0;
   for (const Box& box : boxes) volume += box.Volume();
   std::string text = BodyOpen(name, pos);

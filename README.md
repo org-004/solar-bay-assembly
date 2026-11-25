@@ -113,14 +113,31 @@ is in `docs/bay-hardware.md`.
 
 **The new cell is designed and not yet running.** The cell that will build
 bays from the real parts (rails fastened to the tube, modules located and
-pinned to the rails, inside the container) exists as layouts written as
-data (`layouts/`), each checked by a program for transport, reach,
-clearance, load, the ways in and out and time
-(`bazel run --config=opt //:check_layout -- --list`), and the chosen one as
-a model that can be looked at (`//:viewer_layout`). Nothing in it moves yet:
-it has no controllers, no cycle, no cameras and no gate.
-[`docs/layout.md`](docs/layout.md) holds the design, the comparison of the
-layouts and the reasons for the choice.
+pinned to the rails) exists as layouts written as data (`layouts/`), each
+checked by a program for transport, reach, clearance, load, the ways in and
+out, time, what is allowed, ports and approaches
+(`bazel run --config=opt //:check_layout -- --list`). It has no
+controllers, no cameras and no gate: it is kinematic.
+
+**On the flat rack, a whole bay is planned motion.** The chosen layout,
+`flat_rack_3_pin_arms`, stands on the base of a 40 ft flat rack: one KUKA
+KR 210 sets the rails and modules, three UR10e below the bay drive the bolts
+and locate, pin and swage the modules. Every move of every arm for one bay is
+planned free of collision and the four arms are scheduled on one clock
+(`bazel run --config=opt //:plan_layout -- flat_rack_3_pin_arms --summary`);
+the plan is committed (`plans/`), replayed and checked by a test, and played
+back in the viewer (`//:viewer_layout -- flat_rack_3_pin_arms --play`). A bay
+takes 644.28 s planned and 416.32 s by the time model.
+[`docs/flat-rack-cell.md`](docs/flat-rack-cell.md) holds the design, the
+ports, the margins and three recordings.
+
+![The whole bay as planned motion, 16 times real time](docs/bay_planned.gif)
+
+**On the closed container (run 011)** five layouts remain as a record; the
+one chosen then, `below_rails_by_module_arm`, takes 628.5 s for a bay by the
+time model and was never planned whole.
+[`docs/layout.md`](docs/layout.md) holds that design, the comparison of the
+layouts and the reasons for the choice then.
 
 **The cell** (`models/cell.xml`). A KUKA KR 210 R2700-2, converted from the
 vendor's robot description, with a suction tool. A pallet tilted 10 degrees

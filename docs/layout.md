@@ -1,5 +1,16 @@
 # The layout of the cell that builds bays
 
+**Notice.** Since run 012 the chosen layout is `flat_rack_3_pin_arms`, on the flat rack,
+described in [`docs/flat-rack-cell.md`](flat-rack-cell.md). This document stands as the
+record of the closed container (run 011). Its five layouts are kept and load in the new
+form of the file; their rows of the seven old kinds are what this document gives
+(`bazel run --config=opt //:check_layout -- <name> --checks
+transport,hold,reach,clearance,load,ways,time`, which exits 1 for `above` and 0 for the
+others, as at `68a1199`). The new kinds are not made to pass: all five fail every `port`
+row (7 of 7) and every `approach` row (9 of 9), while their `allowed` rows pass.
+`//:print_layout_moves` no longer exists: its seven moves are superseded by
+`//:plan_layout`, which plans every move of a bay.
+
 This is the design of a new robot cell that builds bays: one round tube, ten rails and
 nine modules (`docs/bay-hardware.md`), inside a 40 ft container whose long sides are open
 while it works. The cell is designed, not running. Nothing here was built or tested on
@@ -7,11 +18,11 @@ hardware, and no path of an arm was planned except where a section says so: the
 checks are made at poses.
 
 Five layouts were written as data (`layouts/*.json`, in the form of `src/layout.h`),
-checked by one program (`src/layout_check.h`) and compared, and one was chosen. Every
+checked by one program (`src/layout_check.h`) and compared, and one was chosen in run 011. Every
 figure of a layout is in its file; every result below is printed by these commands:
 
-- `bazel run --config=opt //:check_layout -- --list`: the five names, which is chosen,
-  and each title.
+- `bazel run --config=opt //:check_layout -- --list`: the five names (with the flat
+  rack's three since run 012), which is chosen, and each title.
 - `bazel run --config=opt //:check_layout -- <name>`: every row of every check as CSV
   (`check,item,arm,tool,figure,unit,limit,result,detail`), then the bay's time and the
   time model as `#` lines; it exits 0 only when every row passes.
@@ -85,7 +96,7 @@ for the same thing, the checker's figure is given.
   neighbouring module. Standing one pitch (1.144 m) along the tube, opposite the next
   slot, which is still empty, it clears. So modules are set in order from the front wall
   toward the rear doors, the arm always one pitch ahead, and the last module is set from
-  one pitch behind. In the chosen layout that last set-down is the tightest of the nine
+  one pitch behind. In the layout chosen in run 011 that last set-down is the tightest of the nine
   set-downs: 0.0477 m from the arm's link 2 to module 7's frame (`check_layout` row
   `module_set 8`). The module arm has tighter rows elsewhere: `rail_set 0` and 34 of
   the 36 `module_take` rows, at 0.0300 m.
@@ -120,7 +131,7 @@ above the ground), the pallet outside the +X side, the pin stand outside the rea
 and the transfer cart outside the -X side. They differ in where the one small arm, a
 Universal Robots UR10e, stands, and in who puts the rails on. Each picture below shows a
 candidate's small arm at `rail_set:4`, rail 4 being set; the command that made each is
-in the table of pictures under The layout chosen.
+in the table of pictures under The layout chosen in run 011.
 
 **`below`.** The small arm stands on a floor track at x = -0.35, base 0.60 above the
 ground, under the bay's inner half, between the holder's stands and the module arm's
@@ -136,13 +147,13 @@ small arm sets a rail, changes to the nutrunner, drives that rail's bolt and cha
 back, ten times, so every rail is clamped before the next is touched, at the price of
 twenty tool changes. Its picture is `below`'s.
 
-**`below_rails_by_module_arm`** (chosen). The geometry of `below`, with the rails put on
+**`below_rails_by_module_arm`** (chosen in run 011). The geometry of `below`, with the rails put on
 by the module arm. Its gripper carries a clamp for a rail between its suction cups, so it
 needs no tool change. It takes each rail from a rack outside the +X side beside the
 pallet and sets it down from one pitch along the tube, while the small arm, which starts
 with the nutrunner, drives the strap bolts one rail behind and then goes on to the pins
 as in `below`. The module arm's track is longer than in the other four (travel -4.1 to
-4.7 m in place of -3.6 to 4.7 m). Its pictures are in The layout chosen; the first is
+4.7 m in place of -3.6 to 4.7 m). Its pictures are in The layout chosen in run 011; the first is
 the whole cell.
 
 **`beside`.** The small arm stands upright on a raised beam beside the tube on its +X
@@ -183,7 +194,7 @@ pose is checked with the other arm at its wait pose.
 
 | | `above` | `below` | `below_each_rail` | `below_rails_by_module_arm` | `beside` |
 |---|---|---|---|---|---|
-| Chosen (`--list`) | - | - | - | chosen | - |
+| Chosen (`--list`) | - | - | - | marked chosen at `68a1199`; no longer | - |
 | Small arm stands | above, hanging from a roof track | below, on a floor track | below, on a floor track | below, on a floor track | beside, on a raised beam |
 | Rails set by | small arm | small arm | small arm | module arm | small arm |
 | Rail order | all rails, then all bolts | all rails, then all bolts | each rail, then its bolt | module arm sets, small arm bolts one rail behind | all rails, then all bolts |
@@ -219,8 +230,8 @@ The figures are each layout's `time,bay` and `time,busy` rows.
 Setting each rail and bolting it at once is the slowest: the tool changes cost more than
 the moves they save. The module arm setting the rails is the fastest, because its gripper
 needs no change and the two arms work side by side; the price is a more complicated
-gripper (see The layout chosen). In all three the module phase is held by the pin arm
-(402.2 s of it in `below` and `below_each_rail`, 402.7 s in the chosen layout), not by
+gripper (see The layout chosen in run 011). In all three the module phase is held by the pin arm
+(402.2 s of it in `below` and `below_each_rail`, 402.7 s in the layout chosen in run 011), not by
 the module arm.
 
 ### What makes `above` fail
@@ -251,13 +262,13 @@ phase against 402.2 s. Its tightest pose is `rail_take 0` to `rail_take 9` at 0.
 by 0.0173 m against 0.0184 m. It needs five
 posts and a raised beam inside the container (items 75 kg against 0, tracks 1900 kg
 against 1850), where `below`'s track lies on the floor. Nothing it offers is better than
-`below`'s on any row of the comparison table. The way of putting rails on that the chosen layout uses was written only on
+`below`'s on any row of the comparison table. The way of putting rails on that the layout chosen in run 011 uses was written only on
 `below`'s geometry; `beside` with the module arm setting the rails was not checked.
 
-## The layout chosen
+## The layout chosen in run 011
 
 `below_rails_by_module_arm`: the small arm below the bay on a floor track, and the module
-arm putting the rails on as well as the modules. It is chosen because it passes every
+arm putting the rails on as well as the modules. It was chosen because it passes every
 check (exit code 0) and has the shortest time for a bay of the five, 628.5 s, by the rule
 that rails go on by whatever gives the shortest cycle; and because its geometry, shared
 with `below`, needs nothing added to the container.
@@ -372,7 +383,7 @@ The `load` rows of `check_layout -- below_rails_by_module_arm`:
 
 ### The pictures and the commands that made them
 
-Seven pictures: the chosen layout's four (`layout_cell.png`, `layout_rail.png`,
+Seven pictures: the four of the layout chosen in run 011 (`layout_cell.png`, `layout_rail.png`,
 `layout_pin.png`, `layout_stowed.png`) and the three candidates' (`layout_below.png`,
 `layout_above.png`, `layout_beside.png`). Each was made with
 `tools/video/shot_viewer.sh`, which runs the viewer and saves one frame:
@@ -651,7 +662,7 @@ The program's last line: `# bay time 628.5 s`.
 
 The time model moves each arm on a straight line in joint space and adds a factor for
 speeding up and slowing down; it checks nothing between poses. To see how far that is
-from a real move, seven moves of the chosen layout were planned with the repository's
+from a real move, seven moves of the layout chosen in run 011 were planned with the repository's
 planner: RRT-Connect and path shortening of `src/rrt.h`, timed by `src/path_timing.h`.
 The command is `bazel run --config=opt //:print_layout_moves -- below_rails_by_module_arm
 --iterations 40000`; it runs with a fixed seed (1) and prints the same rows every run.

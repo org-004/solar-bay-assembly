@@ -31,6 +31,14 @@ struct ArmModel {
   std::string maker;  // The arm as its maker names it.
   // The datasheet.
   double payload_kg = 0.0;
+  // Where the rated payload holds: the distance of the load's centre of mass
+  // from the flange along the flange's axis and sideways from it, and the
+  // datasheet's words for its conditions. 0 where the datasheet states no
+  // distance (or it has not been read): the payload is then held by mass
+  // alone.
+  double payload_centre_axial_m = 0.0;
+  double payload_centre_lateral_m = 0.0;
+  std::string payload_conditions;
   double reach_m = 0.0;
   double mass_kg = 0.0;
   std::array<double, 6> joint_lo_deg{};
@@ -51,6 +59,16 @@ inline const std::vector<ArmModel>& ArmCatalog() {
       {.key = "kr210_r2700_2",
        .maker = "KUKA KR 210 R2700-2 (KR QUANTEC)",
        .payload_kg = 210.0,
+       .payload_centre_axial_m = 0.310,
+       .payload_centre_lateral_m = 0.355,
+       .payload_conditions =
+           "The payload diagram's 210 kg curve, read by eye to about 10 mm: "
+           "flat at Lxy 355 mm out to Lz 310 mm, then down to Lz 430 mm at Lxy 0. "
+           "\"The maximum payload of 275 kg applies only if the position of the "
+           "center of mass is 0 mm and a supplementary load optimized for the load "
+           "case is mounted.\" \"The specific load case must be verified using "
+           "KUKA.Load or KUKA Compose.\" The diagram does not print what Lz is "
+           "measured from; the flange is ours.",
        .reach_m = 2.701,
        .mass_kg = 1077.0,
        .joint_lo_deg = {-185.0, -140.0, -120.0, -350.0, -125.0, -350.0},
@@ -67,6 +85,11 @@ inline const std::vector<ArmModel>& ArmCatalog() {
       {.key = "ur10e",
        .maker = "Universal Robots UR10e",
        .payload_kg = 12.5,
+       .payload_centre_axial_m = 0.0,
+       .payload_centre_lateral_m = 0.0,
+       .payload_conditions =
+           "The technical specification states the payload without a load "
+           "centre; any mounting orientation.",
        .reach_m = 1.300,
        .mass_kg = 33.3,
        .joint_lo_deg = {-360.0, -360.0, -360.0, -360.0, -360.0, -360.0},

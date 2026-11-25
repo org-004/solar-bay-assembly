@@ -18,6 +18,9 @@ suites at once ran a machine out of memory.
 - Once, alone on the machine, before code lands on `main`, the gate as well
   (`docs/gate.md`): `bazel test --config=opt //...`
 - A change to documents alone needs no build and no test.
+- At 4.4 GB of memory the full test needs `--jobs=3 --local_resources=cpu=3` or fewer;
+  `plan_replay_test` (about 50 s) and `layout_check_test` (about 27 s) are among the
+  slow ones.
 
 Where the time goes (three cores, 2026-11-23): eight tests take 370 of the suite's 417
 seconds. `check_cycle_batch_test` 76 s, `planned_carry_test` 74, `motion_planner_test`
@@ -107,9 +110,15 @@ Each header opens with a long comment that explains the piece (240 of the 1,173 
 | Viewer (needs a display) | `bazel run --config=opt //:view_cell -- --seed 3` |
 | The bay's real hardware: round tube, rails, modules, fastening points (beside the cell, not in it) | `docs/bay-hardware.md`, `src/bay_hardware.h`, `models/bay.xml`, `//:print_bay`, `tests/bay_hardware_test.cc` |
 | The container the cell is built into: members, openings, envelopes | `docs/bay-hardware.md` ("The container"), `src/container.h`, `models/container.xml`, `tests/container_test.cc` |
+| The flat rack the new cell stands on | `docs/bay-hardware.md` ("The container"), `src/flat_rack.h`, `models/flat_rack.xml`, `tests/flat_rack_test.cc` |
 | The bay's model is generated: change the header, then regenerate | `src/bay_model.h`, `bazel run --config=opt //:gen_bay > models/bay.xml`, `tests/bay_model_test.cc` |
 | Locating a module before pinning: the nose, its capture range, a physics test | `docs/bay-hardware.md` ("Locating a module before pinning"), `src/bay_hardware.h`, `//:print_bay -- --capture`, `tests/locate_physics_test.cc` |
 | The new cell's layouts, as data (designed, not yet running; beside the cell, not in it) | `docs/layout.md`, `layouts/*.json`, `src/layout.h`, `src/arm_catalog.h` |
-| Checks on a layout: transport, reach, clearance, load, ways, time | `src/layout_check.h`, `bazel run --config=opt //:check_layout -- --list`, `-- <name>`, `tests/layout_check_test.cc` |
+| The flat rack cell's design: the chosen layout, ports, approaches, planned bay, margins | `docs/flat-rack-cell.md`, `layouts/flat_rack_*.json` |
+| Checks on a layout: transport, hold, reach, clearance, load, ways, time, and allowed, port, approach (new kinds; run 011's five layouts fail port and approach) | `src/layout_check.h`, `bazel run --config=opt //:check_layout -- --list`, `-- <name>`, `-- <name> --checks <kinds,...>`, `tests/layout_check_test.cc` |
+| Rows without poses: allowed, port, the flat rack's transport | `src/layout_rows.h` |
+| What moves and what is there at a step, pairs by design, the one distance function | `src/layout_scene.h` |
+| Planned motion of a bay: every move planned, the arms scheduled on one clock, verified | `src/layout_plan.h`, `bazel run --config=opt //:plan_layout -- <name> [--summary\|--margins\|--out PATH]`, `plans/*.json`, `tests/plan_replay_test.cc`, `tests/layout_plan_test.cc` |
+| Playback of a committed plan (needs a display) | `bazel run --config=opt //:viewer_layout -- <name> --play`, `tools/video/play_gif.sh` |
 | A layout as a model, and its viewer (needs a display) | `src/layout_model.h`, `bazel run --config=opt //:viewer_layout -- <name> --state finished`, `tests/layout_model_test.cc` |
 | A picture of any model from the plain viewer | `src/viewer.cc`, `src/viewer_lib.h` (`ParseViewerArgs`), `tools/video/shot_viewer.sh` |

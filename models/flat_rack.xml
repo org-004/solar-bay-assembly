@@ -1,0 +1,70 @@
+<!--
+  The flat rack the first cell stands on, in its working state.
+
+  A 40 ft high-cube flat rack is a container's base without sides, posts or
+  roof. Its two end frames are dropped or taken off while the cell works, so
+  what is drawn is the base alone: 12.192 m long and 2.438 m wide, its deck
+  0.648 m above the ground it stands on. There is no post, no side, no roof
+  and no end frame. The base is drawn as two side rails of its full depth,
+  an end sill between them at each end, and the deck between the rails and
+  the sills.
+
+  docs/bay-hardware.md, section "The container", table "The flat rack this
+  project assumes", says where each figure comes from: the outside is the
+  standard's, the base's height is that of published flat racks, the
+  members are this project's assumption, and none of it is a structural
+  calculation. src/flat_rack.h holds the same numbers for code and
+  tests/flat_rack_test.cc checks that they agree, so a change is made in the
+  header and here together.
+
+  The flat rack's frame (body "flat_rack_frame") is the container's: the
+  origin is on the ground under the middle of the base, +Y runs along it,
+  +Z is up, +X across. The body stands at the world's origin. Every member
+  is a box that collides, and every name starts with "flat_rack_".
+
+  Three sites give the envelopes; a site's size is half the envelope's
+  size, as for a box. flat_rack_transport_envelope is the outside of a 40 ft
+  high-cube container, 12.192 x 2.438 x 2.896 m from the ground, the base
+  included: everything must be inside it when the flat rack travels.
+  flat_rack_cell_envelope is the part of it above the deck, where the stowed
+  cell may be. flat_rack_closed_inside_envelope is what a container that
+  closes would give the cell, the closed container's inside envelope of
+  11.830 x 2.330 x 2.240 m standing on this deck; nothing is held to it.
+  Sites collide with nothing and are in group 4, which a viewer does not
+  draw unless asked: drawn, the envelopes look like walls and a roof, and
+  the flat rack has none.
+
+  Nothing but the base is here. Part file: loaded only through a scene that
+  includes common.xml first.
+-->
+<mujoco>
+  <default>
+    <default class="flat_rack_member">
+      <geom type="box" rgba="0.2 0.35 0.55 1"/>
+      <default class="flat_rack_rail">
+        <!-- Side rails and end sills. -->
+        <geom rgba="0.2 0.35 0.55 1"/>
+      </default>
+      <default class="flat_rack_floor">
+        <!-- The deck: timber on steel cross members. -->
+        <geom rgba="0.55 0.45 0.3 1"/>
+      </default>
+      <default class="flat_rack_envelope">
+        <site type="box" group="4" rgba="0.9 0.6 0.1 0.08"/>
+      </default>
+    </default>
+  </default>
+
+  <worldbody>
+    <body name="flat_rack_frame" pos="0 0 0" childclass="flat_rack_member">
+      <geom name="flat_rack_side_rail_0" class="flat_rack_rail" pos="-1.144 0 0.324" size="0.075 6.096 0.324"/>
+      <geom name="flat_rack_side_rail_1" class="flat_rack_rail" pos="1.144 0 0.324" size="0.075 6.096 0.324"/>
+      <geom name="flat_rack_end_sill_front" class="flat_rack_rail" pos="0 -6.0055 0.324" size="1.069 0.0905 0.324"/>
+      <geom name="flat_rack_end_sill_rear" class="flat_rack_rail" pos="0 6.0055 0.324" size="1.069 0.0905 0.324"/>
+      <geom name="flat_rack_deck" class="flat_rack_floor" pos="0 0 0.548" size="1.069 5.915 0.1"/>
+      <site name="flat_rack_transport_envelope" class="flat_rack_envelope" pos="0 0 1.448" size="1.219 6.096 1.448"/>
+      <site name="flat_rack_cell_envelope" class="flat_rack_envelope" pos="0 0 1.772" size="1.219 6.096 1.124" rgba="0.1 0.8 0.3 0.08"/>
+      <site name="flat_rack_closed_inside_envelope" class="flat_rack_envelope" pos="0 0 1.768" size="1.165 5.915 1.12" rgba="0.8 0.1 0.6 0.08"/>
+    </body>
+  </worldbody>
+</mujoco>

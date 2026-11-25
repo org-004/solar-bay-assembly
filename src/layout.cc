@@ -4,10 +4,20 @@
 // struct, each of the right type. A fault throws a LayoutError carrying the
 // path of the field in the file ("arms[1].track.beam.size[2]"); LoadLayout
 // catches it and writes "<file>: <field>: <what is wrong>" into *error.
+//
+// Which fields the top level has depends on "base", read first: the
+// container's layouts have "container", the flat rack's have "flat_rack",
+// "margins", "ports" and "approaches", and a field of the other base is
+// refused as unknown. Beyond the form, the reader checks what one field says
+// of another: each work entry's arm has its tool, every point of every kind
+// is given to exactly one work entry, a port hands over only things the
+// layout has, and on the flat rack every kind that has points has one
+// approach.
 
 #include "src/layout.h"
 
 #include <algorithm>
+#include <cmath>
 #include <filesystem>
 #include <fstream>
 #include <set>
@@ -155,6 +165,11 @@ std::vector<Box> ReadBoxes(const Json& j, const std::string& path) {
   return boxes;
 }
 
+bool IsWorkKind(const std::string& kind) {
+  const auto& kinds = WorkKinds();
+  return std::find(kinds.begin(), kinds.end(), kind) != kinds.end();
+}
+
 ContainerState ReadContainer(const Json& j, const std::string& path) {
   Fields(j, path, {"sides_open", "rear_doors_open", "note"});
   ContainerState c;
@@ -169,6 +184,179 @@ ContainerState ReadContainer(const Json& j, const std::string& path) {
   c.rear_doors_open = Bool(FIELD(j, path, "rear_doors_open"));
   c.note = String(FIELD(j, path, "note"));
   return c;
+}
+
+FlatRackState ReadFlatRack(const Json& j, const std::string& path) {
+  Fields(j, path, {"end_frames", "note"});
+  FlatRackState f;
+  f.end_frames = String(FIELD(j, path, "end_frames"));
+  if (f.end_frames != "taken_off" && f.end_frames != "dropped") {
+    throw LayoutError(Sub(path, "end_frames"),
+                      "is \"taken_off\" or \"dropped\", not \"" +
+                          f.end_frames + "\"");
+  }
+  f.note = String(FIELD(j, path, "note"));
+  return f;
+}
+
+Margins ReadMargins(const Json& j, const std::string& path) {
+  Fields(j, path, {"clearance_m", "joint_margin_deg", "reason", "basis"});
+  Margins m;
+  m.clearance_m = Number(FIELD(j, path, "clearance_m"));
+  if (!(m.clearance_m >= 0.010)) {
+    throw LayoutError(Sub(path, "clearance_m"),
+                      "is below the floor of 0.010 m");
+  }
+  m.joint_margin_deg = Number(FIELD(j, path, "joint_margin_deg"));
+  if (!(m.joint_margin_deg >= 5.0)) {
+    throw LayoutError(Sub(path, "joint_margin_deg"),
+                      "is below the floor of 5.0 degrees");
+  }
+  m.reason = String(FIELD(j, path, "reason"));
+  m.basis = String(FIELD(j, path, "basis"));
+  return m;
+}
+
+// A box given without a name, as a port's zone is.
+Box ReadZone(const Json& j, const std::string& path) {
+  Fields(j, path, {"size", "pos"});
+  Box box;
+  box.size = Numbers<3>(FIELD(j, path, "size"));
+  box.pos = Numbers<3>(FIELD(j, path, "pos"));
+  for (size_t i = 0; i < 3; ++i) {
+    if (box.size[i] < 0.0) {
+      throw LayoutError(At(Sub(path, "size"), i), "a size is not negative");
+    }
+  }
+  return box;
+}
+
+Port ReadPort(const Json& j, const std::string& path) {
+  Fields(j, path,
+         {"name", "crosses", "unit", "frame_pos", "frame_yaw_deg", "zone",
+          "hands_over", "shares_zone_with", "presents", "per_bay", "basis"});
+  Port p;
+  p.name = String(FIELD(j, path, "name"));
+  p.crosses = String(FIELD(j, path, "crosses"));
+  if (p.crosses != "tubes" && p.crosses != "bays" && p.crosses != "modules" &&
+      p.crosses != "rails" && p.crosses != "pin_magazines") {
+    throw LayoutError(Sub(path, "crosses"),
+                      "is \"tubes\", \"bays\", \"modules\", \"rails\" or "
+                      "\"pin_magazines\", not \"" + p.crosses + "\"");
+  }
+  p.unit = String(FIELD(j, path, "unit"));
+  p.frame_pos = Numbers<3>(FIELD(j, path, "frame_pos"));
+  p.frame_yaw_deg = Number(FIELD(j, path, "frame_yaw_deg"));
+  p.zone = ReadZone(FIELD(j, path, "zone"));
+  p.hands_over = Strings(FIELD(j, path, "hands_over"));
+  p.shares_zone_with = String(FIELD(j, path, "shares_zone_with"));
+  p.presents = String(FIELD(j, path, "presents"));
+  p.per_bay = Number(FIELD(j, path, "per_bay"));
+  p.basis = String(FIELD(j, path, "basis"));
+  return p;
+}
+
+// A direction of unit length, within 1e-6.
+Vec3 UnitDirection(const Json& j, const std::string& path) {
+  const Vec3 d = Numbers<3>(j, path);
+  const double norm = std::sqrt(d[0] * d[0] + d[1] * d[1] + d[2] * d[2]);
+  if (std::abs(norm - 1.0) > 1e-6) {
+    throw LayoutError(path, "is not of unit length (its length is " +
+                                std::to_string(norm) + ")");
+  }
+  return d;
+}
+
+std::string Frame(const Json& j, const std::string& path) {
+  const std::string f = String(j, path);
+  if (f != "tool" && f != "world") {
+    throw LayoutError(path, "is \"tool\" or \"world\", not \"" + f + "\"");
+  }
+  return f;
+}
+
+double Positive(const Json& j, const std::string& path) {
+  const double v = Number(j, path);
+  if (!(v > 0.0)) throw LayoutError(path, "is not above zero");
+  return v;
+}
+
+Approach ReadApproach(const Json& j, const std::string& path) {
+  Fields(j, path,
+         {"kind", "approach_frame", "approach_dir", "approach_m",
+          "retreat_frame", "retreat_dir", "retreat_m", "note", "basis"});
+  Approach a;
+  a.kind = String(FIELD(j, path, "kind"));
+  if (!IsWorkKind(a.kind)) {
+    throw LayoutError(Sub(path, "kind"),
+                      "\"" + a.kind + "\" is not a kind of work of src/layout.h");
+  }
+  a.approach_frame = Frame(FIELD(j, path, "approach_frame"));
+  a.approach_dir = UnitDirection(FIELD(j, path, "approach_dir"));
+  a.approach_m = Positive(FIELD(j, path, "approach_m"));
+  a.retreat_frame = Frame(FIELD(j, path, "retreat_frame"));
+  a.retreat_dir = UnitDirection(FIELD(j, path, "retreat_dir"));
+  a.retreat_m = Positive(FIELD(j, path, "retreat_m"));
+  a.note = String(FIELD(j, path, "note"));
+  a.basis = String(FIELD(j, path, "basis"));
+  return a;
+}
+
+// Reads a "points" string: "all", or numbers and ranges such as
+// "0-11,14,20-23", both ends included, each number in 0 .. count - 1.
+// Spaces around the numbers are allowed.
+std::vector<int> ParsePoints(const std::string& text, int count,
+                             const std::string& path) {
+  std::vector<int> out;
+  auto trim = [](const std::string& s) {
+    const size_t a = s.find_first_not_of(" \t");
+    if (a == std::string::npos) return std::string();
+    const size_t b = s.find_last_not_of(" \t");
+    return s.substr(a, b - a + 1);
+  };
+  if (trim(text) == "all") {
+    for (int i = 0; i < count; ++i) out.push_back(i);
+    return out;
+  }
+  auto number = [&](const std::string& s) {
+    const std::string t = trim(s);
+    if (t.empty() || t.size() > 6 ||
+        t.find_first_not_of("0123456789") != std::string::npos) {
+      throw LayoutError(path, "\"" + text +
+                                  "\" is not \"all\" or numbers and ranges "
+                                  "such as \"0-11,14\"");
+    }
+    const int n = std::stoi(t);
+    if (n >= count) {
+      throw LayoutError(path, "the point " + std::to_string(n) +
+                                  " is outside 0.." + std::to_string(count - 1));
+    }
+    return n;
+  };
+  size_t start = 0;
+  while (true) {
+    const size_t comma = text.find(',', start);
+    const std::string part = text.substr(
+        start, comma == std::string::npos ? std::string::npos : comma - start);
+    const size_t dash = part.find('-');
+    if (dash == std::string::npos) {
+      out.push_back(number(part));
+    } else {
+      const int lo = number(part.substr(0, dash));
+      const int hi = number(part.substr(dash + 1));
+      if (hi < lo) {
+        throw LayoutError(path, "the range \"" + trim(part) + "\" runs backward");
+      }
+      for (int i = lo; i <= hi; ++i) out.push_back(i);
+    }
+    if (comma == std::string::npos) break;
+    start = comma + 1;
+  }
+  std::sort(out.begin(), out.end());
+  if (std::adjacent_find(out.begin(), out.end()) != out.end()) {
+    throw LayoutError(path, "\"" + text + "\" gives a point twice");
+  }
+  return out;
 }
 
 TubePlace ReadTube(const Json& j, const std::string& path) {
@@ -251,11 +439,6 @@ Track ReadTrack(const Json& j, const std::string& path) {
   t.basis = String(FIELD(j, path, "basis"));
   t.source = String(FIELD(j, path, "source"));
   return t;
-}
-
-bool IsWorkKind(const std::string& kind) {
-  const auto& kinds = WorkKinds();
-  return std::find(kinds.begin(), kinds.end(), kind) != kinds.end();
 }
 
 ArmUse ReadArm(const Json& j, const std::string& path) {
@@ -374,7 +557,8 @@ Way ReadWay(const Json& j, const std::string& path) {
 }
 
 Work ReadWork(const Json& j, const std::string& path) {
-  Fields(j, path, {"kind", "arm", "tool", "process_s", "note", "basis"});
+  Fields(j, path,
+         {"kind", "arm", "tool", "points", "process_s", "note", "basis"});
   Work w;
   w.kind = String(FIELD(j, path, "kind"));
   if (!IsWorkKind(w.kind)) {
@@ -383,6 +567,7 @@ Work ReadWork(const Json& j, const std::string& path) {
   }
   w.arm = String(FIELD(j, path, "arm"));
   w.tool = String(FIELD(j, path, "tool"));
+  w.points = String(FIELD(j, path, "points"));
   w.process_s = Number(FIELD(j, path, "process_s"));
   w.note = String(FIELD(j, path, "note"));
   w.basis = String(FIELD(j, path, "basis"));
@@ -404,14 +589,68 @@ Item ReadItem(const Json& j, const std::string& path) {
   return it;
 }
 
+// The text of a hands_over entry names something of the layout: a pallet
+// place by index, a stock, an item, or one of the two ways.
+void CheckHandsOver(const Layout& l, const std::string& h,
+                    const std::string& path) {
+  const size_t colon = h.find(':');
+  const std::string what = colon == std::string::npos ? h : h.substr(0, colon);
+  const std::string name = colon == std::string::npos ? "" : h.substr(colon + 1);
+  if (colon != std::string::npos && what == "pallet") {
+    const bool digits = !name.empty() && name.size() < 6 &&
+                        name.find_first_not_of("0123456789") == std::string::npos;
+    if (!digits || std::stoi(name) >= static_cast<int>(l.pallets.size())) {
+      throw LayoutError(path, "\"" + h + "\" names no pallet place: there are " +
+                                  std::to_string(l.pallets.size()));
+    }
+    return;
+  }
+  if (colon != std::string::npos && what == "stock") {
+    if (FindStock(l, name) == nullptr) {
+      throw LayoutError(path, "\"" + h + "\" names no stock of the layout");
+    }
+    return;
+  }
+  if (colon != std::string::npos && what == "item") {
+    for (const Item& it : l.items) {
+      if (it.name == name) return;
+    }
+    throw LayoutError(path, "\"" + h + "\" names no item of the layout");
+  }
+  if (colon != std::string::npos && what == "way") {
+    if (name == "tube_in" || name == "bay_out") return;
+    throw LayoutError(path, "\"" + h + "\" names no way: tube_in or bay_out");
+  }
+  throw LayoutError(path, "\"" + h +
+                              "\" is not \"pallet:<index>\", \"stock:<name>\", "
+                              "\"item:<name>\" or \"way:tube_in|bay_out\"");
+}
+
 Layout ReadLayout(const Json& j) {
   const std::string path;
-  Fields(j, path,
-         {"name", "title", "summary", "chosen", "small_arms_stand",
-          "container", "tube", "holder", "arms", "pallet", "stocks",
-          "strap_bolts_from", "tube_in", "bay_out", "work", "rail_order",
-          "items"});
+  if (!j.is_object()) {
+    throw LayoutError("(top)", "expected an object, found " + TypeName(j));
+  }
+  if (!j.contains("base")) throw LayoutError("base", "missing field");
   Layout l;
+  l.base = String(FIELD(j, path, "base"));
+  const bool flat_rack = l.base == "flat_rack";
+  if (l.base == "container") {
+    Fields(j, path,
+           {"name", "title", "summary", "chosen", "small_arms_stand", "base",
+            "container", "tube", "holder", "arms", "pallets", "stocks",
+            "strap_bolts_from", "tube_in", "bay_out", "work", "rail_order",
+            "items"});
+  } else if (flat_rack) {
+    Fields(j, path,
+           {"name", "title", "summary", "chosen", "small_arms_stand", "base",
+            "flat_rack", "margins", "ports", "approaches", "tube", "holder",
+            "arms", "pallets", "stocks", "strap_bolts_from", "tube_in",
+            "bay_out", "work", "rail_order", "items"});
+  } else {
+    throw LayoutError("base", "is \"container\" or \"flat_rack\", not \"" +
+                                  l.base + "\"");
+  }
   l.name = String(FIELD(j, path, "name"));
   l.title = String(FIELD(j, path, "title"));
   l.summary = String(FIELD(j, path, "summary"));
@@ -423,7 +662,12 @@ Layout ReadLayout(const Json& j) {
                       "is \"below\", \"beside\" or \"above\", not \"" +
                           l.small_arms_stand + "\"");
   }
-  l.container = ReadContainer(FIELD(j, path, "container"));
+  if (flat_rack) {
+    l.flat_rack = ReadFlatRack(FIELD(j, path, "flat_rack"));
+    l.margins = ReadMargins(FIELD(j, path, "margins"));
+  } else {
+    l.container = ReadContainer(FIELD(j, path, "container"));
+  }
   l.tube = ReadTube(FIELD(j, path, "tube"));
   l.holder = ReadHolder(FIELD(j, path, "holder"));
   const Json& arms = j.at("arms");
@@ -432,7 +676,26 @@ Layout ReadLayout(const Json& j) {
     l.arms.push_back(ReadArm(arms[i], At("arms", i)));
   }
   Unique(l.arms, "arms", "arm");
-  l.pallet = ReadPallet(FIELD(j, path, "pallet"));
+  const Json& pallets = j.at("pallets");
+  Array(pallets, "pallets");
+  if (pallets.empty()) throw LayoutError("pallets", "no pallet place given");
+  for (size_t i = 0; i < pallets.size(); ++i) {
+    l.pallets.push_back(ReadPallet(pallets[i], At("pallets", i)));
+  }
+  if (flat_rack) {
+    if (!l.holder.travels_inside) {
+      throw LayoutError("holder.travels_inside",
+                        "on the flat rack the holder travels with the cell and "
+                        "stands on the deck");
+    }
+    for (size_t i = 0; i < l.pallets.size(); ++i) {
+      if (!l.pallets[i].outside) {
+        throw LayoutError(At("pallets", i) + ".outside",
+                          "on the flat rack a pallet stands at a port, outside "
+                          "the base");
+      }
+    }
+  }
   const Json& stocks = j.at("stocks");
   Array(stocks, "stocks");
   for (size_t i = 0; i < stocks.size(); ++i) {
@@ -444,13 +707,14 @@ Layout ReadLayout(const Json& j) {
   l.bay_out = ReadWay(FIELD(j, path, "bay_out"));
   const Json& work = j.at("work");
   Array(work, "work");
-  std::set<std::string> kinds;
+  // For each kind, which entry has each point (-1: none yet).
+  std::map<std::string, std::vector<int>> owner;
+  for (const std::string& kind : WorkKinds()) {
+    owner[kind].assign(PointCount(l, kind), -1);
+  }
   for (size_t i = 0; i < work.size(); ++i) {
     const std::string p = At("work", i);
     Work w = ReadWork(work[i], p);
-    if (!kinds.insert(w.kind).second) {
-      throw LayoutError(p + ".kind", "the kind \"" + w.kind + "\" is given twice");
-    }
     const ArmUse* arm = FindArm(l, w.arm);
     if (arm == nullptr) {
       throw LayoutError(p + ".arm", "no arm \"" + w.arm + "\" in the layout");
@@ -459,7 +723,27 @@ Layout ReadLayout(const Json& j) {
       throw LayoutError(p + ".tool", "the arm \"" + w.arm + "\" has no tool \"" +
                                          w.tool + "\"");
     }
+    std::vector<int>& own = owner[w.kind];
+    for (int n : ParsePoints(w.points, static_cast<int>(own.size()),
+                             p + ".points")) {
+      if (own[n] >= 0) {
+        throw LayoutError(p + ".points",
+                          "point " + w.kind + " " + std::to_string(n) +
+                              " is given to two arms (" + l.work[own[n]].arm +
+                              " and " + w.arm + ")");
+      }
+      own[n] = static_cast<int>(i);
+    }
     l.work.push_back(w);
+  }
+  for (const std::string& kind : WorkKinds()) {
+    const std::vector<int>& own = owner[kind];
+    for (size_t n = 0; n < own.size(); ++n) {
+      if (own[n] < 0) {
+        throw LayoutError("work", "point " + kind + " " + std::to_string(n) +
+                                      " is given to no arm");
+      }
+    }
   }
   l.rail_order = String(FIELD(j, path, "rail_order"));
   if (l.rail_order != "all_rails_then_all_bolts" &&
@@ -475,6 +759,44 @@ Layout ReadLayout(const Json& j) {
     l.items.push_back(ReadItem(items[i], At("items", i)));
   }
   Unique(l.items, "items", "item");
+  if (!flat_rack) return l;
+
+  const Json& ports = j.at("ports");
+  Array(ports, "ports");
+  for (size_t i = 0; i < ports.size(); ++i) {
+    const std::string p = At("ports", i);
+    Port port = ReadPort(ports[i], p);
+    for (size_t k = 0; k < port.hands_over.size(); ++k) {
+      CheckHandsOver(l, port.hands_over[k], At(p + ".hands_over", k));
+    }
+    l.ports.push_back(port);
+  }
+  Unique(l.ports, "ports", "port");
+  for (size_t i = 0; i < l.ports.size(); ++i) {
+    const std::string& other = l.ports[i].shares_zone_with;
+    if (other.empty()) continue;
+    if (other == l.ports[i].name || FindPort(l, other) == nullptr) {
+      throw LayoutError(At("ports", i) + ".shares_zone_with",
+                        "\"" + other + "\" is not the name of another port");
+    }
+  }
+  const Json& approaches = j.at("approaches");
+  Array(approaches, "approaches");
+  for (size_t i = 0; i < approaches.size(); ++i) {
+    const std::string p = At("approaches", i);
+    Approach a = ReadApproach(approaches[i], p);
+    if (FindApproach(l, a.kind) != nullptr) {
+      throw LayoutError(p + ".kind", "the kind \"" + a.kind +
+                                         "\" has an approach already");
+    }
+    l.approaches.push_back(a);
+  }
+  for (const std::string& kind : WorkKinds()) {
+    if (PointCount(l, kind) > 0 && FindApproach(l, kind) == nullptr) {
+      throw LayoutError("approaches", "the kind \"" + kind +
+                                          "\" has points and no approach");
+    }
+  }
   return l;
 }
 
@@ -558,6 +880,77 @@ const std::vector<std::string>& WorkKinds() {
       "rail_take",  "rail_set", "strap_bolt", "module_take", "module_set",
       "locate",     "pin",      "swage",      "pins_take"};
   return kinds;
+}
+
+const Work* FindWork(const Layout& layout, const std::string& kind, int index) {
+  for (const Work& w : layout.work) {
+    if (w.kind != kind) continue;
+    const std::vector<int> points = PointsOf(layout, w);
+    if (std::binary_search(points.begin(), points.end(), index)) return &w;
+  }
+  return nullptr;
+}
+
+// LoadLayout has refused a points string that does not parse; for a layout
+// made in memory, one that does not gives no points.
+std::vector<int> PointsOf(const Layout& layout, const Work& work) {
+  try {
+    return ParsePoints(work.points, PointCount(layout, work.kind), "points");
+  } catch (const LayoutError&) {
+    return {};
+  }
+}
+
+int PointCount(const Layout& layout, const std::string& kind) {
+  if (kind == "rail_take" || kind == "rail_set" || kind == "strap_bolt") {
+    return 10;
+  }
+  if (kind == "module_set") return 9;
+  if (kind == "locate" || kind == "pin" || kind == "swage") return 36;
+  if (kind == "module_take") {
+    int n = 0;
+    for (const Pallet& p : layout.pallets) n += p.modules;
+    return n;
+  }
+  if (kind == "pins_take") return static_cast<int>(PinStocks(layout).size());
+  return 0;
+}
+
+std::vector<const Stock*> PinStocks(const Layout& layout) {
+  std::vector<const Stock*> out;
+  for (const Stock& s : layout.stocks) {
+    if (s.name == "pins" || s.name.rfind("pins_", 0) == 0) out.push_back(&s);
+  }
+  return out;
+}
+
+std::vector<std::string> ArmsDoing(const Layout& layout,
+                                   const std::vector<std::string>& kinds) {
+  std::vector<std::string> out;
+  for (const ArmUse& arm : layout.arms) {
+    bool does = false;
+    for (const Work& w : layout.work) {
+      if (w.arm != arm.name) continue;
+      if (std::find(kinds.begin(), kinds.end(), w.kind) == kinds.end()) continue;
+      if (!PointsOf(layout, w).empty()) does = true;
+    }
+    if (does) out.push_back(arm.name);
+  }
+  return out;
+}
+
+const Approach* FindApproach(const Layout& layout, const std::string& kind) {
+  for (const Approach& a : layout.approaches) {
+    if (a.kind == kind) return &a;
+  }
+  return nullptr;
+}
+
+const Port* FindPort(const Layout& layout, const std::string& name) {
+  for (const Port& p : layout.ports) {
+    if (p.name == name) return &p;
+  }
+  return nullptr;
 }
 
 }  // namespace cell::layout
