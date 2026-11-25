@@ -1,89 +1,115 @@
 {
   "about": "The dependency rules of this repository as data: tools/architecture/deps.py checks them (no Bazel, about a second) and tools/architecture/measure.py counts from them. Every section has an about string; JSON has no comments.",
 
-  "groups_about": "Ordered lowest first. Each tracked file under src/ and tests/ matches exactly one group (files: paths or fnmatch patterns, where * also crosses /). A file may include the headers of its own group and of the groups in may_include, and the outside libraries in outside (by their names in outside_libraries); the C and C++ standard library always. A test sits in the group of the piece it tests. namespace, where a group has one, is the C++ namespace its files must use (none is declared yet).",
+  "groups_about": "Ordered lowest first. Each tracked file under src/ and tests/ matches exactly one group (files: paths or fnmatch patterns, where * also crosses /). A file may include the headers of its own group and of the groups in may_include, and the outside libraries in outside (by their names in outside_libraries); the C and C++ standard library always. A test sits in the group of the highest piece it includes, where that gives the fewest departures. namespaces lists the C++ namespaces (as written in full, cell::bay) that the headers of the group may open; measure.py counts the headers under src/ that open another. frozen is true for the groups of the stand-in cell, which is to be replaced and not converted: a refactoring may move or rename a frozen file but does not edit its contents; measure.py shows the departures in frozen files on a line of their own.",
   "groups": [
     {
-      "name": "general",
-      "what": "Helpers that know nothing of any cell: owning handles for MuJoCo, portable random draws, velocity profiles and a timed move of all joints.",
-      "files": ["src/mj_handles.h", "src/portable_random.h", "src/profile.*", "src/joint_move.*",
+      "name": "base",
+      "what": "Helpers that know nothing of any cell: owning handles for MuJoCo, portable random draws, velocity profiles, a timed move of all joints, and the table of a profile.",
+      "frozen": false,
+      "namespaces": ["cell"],
+      "files": ["src/mj_handles.h", "src/portable_random.h", "src/profile.*", "src/joint_move.*", "src/print_profile.cc",
                 "tests/profile_test.cc", "tests/joint_move_test.cc", "tests/step_test.cc"],
       "may_include": [],
       "outside": ["mujoco", "eigen"]
     },
     {
       "name": "planning",
-      "what": "The planner's general parts: RRT-Connect over an abstract free test, OMPL as a second search, timing a path; nothing of MuJoCo, an arm or a cell.",
-      "files": ["src/rrt.*", "src/rrt_worlds.*", "src/path_timing.*", "src/ompl_search.*",
+      "what": "The planner's general parts: RRT-Connect over an abstract free test, OMPL as a second search, timing a path, and the RRT's table; nothing of MuJoCo, an arm or a cell.",
+      "frozen": false,
+      "namespaces": ["cell"],
+      "files": ["src/rrt.*", "src/rrt_worlds.*", "src/path_timing.*", "src/ompl_search.*", "src/print_rrt.cc",
                 "tests/rrt_test.cc", "tests/path_timing_test.cc"],
-      "may_include": ["general"],
+      "may_include": ["base"],
       "outside": ["eigen", "ompl"]
     },
     {
       "name": "hardware",
-      "what": "The real hardware as data: the bay's parts and its generated model, the container, the flat rack and the catalogue of arms.",
-      "files": ["src/bay_hardware.h", "src/bay_model.*", "src/container.h", "src/flat_rack.h", "src/arm_catalog.h",
+      "what": "The real hardware as data: the bay's parts and its generated model, the container and the flat rack.",
+      "frozen": false,
+      "namespaces": ["cell", "cell::bay", "cell::container", "cell::flat_rack"],
+      "files": ["src/bay_hardware.h", "src/bay_model.*", "src/container.h", "src/flat_rack.h",
                 "tests/bay_hardware_test.cc", "tests/bay_model_test.cc", "tests/container_test.cc",
                 "tests/flat_rack_test.cc", "tests/locate_physics_test.cc"],
-      "may_include": ["general"],
+      "may_include": ["base"],
       "outside": ["eigen", "mujoco"]
     },
     {
       "name": "layout",
       "what": "The new cell: a layout as data, its model, its checks, its scene and distances, and its planned and replayed motion.",
-      "files": ["src/layout.*", "src/layout_check.*", "src/layout_model.*", "src/layout_plan.*",
+      "frozen": false,
+      "namespaces": ["cell", "cell::layout"],
+      "files": ["src/arm_catalog.h", "src/layout.*", "src/layout_check.*", "src/layout_model.*", "src/layout_plan.*",
                 "src/layout_replay.cc", "src/layout_rows.*", "src/layout_scene.*",
                 "tests/layout_*_test.cc", "tests/plan_replay_test.cc"],
-      "may_include": ["general", "planning", "hardware"],
+      "may_include": ["base", "planning", "hardware"],
       "outside": ["eigen", "mujoco", "nlohmann_json"]
     },
     {
       "name": "perception",
       "what": "From a depth image to a module's pose: the camera's model and image, plane and rectangle fits, the pallet's and the check camera's finders.",
+      "frozen": true,
+      "namespaces": ["cell"],
       "files": ["src/camera_model.*", "src/depth_camera.*", "src/plane_fit.*", "src/point_generator.*",
                 "src/rectangle_fit.*", "src/module_finder.*", "src/held_module_finder.*",
-                "tests/depth_camera_test.cc", "tests/plane_fit_test.cc", "tests/point_generator_test.cc",
-                "tests/rectangle_fit_test.cc", "tests/module_finder_test.cc", "tests/held_module_finder_test.cc"],
-      "may_include": ["general"],
+                "tests/plane_fit_test.cc", "tests/point_generator_test.cc",
+                "tests/rectangle_fit_test.cc"],
+      "may_include": ["base"],
+      "outside": ["eigen", "mujoco"]
+    },
+    {
+      "name": "arm",
+      "what": "The one arm's motion stack: the arm, inverse kinematics, collision, the motion planner and the follower, and the program that steps the arm.",
+      "frozen": false,
+      "namespaces": ["cell"],
+      "files": ["src/arm.*", "src/ik.*", "src/collision.*", "src/motion_planner.*", "src/arm_follower.*", "src/step_arm.cc",
+                "tests/arm_test.cc", "tests/arm_follower_test.cc", "tests/ik_test.cc", "tests/path_follow_test.cc"],
+      "may_include": ["base", "planning"],
       "outside": ["eigen", "mujoco"]
     },
     {
       "name": "standin",
-      "what": "The stand-in cell and what is tied to its one arm: the arm, inverse kinematics, collision, the arm's motion planner and follower, pallet, conveyor, suction, the cell, the cycle, its checks, the score and the trial runner.",
-      "files": ["src/arm.*", "src/ik.*", "src/collision.*", "src/motion_planner.*", "src/arm_follower.*",
-                "src/pallet.*", "src/conveyor.*", "src/suction.*", "src/cell.*", "src/pick_place.*",
+      "what": "The stand-in cell, which is to be replaced and not converted: pallet, conveyor, suction, the cell, the cycle, its checks, the score and the trial runner.",
+      "frozen": true,
+      "namespaces": ["cell"],
+      "files": ["src/pallet.*", "src/conveyor.*", "src/suction.*", "src/cell.*", "src/pick_place.*",
                 "src/cycle_check.*", "src/score.*", "src/trial_runner.*", "src/check_rig.*", "src/check_placement.*",
-                "tests/arm_test.cc", "tests/arm_follower_test.cc", "tests/ik_test.cc", "tests/collision_test.cc",
-                "tests/motion_planner_test.cc", "tests/ompl_search_test.cc", "tests/path_follow_test.cc",
+                "tests/ompl_search_test.cc", "tests/collision_test.cc", "tests/motion_planner_test.cc",
+                "tests/depth_camera_test.cc", "tests/module_finder_test.cc", "tests/held_module_finder_test.cc",
                 "tests/pallet_test.cc", "tests/conveyor_test.cc", "tests/suction_test.cc", "tests/cell_test.cc",
                 "tests/pick_place_test.cc", "tests/planned_carry_test.cc", "tests/camera_cycle_test.cc",
                 "tests/check_cycle_test.cc", "tests/check_camera_cell_test.cc", "tests/trial_runner_test.cc",
                 "tests/gate_test.cc", "tests/locating_gate_test.cc"],
-      "may_include": ["general", "planning", "perception"],
+      "may_include": ["base", "planning", "perception", "arm"],
       "outside": ["eigen", "mujoco"]
     },
     {
       "name": "viewer",
       "what": "The plain viewer and its window, argument and camera helpers.",
+      "frozen": false,
+      "namespaces": ["cell"],
       "files": ["src/viewer_lib.*", "src/viewer.cc"],
-      "may_include": ["general"],
+      "may_include": ["base"],
       "outside": ["mujoco", "glfw"]
     },
     {
       "name": "programs",
-      "what": "Programs with a main for the stand-in cell and the general parts: run_cell, the gate, step_arm, the print_* tables and the cell's viewer.",
-      "files": ["src/run_cell.cc", "src/run_gate.cc", "src/step_arm.cc", "src/view_cell.cc",
+      "what": "The stand-in cell's programs with a main: run_cell, the gate, the print_* tables and the cell's viewer.",
+      "frozen": true,
+      "namespaces": ["cell"],
+      "files": ["src/run_cell.cc", "src/run_gate.cc", "src/view_cell.cc",
                 "src/print_cell.cc", "src/print_check.cc", "src/print_depth.cc", "src/print_pallet.cc",
-                "src/print_perception.cc", "src/print_plan.cc", "src/print_plane_fit.cc", "src/print_points.cc",
-                "src/print_profile.cc", "src/print_rrt.cc"],
-      "may_include": ["general", "planning", "perception", "standin", "viewer"],
+                "src/print_perception.cc", "src/print_plan.cc", "src/print_plane_fit.cc", "src/print_points.cc"],
+      "may_include": ["base", "planning", "perception", "arm", "standin", "viewer"],
       "outside": ["eigen", "mujoco"]
     },
     {
       "name": "layout_programs",
       "what": "Programs with a main for the hardware and the new cell: gen_bay, print_bay, check_layout, plan_layout and the layout's viewer.",
+      "frozen": false,
+      "namespaces": ["cell"],
       "files": ["src/gen_bay.cc", "src/print_bay.cc", "src/check_layout.cc", "src/plan_layout.cc", "src/view_layout.cc"],
-      "may_include": ["general", "planning", "hardware", "layout", "viewer"],
+      "may_include": ["base", "planning", "hardware", "layout", "viewer"],
       "outside": ["eigen", "mujoco"]
     }
   ],
@@ -102,18 +128,13 @@
   },
 
   "departures": {
-    "about": "What exists today against the rules, one per line, each with the backlog item that removes it (B? until the backlog is numbered). Kinds: include (from a file to a header its group may not include), outside_include (a file including an outside library its group may not), unused_dep (a target listing a project library none of whose headers its files include), unused_outside_dep (the same for an outside library), missing_dep (a target whose files include a header of a library it does not list). deps.py fails when an entry no longer occurs, so the list only shrinks.",
+    "about": "What exists today against the rules, one per line, each with the backlog item that removes it (B? until the backlog is numbered). Item is B<n> or B? (until the backlog is numbered; deps.py --strict-items refuses B?). Kinds: include (from a file to a header its group may not include), outside_include (a file including an outside library its group may not), unused_dep (a target listing a project library none of whose headers its files include), unused_outside_dep (the same for an outside library), missing_dep (a target whose files include a header of a library it does not list). deps.py fails when an entry no longer occurs, so the list only shrinks.",
     "list": [
+      {"kind": "include", "from": "src/collision.cc", "to": "src/pallet.h", "item": "B?"},
       {"kind": "include", "from": "src/held_module_finder.h", "to": "src/pallet.h", "item": "B?"},
       {"kind": "include", "from": "src/module_finder.cc", "to": "src/pallet.h", "item": "B?"},
       {"kind": "include", "from": "src/module_finder.h", "to": "src/pallet.h", "item": "B?"},
-      {"kind": "include", "from": "tests/depth_camera_test.cc", "to": "src/cell.h", "item": "B?"},
-      {"kind": "include", "from": "tests/depth_camera_test.cc", "to": "src/pallet.h", "item": "B?"},
-      {"kind": "include", "from": "tests/held_module_finder_test.cc", "to": "src/check_rig.h", "item": "B?"},
       {"kind": "include", "from": "tests/locating_gate_test.cc", "to": "src/bay_hardware.h", "item": "B?"},
-      {"kind": "include", "from": "tests/module_finder_test.cc", "to": "src/cell.h", "item": "B?"},
-      {"kind": "include", "from": "tests/module_finder_test.cc", "to": "src/pallet.h", "item": "B?"},
-      {"kind": "missing_dep", "target": "//:layout_plan_test", "dep": "@mujoco", "item": "B?"},
       {"kind": "unused_dep", "target": "//:check_camera_cell_test", "dep": "//:depth_camera", "item": "B?"},
       {"kind": "unused_dep", "target": "//:layout_model", "dep": "//:container", "item": "B?"},
       {"kind": "unused_dep", "target": "//:layout_plan", "dep": "//:mj_handles", "item": "B?"},
@@ -127,7 +148,8 @@
       {"kind": "unused_outside_dep", "target": "//:bay_model_test", "dep": "eigen", "item": "B?"},
       {"kind": "unused_outside_dep", "target": "//:plan_replay_test", "dep": "nlohmann_json", "item": "B?"},
       {"kind": "unused_outside_dep", "target": "//:print_plane_fit", "dep": "eigen", "item": "B?"},
-      {"kind": "unused_outside_dep", "target": "//:print_points", "dep": "eigen", "item": "B?"}
+      {"kind": "unused_outside_dep", "target": "//:print_points", "dep": "eigen", "item": "B?"},
+      {"kind": "missing_dep", "target": "//:layout_plan_test", "dep": "@mujoco", "item": "B?"}
     ]
   },
 
@@ -135,6 +157,7 @@
     "about": "AGENTS.md, 'Sensor data only': the simulation's truth is for the scene generator, the scorer and tests. A file under src/ or tests/ reads truth when its code (comments left out) matches one of patterns; measure.py counts the files that do and are in none of allowed. A regex cannot tell the simulation's mjData from a private copy a planner poses itself, nor a joint angle (sensor data) from a free body's qpos (truth); allowed says by file where a match is not a read of truth.",
     "patterns": [
       {"name": "a True... accessor of the cell or the conveyor", "regex": "\\bTrue[A-Z][A-Za-z0-9_]*\\s*\\("},
+      {"name": "a true_... accessor, as Cell::true_scene()", "regex": "\\btrue_[a-z0-9_]*\\s*\\("},
       {"name": "a body's pose (xpos, xquat, xmat) read out of an mjData", "regex": "(^|[^A-Za-z0-9_])(xpos|xquat|xmat)\\s*(\\[|\\+)"}
     ],
     "allowed": [
@@ -159,16 +182,17 @@
   },
 
   "generated": {
-    "about": "Committed files that a program or a script writes. Each entry: committed (a path or a glob of tracked files), generator (the target or script that writes it), test (the test that fails when the committed file and its source disagree, or null), and what the test really compares. measure.py counts the entries without a test.",
+    "about": "Committed files that a program or a script writes. Each entry: committed (a path or a glob of tracked files), generator (the target or script that writes it), test (the test that fails when the committed file and its source disagree, or null), and what the test really compares. An entry with test null may carry no_test, the reason why no test can compare it (a picture that needs a display and is judged by eye). measure.py counts the entries that have neither a test nor a no_test.",
     "entries": [
       {"committed": "models/bay.xml", "generator": "bazel run --config=opt //:gen_bay > models/bay.xml", "test": "tests/bay_model_test.cc", "compares": "byte for byte with what BayModelXml() prints"},
       {"committed": "plans/flat_rack_3_pin_arms.json", "generator": "bazel run --config=opt //:plan_layout -- flat_rack_3_pin_arms --out PATH", "test": "tests/plan_replay_test.cc", "compares": "the plan of the chosen layout only: its layout file's SHA-256 against the layout as it is, and the verifier over the plan; the plan is not made again"},
       {"committed": "plans/flat_rack_2_pin_arms.json", "generator": "bazel run --config=opt //:plan_layout -- flat_rack_2_pin_arms --out PATH", "test": null, "compares": "nothing: plan_replay_test reads only the chosen layout's plan"},
-      {"committed": "docs/img/{pallet_depth,check_depth,placement,carry,profile,gate}.png", "generator": "tools/plots/*.py from the output of print_* and run_cell (tools/plots/README.md)", "test": null, "compares": "nothing"},
-      {"committed": "docs/{cycle,pallet,pick,check,blind_vs_camera}.gif", "generator": "tools/video/make_all.sh (needs a display)", "test": null, "compares": "nothing"},
-      {"committed": "docs/img/{cell,tube_full,check_pose}.png", "generator": "tools/video/make_all.sh (needs a display)", "test": null, "compares": "nothing"},
-      {"committed": "docs/*_planned.gif", "generator": "tools/video/play_gif.sh flat_rack_3_pin_arms (docs/flat-rack-cell.md)", "test": null, "compares": "nothing"},
-      {"committed": "docs/img/{bay,bay_fastening,container,layout_*}.png", "generator": "tools/video/shot_viewer.sh with a viewer target (docs/layout.md; the commands for bay_fastening and container are not written down)", "test": null, "compares": "nothing"},
+      {"committed": "docs/img/{pallet_depth,check_depth,placement,carry,profile,gate}.png", "generator": "tools/plots/*.py from the output of print_* and run_cell (tools/plots/README.md)", "test": null, "no_test": "A plot is judged by eye; it needs no display but matplotlib, which the repository does not depend on. The commands are in tools/plots/README.md.", "compares": "nothing"},
+      {"committed": "docs/{cycle,pallet,pick,check,blind_vs_camera}.gif", "generator": "tools/video/make_all.sh (needs a display)", "test": null, "no_test": "No test can compare it: a viewer needs a display and a picture is judged by eye. The script tools/video/make_all.sh holds the commands.", "compares": "nothing"},
+      {"committed": "docs/img/{cell,tube_full,check_pose}.png", "generator": "tools/video/make_all.sh (needs a display)", "test": null, "no_test": "No test can compare it: a viewer needs a display and a picture is judged by eye. The script tools/video/make_all.sh holds the commands.", "compares": "nothing"},
+      {"committed": "docs/*_planned.gif", "generator": "tools/video/play_gif.sh flat_rack_3_pin_arms (docs/flat-rack-cell.md)", "test": null, "no_test": "No test can compare it: a viewer needs a display and a picture is judged by eye. docs/flat-rack-cell.md lists the commands that made them.", "compares": "nothing"},
+      {"committed": "docs/img/layout_*.png", "generator": "tools/video/shot_viewer.sh //:viewer_layout (docs/layout.md)", "test": null, "no_test": "No test can compare it: a viewer needs a display and a picture is judged by eye. docs/layout.md, 'The pictures and the commands that made them', lists the commands.", "compares": "nothing"},
+      {"committed": "docs/img/{bay,bay_fastening,container}.png", "generator": "tools/video/shot_viewer.sh with a viewer target (the commands for bay_fastening and container are not written down)", "test": null, "no_test": "No test can compare it: a viewer needs a display and a picture is judged by eye. The commands of bay.png are in tools/video/shot_viewer.sh's opening comment; those of bay_fastening and container are written nowhere.", "compares": "nothing"},
       {"committed": "MODULE.bazel.lock", "generator": "bazel, on any build after MODULE.bazel changes", "test": null, "compares": "nothing: no build runs with --lockfile_mode=error"}
     ]
   },
@@ -189,5 +213,20 @@
       {"name": "the wall clock", "regex": "\\bsystem_clock\\b|(^|[^A-Za-z0-9_.>:])time\\s*\\(\\s*(nullptr|NULL|0)?\\s*\\)"}
     ],
     "allowed": ["src/portable_random.h"]
+  },
+
+  "silenced": {
+    "about": "AGENTS.md and docs/architecture/principles.md, 'a finding is cured, not silenced': a place in src/, tests/, BUILD.bazel or .bazelrc where a compiler's or an analyzer's finding is turned off. measure.py counts, in code with comments left out: #pragma GCC diagnostic and #pragma clang diagnostic lines, __attribute__((no_sanitize and [[gnu::no_sanitize; in a comment that begins with it (the only form that does silence anything), NOLINT, NOLINTNEXTLINE and NOLINTBEGIN; in BUILD.bazel, a -w or -Wno-... string in a target's copts; in .bazelrc, a -Wno-... or -w option. A place that matches an entry of allowed is not counted.",
+    "allowed": [
+      {"file": ".bazelrc", "token": "-Wno-psabi", "why": "GCC's note about a changed calling convention for small Eigen vectors on 64-bit ARM; it matters only against code built by GCC older than 10.1, and everything here is built from source by one compiler. Turned off for this repository's own files only."},
+      {"file": ".bazelrc", "token": "-Wno-error=maybe-uninitialized", "why": "A warning inside MuJoCo's files under -c opt that MuJoCo's own build makes an error; it stays a warning, for external/mujoco only."}
+    ]
+  },
+
+  "docs_left_out": {
+    "about": "Documents that measure.py does not read for P10 (backticked paths and Bazel labels that do not exist). Each has a reason. AGENTS.md, README.md and every docs/**/*.md are read otherwise.",
+    "list": [
+      {"file": "docs/ompl-integration.md", "why": "The record of four build spikes whose paths were never on main; its paths name files of the spikes' branches."}
+    ]
   }
 }

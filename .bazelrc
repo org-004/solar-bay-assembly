@@ -35,3 +35,33 @@ build:opt --per_file_copt=^external/mujoco.*@-Wno-error=maybe-uninitialized
 build:agent --local_resources=cpu=3
 build:agent --jobs=3
 test:agent --test_tag_filters=-gate
+
+# Compiler warnings for correctness, for this repository's own files only
+# (docs/adr/0014-compiler-warnings.md gives the reason for each flag and for
+# each flag left out). Each of these finds nothing in src/ and tests/ and in
+# the headers they include, under GCC 14.2 and GCC 13.3, and is decided by the
+# compiler's front end, so the answer does not move with the optimizer: it is
+# an error in every build. The options of the dependencies are untouched.
+build --per_file_copt=^(src|tests)/.*\.cc$@-Werror=return-type,-Werror=switch,-Werror=sign-compare,-Werror=reorder,-Werror=delete-non-virtual-dtor,-Werror=non-virtual-dtor,-Werror=suggest-override,-Werror=unused-value,-Werror=unused-result,-Werror=address,-Werror=bool-compare,-Werror=tautological-compare,-Werror=sizeof-pointer-memaccess,-Werror=memset-transposed-args,-Werror=sizeof-array-div,-Werror=logical-not-parentheses,-Werror=int-in-bool-context,-Werror=sequence-point,-Werror=misleading-indentation,-Werror=implicit-fallthrough,-Werror=empty-body,-Werror=class-memaccess,-Werror=format,-Werror=format-security,-Werror=vla,-Werror=logical-op,-Werror=duplicated-cond,-Werror=cast-qual,-Werror=undef
+
+# The warnings that still find something in this repository's files, or that
+# cannot be errors because the optimizer or the platform decides them or
+# because they fire inside Eigen's headers. They are warnings, and only here:
+#   bazel build --config=opt --config=strict //...
+# tools/architecture/warnings.sh counts their places; the counts are lines of
+# docs/architecture/baseline.txt and may not grow. A flag whose count reaches
+# zero moves to the list above in the same commit, if the front end decides it.
+build:strict --per_file_copt=^(src|tests)/.*\.cc$@-Wshadow,-Wconversion,-Wmissing-field-initializers,-Wparentheses,-Wcomment,-Wnull-dereference,-Wold-style-cast,-Woverloaded-virtual,-Wduplicated-branches,-Wcast-align,-Wtype-limits,-Wdangling-reference
+
+# Run-time checking, for this repository's own files only (the dependencies
+# are not instrumented, so a fault inside MuJoCo is seen only where it touches
+# this code):
+#   bazel test --config=opt --config=agent --config=asan //...
+#   bazel test --config=opt --config=agent --config=ubsan //...
+# A finding stops the test and is printed with its stack.
+build:asan --per_file_copt=^(src|tests)/.*\.cc$@-fsanitize=address,-fno-omit-frame-pointer
+build:asan --linkopt=-fsanitize=address
+test:asan --test_env=ASAN_OPTIONS=detect_leaks=0:abort_on_error=1
+build:ubsan --per_file_copt=^(src|tests)/.*\.cc$@-fsanitize=undefined,-fno-omit-frame-pointer
+build:ubsan --linkopt=-fsanitize=undefined
+test:ubsan --test_env=UBSAN_OPTIONS=print_stacktrace=1:halt_on_error=1

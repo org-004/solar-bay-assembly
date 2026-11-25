@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""deps.py [--list KIND | --graph | --kinds]
+"""deps.py [--strict-items] [--list KIND | --graph | --kinds]
 
 Checks the dependency rules of tools/architecture/deps.json against the
 repository as it is: the #include lines of every tracked file under src/ and
@@ -25,12 +25,19 @@ target) and the rule broken, when:
       files include, and the pair is not a listed departure;
   (g) a listed departure no longer occurs, so that the list can only shrink;
   (h) a target lists an outside library in deps and none of its files
-      include it, and the pair is not a listed departure.
+      include it, and the pair is not a listed departure;
+  (i) deps.json is malformed: a group without a boolean frozen or a list
+      namespaces, a may_include that names no group, or a departure whose
+      item is neither B? nor B<n>. With --strict-items, "B?" is a problem
+      too (no backlog item yet).
 
 BUILD.bazel is read with Python's ast module (Starlark is Python syntax):
-cc_library, cc_binary, cc_test and alias are understood; glob, select,
-list concatenation, "%" formatting and names assigned at the top of the
-file are evaluated; other rules (genrule, filegroup) are skipped. #include
+cc_library, cc_binary, cc_test and alias are understood, also when a list
+comprehension makes several of them (the targets of one comprehension share
+a "family"); glob, select, list concatenation, "%" formatting and names
+assigned at the top of the file are evaluated. Other rules (genrule,
+filegroup) are only counted and named: the summary line says how many rules
+were read as targets, of how many, and which kinds were not. #include
 lines are read with a regular expression after comments and string
 literals (raw strings too) are blanked out, so an #include inside a comment
 does not count.
@@ -227,8 +234,10 @@ class Starlark:
         local = local or {}
         if isinstance(node, ast.Constant):
             return node.value
-        if isinstance(node, (ast.List, ast.Tuple)):
+        if isinstance(node, ast.List):
             return [self.eval(e, local) for e in node.elts]
+        if isinstance(node, ast.Tuple):
+            return tuple(self.eval(e, local) for e in node.elts)
         if isinstance(node, ast.Dict):
             return {self.eval(k, local): self.eval(v, local) for k, v in zip(node.keys, node.values)}
         if isinstance(node, ast.Name):
@@ -251,12 +260,8 @@ class Starlark:
             if isinstance(node.op, ast.BitOr) and isinstance(a, dict):
                 return {**a, **b}
             raise Unknown(ast.unparse(node))
-        if isinstance(node, ast.ListComp) and len(node.generators) == 1:
-            g = node.generators[0]
-            if not isinstance(g.target, ast.Name) or g.ifs:
-                raise Unknown(ast.unparse(node))
-            return [self.eval(node.elt, {**local, g.target.id: x})
-                    for x in self.eval(g.iter, local)]
+        if isinstance(node, ast.ListComp):
+            return [self.eval(node.elt, env) for env in _bindings(self, node, local)]
         if isinstance(node, ast.Call):
             kwargs = {k.arg: self.eval(k.value, local) for k in node.keywords if k.arg}
             args = [self.eval(a, local) for a in node.args]
@@ -277,11 +282,71 @@ class Starlark:
         raise Unknown(ast.unparse(node))
 
 
-def build_targets(root, files):
-    """name -> {kind, srcs, hdrs, deps, actual, line} for BUILD.bazel."""
+# The rules of BUILD.bazel that are read as targets (they have files and
+# deps); every other rule is only counted and named.
+TARGET_KINDS = ("cc_library", "cc_binary", "cc_test")
+
+
+def _bindings(star, comp, local):
+    """The local names of each pass of a list comprehension's loops."""
+    passes = [dict(local)]
+    for g in comp.generators:
+        if g.ifs:
+            raise Unknown(ast.unparse(comp))
+        nxt = []
+        for env in passes:
+            for x in star.eval(g.iter, env):
+                new = dict(env)
+                if isinstance(g.target, ast.Name):
+                    new[g.target.id] = x
+                elif isinstance(g.target, ast.Tuple):
+                    for t, v in zip(g.target.elts, x):
+                        new[t.id] = v
+                else:
+                    raise Unknown(ast.unparse(comp))
+                nxt.append(new)
+        passes = nxt
+    return passes
+
+
+def build_targets(root, files, info=None):
+    """name -> {kind, srcs, hdrs, deps, actual, copts, line, family} for
+    BUILD.bazel. The targets that one comprehension makes share a family (the
+    line of the statement). When info is a dict, it receives "rules" (kind ->
+    names of every rule, those it does not read as targets included) and
+    "labels" (the names of all rules)."""
     tree = ast.parse(read(root, "BUILD.bazel"), "BUILD.bazel")
     star = Starlark(files)
     targets = {}
+    rules = {}
+
+    def one(call, local, line):
+        kind = call.func.id
+        attrs = {}
+        for k in call.keywords:
+            if k.arg in ("name", "srcs", "hdrs", "deps", "actual", "copts"):
+                try:
+                    attrs[k.arg] = star.eval(k.value, local)
+                except Unknown as e:
+                    raise SystemExit("BUILD.bazel:%d: cannot read %s of a %s: %s"
+                                     % (line, k.arg, kind, e))
+        name = attrs.get("name")
+        if name is None:
+            return
+        rules.setdefault(kind, []).append(name)
+        if kind not in TARGET_KINDS and kind != "alias":
+            return
+        targets["//:" + name] = {
+            "kind": kind,
+            "srcs": [s for s in attrs.get("srcs", []) if not s.startswith((":", "@", "//"))],
+            "hdrs": [s for s in attrs.get("hdrs", []) if not s.startswith((":", "@", "//"))],
+            "deps": attrs.get("deps", []),
+            "actual": attrs.get("actual"),
+            "copts": attrs.get("copts", []),
+            "line": line,
+            "family": line,
+        }
+
     for node in tree.body:
         if isinstance(node, ast.Assign) and len(node.targets) == 1 \
                 and isinstance(node.targets[0], ast.Name):
@@ -290,29 +355,17 @@ def build_targets(root, files):
             except Unknown as e:
                 star.env[node.targets[0].id] = e
             continue
-        if not (isinstance(node, ast.Expr) and isinstance(node.value, ast.Call)
-                and isinstance(node.value.func, ast.Name)):
+        if not isinstance(node, ast.Expr):
             continue
-        kind = node.value.func.id
-        if kind not in ("cc_library", "cc_binary", "cc_test", "alias"):
-            continue
-        attrs = {}
-        for k in node.value.keywords:
-            if k.arg in ("name", "srcs", "hdrs", "deps", "actual"):
-                try:
-                    attrs[k.arg] = star.eval(k.value)
-                except Unknown as e:
-                    raise SystemExit("BUILD.bazel:%d: cannot read %s of a %s: %s"
-                                     % (node.lineno, k.arg, kind, e))
-        name = attrs.get("name")
-        targets["//:" + name] = {
-            "kind": kind,
-            "srcs": [s for s in attrs.get("srcs", []) if not s.startswith((":", "@", "//"))],
-            "hdrs": [s for s in attrs.get("hdrs", []) if not s.startswith((":", "@", "//"))],
-            "deps": attrs.get("deps", []),
-            "actual": attrs.get("actual"),
-            "line": node.lineno,
-        }
+        v = node.value
+        if isinstance(v, ast.ListComp) and isinstance(v.elt, ast.Call) \
+                and isinstance(v.elt.func, ast.Name):
+            for env in _bindings(star, v, {}):
+                one(v.elt, env, node.lineno)
+        elif isinstance(v, ast.Call) and isinstance(v.func, ast.Name):
+            one(v, {}, node.lineno)
+    if info is not None:
+        info["rules"] = rules
     return targets
 
 
@@ -372,6 +425,8 @@ class Result:
         self.files = []
         self.targets = {}
         self.file_includes = {}   # path -> [(line, kind, name)]
+        self.rules = {}           # rule kind -> names, every rule of BUILD.bazel
+        self.rule_names = set()   # //:name of every rule
 
 
 def group_files(rules, files, r):
@@ -448,9 +503,20 @@ def find_cycles(graph):
     return cycles
 
 
-def analyse(root=ROOT, rules=None):
+def analyse(root=ROOT, rules=None, strict_items=False):
+    """Everything found. With strict_items a departure whose item is "B?"
+    (no backlog item yet) is a problem too."""
     rules = rules or load_rules(root)
     r = Result()
+    for g in rules["groups"]:
+        if not isinstance(g.get("frozen"), bool):
+            r.problems.append("deps.json: group %s has no boolean frozen" % g["name"])
+        if not isinstance(g.get("namespaces"), list):
+            r.problems.append("deps.json: group %s has no list namespaces" % g["name"])
+        for m in g["may_include"]:
+            if m not in {x["name"] for x in rules["groups"]}:
+                r.problems.append("deps.json: group %s may include %s, which is no group"
+                                  % (g["name"], m))
     r.files = tracked_files(root)
     tracked = set(r.files)
     group_files(rules, r.files, r)
@@ -495,8 +561,11 @@ def analyse(root=ROOT, rules=None):
         r.found["cycle"].add(cyc)
 
     # Targets.
-    targets = build_targets(root, r.files)
+    info = {}
+    targets = build_targets(root, r.files, info)
     r.targets = targets
+    r.rules = info["rules"]
+    r.rule_names = {"//:" + n for names in r.rules.values() for n in names}
     offered = {}   # header -> project libraries that list it in hdrs
     for name, t in targets.items():
         if t["kind"] == "cc_library":
@@ -556,6 +625,13 @@ def analyse(root=ROOT, rules=None):
     listed = {k: set() for k in KINDS}
     for d in rules["departures"].get("list", []):
         listed.setdefault(d["kind"], set()).add(departure_key(d))
+        item = d.get("item")
+        if not isinstance(item, str) or not re.match(r"^B(\?|[0-9]+)$", item):
+            r.problems.append("deps.json: the departure %s (%s) has item %r, which is not B? or B<n>"
+                              % (place(d["kind"], departure_key(d)), d["kind"], item))
+        elif strict_items and item == "B?":
+            r.problems.append("deps.json: the departure %s (%s) has item B?; name its backlog item "
+                              "(--strict-items)" % (place(d["kind"], departure_key(d)), d["kind"]))
     r.listed = listed
     explain = {
         "include": lambda k: "%s: includes %s; group %s may not include group %s "
@@ -605,9 +681,9 @@ def place(kind, key):
     return "%s %s" % key
 
 
-def check(root=ROOT):
+def check(root=ROOT, strict_items=False):
     """(problem lines, Result)."""
-    r = analyse(root)
+    r = analyse(root, strict_items=strict_items)
     return r.problems, r
 
 
@@ -634,18 +710,25 @@ def graph_table(r, rules):
 
 
 def main(argv):
+    strict = "--strict-items" in argv
+    argv = [a for a in argv if a != "--strict-items"]
     if len(argv) == 1:
-        problems, r = check()
+        r = analyse(strict_items=strict)
+        problems = r.problems
         if problems:
             for p in problems:
                 print(p)
             return 1
         n_dep = sum(len(v) for v in r.listed.values())
         print("ok")
-        print("%d files in %d groups, %d targets, %d #include lines between project files, "
-              "%d listed departures" % (len(r.group_of), len(load_rules()["groups"]),
-                                        len([t for t in r.targets.values() if t["kind"] != "alias"]),
-                                        len(r.edges), n_dep))
+        skipped = ", ".join("%s %d" % (k, len(v)) for k, v in sorted(r.rules.items())
+                            if k not in TARGET_KINDS)
+        n_rules = sum(len(v) for v in r.rules.values())
+        n_read = sum(len(r.rules.get(k, [])) for k in TARGET_KINDS)
+        print("%d files in %d groups, %d targets read of %d rules (not read as targets: %s), "
+              "%d #include lines between project files, %d listed departures"
+              % (len(r.group_of), len(load_rules()["groups"]), n_read, n_rules, skipped,
+                 len(r.edges), n_dep))
         return 0
     if argv[1] == "--list" and len(argv) == 3 and argv[2] in KINDS:
         r = analyse()

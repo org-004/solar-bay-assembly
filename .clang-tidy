@@ -1,0 +1,74 @@
+# Static analysis for this repository's own files (src/ and tests/), run by
+#   tools/architecture/tidy.sh
+# with clang-tidy 18 (18.1.8 on Debian 13, 18.1.3 on Ubuntu 24.04; the counts
+# are the same under both). docs/adr/0015-static-analysis.md gives the reason
+# for every group and for every check left out.
+#
+# The checks are chosen for finding defects and undefined behavior. None
+# judges naming, formatting or modern style. A check that finds nothing today
+# is an error (WarningsAsErrors); a check that still finds something is a
+# warning whose count is a line of docs/architecture/baseline.txt and may not
+# grow, with an item in docs/architecture/backlog.md that brings it to zero
+# and then moves it under WarningsAsErrors. Nothing is silenced in source: no
+# NOLINT.
+Checks: >
+  -*,
+  bugprone-*,
+  -bugprone-easily-swappable-parameters,
+  -bugprone-implicit-widening-of-multiplication-result,
+  -bugprone-narrowing-conversions,
+  -bugprone-unchecked-optional-access,
+  -bugprone-assignment-in-if-condition,
+  -bugprone-reserved-identifier,
+  cert-dcl58-cpp,
+  cert-err34-c,
+  cert-err52-cpp,
+  cert-flp30-c,
+  cert-mem57-cpp,
+  cert-msc50-cpp,
+  cert-oop57-cpp,
+  cert-oop58-cpp,
+  clang-analyzer-*,
+  -clang-analyzer-optin.performance.Padding,
+  -clang-analyzer-security.FloatLoopCounter,
+  cppcoreguidelines-init-variables,
+  cppcoreguidelines-interfaces-global-init,
+  cppcoreguidelines-missing-std-forward,
+  cppcoreguidelines-pro-type-member-init,
+  cppcoreguidelines-slicing,
+  cppcoreguidelines-special-member-functions,
+  cppcoreguidelines-virtual-class-destructor,
+  misc-definitions-in-headers,
+  misc-misleading-bidirectional,
+  misc-misleading-identifier,
+  misc-new-delete-overloads,
+  misc-non-copyable-objects,
+  misc-redundant-expression,
+  misc-throw-by-value-catch-by-reference,
+  misc-unconventional-assign-operator,
+  portability-*
+# Every check above but those that still find something (their counts are in
+# docs/architecture/baseline.txt).
+WarningsAsErrors: >
+  bugprone-*,
+  cert-*,
+  clang-analyzer-*,
+  cppcoreguidelines-*,
+  misc-*,
+  portability-*,
+  -bugprone-branch-clone,
+  -bugprone-integer-division,
+  -bugprone-macro-parentheses,
+  -bugprone-misplaced-widening-cast,
+  -bugprone-suspicious-memory-comparison,
+  -cert-err34-c,
+  -cert-flp30-c,
+  -clang-analyzer-core.CallAndMessage,
+  -clang-analyzer-cplusplus.StringChecker,
+  -clang-analyzer-deadcode.DeadStores,
+  -cppcoreguidelines-init-variables,
+  -cppcoreguidelines-pro-type-member-init,
+  -cppcoreguidelines-special-member-functions
+# Findings are reported for this repository's files only; the headers of
+# Eigen, MuJoCo and the other dependencies are read, not judged.
+HeaderFilterRegex: '^(.*/)?(src|tests)/[^/]*$'
