@@ -53,6 +53,14 @@ const CheckRow* FindRow(const CheckReport& report, const std::string& check,
   return nullptr;
 }
 
+// The kinds of check of run 011. A layout on the container is held to these
+// alone; the kinds added since may fail on it (R13).
+const std::vector<std::string>& OldKinds() {
+  static const std::vector<std::string> kinds = {
+      "transport", "hold", "reach", "clearance", "load", "ways", "time"};
+  return kinds;
+}
+
 std::string Failures(const CheckReport& report) {
   std::string out;
   for (const CheckRow& r : report.rows) {
@@ -180,7 +188,8 @@ TEST(LayoutCheck, ReferenceReport) {
   std::printf("reference failures:\n%s", Failures(report).c_str());
 }
 
-// The layout marked chosen passes every row.
+// The layout marked chosen passes every row (of the old kinds, if it stands
+// on the container).
 TEST(LayoutCheck, ChosenLayoutPasses) {
   std::optional<Layout> chosen;
   for (const std::string& name : ListLayouts(Dir())) {
@@ -190,7 +199,9 @@ TEST(LayoutCheck, ChosenLayoutPasses) {
     if (layout->chosen) chosen = layout;
   }
   ASSERT_TRUE(chosen.has_value());
-  const CheckReport report = CheckLayout(*chosen, Paths());
+  CheckOptions options;
+  if (chosen->base == "container") options.checks = OldKinds();
+  const CheckReport report = CheckLayout(*chosen, Paths(), options);
   ASSERT_TRUE(report.error.empty()) << report.error;
   EXPECT_TRUE(report.pass) << chosen->name << " fails:\n" << Failures(report);
   std::map<std::string, int> kinds;
@@ -212,13 +223,15 @@ TEST(LayoutCheck, ChosenLayoutPasses) {
   EXPECT_GE(reach, 101);
 }
 
-// "above" fails, and only on clearance: its small arms cannot work under
-// the modules from above.
+// "above" fails, and of the old kinds only on clearance: its small arms
+// cannot work under the modules from above.
 TEST(LayoutCheck, AboveFailsOnClearanceOnly) {
   std::string error;
   const auto above = LoadLayout(Dir() + "/above.json", &error);
   ASSERT_TRUE(above.has_value()) << error;
-  const CheckReport report = CheckLayout(*above, Paths());
+  CheckOptions options;
+  options.checks = OldKinds();
+  const CheckReport report = CheckLayout(*above, Paths(), options);
   EXPECT_FALSE(report.pass);
   for (const CheckRow& r : report.rows) {
     if (!r.pass) EXPECT_EQ(r.check, "clearance") << r.item << ": " << r.detail;
@@ -536,14 +549,15 @@ TEST(LayoutCheck, ChecksChooseTheKinds) {
   EXPECT_FALSE(with.pass);
 }
 
-// The old layouts' bay times, as at the base of this work.
+// The old layouts' bay times, as at the base of this work (68a1199).
+// "beside" is left out: the bay's model changed under it since (its time is
+// 750.3 s with the checker of that commit too).
 TEST(LayoutCheck, OldBayTimesUnchanged) {
   const std::map<std::string, double> expect = {
       {"above", 832.2021},
       {"below", 738.8765},
       {"below_each_rail", 874.1356},
-      {"below_rails_by_module_arm", 628.5435},
-      {"beside", 747.3109}};
+      {"below_rails_by_module_arm", 628.5435}};
   for (const auto& [name, seconds] : expect) {
     CheckOptions options;
     options.checks = {"time"};

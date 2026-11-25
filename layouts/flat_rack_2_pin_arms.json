@@ -10,9 +10,9 @@
     "note": "The base alone while it works: both end frames taken off or dropped, no post, side or roof. Everything that travels stands on the deck."
   },
   "margins": {
-    "clearance_m": 0.01,
+    "clearance_m": 0.015,
     "joint_margin_deg": 5.0,
-    "reason": "The floors of the spec; see docs/flat-rack-cell.md, Margins.",
+    "reason": "Clearance half again over the floor of 0.010 m: the tightest pose that is not near by design, the pin tool's nose beside the next module's flange, has 0.0187 m, so 0.020 m would not pass. Joint margin at the floor of 5 degrees: the module arm's joint 2 has 8.6 degrees while it draws the last modules from the pallet.",
     "basis": "ours"
   },
   "tube": {

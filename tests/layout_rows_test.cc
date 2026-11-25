@@ -11,7 +11,6 @@
 
 #include <gtest/gtest.h>
 
-#include "src/container.h"
 #include "src/flat_rack.h"
 #include "src/layout.h"
 #include "src/layout_check.h"
@@ -19,8 +18,6 @@
 
 namespace cell::layout {
 namespace {
-
-constexpr double kRaise = flat_rack::kDeckHeight - container::kFloorHeight;
 
 std::string Dir() {
   const char* dir = std::getenv("LAYOUT_DIR");
@@ -37,61 +34,14 @@ Layout Load(const std::string& name) {
   return layout.value_or(Layout{});
 }
 
-Port MakePort(const std::string& name, const std::string& crosses,
-              const Vec3& frame, const Vec3& lo, const Vec3& hi,
-              std::vector<std::string> hands_over) {
-  Port p;
-  p.name = name;
-  p.crosses = crosses;
-  p.frame_pos = frame;
-  p.zone.name = name;
-  for (int a = 0; a < 3; ++a) {
-    p.zone.size[a] = hi[a] - lo[a];
-    p.zone.pos[a] = (hi[a] + lo[a]) / 2.0;
-  }
-  p.hands_over = std::move(hands_over);
-  return p;
-}
+Layout FlatLayout() { return Load("flat_rack_3_pin_arms"); }
 
-// The reference layout of run 011 with its base changed to the flat rack in
-// memory: everything on the deck is raised by the deck's extra height, and
-// ports are put around the pallet, the stocks and the transfer cart.
-Layout FlatLayout() {
-  Layout l = Load("below_rails_by_module_arm");
-  l.base = "flat_rack";
-  l.flat_rack.end_frames = "taken_off";
-  l.tube.axis_z += kRaise;
-  for (Box& b : l.holder.boxes) b.pos[2] += kRaise;
-  for (ArmUse& a : l.arms) {
-    a.base_pos[2] += kRaise;
-    if (a.track) a.track->beam.pos[2] += kRaise;
+Port& PortOf(Layout& l, const std::string& name) {
+  for (Port& p : l.ports) {
+    if (p.name == name) return p;
   }
-  for (Stock& s : l.stocks) {
-    if (!s.outside) {
-      for (Box& b : s.boxes) b.pos[2] += kRaise;
-    }
-  }
-  for (Item& i : l.items) {
-    if (i.travels_inside) {
-      for (Box& b : i.boxes) b.pos[2] += kRaise;
-    }
-  }
-  const double deck = flat_rack::kDeckHeight;
-  l.ports = {
-      MakePort("pallet_side", "modules", {1.219, 0.0, deck}, {1.3, -1.4, -0.1},
-               {4.4, 1.4, 3.0}, {"pallet:0"}),
-      MakePort("rail_rack", "rails", {1.219, 1.75, deck}, {1.3, 1.45, -0.1},
-               {3.4, 2.2, 2.0}, {"stock:rails"}),
-      MakePort("pin_rack", "pin_magazines", {0.15, 6.096, deck},
-               {-0.4, 6.1, -0.1}, {0.6, 6.8, 2.0}, {"stock:pins"}),
-      MakePort("tubes_in", "tubes", {-1.219, 0.0, deck}, {-5.5, -6.5, -0.1},
-               {-1.25, 6.5, 2.5}, {"item:transfer_cart", "way:tube_in"}),
-      MakePort("bays_out", "bays", {-1.219, 0.0, deck}, {-5.5, -6.5, -0.1},
-               {-1.25, 6.5, 2.5}, {"way:bay_out"}),
-  };
-  l.ports[3].shares_zone_with = "bays_out";
-  l.ports[4].shares_zone_with = "tubes_in";
-  return l;
+  ADD_FAILURE() << "no port " << name;
+  return l.ports[0];
 }
 
 const CheckRow* Find(const std::vector<CheckRow>& rows,
@@ -177,19 +127,32 @@ TEST(AllowedRows, UnknownMakerFails) {
   ExpectFails(AllowedRows(l), "module arm module_arm");
 }
 
+TEST(AllowedRows, FlatRackLayoutPasses) {
+  const std::vector<CheckRow> rows = AllowedRows(FlatLayout());
+  EXPECT_TRUE(Failures(rows).empty()) << Failures(rows);
+  ASSERT_NE(Find(rows, "pin arms"), nullptr);
+  EXPECT_EQ(Find(rows, "pin arms")->figure, 3.0);
+  ASSERT_NE(Find(rows, "arms"), nullptr);
+  EXPECT_EQ(Find(rows, "arms")->figure, 4.0);
+}
+
 TEST(PortRows, ReferencePasses) {
   const std::vector<CheckRow> rows = PortRows(FlatLayout(), Paths());
   EXPECT_TRUE(Failures(rows).empty()) << Failures(rows);
-  EXPECT_NE(Find(rows, "tubes and bays are two ports"), nullptr);
-  EXPECT_NE(Find(rows, "frame tubes_in on the outline"), nullptr);
-  EXPECT_NE(Find(rows, "zone pin_rack off the base"), nullptr);
-  EXPECT_NE(Find(rows, "zones pallet_side and rail_rack apart"), nullptr);
-  EXPECT_NE(Find(rows, "pallet 0 in a zone"), nullptr);
-  EXPECT_NE(Find(rows, "stock pins in a zone"), nullptr);
-  EXPECT_NE(Find(rows, "item transfer_cart in a zone"), nullptr);
-  EXPECT_NE(Find(rows, "way tube_in in a zone"), nullptr);
-  EXPECT_NE(Find(rows, "way bay_out in a zone"), nullptr);
-  EXPECT_NE(Find(rows, "stowed clear of zone bays_out"), nullptr);
+  for (const char* item :
+       {"tubes and bays are two ports", "frame tubes_in on the outline",
+        "zone pin_magazines off the base", "zones modules and rails apart",
+        "zones tubes_in and bays_out apart", "pallet 0 in a zone",
+        "stock rails in a zone", "item transfer_cart in a zone",
+        "item pin_feeder in a zone", "way tube_in in a zone",
+        "way bay_out in a zone", "stowed clear of zone bays_out"}) {
+    EXPECT_NE(Find(rows, item), nullptr) << item;
+  }
+  EXPECT_EQ(Find(rows, "item pin_lane in a zone"), nullptr);
+  // A thing on the ground shows its horizontal margin, not the ground's 0.
+  const CheckRow* pallet = Find(rows, "pallet 0 in a zone");
+  ASSERT_NE(pallet, nullptr);
+  EXPECT_GT(pallet->figure, 0.0) << pallet->detail;
 }
 
 TEST(PortRows, PalletHalfOutOfItsZone) {
@@ -203,31 +166,31 @@ TEST(PortRows, PalletHalfOutOfItsZone) {
 
 TEST(PortRows, ZoneOverTheBase) {
   Layout l = FlatLayout();
-  l.ports[2].zone.pos[1] = 5.0;
-  ExpectFails(PortRows(l, Paths()), "zone pin_rack off the base");
+  PortOf(l, "pin_magazines").zone.pos[1] = 5.0;
+  ExpectFails(PortRows(l, Paths()), "zone pin_magazines off the base");
 }
 
 TEST(PortRows, ZonesOverlapping) {
   Layout l = FlatLayout();
-  l.ports[1].zone.pos = {2.5, 0.5, 1.0};
-  ExpectFails(PortRows(l, Paths()), "zones pallet_side and rail_rack apart");
+  PortOf(l, "rails").zone = PortOf(l, "modules").zone;
+  ExpectFails(PortRows(l, Paths()), "zones modules and rails apart");
 }
 
 TEST(PortRows, ShareNamedByOneOnly) {
   Layout l = FlatLayout();
-  l.ports[4].shares_zone_with = "";
+  PortOf(l, "bays_out").shares_zone_with = "";
   ExpectFails(PortRows(l, Paths()), "zones tubes_in and bays_out apart");
 }
 
 TEST(PortRows, FrameOffTheOutline) {
   Layout l = FlatLayout();
-  l.ports[0].frame_pos[0] += 0.1;
-  ExpectFails(PortRows(l, Paths()), "frame pallet_side on the outline");
+  PortOf(l, "modules").frame_pos[0] += 0.1;
+  ExpectFails(PortRows(l, Paths()), "frame modules on the outline");
 }
 
 TEST(PortRows, StockNamedByNoPort) {
   Layout l = FlatLayout();
-  l.ports[1].hands_over.clear();
+  PortOf(l, "rails").hands_over.clear();
   const std::vector<CheckRow> rows = PortRows(l, Paths());
   ExpectFails(rows, "stock rails in a zone");
   EXPECT_EQ(Find(rows, "stock rails in a zone")->figure, -1.0);
@@ -235,26 +198,38 @@ TEST(PortRows, StockNamedByNoPort) {
 
 TEST(PortRows, StockPickPointOutside) {
   Layout l = FlatLayout();
-  l.stocks[1].pick_pos[1] = 7.5;
-  ExpectFails(PortRows(l, Paths()), "stock pins in a zone");
+  for (Stock& s : l.stocks) {
+    if (s.name == "rails") s.pick_pos[1] = 7.5;
+  }
+  ExpectFails(PortRows(l, Paths()), "stock rails in a zone");
 }
 
 TEST(PortRows, StowedCellInAZone) {
   Layout l = FlatLayout();
-  l.ports[3].zone.pos[0] = -1.0;
-  l.ports[3].zone.size[0] = 2.0;
-  l.ports[4].zone = l.ports[3].zone;
+  PortOf(l, "tubes_in").zone.pos[0] = -1.0;
+  PortOf(l, "bays_out").zone = PortOf(l, "tubes_in").zone;
   ExpectFails(PortRows(l, Paths()), "stowed clear of zone tubes_in");
+}
+
+TEST(PortRows, AThingOnTheGroundMayTouchTheZoneFoot) {
+  // The cart stands on the ground; moving the zone's floor up to 0.1 m puts
+  // the cart below the zone's underside, which fails.
+  Layout l = FlatLayout();
+  Port& p = PortOf(l, "pin_magazines");
+  p.zone.pos[2] += 0.1;
+  p.zone.size[2] -= 0.2;
+  ExpectFails(PortRows(l, Paths()), "item pin_feeder in a zone");
 }
 
 TEST(FlatRackTransportRows, ReferencePasses) {
   const std::vector<CheckRow> rows = FlatRackTransportRows(FlatLayout(), Paths());
   EXPECT_TRUE(Failures(rows).empty()) << Failures(rows);
-  for (const char* item : {"stowed x", "stowed y", "stowed top",
-                           "stowed bottom", "stow track module_arm", "mass",
-                           "on the deck holder", "on the deck beam module_arm",
-                           "closed container x", "closed container y",
-                           "closed container top", "between end frames y"}) {
+  for (const char* item :
+       {"stowed x", "stowed y", "stowed top", "stowed bottom",
+        "stow track module_arm", "mass", "on the deck holder",
+        "on the deck beam module_arm", "on the deck beam pin_arm_a",
+        "on the deck item pin_lane", "closed container x",
+        "closed container y", "closed container top", "between end frames y"}) {
     EXPECT_NE(Find(rows, item), nullptr) << item;
   }
   for (const char* item : {"closed container x", "closed container y",
@@ -265,6 +240,10 @@ TEST(FlatRackTransportRows, ReferencePasses) {
     EXPECT_EQ(r->limit, 0.0);
     EXPECT_EQ(r->detail.rfind("no limit: ", 0), 0u) << r->detail;
   }
+  const CheckRow* x = Find(rows, "closed container x");
+  EXPECT_LT(x->figure, 0.0);
+  EXPECT_NE(x->detail.find("outside"), std::string::npos) << x->detail;
+  EXPECT_GT(Find(rows, "between end frames y")->figure, 0.0);
 }
 
 TEST(FlatRackTransportRows, HolderBoxLifted) {
@@ -275,17 +254,23 @@ TEST(FlatRackTransportRows, HolderBoxLifted) {
   EXPECT_GE(Find(rows, "on the deck holder")->figure, 1.0);
 }
 
+TEST(FlatRackTransportRows, NestLiftedOffTheLane) {
+  Layout l = FlatLayout();
+  for (Item& i : l.items) {
+    if (i.name == "pin_lane") i.boxes[1].pos[2] += 0.05;
+  }
+  ExpectFails(FlatRackTransportRows(l, Paths()), "on the deck item pin_lane");
+}
+
 TEST(FlatRackTransportRows, BeamWidenedPastTheEnvelope) {
   Layout l = FlatLayout();
   l.arms[0].track->beam.size[0] = 3.0;
   const std::vector<CheckRow> rows = FlatRackTransportRows(l, Paths());
   ExpectFails(rows, "stowed x");
-  // The closed container's row names it and still passes.
   const CheckRow* closed = Find(rows, "closed container x");
   ASSERT_NE(closed, nullptr);
   EXPECT_TRUE(closed->pass);
   EXPECT_LT(closed->figure, 0.0);
-  EXPECT_NE(closed->detail.find("outside"), std::string::npos) << closed->detail;
 }
 
 TEST(FlatRackTransportRows, HeavyItem) {
@@ -305,6 +290,18 @@ TEST(FlatRackTransportRows, StowTrackOutside) {
   Layout l = FlatLayout();
   l.arms[0].stow_track = 99.0;
   ExpectFails(FlatRackTransportRows(l, Paths()), "stow track module_arm");
+}
+
+TEST(FlatRackLayouts, AllThreePassEveryRow) {
+  for (const char* name : {"flat_rack_1_pin_arm", "flat_rack_2_pin_arms",
+                           "flat_rack_3_pin_arms"}) {
+    const Layout l = Load(name);
+    std::vector<CheckRow> rows = AllowedRows(l);
+    for (const CheckRow& r : PortRows(l, Paths())) rows.push_back(r);
+    for (const CheckRow& r : FlatRackTransportRows(l, Paths())) rows.push_back(r);
+    EXPECT_GT(rows.size(), 30u) << name;
+    EXPECT_TRUE(Failures(rows).empty()) << name << "\n" << Failures(rows);
+  }
 }
 
 }  // namespace

@@ -1990,6 +1990,25 @@ cc_test(
         "@googletest//:gtest_main",
     ],
 )
+# What moves and what is there: the capsule defect worked round (R15), the
+# other arms left out, the legs of a take and a set.
+#   bazel test --config=opt //:layout_scene_test
+cc_test(
+    name = "layout_scene_test",
+    size = "small",
+    srcs = ["tests/layout_scene_test.cc"],
+    data = LAYOUT_FILES + LAYOUT_MODEL_FILES,
+    env = LAYOUT_ENV,
+    deps = [
+        ":layout",
+        ":layout_check",
+        ":layout_model",
+        ":mj_handles",
+        "@eigen",
+        "@googletest//:gtest_main",
+        "@mujoco",
+    ],
+)
 # END layout_check
 
 # BEGIN layout_rows

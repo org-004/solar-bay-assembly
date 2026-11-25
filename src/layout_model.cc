@@ -339,9 +339,12 @@ std::string ToolMountContents(const Layout& layout, const ArmUse& arm,
       body = bay::ModuleBodyXml("held_module",
                                 {0.0, 0.0, -bay::kModuleThickness / 2.0});
     } else {
-      // A held rail's strap hangs open (src/bay_model.h, RailBodyXml).
+      // On the flat rack a held rail's strap hangs open (src/bay_model.h,
+      // RailBodyXml): closed, it cannot be lowered over the tube. The five
+      // layouts on the container are run 011's record (docs/layout.md) and
+      // keep the held rail as run 011 drew and checked it, strap closed.
       body = bay::RailBodyXml("held_rail", {0.0, 0.0, -bay::kRailTopHeight},
-                              -1, /*strap_open=*/true);
+                              -1, /*strap_open=*/layout.base == "flat_rack");
     }
     ReplaceAll(&body, "class=\"bay_", "class=\"" + cls + "bay_");
     t += body;

@@ -1130,8 +1130,28 @@ TEST(LayoutForm, SeveralArmsOfOneModelBuild) {
 // boxes of the closed strap, and nothing of it below the open halves'
 // underside, which is 20 mm below the webs' lower edges. The rails on the
 // tube keep the closed strap.
-TEST(ChosenLayout, AHeldRailHasItsStrapOpen) {
-  const Layout layout = Chosen();
+TEST(FlatRackLayout, AHeldRailHasItsStrapOpen) {
+  std::string load_error;
+  const std::optional<Layout> loaded = LoadLayout(
+      std::string(std::getenv("LAYOUT_DIR")) + "/flat_rack_3_pin_arms.json",
+      &load_error);
+  ASSERT_TRUE(loaded) << load_error;
+  const Layout layout = *loaded;
+  // On the container the held rail stays as run 011 drew it, strap closed.
+  {
+    const Layout old = Chosen();
+    ASSERT_EQ(old.base, "container");
+    LayoutState everything;
+    everything.everything = true;
+    Built o = Build(old, everything);
+    ASSERT_TRUE(o.model);
+    for (const std::string& arm : ArmsDoing(old, {"rail_set"})) {
+      EXPECT_GE(mj_name2id(o.model.get(), mjOBJ_GEOM,
+                           (arm + "_held_rail_strap_ears").c_str()), 0);
+      EXPECT_EQ(mj_name2id(o.model.get(), mjOBJ_GEOM,
+                           (arm + "_held_rail_strap_open_neg").c_str()), -1);
+    }
+  }
   LayoutState state;
   state.everything = true;
   Built b = Build(layout, state);

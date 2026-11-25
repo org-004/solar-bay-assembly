@@ -2,38 +2,47 @@
 //
 // CheckLayout takes a layout (src/layout.h), builds its model
 // (src/layout_model.h) and checks one whole bay. It returns one row for each
-// check with the figure and whether it passes, and the steps of building one
-// bay with their times. //:check_layout prints them and exits non-zero when
-// a row fails. The kinds of check, the `check` of a row:
+// check with the figure and whether it passes, the steps of building one
+// bay with their times, and the poses it solved (SolvedPoint).
+// //:check_layout prints them and exits non-zero when a row fails;
+// CheckOptions::checks (--checks a,b,c) makes only the kinds asked for, and
+// the report passes by them alone. The kinds of check, the `check` of a row,
+// in the order of the output (CheckKinds):
 //
-//   transport  everything that travels inside is, in the stowed state,
-//              within the container's inside envelope, and its mass is
-//              within what is left for the cell (src/container.h);
+//   transport  on the container: everything that travels inside is, in the
+//              stowed state, within the container's inside envelope, and
+//              its mass is within what is left for the cell
+//              (src/container.h); on the flat rack: the rows of
+//              src/layout_rows.h in their place;
+//   hold       the holder grips only stretches the document allows, not the
+//              two ends alone, and is built for the moment the document asks;
+//   load       what each arm carries, tool and part, is within its payload;
 //   reach      every point an arm must work at is reached by the arm the
 //              layout gives it, the tool along the direction the document
 //              gives, inside the datasheet's joint ranges less a margin;
 //   clearance  at each of those poses the arm, its tool and what it carries
-//              keep a stated distance from the bay as built up to that step,
-//              the holder, the container, the pallet, the stocks and the
-//              other arms where they wait; and the free spaces of the tools
-//              and of the locating move are empty;
-//   load       what each arm carries, tool and part, is within its payload;
+//              keep a stated distance from what is there at that step; and
+//              the free spaces of the tools and of the locating move are
+//              empty;
 //   ways       the space a tube sweeps coming in and a bay sweeps leaving is
 //              empty;
 //   time       the time one bay takes, from the steps, by a stated model of
 //              the arms' moves; it has no limit: its rows pass when every
 //              step has a pose;
-//   hold       the holder grips only stretches the document allows, not the
-//              two ends alone, and is built for the moment the document asks.
+//   allowed, port
+//              the rows of src/layout_rows.h, which need no pose;
+//   approach   every work point is come to and left along its kind's rule
+//              (below).
 //
-// One model for everything. The checker loads the layout's model once in
-// the `everything` state and once `stowed` (for transport only). What is
-// "there" at a step is a list of geoms taken from LayoutHandles; what is not
-// there is simply not measured against. Distances are MuJoCo's
-// mj_geomDistance between two geoms (convex hulls for meshes), after a
-// box-against-box test on the geoms' world bounding boxes that skips every
-// pair that cannot be nearer than the nearest found so far, and out to 1 m:
-// a figure of 1.000 means nothing is within a metre.
+// What moves, what is there at a step, what touches by design and what is
+// near by design are defined in src/layout_scene.h, once, for the checker
+// and for every program that plans motion in a layout; so are the bay as
+// built at each work point and the one distance function (LeastDistance,
+// mj_geomDistance after a bounding-box test, capped at 1 m: a figure of
+// 1.000 means nothing is within a metre). The checker loads the layout's
+// model once in the `everything` state through LayoutScene, and once
+// `stowed` for the container's transport rows. The other arms stand at their
+// wait poses with their first tools.
 //
 // The work points, in the bay's frame of src/bay_hardware.h moved by the
 // layout's "tube" (BayPoint), with the tool's working point at the point and
@@ -45,31 +54,39 @@
 //   locate, pin, swage, index 4 m + i (item "pin m/i")
 //                  5 mm below the rail's site (point a) of module m's
 //                  fastening i; z up; any spin; the three kinds share one
-//                  pose when one arm and tool do them;
+//                  pose when one arm and tool do them and their rules of
+//                  approach are the same;
 //   module_set m   the centre of module m's glass top; z down; x along X,
 //                  either sign;
-//   module_take j  module j of the pallet (0 is taken first; src/layout.h
-//                  defines the pallet's frame): standing "on_long_edge", the
-//                  centre of its glass face, which faces the pallet's -y,
-//                  the tool's z along the pallet's +y (level, onto the
-//                  glass); lying "flat", the centre of the top module's
-//                  glass, z down; either way the tool's x along the
-//                  pallet's x, either sign. Module m of the bay is take
-//                  j = m; the other takes are checked for reach and
-//                  clearance only. The turn from upright to flat is part
-//                  of the move from the take pose to the set-down pose;
-//   rail_take k, pins_take 0
-//                  the stock's pick point, z along its pick axis, any spin.
+//   module_take j  over all pallets in order (src/layout.h, Pallets): module
+//                  j's place on its pallet (src/layout.h defines the
+//                  pallet's frame): standing "on_long_edge", the centre of
+//                  its glass face, which faces the pallet's -y, the tool's z
+//                  along the pallet's +y (level, onto the glass); lying
+//                  "flat", the centre of the top module's glass, z down;
+//                  either way the tool's x along the pallet's x, either
+//                  sign. Module m of the bay is take j = m; the other takes
+//                  are checked for reach, clearance and approach only. The
+//                  turn from upright to flat is part of the move from the
+//                  take pose to the set-down pose;
+//   rail_take k    the pick point of the stock "rails", z along its pick
+//                  axis, any spin;
+//   pins_take i    the pick point of the i-th stock of pins (PinStocks).
+// Who does each point is the layout's division of the kind's points
+// (FindWork(layout, kind, index)).
 //
-// The margins. A joint is kept joint_margin_deg inside each end of the
-// datasheet's range of src/arm_catalog.h (and inside the model's own range
-// where that is tighter); a reach row's figure is the least distance, in
-// degrees, of any joint from its datasheet limit, and the row names the
-// joint. A pose is reached when the working point is within 0.1 mm of the
-// point and the tool's axes within 0.06 degrees of their directions. A
-// clearance row passes when the least distance is at least clearance_m; a
-// free space row when it is more than zero; a ways row when the least
-// distance over the sweep is at least clearance_m.
+// The margins. On the flat rack clearance_m and joint_margin_deg are the
+// larger of CheckOptions' and the layout's "margins"; on the container
+// CheckOptions' alone; //:check_layout prints the values used as a # line.
+// A joint is kept joint_margin_deg inside each end of the datasheet's range
+// of src/arm_catalog.h (and inside the model's own range where that is
+// tighter); a reach row's figure is the least distance, in degrees, of any
+// joint from its datasheet limit, and the row names the joint. A pose is
+// reached when the working point is within 0.1 mm of the point and the
+// tool's axes within 0.06 degrees of their directions. A clearance row
+// passes when the least distance is at least clearance_m; a free space row
+// when it is more than zero; a ways row when the least distance over the
+// sweep is at least clearance_m.
 //
 // The inverse kinematics is the checker's own: damped least squares over
 // the arm's six joints with the carriage held at one track value, from the
@@ -77,66 +94,26 @@
 // once from a fixed generator (src/portable_random.h), so every platform
 // finds the same poses. Each joint is clamped into its range at every step.
 // The track value is the layout's stop for the kind (one for every point or
-// one per point); without one it is searched: the value that stands the
-// base opposite the point, then 0.15, 0.30, 0.45, 0.60 m either side,
-// clamped to the track. The first pose that is reached and clear wins; if
-// none is clear, the reached pose with the most clearance is reported. A
-// stop outside the track's lo..hi fails the reach row of its point ("stop X
-// outside the track's lo..hi"); a wait_track outside it fails the reach row
-// "wait track <arm>", a stow_track the transport row "stow track <arm>"
-// (figure: how far inside the range, negative outside, limit 0).
-//
-// What is there at a step. The container, the holder, the tube, the pallet's
-// base and the modules left on it, the stocks, the items, every arm's beam,
-// the other arms at their wait poses with their carriages, their first
-// tools on the flange and their other tools where they wait, and the active
-// arm's own tools that wait. The bay as built: at rail_take k and
-// rail_set k rails 0 .. k-1; at strap_bolt k all rails if the order is
-// all_rails_then_all_bolts, otherwise rails 0 .. k; at module_take j for
-// module m < 9 all rails and modules 0 .. m-1 (for the other takes all nine
-// modules); at module_set m all rails and modules 0 .. m-1; at locate, pin
-// and swage on module m all rails and modules 0 .. m, and, for m < 8, also
-// with module m+1 already on: the worse of the two counts. The pallet holds
-// 36 modules in the rail phase, modules j .. 35 at take j (module j is the
-// one held), and modules - m - 1 while module m is pinned. What moves: the
-// active arm's links, its carriage, its tool on the flange and the part it
-// holds (a rail at rail_take and rail_set, a module at module_take and
-// module_set).
-//
-// What touches by design and is not counted at all:
-//   - the arm's links against each other, against its own carriage and its
-//     tool, and the tool against the part it holds: the maker's ranges and
-//     the tool's mount are trusted;
-//   - the arm's carriage, and its base fixed to the carriage, against its
-//     own beam (it runs on it) and against its own tools that wait on it;
-//   - a held part against what it is set on or taken from: a rail against
-//     the tube at rail_set, a taken rail against its stock's boxes, module
-//     m against rails m and m+1 at module_set, pallet module j at its take
-//     against module j+1 behind (or below) it and the deck it stands on
-//     (flat: the deck only for the last), a magazine against its stock;
-// What is near by design, and so is held to no distance but must not go
-// into it: a pair of these counts only when its distance is below zero, and
-// then it is the row's figure, named with "(near by design, but into each
-// other)":
-//   - at module_set m, the held module against module m-1 beside it: the
-//     bay's own gap, kModuleGap (10 mm), which is not the layout's;
-//   - a fastening tool's last box against the two parts its fastening
-//     joins: the nutrunner's socket against rail k (its strap's ear) and the
-//     tube, whose underside is 18 mm above the bolt's axis; the pin tool's
-//     nose against the rail and the module of the hole. The working point
-//     stops 5 mm short of the sheets, so these are 5 to 10 mm by design.
-// The held part counts against the arm's own links and carriage, at
-// clearance_m: every link geom except those of the last wrist body (the
-// body that carries the flange, with the bodies welded to it, up to and
-// including the first one with a joint: the UR's wrist_3_link, the KUKA's
-// link 6 and its flange), to which the tool is bolted and which the part
-// cannot but be near.
+// one per point of the kind, by the kind's point number); without one it is
+// searched: the value that stands the base opposite the point, then 0.15,
+// 0.30, 0.45, 0.60 m either side, clamped to the track. The candidates are
+// tried in that order (track values, then seeds, then the two signs of x).
+// Where the layout has no approach for the kind, the first pose that is
+// reached and clear wins; where it has one, the first that is reached, clear
+// and whose two legs both pass by the approach rows' rule wins, and if none
+// does, the first reached and clear one is kept and the approach rows report
+// its legs. If none is clear, the reached pose with the most clearance is
+// reported. A stop outside the track's lo..hi fails the reach row of its
+// point ("stop X outside the track's lo..hi"); a wait_track outside it fails
+// the reach row "wait track <arm>", a stow_track the transport row "stow
+// track <arm>" (figure: how far inside the range, negative outside, limit
+// 0).
 //
 // The tool in the free space. The probe's cylinders say what else must keep
-// out of the free space; the tool itself must fit in it too. One row per
-// fastening kind that a layout gives to a tool, "tool in free space <kind>
-// <tool>": every box of the tool that reaches into the length of the free
-// space behind the working point (kStrapBoltFreeLength for
+// out of the free space; the tool itself must fit in it too. One row for
+// each arm and tool a fastening kind is given to, "tool in free space
+// <kind> <tool>": every box of the tool that reaches into the length of the
+// free space behind the working point (kStrapBoltFreeLength for
 // strap_bolt; kPinToolLength for pin and swage; kLocateFreeLengthBelow for
 // locate) must lie within its radius (kStrapBoltFreeRadius, kPinFreeRadius,
 // kLocateFreeRadiusBelow). Figure: the radius less the box's farthest reach
@@ -163,9 +140,9 @@
 // design). A sample is the figure; between two samples the true least
 // distance can be smaller by at most half a step for a thin obstacle.
 //
-// Transport. The stowed model: every geom that is not the container's, at
-// its stow pose, its world bounding box (exact corners for boxes, every
-// vertex for meshes, the rotated local box otherwise) inside
+// Transport on the container. The stowed model: every geom that is not the
+// base's, at its stow pose, its world bounding box (exact corners for
+// boxes, every vertex for meshes, the rotated local box otherwise) inside
 // container::InsideEnvelope(), four rows (x, y, top, bottom), figure the
 // worst geom's distance inside (negative: outside), and one mass row: the
 // catalogue's arm masses, tracks, tools, holder and items that travel
@@ -176,22 +153,57 @@
 // with its strap 2.35 kg, a pin magazine 0.5 kg `ours`) against the
 // catalogue's rated payload.
 //
+// Approach. For each kind of work that has points: without a rule
+// (FindApproach) one failing row, item "<kind>", detail "the layout gives no
+// approach for <kind>"; with one, two rows for every point, items "<item>
+// approach" and "<item> retreat" (e.g. "module_set 3 approach"), unit m,
+// limit clearance_m. The approach pose is the work pose with the tool's
+// working point moved by approach_m along approach_dir (in the tool's frame
+// as it is at the work pose, or the layout's frame), the orientation kept;
+// the retreat pose likewise with retreat_dir and retreat_m. Each leg is
+// walked from the work pose along the straight line in n equal steps of at
+// most 5 mm, each sample solved by the inverse kinematics above from the
+// sample before, the carriage at the work pose's track value, so the arm
+// stays on the work pose's branch; every sample must be reached within the
+// usual tolerances and inside the joint margin. What is there and what
+// moves on each leg is src/layout_scene.h's (Leg): on the approach of a take
+// nothing is held and the tool is near the part it is about to take; on the
+// retreat of a set nothing is held and the part lies in the bay, the tool
+// near it; otherwise the work point's own part, Builts and pairs. A leg
+// passes when every sample is reached inside the joint margin; at the far
+// pose (the last sample) every pair, the work point's pairs by design
+// included, is at least clearance_m apart; and along the move (samples 1 to
+// n-1) no other pair is nearer than clearance_m and no pair that touches or
+// is near by design goes below zero. The figure is the least distance over
+// the samples of a pair not by design, and at the far pose of every pair;
+// when a pair by design goes below zero along the move its distance is the
+// figure ("(near by design, but into each other)"), and when the far pose's
+// nearest pair is one by design the detail adds "(by design at the work
+// point)". The detail: "<pair> at <s> mm along" or "<pair> at the
+// approach|retreat pose", then "least joint margin <deg> deg at <joint>;
+// <n> samples over <length> mm". A sample not reached fails the row with
+// "not reached at <s> of <length> mm: <mm> mm and <deg> deg off[; joint J
+// held at its margin]" or "...: joint J inside its margin (<deg> deg)"; a
+// point without a work pose fails both its rows with "no work pose: ...".
+//
 // The order of the steps of one bay (BaySteps): tube in, clamp; the rails
-// and their bolts in the layout's rail_order (take rail k, set rail k,
-// then the bolts, or each rail's bolt after it); then for each module m:
-// the module arm takes pallet module m and sets it, and the pin arm locates
-// and pins the four holes in bay::kLocateOrder and swages them in
-// bay::kSwageOrder, having taken a magazine once before the first pin; a
-// tool change wherever an arm's next work needs another tool; release, bay
-// out, and each arm back to its wait pose and first tool. Every arm starts
-// at its wait pose with its first tool. Two phases can be worked by two
-// arms side by side (SideBySide): the rails, when rail_set and strap_bolt
-// are given to different arms (the bolting arm one rail behind, each take
-// counted with the arm that takes), and the modules, when module_set and
-// pin are (the pin arm one module behind); with one arm a phase is the
-// plain sum of its steps. The time row has no limit: it passes when every
-// step it needs has a pose. The model of a move
-// and of the bay's time is TimeModelText(), printed with the rows.
+// and their bolts in the layout's rail_order (take rail k, set rail k, then
+// the bolts, or each rail's bolt after it); then for each module m: take
+// pallet module m and set it, then locate and pin its four holes in
+// bay::kLocateOrder and swage them in bay::kSwageOrder; release, bay out,
+// and each arm back to its wait pose and first tool. Each step is done by
+// the arm the layout's division gives it; an arm takes its magazine (its
+// pins_take points) before its first hole (an arm with a magazine and no
+// hole takes it after module 0 is set); a tool change comes wherever an
+// arm's next work needs another tool. Every arm starts at its wait pose
+// with its first tool. The time model of a phase (the ten rails; the nine
+// modules) is TimeModelText(): each unit has a leading piece (its take and
+// set) and following pieces (its bolt; its holes), a following piece
+// starting when the unit's leading pieces have ended and its arm has ended
+// the pieces before it; with one leading and one following arm this is
+// SideBySide, with one arm the plain sum. The time rows: "bay", whose detail
+// gives the phases, and "busy <arm>" for each arm, the sum of its steps.
+// The time row has no limit: it passes when every step it needs has a pose.
 
 #ifndef SRC_LAYOUT_CHECK_H_
 #define SRC_LAYOUT_CHECK_H_

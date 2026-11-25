@@ -6,8 +6,9 @@
 // "flat_rack"), the bay as far as it is built (src/bay_model.h, placed where
 // the layout's "tube" says), the holder's boxes, every arm from its public
 // description with its track, its tools and what it holds as simple shapes
-// (a rail an arm holds has its strap hanging open, the rails on the tube
-// have theirs closed), every pallet place with the modules still on it, the
+// (on the flat rack a rail an arm holds has its strap hanging open, the rails
+// on the tube have theirs closed; on the container the held rail is as run
+// 011 drew it, strap closed, so that its record stays as it was), every pallet place with the modules still on it, the
 // stocks, the other items and the ports' sites. LoadLayoutModel compiles it. The viewer
 // (//:viewer_layout), the test of the model and the layout checker all use
 // this one builder, so what is checked is what is looked at.
@@ -118,9 +119,10 @@ struct ArmHandle {
   std::map<std::string, std::vector<int>> tool_geoms;
   std::map<std::string, std::vector<int>> waiting_tool_geoms;
   // The geoms of what it can hold, by part ("module", "rail"), fixed to the
-  // working point of the tool that holds that part. A held rail has its strap
-  // open (geoms ..._held_rail_strap_open_neg and _pos, src/bay_model.h); the
-  // rails on the tube have theirs closed.
+  // working point of the tool that holds that part. On the flat rack a held
+  // rail has its strap open (geoms ..._held_rail_strap_open_neg and _pos,
+  // src/bay_model.h); the rails on the tube have theirs closed, and so has a
+  // held rail in the five layouts on the container.
   std::map<std::string, std::vector<int>> held_geoms;
   std::vector<int> link_geoms;      // The arm's own collision geoms, base included.
   std::vector<int> carriage_geoms;  // Moves along the track.

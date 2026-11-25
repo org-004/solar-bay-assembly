@@ -200,6 +200,7 @@ class Checker {
     StepScene sc;  // Who, with what, what is there, what is by design.
     PointResult result;
     LegResult legs[2];  // Approach, retreat.
+    bool legs_done = false;  // Walked for the chosen pose already.
   };
 
   const mjModel& M() const { return scene_->model(); }
@@ -215,7 +216,12 @@ class Checker {
                            const Tool& tool) const;
   Nearest PoseClearance(Job& job);
   void SolveJob(Job& job, int count);
+  // Walks one leg of the job's pose (job.result) into job.legs[leg].
   void WalkLeg(Job& job, int leg, const Approach& rule);
+  bool LegPasses(const LegResult& r) const {
+    return r.walked && r.why.empty() && r.reached &&
+           r.figure >= opt_.clearance_m;
+  }
   Nearest FreeSpace(const Job& job, std::string* which);
   std::string Key(const Job& job) const;
   std::vector<std::pair<std::string, int>> StepOrder() const;
@@ -480,6 +486,12 @@ void Checker::SolveJob(Job& job, int count) {
   seeds.insert(seeds.end(), a.seeds.begin(), a.seeds.end());
   bool have = false;
   double best_perr = 1e9;
+  // With a rule for the kind, a candidate wins only if both its legs pass
+  // as well; the first reached and clear one is kept, with its legs, in case
+  // none does.
+  const Approach* rule = FindApproach(L_, job.point.kind);
+  std::optional<PointResult> first_clear;
+  LegResult first_legs[2];
   for (const auto& [track, note] : tracks) {
     for (const Q6& seed : seeds) {
       for (const Target& tg : targets) {
@@ -496,7 +508,7 @@ void Checker::SolveJob(Job& job, int count) {
         }
         const Nearest n = PoseClearance(job);
         const bool clear = n.distance >= opt_.clearance_m;
-        if (!have || n.distance > r.nearest.distance) {
+        if (!first_clear && (!have || n.distance > r.nearest.distance)) {
           have = true;
           r.reached = true;
           r.clear = clear;
@@ -505,18 +517,55 @@ void Checker::SolveJob(Job& job, int count) {
           r.track_note = note;
           r.nearest = n;
         }
-        if (clear) {
-          a.last = ik.q;
-          // Leave the data at the chosen pose for what follows.
-          AllAtWait();
-          SetPose(ai, r.pose);
-          mj_kinematics(&M(), data_.get());
-          PoseClearance(job);
-          Margin(ai, r.pose.q, &r.margin_deg, &r.margin_joint);
-          return;
+        if (!clear) continue;
+        if (rule != nullptr) {
+          PointResult candidate = r;
+          candidate.reached = true;
+          candidate.clear = true;
+          candidate.pose = {ik.q, track};
+          candidate.perr = ik.perr;
+          candidate.track_note = note;
+          candidate.nearest = n;
+          const PointResult keep = r;
+          r = candidate;
+          WalkLeg(job, 0, *rule);
+          WalkLeg(job, 1, *rule);
+          const bool legs = LegPasses(job.legs[0]) && LegPasses(job.legs[1]);
+          if (!legs) {
+            r = keep;
+            if (!first_clear) {
+              first_clear = candidate;
+              first_legs[0] = job.legs[0];
+              first_legs[1] = job.legs[1];
+            }
+            continue;
+          }
+          job.legs_done = true;
         }
+        a.last = ik.q;
+        // Leave the data at the chosen pose for what follows.
+        AllAtWait();
+        SetPose(ai, r.pose);
+        mj_kinematics(&M(), data_.get());
+        PoseClearance(job);
+        Margin(ai, r.pose.q, &r.margin_deg, &r.margin_joint);
+        return;
       }
     }
+  }
+  if (first_clear) {
+    // Today's choice, the first reached and clear pose; its legs fail.
+    r = *first_clear;
+    job.legs[0] = first_legs[0];
+    job.legs[1] = first_legs[1];
+    job.legs_done = true;
+    a.last = r.pose.q;
+    AllAtWait();
+    SetPose(ai, r.pose);
+    mj_kinematics(&M(), data_.get());
+    PoseClearance(job);
+    Margin(ai, r.pose.q, &r.margin_deg, &r.margin_joint);
+    return;
   }
   if (r.reached) {
     a.last = r.pose.q;
@@ -666,12 +715,23 @@ void Checker::WalkLeg(Job& job, int leg, const Approach& rule) {
   r.far = q;
 }
 
+// Points with one key share one pose: the same arm, tool, target and part,
+// and the same rule of approach (the pose is chosen by its legs too).
 std::string Checker::Key(const Job& job) const {
   const WorkPoint& p = job.point;
-  return Fmt("%d|%s|%.6f,%.6f,%.6f|%.6f,%.6f,%.6f|%d|%.6f,%.6f,%.6f|%s",
-             job.sc.arm, job.sc.tool.c_str(), p.pos.x(), p.pos.y(), p.pos.z(),
-             p.z.x(), p.z.y(), p.z.z(), p.has_x ? 1 : 0, p.x.x(), p.x.y(),
-             p.x.z(), job.sc.held.c_str());
+  std::string key =
+      Fmt("%d|%s|%.6f,%.6f,%.6f|%.6f,%.6f,%.6f|%d|%.6f,%.6f,%.6f|%s",
+          job.sc.arm, job.sc.tool.c_str(), p.pos.x(), p.pos.y(), p.pos.z(),
+          p.z.x(), p.z.y(), p.z.z(), p.has_x ? 1 : 0, p.x.x(), p.x.y(),
+          p.x.z(), job.sc.held.c_str());
+  if (const Approach* a = FindApproach(L_, p.kind)) {
+    key += Fmt("|%s %.6f,%.6f,%.6f %.6f|%s %.6f,%.6f,%.6f %.6f",
+               a->approach_frame.c_str(), a->approach_dir[0],
+               a->approach_dir[1], a->approach_dir[2], a->approach_m,
+               a->retreat_frame.c_str(), a->retreat_dir[0], a->retreat_dir[1],
+               a->retreat_dir[2], a->retreat_m);
+  }
+  return key;
 }
 
 // The order in which points are solved: the bay's steps, then the takes
@@ -760,6 +820,7 @@ void Checker::SolveAll() {
     const Approach* rule = FindApproach(L_, kind);
     if (rule == nullptr) continue;
     for (Job& job : list) {
+      if (job.legs_done) continue;
       WalkLeg(job, 0, *rule);
       WalkLeg(job, 1, *rule);
     }
@@ -1529,6 +1590,26 @@ std::vector<CheckRow> Checker::TimeRows(std::vector<BayStep>* steps,
           Fmt("pallet module %d", m));
     piece(&module_pieces, "module_set", m, m, true, Fmt("set module %d", m),
           Fmt("module %d", m));
+    // An arm that has a magazine but no hole takes it after the first set.
+    if (m == 0) {
+      const std::vector<std::string> holers =
+          ArmsDoing(L_, {"locate", "pin", "swage"});
+      for (int ai = 0; ai < arm_count; ++ai) {
+        if (std::find(holers.begin(), holers.end(), Use(ai).name) !=
+            holers.end()) {
+          continue;
+        }
+        for (int point : now[ai].magazines) {
+          Piece p;
+          p.unit = 0;
+          p.magazine = true;
+          p.t = work("pins_take", point, "take a pin magazine", "pin magazine",
+                     &p.arm);
+          module_pieces.push_back(p);
+        }
+        now[ai].magazines.clear();
+      }
+    }
     for (int i : bay::kLocateOrder) {
       hole("locate", m, i, Fmt("locate %d/%d", m, i),
            Fmt("module %d hole %d", m, i));

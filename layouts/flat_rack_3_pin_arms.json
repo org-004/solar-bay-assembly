@@ -10,9 +10,9 @@
     "note": "The base alone while it works: both end frames taken off or dropped, no post, side or roof. Everything that travels stands on the deck."
   },
   "margins": {
-    "clearance_m": 0.01,
+    "clearance_m": 0.015,
     "joint_margin_deg": 5.0,
-    "reason": "The floors of the spec; see docs/flat-rack-cell.md, Margins.",
+    "reason": "Clearance half again over the floor of 0.010 m: the tightest pose that is not near by design, the pin tool's nose beside the next module's flange, has 0.0187 m, so 0.020 m would not pass. Joint margin at the floor of 5 degrees: the module arm's joint 2 has 8.6 degrees while it draws the last modules from the pallet.",
     "basis": "ours"
   },
   "tube": {
@@ -476,20 +476,20 @@
           0
         ],
         "lo": -5.3,
-        "hi": -2.016,
+        "hi": -0.872,
         "speed": 1.5,
         "accel": 2.0,
-        "mass_kg": 88.5,
+        "mass_kg": 113.6,
         "beam": {
           "name": "beam",
           "size": [
             0.3,
-            4.034,
+            5.178,
             0.1
           ],
           "pos": [
             -0.38,
-            -3.733,
+            -3.161,
             0.698
           ]
         },
@@ -650,8 +650,8 @@
           1,
           0
         ],
-        "lo": -1.416,
-        "hi": 1.416,
+        "lo": -0.272,
+        "hi": 2.56,
         "speed": 1.5,
         "accel": 2.0,
         "mass_kg": 75.3,
@@ -664,7 +664,7 @@
           ],
           "pos": [
             -0.38,
-            -0.0,
+            1.144,
             0.698
           ]
         },
@@ -781,7 +781,7 @@
       "first_tool": "nutrunner",
       "stops": {
         "pins_take": [
-          0.0
+          1.1
         ]
       },
       "wait_joints_deg": [
@@ -792,7 +792,7 @@
         90,
         0
       ],
-      "wait_track": 0.0,
+      "wait_track": 1.1,
       "stow_joints_deg": [
         90,
         -170,
@@ -801,7 +801,7 @@
         90,
         0
       ],
-      "stow_track": 0.0,
+      "stow_track": 1.1,
       "stow_tool": "",
       "tool_change_s": 8.0
     },
@@ -825,21 +825,21 @@
           1,
           0
         ],
-        "lo": 2.016,
+        "lo": 3.16,
         "hi": 5.3,
         "speed": 1.5,
         "accel": 2.0,
-        "mass_kg": 88.5,
+        "mass_kg": 63.4,
         "beam": {
           "name": "beam",
           "size": [
             0.3,
-            4.034,
+            2.89,
             0.1
           ],
           "pos": [
             -0.38,
-            3.733,
+            4.305,
             0.698
           ]
         },
@@ -1062,7 +1062,7 @@
       "how": "Magazines of 36 pins and collars come along a lane on the deck from the feeder at the +Y end and stop in a nest beside pin_arm_b; its pin tool takes one for each bay.",
       "pick_pos": [
         0.1,
-        0.0,
+        1.1,
         0.998
       ],
       "pick_axis": [
@@ -1167,7 +1167,7 @@
       "kind": "strap_bolt",
       "arm": "pin_arm_a",
       "tool": "nutrunner",
-      "points": "0-3",
+      "points": "0-4",
       "process_s": 6.0,
       "note": "Run down and tighten to 17.6 N m, measured.",
       "basis": "ours"
@@ -1176,7 +1176,7 @@
       "kind": "strap_bolt",
       "arm": "pin_arm_b",
       "tool": "nutrunner",
-      "points": "4-6",
+      "points": "5-7",
       "process_s": 6.0,
       "note": "Run down and tighten to 17.6 N m, measured.",
       "basis": "ours"
@@ -1185,7 +1185,7 @@
       "kind": "strap_bolt",
       "arm": "pin_arm_c",
       "tool": "nutrunner",
-      "points": "7-9",
+      "points": "8-9",
       "process_s": 6.0,
       "note": "Run down and tighten to 17.6 N m, measured.",
       "basis": "ours"
@@ -1212,7 +1212,7 @@
       "kind": "locate",
       "arm": "pin_arm_a",
       "tool": "pin_tool",
-      "points": "0-11",
+      "points": "0-15",
       "process_s": 3.0,
       "note": "Tip up, once round the slot at most, nose in, nose out.",
       "basis": "ours"
@@ -1221,7 +1221,7 @@
       "kind": "locate",
       "arm": "pin_arm_b",
       "tool": "pin_tool",
-      "points": "12-23",
+      "points": "16-27",
       "process_s": 3.0,
       "note": "Tip up, once round the slot at most, nose in, nose out.",
       "basis": "ours"
@@ -1230,7 +1230,7 @@
       "kind": "locate",
       "arm": "pin_arm_c",
       "tool": "pin_tool",
-      "points": "24-35",
+      "points": "28-35",
       "process_s": 3.0,
       "note": "Tip up, once round the slot at most, nose in, nose out.",
       "basis": "ours"
@@ -1239,7 +1239,7 @@
       "kind": "pin",
       "arm": "pin_arm_a",
       "tool": "pin_tool",
-      "points": "0-11",
+      "points": "0-15",
       "process_s": 2.0,
       "note": "The finger puts the pin in from above.",
       "basis": "ours"
@@ -1248,7 +1248,7 @@
       "kind": "pin",
       "arm": "pin_arm_b",
       "tool": "pin_tool",
-      "points": "12-23",
+      "points": "16-27",
       "process_s": 2.0,
       "note": "The finger puts the pin in from above.",
       "basis": "ours"
@@ -1257,7 +1257,7 @@
       "kind": "pin",
       "arm": "pin_arm_c",
       "tool": "pin_tool",
-      "points": "24-35",
+      "points": "28-35",
       "process_s": 2.0,
       "note": "The finger puts the pin in from above.",
       "basis": "ours"
@@ -1266,7 +1266,7 @@
       "kind": "swage",
       "arm": "pin_arm_a",
       "tool": "pin_tool",
-      "points": "0-11",
+      "points": "0-15",
       "process_s": 3.0,
       "note": "Collar on, swaged.",
       "basis": "ours"
@@ -1275,7 +1275,7 @@
       "kind": "swage",
       "arm": "pin_arm_b",
       "tool": "pin_tool",
-      "points": "12-23",
+      "points": "16-27",
       "process_s": 3.0,
       "note": "Collar on, swaged.",
       "basis": "ours"
@@ -1284,7 +1284,7 @@
       "kind": "swage",
       "arm": "pin_arm_c",
       "tool": "pin_tool",
-      "points": "24-35",
+      "points": "28-35",
       "process_s": 3.0,
       "note": "Collar on, swaged.",
       "basis": "ours"
@@ -1406,7 +1406,7 @@
           ],
           "pos": [
             0.1,
-            0.0,
+            1.1,
             0.923
           ]
         },

@@ -186,7 +186,10 @@ const char* kFaces[6] = {"-x", "-y", "-z", "+x", "+y", "+z"};
 double InsideZone(const Vec& lo, const Vec& hi, const BoxLoHi& z, int* face) {
   double least = kInf;
   for (int a = 0; a < 3; ++a) {
-    if (lo[a] - z.lo[a] < least) { least = lo[a] - z.lo[a]; *face = a; }
+    // The underside only counts when the thing is below it: a thing that
+    // stands on the ground at the zone's foot is not held by that face.
+    const bool ground = a == 2 && lo[a] - z.lo[a] >= 0.0;
+    if (!ground && lo[a] - z.lo[a] < least) { least = lo[a] - z.lo[a]; *face = a; }
     if (z.hi[a] - hi[a] < least) { least = z.hi[a] - hi[a]; *face = a + 3; }
   }
   return least;
