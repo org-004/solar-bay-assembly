@@ -267,6 +267,9 @@ struct PlanOptions {
   // Only the steps numbered first..last are planned and scheduled (0, 0:
   // the whole bay): for trying a part of the bay. A part is never complete.
   int first_step = 0, last_step = 0;
+  // The RRT iteration budgets, in turn; empty: PlanFigures' own. The
+  // budgets used go into the plan's figures.
+  std::vector<int> budgets;
 };
 
 // PlanResult and PlanLayout are declared at the end, after VerifyReport.
@@ -416,6 +419,16 @@ struct PlanResult {
 PlanResult PlanLayout(const Layout& layout, const ModelPaths& paths,
                       const std::string& layout_sha256,
                       const PlanOptions& options = {});
+
+// Why the moves that lead to the given steps are (or are not) found, as
+// plain lines (//:plan_layout --why): for each move its arm, tool and held
+// part, its ends and their joint differences, the least distance and pair
+// at each end, where the straight line is first blocked marched from each
+// end, and, when it is not found, each budget's RRT report. Plans no other
+// move. Uses the options' budgets.
+std::vector<std::string> WhyMoves(const Layout& layout, const ModelPaths& paths,
+                                  const std::vector<int>& steps,
+                                  const PlanOptions& options = {});
 
 }  // namespace cell::layout
 

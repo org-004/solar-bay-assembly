@@ -610,7 +610,7 @@
         ]
       },
       "wait_joints_deg": [
-        90,
+        180,
         -170,
         150,
         20,
@@ -781,18 +781,18 @@
       "first_tool": "nutrunner",
       "stops": {
         "pins_take": [
-          1.1
+          2.2
         ]
       },
       "wait_joints_deg": [
-        90,
+        180,
         -170,
         150,
         20,
         90,
         0
       ],
-      "wait_track": 1.1,
+      "wait_track": 2.2,
       "stow_joints_deg": [
         90,
         -170,
@@ -801,7 +801,7 @@
         90,
         0
       ],
-      "stow_track": 1.1,
+      "stow_track": 2.2,
       "stow_tool": "",
       "tool_change_s": 8.0
     },
@@ -960,7 +960,7 @@
         ]
       },
       "wait_joints_deg": [
-        90,
+        180,
         -170,
         150,
         20,
@@ -1062,7 +1062,7 @@
       "how": "Magazines of 36 pins and collars come along a lane on the deck from the feeder at the +Y end and stop in a nest beside pin_arm_b; its pin tool takes one for each bay.",
       "pick_pos": [
         0.17,
-        1.1,
+        2.2,
         0.998
       ],
       "pick_axis": [
@@ -1406,7 +1406,7 @@
           ],
           "pos": [
             0.17,
-            1.1,
+            2.2,
             0.923
           ]
         },

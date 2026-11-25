@@ -1130,3 +1130,56 @@ TEST(LayoutCheck, ToolChangePosesClearOnTheFlatRackFiles) {
 
 }  // namespace
 }  // namespace cell::layout
+
+namespace cell::layout {
+namespace {
+
+// The windings brought near the anchor change the joints' numbers, not the
+// pose: every work pose still puts the tool's working point on its point.
+// And each arm's posture changes are reported, one line per arm.
+TEST(LayoutCheck, PostureKeptAndPosesUnchanged) {
+  std::string error;
+  const std::optional<Layout> layout =
+      LoadLayout(Dir() + "/flat_rack_1_pin_arm.json", &error);
+  ASSERT_TRUE(layout.has_value()) << error;
+  CheckOptions options;
+  options.checks = {"reach", "time"};
+  const CheckReport report = CheckLayout(*layout, Paths(), options);
+  auto scene = LayoutScene::Load(*layout, Paths(), 5.0, &error);
+  ASSERT_NE(scene, nullptr) << error;
+  DataPtr data = scene->MakeData();
+  std::map<std::string, std::vector<WorkPoint>> points;
+  int checked = 0;
+  for (const SolvedPoint& p : report.points) {
+    if (!p.work_reached) continue;
+    if (!points.count(p.kind)) points[p.kind] = WorkPoints(*layout, p.kind);
+    const WorkPoint& w = points[p.kind][p.index];
+    const int ai = scene->ArmIndex(p.arm);
+    ASSERT_GE(ai, 0);
+    ArmPose pose;
+    for (int j = 0; j < 6; ++j) pose.q[j] = p.work_deg[j] * M_PI / 180.0;
+    pose.track = p.track;
+    scene->AllAtWait(data.get());
+    scene->SetPose(data.get(), ai, pose);
+    mj_kinematics(&scene->model(), data.get());
+    const int site = scene->arm(ai).h->work_site.at(p.tool);
+    const Eigen::Vector3d at(data->site_xpos[3 * site],
+                             data->site_xpos[3 * site + 1],
+                             data->site_xpos[3 * site + 2]);
+    EXPECT_LT((at - w.pos).norm(), 1.5e-4) << p.item;
+    const Eigen::Vector3d z(data->site_xmat[9 * site + 2],
+                            data->site_xmat[9 * site + 5],
+                            data->site_xmat[9 * site + 8]);
+    EXPECT_GT(z.dot(w.z.normalized()), std::cos(1.5e-3)) << p.item;
+    ++checked;
+  }
+  EXPECT_GT(checked, 150);
+  ASSERT_EQ(report.postures.size(), layout->arms.size());
+  for (const PostureChanges& p : report.postures) {
+    EXPECT_FALSE(p.from.empty()) << p.arm;
+    EXPECT_GT(p.largest_s, 0.0) << p.arm;
+  }
+}
+
+}  // namespace
+}  // namespace cell::layout

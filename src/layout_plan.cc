@@ -122,6 +122,7 @@ struct MoveJob {
   double planned_s = 0.0;
   double model_s = 0.0;
   std::string note;
+  std::vector<std::string> log;  // Each budget's RRT report.
 };
 
 // One step of one arm: its segments, with durations, from time 0.
@@ -182,7 +183,8 @@ class Planner {
           const std::string& sha, const PlanOptions& options)
       : layout_(layout), paths_(paths), sha_(sha), options_(options) {}
 
-  PlanResult Run();
+  PlanResult Run(bool plan = true);
+  std::vector<std::string> Why(const std::vector<int>& steps);
 
  private:
   bool InRange(int number) const {
@@ -252,6 +254,7 @@ class Planner {
   double clamp_end_ = 0.0;
   bool all_found_ = true;
   bool scheduled_ = false;
+  bool prepared_ = false;
   std::int64_t schedule_queries_ = 0;
 };
 
@@ -604,15 +607,15 @@ void Planner::PlanOne(MoveJob& job, mjData* d) {
     ro.max_iterations = budget;
     RrtReport rr;
     path = PlanRrtConnect(start, goal, lower, upper, is_free, ro, &rr);
+    job.log.push_back(Fmt(
+        "budget %d in %d coordinates: %s, %d iterations, trees of %d and %d "
+        "nodes, %lld queries",
+        budget, dims, ToString(rr.status), rr.iterations, rr.start_tree_size,
+        rr.goal_tree_size, static_cast<long long>(rr.collision_queries)));
     if (std::getenv("PLAN_DEBUG") != nullptr) {
-      std::fprintf(stderr,
-                   "move step %d dims %d budget %d: %s, %d iterations, trees "
-                   "%d and %d, %lld queries\n",
-                   job.step, dims, budget, ToString(rr.status), rr.iterations,
-                   rr.start_tree_size, rr.goal_tree_size,
-                   static_cast<long long>(rr.collision_queries));
-      std::fprintf(stderr, "  from %s\n  to   %s\n",
-                   ConfigText(job.from).c_str(), ConfigText(job.to).c_str());
+      std::fprintf(stderr, "move step %d %s\n  from %s\n  to   %s\n", job.step,
+                   job.log.back().c_str(), ConfigText(job.from).c_str(),
+                   ConfigText(job.to).c_str());
     }
     if (path) {
       job.budget = rr.iterations == 0 ? 0 : budget;
@@ -951,8 +954,25 @@ bool Planner::Schedule() {
     if (st.kind == "rail_set") rail_set_step[st.index] = st.number;
     if (st.kind == "module_set") module_set_step[st.index] = st.number;
   }
-  auto needs_of = [&](const Block& b) {
+  // Just in time: a step of phase "modules" of an arm that is neither a
+  // take nor a set (a tool change, the take of a pin magazine) waits for
+  // what that arm's next hole step waits for, so that the arm does not
+  // stand over the lane, in the module arm's way, before its module is set.
+  auto next_hole = [&](const Block& b) -> int {
+    const BayStep& st = report_.steps[b.step_index];
+    if (st.phase != "modules") return -1;
+    if (st.kind != "tool_change" && st.kind != "pins_take") return -1;
+    for (size_t k = b.step_index + 1; k < report_.steps.size(); ++k) {
+      const BayStep& q = report_.steps[k];
+      if (q.arm == st.arm && IsHoleKind(q.kind)) return static_cast<int>(k);
+    }
+    return -1;
+  };
+  auto needs_of = [&](const Block& block) {
     std::vector<Need> needs;
+    const int hole = next_hole(block);
+    Block b = block;
+    if (hole >= 0) b.step_index = hole;
     const BayStep& st = report_.steps[b.step_index];
     if (st.kind == "strap_bolt") {
       auto it = rail_set_step.find(st.index);
@@ -1011,6 +1031,12 @@ bool Planner::Schedule() {
           const BayStep& q = report_.steps[nb.step_index];
           reason = Fmt("for step %d (%s) by %s", q.number, q.what.c_str(),
                        q.arm.c_str());
+          const int hole = next_hole(b);
+          if (hole >= 0) {
+            reason += Fmt(", just in time for its step %d (%s)",
+                          report_.steps[hole].number,
+                          report_.steps[hole].what.c_str());
+          }
         }
       }
       if (can) ready.push_back({a, bi, r, reason});
@@ -1024,6 +1050,11 @@ bool Planner::Schedule() {
                      [](const Candidate& x, const Candidate& y) {
                        return x.ready < y.ready;
                      });
+    // The ready blocks are tried in order of their earliest start (ties by
+    // the layout's order of arms). A block in the way of an arm that stands
+    // still for good, or one that 2,000 shifts of 0.25 s do not clear, is
+    // passed over and the next is tried; only when no ready block can be
+    // placed is the schedule blocked, named by the first one's conflict.
     bool placed = false;
     std::string first_block;
     for (const Candidate& c : ready) {
@@ -1173,12 +1204,17 @@ void Planner::FillPlan() {
       {"modules", modules_end - last_bolt, model["modules"]},
       {"end", bay_end - modules_end, model["end"]},
   };
+  // Without a schedule there are no planned times.
+  if (!scheduled_) {
+    for (PhaseTime& p : plan.phases) p.planned_s = 0.0;
+    bay_end = 0.0;
+  }
   plan.bay_planned_s = bay_end;
   plan.bay_model_s = report_.bay_time_s;
   plan.complete = false;
 }
 
-PlanResult Planner::Run() {
+PlanResult Planner::Run(bool plan) {
   const auto t0 = std::chrono::steady_clock::now();
   auto done = [&]() {
     result_.seconds = std::chrono::duration<double>(
@@ -1211,6 +1247,7 @@ PlanResult Planner::Run() {
     return done();
   }
   f_ = PlanFigures{};
+  if (!options_.budgets.empty()) f_.budgets = options_.budgets;
   f_.clearance_m = report_.clearance_m;
   f_.joint_margin_deg = report_.joint_margin_deg;
   for (int a = 0; a < scene_->ArmCount(); ++a) {
@@ -1218,10 +1255,12 @@ PlanResult Planner::Run() {
   }
   clamp_end_ = layout_.tube_in.time_s + layout_.holder.clamp_s;
   const bool assembled = Assemble();
+  prepared_ = true;
   if (!assembled) {
     FillPlan();
     return done();
   }
+  if (!plan) return done();
   PlanMoves();
   if (all_found_) {
     scheduled_ = Schedule();
@@ -1256,7 +1295,107 @@ PlanResult Planner::Run() {
   return result_;
 }
 
+std::vector<std::string> Planner::Why(const std::vector<int>& steps) {
+  std::vector<std::string> out;
+  Run(false);
+  for (const std::string& f : result_.faults) out.push_back("fault: " + f);
+  if (!prepared_) return out;
+  DataPtr d = scene_->MakeData();
+  for (int step : steps) {
+    int count = 0;
+    for (MoveJob& job : moves_) {
+      if (job.step != step) continue;
+      ++count;
+      const std::string arm = scene_->arm(job.arm).use->name;
+      out.push_back(Fmt("step %d: %s from %s to %s, tool %s, holding %s, seed %u",
+                        step, arm.c_str(), job.from_label.c_str(),
+                        job.to_label.c_str(), job.tool.c_str(),
+                        job.held.empty() ? "nothing" : job.held.c_str(),
+                        job.seed));
+      out.push_back("  start " + ConfigText(job.from));
+      out.push_back("  goal  " + ConfigText(job.to));
+      out.push_back(Fmt("  change (%.1f, %.1f, %.1f, %.1f, %.1f, %.1f deg; "
+                        "track %.3f m)",
+                        (job.to[0] - job.from[0]) / kDeg,
+                        (job.to[1] - job.from[1]) / kDeg,
+                        (job.to[2] - job.from[2]) / kDeg,
+                        (job.to[3] - job.from[3]) / kDeg,
+                        (job.to[4] - job.from[4]) / kDeg,
+                        (job.to[5] - job.from[5]) / kDeg, job.to[6] - job.from[6]));
+      std::string bay = "  bay: rails";
+      for (int k : job.built.rails) bay += Fmt(" %d", k);
+      bay += ", modules";
+      for (int k : job.built.modules) bay += Fmt(" %d", k);
+      bay += Fmt(", %d on the pallets", job.built.on_pallets);
+      out.push_back(bay);
+      const MoveWorld world(*scene_, job.arm, job.tool, job.held, job.built,
+                            f_.clearance_m);
+      for (int end = 0; end < 2; ++end) {
+        const Nearest n = world.Least(d.get(), end == 0 ? job.from : job.to,
+                                      kSceneFar);
+        out.push_back(Fmt("  at the %s: %.4f m, %s (%s)", end == 0 ? "start" : "goal",
+                          n.distance, scene_->PairText(n).c_str(),
+                          n.distance >= f_.clearance_m ? "free" : "not free"));
+      }
+      // The straight line, marched at the edge resolution from each end.
+      const ArmMotion& m = motions_[job.arm];
+      double span = 0.0;
+      for (int j = 0; j < 7; ++j) {
+        span += m.weights[j] * std::abs(job.to[j] - job.from[j]);
+      }
+      const int n = std::max(1, static_cast<int>(std::ceil(span / f_.edge_resolution)));
+      auto at = [&](double u) {
+        Config c{};
+        for (int j = 0; j < 7; ++j) c[j] = job.from[j] + u * (job.to[j] - job.from[j]);
+        return c;
+      };
+      bool line_free = true;
+      for (int dir = 0; dir < 2; ++dir) {
+        bool blocked = false;
+        for (int i = 1; i < n; ++i) {
+          const double u = dir == 0 ? static_cast<double>(i) / n
+                                    : 1.0 - static_cast<double>(i) / n;
+          const Nearest nn = world.Least(d.get(), at(u), kSceneFar);
+          if (nn.distance < f_.clearance_m) {
+            out.push_back(Fmt("  straight line marched from the %s: first blocked "
+                              "at u = %.3f (0 the start, 1 the goal), %s at "
+                              "%.4f m",
+                              dir == 0 ? "start" : "goal", u,
+                              scene_->PairText(nn).c_str(), nn.distance));
+            blocked = true;
+            break;
+          }
+        }
+        if (blocked) line_free = false;
+        if (!blocked && dir == 0) break;
+      }
+      if (line_free) {
+        out.push_back(Fmt("  straight line free (%d points checked)", n - 1));
+        continue;
+      }
+      PlanOne(job, d.get());
+      for (const std::string& line : job.log) out.push_back("  " + line);
+      out.push_back(job.found ? Fmt("  found at budget %d, %d waypoints, %lld "
+                                    "queries",
+                                    job.budget, static_cast<int>(job.path.size()),
+                                    static_cast<long long>(job.queries))
+                              : "  not found: " + job.note);
+    }
+    if (count == 0) {
+      out.push_back(Fmt("step %d: no move leads to it", step));
+    }
+  }
+  return out;
+}
+
 }  // namespace
+
+std::vector<std::string> WhyMoves(const Layout& layout, const ModelPaths& paths,
+                                  const std::vector<int>& steps,
+                                  const PlanOptions& options) {
+  Planner planner(layout, paths, "", options);
+  return planner.Why(steps);
+}
 
 PlanResult PlanLayout(const Layout& layout, const ModelPaths& paths,
                       const std::string& layout_sha256,

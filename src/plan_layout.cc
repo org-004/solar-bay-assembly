@@ -2,6 +2,7 @@
 //
 //   plan_layout <name> [--summary] [--out PATH] [--threads N]
 //               [--first-step A --last-step B] [--pretty]
+//               [--budgets A,B,C] [--why STEP]... [--why all-failed]
 //
 // The default output is CSV: a header and one row per move
 //   step,arm,from,to,found,budget,waypoints,queries,planned_s,model_s,ratio,note
@@ -12,7 +13,10 @@
 // seconds, every wait with its reason, how long planning took and its
 // collision queries, and the faults. --pretty lines the CSV's columns up.
 // --summary prints `key: value` lines instead. --out PATH writes the plan
-// as JSON (PlanToJson). Layouts are read from LAYOUT_DIR.
+// as JSON (PlanToJson). --budgets sets the RRT iteration budgets (default
+// the figures' 5000,40000,160000). --why STEP explains the moves that lead
+// to a step and plans nothing else; --why all-failed plans as usual and then
+// explains every move not found. Layouts are read from LAYOUT_DIR.
 //
 // Exit status: 0 when the plan is complete; 1 when a move was not found,
 // the schedule is blocked or the verifier found a fault; 2 on a usage or
@@ -63,7 +67,8 @@ std::string Num(double v, int digits = 2) {
 int Usage() {
   std::fprintf(stderr,
                "usage: plan_layout <name> [--summary] [--out PATH] "
-               "[--threads N] [--first-step A --last-step B] [--pretty]\n");
+               "[--threads N] [--first-step A --last-step B] [--pretty] "
+               "[--budgets A,B,C] [--why STEP|all-failed]...\n");
   return 2;
 }
 
@@ -115,6 +120,8 @@ int main(int argc, char** argv) {
   std::string name, out;
   bool summary = false, pretty = false;
   PlanOptions options;
+  std::vector<int> why;
+  bool why_failed = false;
   for (int i = 1; i < argc; ++i) {
     const std::string a = argv[i];
     auto value = [&](std::string* v) {
@@ -139,6 +146,30 @@ int main(int argc, char** argv) {
     } else if (a == "--last-step") {
       if (!value(&v)) return Usage();
       options.last_step = std::atoi(v.c_str());
+    } else if (a == "--why") {
+      if (!value(&v)) return Usage();
+      if (v == "all-failed") {
+        why_failed = true;
+      } else {
+        const int step = std::atoi(v.c_str());
+        if (step <= 0) return Usage();
+        why.push_back(step);
+      }
+    } else if (a == "--budgets") {
+      if (!value(&v)) return Usage();
+      options.budgets.clear();
+      size_t at = 0;
+      while (at <= v.size()) {
+        const size_t comma = v.find(',', at);
+        const std::string part =
+            v.substr(at, comma == std::string::npos ? std::string::npos
+                                                    : comma - at);
+        const int b = std::atoi(part.c_str());
+        if (b <= 0) return Usage();
+        options.budgets.push_back(b);
+        if (comma == std::string::npos) break;
+        at = comma + 1;
+      }
     } else if (a == "--margins") {
       // The next milestone's: the tightest margins of the plan.
       std::fprintf(stderr, "plan_layout: --margins is not written yet\n");
@@ -165,6 +196,14 @@ int main(int argc, char** argv) {
   }
   const std::string sha = Sha256OfFile(path);
   const ModelPaths paths = ModelPaths::FromEnvironment();
+  // --why STEP: explain the moves that lead to the steps, planning nothing
+  // else.
+  if (!why.empty() && !why_failed) {
+    for (const std::string& line : WhyMoves(*layout, paths, why, options)) {
+      std::printf("%s\n", line.c_str());
+    }
+    return 0;
+  }
   const PlanResult r = PlanLayout(*layout, paths, sha, options);
   const Plan& plan = r.plan;
 
@@ -310,6 +349,22 @@ int main(int argc, char** argv) {
       std::printf("# fault: %s\n", fault.c_str());
     }
     std::printf("# complete: %s\n", plan.complete ? "true" : "false");
+  }
+  // --why all-failed: after the normal output, explain every move that was
+  // not found (and any steps asked for by number).
+  if (why_failed) {
+    for (const MoveRow& row : r.rows) {
+      if (!row.found &&
+          std::find(why.begin(), why.end(), row.step) == why.end()) {
+        why.push_back(row.step);
+      }
+    }
+    if (!why.empty()) {
+      std::printf("# why:\n");
+      for (const std::string& line : WhyMoves(*layout, paths, why, options)) {
+        std::printf("%s\n", line.c_str());
+      }
+    }
   }
   return plan.complete ? 0 : 1;
 }

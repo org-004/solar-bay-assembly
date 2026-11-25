@@ -109,6 +109,36 @@
 // track <arm>" (figure: how far inside the range, negative outside, limit
 // 0).
 //
+// One posture per arm (layouts with approach rules; the others keep the
+// choice above). A UR joint may turn a whole turn either way, so a pose has
+// several sets of numbers and an arm several postures. The anchor of a work
+// point is the arm's previous solution in the order of the bay's steps (its
+// wait pose for its first point). For each track candidate in the order
+// above, every seed (the anchor, the wait pose, then the ik_seeds random
+// ones) with each sign of x is solved; every joint of a solution is brought
+// to the value, of those that differ from it by whole turns and lie inside
+// the joint's range less the margin, nearest the anchor's (the same pose,
+// other numbers); solutions within 0.5 degrees of one another in every
+// joint count once; and they are tried in order of their distance from the
+// anchor, the largest over the six joints of |change| / (the datasheet's
+// speed of that joint). The first that is inside the margin, clear and
+// whose two legs pass wins; a later track value only if none at an earlier
+// one does; if none passes, the first clear one, else the reached one with
+// the most clearance. The tool-change pose is chosen the same way from the
+// wait pose, over its seeds and spins, the first clear one winning.
+// CheckReport::postures, and //:check_layout as "# posture <arm>: largest
+// change <s> s between <a> and <b>; <n> changes above 2.0 s", give for each
+// arm of a flat rack layout the largest such distance between two
+// consecutive poses in step order (its wait pose first and last, its
+// tool-change pose at each change of tool).
+//
+// The wait poses (flat rack). "reach,wait pose <arm>": the least joint
+// margin of the wait pose against the datasheet's range, limit
+// joint_margin_deg (the planner starts every arm there). "clearance,wait
+// pose <arm>": the arm at its wait pose with its first tool, the others at
+// theirs, the least distance with the bare tube and with all rails and all
+// nine modules on, the worse counting; limit clearance_m.
+//
 // The tool-change pose. An arm with more than one tool changes them at one
 // pose that rides with its carriage: the flange kToolChangeHeight (0.32 m,
 // ours) above the highest top of the boxes its tools wait in (Tool::
@@ -116,8 +146,9 @@
 // places (the middle of the boxes' extent across), the flange's z straight
 // down, any spin. It is solved by the inverse kinematics above at the arm's
 // wait track, with the solver's own spin and then eight fixed ones, from
-// the wait pose and the seeds; the first pose whose clearance passes wins,
-// else the reached one with the most clearance. The joints do not depend on
+// the wait pose and the seeds; the first pose whose clearance passes wins
+// (nearest the wait pose first, where the layout has approach rules), else
+// the reached one with the most clearance. The joints do not depend on
 // the track's value. CheckReport::tool_changes has it for every such arm. On
 // the flat rack two rows: "reach,tools <arm>" (the least joint margin, as
 // the other reach rows; the detail gives the flange's place) and
@@ -357,6 +388,18 @@ struct SolvedToolChange {
   bool reached = false;
 };
 
+// How far an arm changes posture between two consecutive poses of the bay,
+// in step order (its wait pose first and last, its tool-change pose where
+// it changes tools): the largest over the six joints of |change| / (the
+// datasheet's speed of that joint), seconds. Flat rack layouts only.
+struct PostureChanges {
+  std::string arm;
+  double largest_s = 0.0;
+  std::string from, to;  // The two poses of the largest: items or "wait",
+                         // "tool change".
+  int above_2s = 0;      // Changes larger than 2.0 s.
+};
+
 struct CheckReport {
   std::vector<CheckRow> rows;
   std::vector<BayStep> steps;
@@ -372,6 +415,7 @@ struct CheckReport {
   // The time model's five phases in order ("tube in", "clamp", "rails",
   // "modules", "end") with their seconds, as in the time,bay row's detail.
   std::vector<std::pair<std::string, double>> phases;
+  std::vector<PostureChanges> postures;  // Per arm, flat rack layouts only.
   bool pass = false;       // Every row passes.
   std::string error;       // Set when the model could not be built.
 };

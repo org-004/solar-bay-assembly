@@ -128,6 +128,12 @@ bool ParseChecks(const std::string& text, std::vector<std::string>* kinds,
 void PrintMargins(const CheckReport& report) {
   std::printf("# margins: clearance %.3f m, joint margin %.1f deg\n",
               report.clearance_m, report.joint_margin_deg);
+  for (const auto& p : report.postures) {
+    std::printf("# posture %s: largest change %.2f s between %s and %s; %d "
+                "changes above 2.0 s\n",
+                p.arm.c_str(), p.largest_s, p.from.c_str(), p.to.c_str(),
+                p.above_2s);
+  }
 }
 
 const char kUsage[] =

@@ -193,6 +193,11 @@ class Checker {
   const std::vector<std::pair<std::string, double>>& phases() const {
     return phases_;
   }
+  std::vector<PostureChanges> postures() const {
+    return L_.base == "flat_rack" ? postures_ : std::vector<PostureChanges>();
+  }
+  // The flat rack's rows of the wait poses: reach, clearance.
+  std::vector<CheckRow> WaitPoseRows(const std::string& check);
 
   // The state for a picture.
   bool State(const std::string& kind, int index, LayoutState* state,
@@ -220,6 +225,14 @@ class Checker {
                            const Tool& tool) const;
   Nearest PoseClearance(Job& job);
   void SolveJob(Job& job, int count);
+  void SolvePosture(Job& job, int arm, int site,
+                    const std::vector<std::pair<double, std::string>>& tracks,
+                    const std::vector<Target>& targets);
+  // The same pose with every joint the whole turns nearest the anchor that
+  // keep it inside its range.
+  Q6 Unwind(int arm, const Q6& q, const Q6& anchor) const;
+  // The largest over the joints of |change| / the datasheet's speed, s.
+  double PostureSeconds(int arm, const Q6& from, const Q6& to) const;
   // Walks one leg of the job's pose (job.result) into job.legs[leg].
   void WalkLeg(Job& job, int leg, const Approach& rule);
   bool LegPasses(const LegResult& r) const {
@@ -242,6 +255,7 @@ class Checker {
   std::map<std::string, std::vector<std::string>> kind_errors_;
   bool solved_ = false;
   std::vector<std::pair<std::string, double>> phases_;
+  std::vector<PostureChanges> postures_;
   struct ToolChange {
     int arm = -1;
     bool reached = false;
@@ -500,6 +514,10 @@ void Checker::SolveJob(Job& job, int count) {
   } else {
     targets.push_back(t);
   }
+  if (!L_.approaches.empty()) {
+    SolvePosture(job, ai, site, tracks, targets);
+    return;
+  }
   std::vector<Q6> seeds;
   if (a.last) seeds.push_back(*a.last);
   seeds.insert(seeds.end(), a.seeds.begin(), a.seeds.end());
@@ -593,6 +611,149 @@ void Checker::SolveJob(Job& job, int count) {
     mj_kinematics(&M(), data_.get());
     r.nearest = PoseClearance(job);
     Margin(ai, r.pose.q, &r.margin_deg, &r.margin_joint);
+  } else {
+    Margin(ai, r.pose.q, &r.margin_deg, &r.margin_joint);
+    r.why = Fmt("not reached: %.3f m short at best", best_perr);
+  }
+}
+
+Q6 Checker::Unwind(int arm, const Q6& q, const Q6& anchor) const {
+  const SceneArm& a = *arms_[arm].s;
+  Q6 out = q;
+  for (int j = 0; j < 6; ++j) {
+    for (int k = -3; k <= 3; ++k) {
+      const double v = q[j] + 2.0 * std::numbers::pi * k;
+      if (v < a.lo[j] - 1e-12 || v > a.hi[j] + 1e-12) continue;
+      if (std::abs(v - anchor[j]) < std::abs(out[j] - anchor[j])) out[j] = v;
+    }
+  }
+  return out;
+}
+
+double Checker::PostureSeconds(int arm, const Q6& from, const Q6& to) const {
+  const SceneArm& a = *arms_[arm].s;
+  double t = 0.0;
+  for (int j = 0; j < 6; ++j) {
+    const double speed = a.cat->joint_speed_deg_s[j];
+    if (speed > 0.0) t = std::max(t, std::abs(to[j] - from[j]) / kDeg / speed);
+  }
+  return t;
+}
+
+// The pose choice of a layout with approach rules: every seed's solution,
+// its windings brought nearest the arm's anchor, tried nearest first.
+void Checker::SolvePosture(
+    Job& job, int ai, int site,
+    const std::vector<std::pair<double, std::string>>& tracks,
+    const std::vector<Target>& targets) {
+  PointResult& r = job.result;
+  ArmCtx& a = arms_[ai];
+  const Q6 anchor = a.last ? *a.last : a.s->wait;
+  std::vector<Q6> seeds = {anchor};
+  seeds.insert(seeds.end(), a.seeds.begin(), a.seeds.end());
+  const Approach* rule = FindApproach(L_, job.point.kind);
+  std::optional<PointResult> first_clear;
+  LegResult first_legs[2];
+  bool have = false;
+  double best_perr = 1e9;
+  auto settle = [&](const PointResult& chosen) {
+    r = chosen;
+    a.last = r.pose.q;
+    AllAtWait();
+    SetPose(ai, r.pose);
+    mj_kinematics(&M(), data_.get());
+    r.nearest = PoseClearance(job);
+    Margin(ai, r.pose.q, &r.margin_deg, &r.margin_joint);
+  };
+  for (const auto& [track, note] : tracks) {
+    struct Candidate {
+      Q6 q;
+      double perr;
+      double seconds;
+    };
+    std::vector<Candidate> found;
+    for (const Q6& seed : seeds) {
+      for (const Target& tg : targets) {
+        AllAtWait();
+        const IkResult ik = Solve(ai, site, tg, track, seed);
+        if (!ik.ok) {
+          if (!r.reached && ik.perr < best_perr) {
+            best_perr = ik.perr;
+            r.perr = ik.perr;
+            r.track_note = note;
+            r.pose = {ik.q, track};
+          }
+          continue;
+        }
+        const Q6 q = Unwind(ai, ik.q, anchor);
+        bool seen = false;
+        for (const Candidate& c : found) {
+          bool same = true;
+          for (int j = 0; j < 6; ++j) {
+            same = same && std::abs(c.q[j] - q[j]) < 0.5 * kDeg;
+          }
+          seen = seen || same;
+        }
+        if (!seen) found.push_back({q, ik.perr, PostureSeconds(ai, anchor, q)});
+      }
+    }
+    std::stable_sort(found.begin(), found.end(),
+                     [](const Candidate& x, const Candidate& y) {
+                       return x.seconds < y.seconds;
+                     });
+    for (const Candidate& c : found) {
+      double margin;
+      std::string joint;
+      Margin(ai, c.q, &margin, &joint);
+      if (margin < opt_.joint_margin_deg - 1e-9) continue;
+      AllAtWait();
+      SetPose(ai, {c.q, track});
+      mj_kinematics(&M(), data_.get());
+      const Nearest n = PoseClearance(job);
+      const bool clear = n.distance >= opt_.clearance_m;
+      PointResult candidate = r;
+      candidate.reached = true;
+      candidate.clear = clear;
+      candidate.pose = {c.q, track};
+      candidate.perr = c.perr;
+      candidate.track_note = note;
+      candidate.nearest = n;
+      candidate.why.clear();
+      if (!first_clear && (!have || n.distance > r.nearest.distance)) {
+        have = true;
+        r = candidate;
+      }
+      if (!clear) continue;
+      if (rule != nullptr) {
+        const PointResult keep = r;
+        r = candidate;
+        WalkLeg(job, 0, *rule);
+        WalkLeg(job, 1, *rule);
+        const bool legs = LegPasses(job.legs[0]) && LegPasses(job.legs[1]);
+        r = keep;
+        if (!legs) {
+          if (!first_clear) {
+            first_clear = candidate;
+            first_legs[0] = job.legs[0];
+            first_legs[1] = job.legs[1];
+          }
+          continue;
+        }
+        job.legs_done = true;
+      }
+      settle(candidate);
+      return;
+    }
+  }
+  if (first_clear) {
+    job.legs[0] = first_legs[0];
+    job.legs[1] = first_legs[1];
+    job.legs_done = true;
+    settle(*first_clear);
+    return;
+  }
+  if (r.reached) {
+    settle(r);
   } else {
     Margin(ai, r.pose.q, &r.margin_deg, &r.margin_joint);
     r.why = Fmt("not reached: %.3f m short at best", best_perr);
@@ -1518,13 +1679,40 @@ std::vector<CheckRow> Checker::TimeRows(std::vector<BayStep>* steps,
     std::string at = "wait";
     double busy = 0.0;
     std::vector<int> magazines;  // Its pins_take points not yet taken.
+    Q6 posture{};                // Its last pose and what it was.
+    std::string posture_at = "wait";
   };
   const int arm_count = static_cast<int>(arms_.size());
   std::vector<ArmNow> now(arm_count);
   for (int i = 0; i < arm_count; ++i) {
     now[i].pose = {arms_[i].s->wait, arms_[i].s->wait_track};
     now[i].tool = Use(i).first_tool;
+    now[i].posture = arms_[i].s->wait;
   }
+  const bool postures = L_.base == "flat_rack";
+  if (postures) SolveToolChanges();
+  postures_.clear();
+  for (int i = 0; i < arm_count; ++i) postures_.push_back({Use(i).name});
+  auto posture = [&](int ai, const Q6& q, const std::string& at) {
+    if (!postures) return;
+    ArmNow& n = now[ai];
+    const double sec = PostureSeconds(ai, n.posture, q);
+    PostureChanges& p = postures_[ai];
+    if (sec > p.largest_s) {
+      p.largest_s = sec;
+      p.from = n.posture_at;
+      p.to = at;
+    }
+    if (sec > 2.0) ++p.above_2s;
+    n.posture = q;
+    n.posture_at = at;
+  };
+  auto tool_change_pose = [&](int ai) -> const ToolChange* {
+    for (const ToolChange& tc : tool_changes_) {
+      if (tc.arm == ai && tc.reached) return &tc;
+    }
+    return nullptr;
+  };
   for (int i = 0; i < PointCount(L_, "pins_take"); ++i) {
     const Work* w = FindWork(L_, "pins_take", i);
     const int ai = w != nullptr ? scene_->ArmIndex(w->arm) : -1;
@@ -1578,6 +1766,9 @@ std::vector<CheckRow> Checker::TimeRows(std::vector<BayStep>* steps,
       t += push("tool change", w->arm, w->tool, "", n.tool, w->tool, tc,
                 "tool_change", -1, w->tool);
       n.tool = w->tool;
+      if (const ToolChange* pose = tool_change_pose(ai)) {
+        posture(ai, pose->pose.q, "tool change");
+      }
     }
     auto it = jobs_.find(kind);
     const Job* job = it != jobs_.end() &&
@@ -1589,6 +1780,7 @@ std::vector<CheckRow> Checker::TimeRows(std::vector<BayStep>* steps,
     if (job != nullptr && job->result.reached) {
       move = MoveTime(ai, n.pose, job->result.pose);
       n.pose = job->result.pose;
+      posture(ai, job->result.pose.q, job->point.item);
     } else {
       all_poses = false;
       missing.push_back(to);
@@ -1711,10 +1903,14 @@ std::vector<CheckRow> Checker::TimeRows(std::vector<BayStep>* steps,
                 "to_wait");
     }
     if (n.tool != use.first_tool) {
+      if (const ToolChange* pose = tool_change_pose(i)) {
+        posture(i, pose->pose.q, "tool change");
+      }
       t += push("tool change", use.name, use.first_tool, "", n.tool,
                 use.first_tool, use.tool_change_s, "tool_change", -1,
                 use.first_tool);
     }
+    posture(i, arms_[i].s->wait, "wait");
     n.busy += t;
     back = std::max(back, t);
   }
@@ -1851,17 +2047,11 @@ void Checker::SolveToolChanges() {
       ts.x = Vec(std::cos(a), std::sin(a), 0.0);
       targets.push_back(ts);
     }
-    bool clear = false;
-    for (const Target& tg : targets) {
-    if (clear) break;
-    for (const Q6& seed : seeds) {
+    // The worst over its tools on the flange, the arm at q; true if clear.
+    auto evaluate = [&](const Q6& q) {
       AllAtWait();
-      const IkResult ik = Solve(ai, sa.h->flange_site, tg, sa.wait_track, seed);
-      if (!ik.ok) {
-        best_perr = std::min(best_perr, ik.perr);
-        continue;
-      }
-      // The worst over its tools on the flange.
+      SetPose(ai, {q, sa.wait_track});
+      mj_kinematics(&m, d);
       Nearest worst;
       worst.distance = kFar + 1.0;
       std::string worst_tool;
@@ -1877,15 +2067,66 @@ void Checker::SolveToolChanges() {
       if (!have || worst.distance > tc.nearest.distance) {
         have = true;
         tc.reached = true;
-        tc.pose = {ik.q, sa.wait_track};
+        tc.pose = {q, sa.wait_track};
         tc.nearest = worst;
         tc.worst_tool = worst_tool;
       }
-      if (worst.distance >= opt_.clearance_m) {  // Clear: it wins.
-        clear = true;
-        break;
+      return worst.distance >= opt_.clearance_m;
+    };
+    if (!L_.approaches.empty()) {
+      // Every solution, its windings nearest the wait pose, nearest first.
+      const Q6 anchor = sa.wait;
+      std::vector<std::pair<double, Q6>> found;
+      for (const Target& tg : targets) {
+        for (const Q6& seed : seeds) {
+          AllAtWait();
+          const IkResult ik =
+              Solve(ai, sa.h->flange_site, tg, sa.wait_track, seed);
+          if (!ik.ok) {
+            best_perr = std::min(best_perr, ik.perr);
+            continue;
+          }
+          const Q6 q = Unwind(ai, ik.q, anchor);
+          bool seen = false;
+          for (const auto& f : found) {
+            bool same = true;
+            for (int j = 0; j < 6; ++j) {
+              same = same && std::abs(f.second[j] - q[j]) < 0.5 * kDeg;
+            }
+            seen = seen || same;
+          }
+          if (!seen) found.push_back({PostureSeconds(ai, anchor, q), q});
+        }
       }
-    }
+      std::stable_sort(found.begin(), found.end(),
+                       [](const auto& x, const auto& y) {
+                         return x.first < y.first;
+                       });
+      for (const auto& f : found) {
+        double margin;
+        std::string joint;
+        Margin(ai, f.second, &margin, &joint);
+        if (margin < opt_.joint_margin_deg - 1e-9) continue;
+        if (evaluate(f.second)) break;
+      }
+    } else {
+      bool clear = false;
+      for (const Target& tg : targets) {
+        if (clear) break;
+        for (const Q6& seed : seeds) {
+          AllAtWait();
+          const IkResult ik =
+              Solve(ai, sa.h->flange_site, tg, sa.wait_track, seed);
+          if (!ik.ok) {
+            best_perr = std::min(best_perr, ik.perr);
+            continue;
+          }
+          if (evaluate(ik.q)) {  // Clear: it wins.
+            clear = true;
+            break;
+          }
+        }
+      }
     }
     if (have) {
       Margin(ai, tc.pose.q, &tc.margin_deg, &tc.margin_joint);
@@ -1896,6 +2137,50 @@ void Checker::SolveToolChanges() {
   }
   AllAtWait();
   mj_kinematics(&m, d);
+}
+
+std::vector<CheckRow> Checker::WaitPoseRows(const std::string& check) {
+  std::vector<CheckRow> rows;
+  if (L_.base != "flat_rack") return rows;
+  const mjModel& m = M();
+  mjData* d = data_.get();
+  const int total = PointCount(L_, "module_take");
+  Built bare;
+  bare.on_pallets = total;
+  Built full;
+  for (int k = 0; k < bay::kRailCount; ++k) full.rails.push_back(k);
+  for (int k = 0; k < bay::kModuleCount; ++k) full.modules.push_back(k);
+  full.on_pallets = std::max(0, total - bay::kModuleCount);
+  for (int ai = 0; ai < static_cast<int>(arms_.size()); ++ai) {
+    const ArmUse& use = Use(ai);
+    const SceneArm& sa = *arms_[ai].s;
+    if (check == "reach") {
+      double margin;
+      std::string joint;
+      Margin(ai, sa.wait, &margin, &joint);
+      rows.push_back(Row("reach", "wait pose " + use.name, use.name, "",
+                         margin, "deg", opt_.joint_margin_deg,
+                         margin >= opt_.joint_margin_deg - 1e-9,
+                         "least margin at " + joint));
+      continue;
+    }
+    AllAtWait();
+    mj_kinematics(&m, d);
+    const auto moving = scene_->Moving(ai, use.first_tool, "");
+    const Nearest a = scene_->LeastDistance(
+        d, moving, scene_->Obstacles(ai, use.first_tool, bare, DesignPairs()));
+    const Nearest b = scene_->LeastDistance(
+        d, moving, scene_->Obstacles(ai, use.first_tool, full, DesignPairs()));
+    const Nearest& worst = b.distance < a.distance ? b : a;
+    rows.push_back(Row("clearance", "wait pose " + use.name, use.name,
+                       use.first_tool, worst.distance, "m", opt_.clearance_m,
+                       worst.distance >= opt_.clearance_m,
+                       scene_->PairText(worst) +
+                           (b.distance < a.distance
+                                ? "; worse with all rails and modules on"
+                                : "; worse with the bare tube")));
+  }
+  return rows;
 }
 
 std::vector<SolvedToolChange> Checker::ToolChanges() {
@@ -2278,10 +2563,12 @@ CheckReport CheckLayout(const Layout& layout, const ModelPaths& paths,
   if (want("reach")) {
     append(checker.ReachRows());
     append(checker.ToolChangeRows("reach"));
+    append(checker.WaitPoseRows("reach"));
   }
   if (want("clearance")) {
     append(checker.ClearanceRows());
     append(checker.ToolChangeRows("clearance"));
+    append(checker.WaitPoseRows("clearance"));
   }
   if (want("ways")) append(checker.WaysRows());
   if (time) append(checker.TimeRows(&report.steps, &report.bay_time_s));
@@ -2291,6 +2578,7 @@ CheckReport CheckLayout(const Layout& layout, const ModelPaths& paths,
   if (poses) report.points = checker.Points();
   report.tool_changes = checker.ToolChanges();
   report.phases = checker.phases();
+  report.postures = checker.postures();
   report.pass = !report.rows.empty();
   for (const CheckRow& r : report.rows) report.pass &= r.pass;
   return report;
