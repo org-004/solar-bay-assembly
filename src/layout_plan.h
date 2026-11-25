@@ -71,7 +71,9 @@
 // with no pair by design, and the other arms where they wait (links,
 // carriages, first tools on the flange, beams and waiting tools), so that
 // no move passes through an arm that stands at its wait pose. A
-// configuration is free when the least distance is at least clearance_m.
+// configuration is free when the least distance is at least clearance_m;
+// the planner plans at clearance_m + plan_pad_m, and the schedule holds the
+// arms that far apart, so that what is verified at clearance_m has room.
 // `built` is the bay as it is when the move's step begins by the checker's
 // rule and, for an arm that follows another (bolts, pins), also every part
 // the leading arm may set before the move ends: all rails for a move of the
@@ -147,6 +149,12 @@ using Config = std::array<double, 7>;
 struct PlanFigures {
   double clearance_m = 0.010;        // The checker's, for this layout.
   double joint_margin_deg = 5.0;     // The checker's, for this layout.
+  // Moves are planned, and the schedule's arms are held apart, at
+  // clearance_m + plan_pad_m, because the schedule is sampled between the
+  // planner's checked points and a shortened path runs along its obstacles
+  // at exactly the clearance it was planned with (ours). The verifier keeps
+  // clearance_m.
+  double plan_pad_m = 0.003;
   double to_full_speed_s = 0.3;      // A joint reaches its datasheet speed in this.
   double jerk_rise_s = 0.1;          // Jerk builds the acceleration in this.
   double settle_s = 0.3;             // At rest after a planned move.

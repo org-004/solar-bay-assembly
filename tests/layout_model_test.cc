@@ -160,13 +160,14 @@ TEST(Layouts, BrokenCopiesAreRefused) {
   }
 }
 
+// Run 011's chosen layout on the container, which most tests here are
+// written against. The layout marked chosen today stands on the flat rack.
 Layout Chosen() {
-  for (const std::string& name : ListLayouts(LayoutDir())) {
-    std::string error;
-    std::optional<Layout> layout = LoadLayout(LayoutPath(name), &error);
-    if (layout && layout->chosen) return *layout;
-  }
-  ADD_FAILURE() << "no chosen layout";
+  std::string error;
+  std::optional<Layout> layout =
+      LoadLayout(LayoutPath("below_rails_by_module_arm"), &error);
+  if (layout) return *layout;
+  ADD_FAILURE() << "below_rails_by_module_arm does not load: " << error;
   return {};
 }
 

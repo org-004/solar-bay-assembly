@@ -260,6 +260,7 @@ std::string SegmentText(const Segment& g) {
 std::string FiguresText(const PlanFigures& f) {
   return "{\"clearance_m\":" + Fig(f.clearance_m) +
          ",\"joint_margin_deg\":" + Fig(f.joint_margin_deg) +
+         ",\"plan_pad_m\":" + Fig(f.plan_pad_m) +
          ",\"to_full_speed_s\":" + Fig(f.to_full_speed_s) +
          ",\"jerk_rise_s\":" + Fig(f.jerk_rise_s) +
          ",\"settle_s\":" + Fig(f.settle_s) +
@@ -366,6 +367,8 @@ std::optional<Plan> PlanFromJson(const std::string& text, std::string* error) {
     const json& f = j.at("figures");
     p.figures.clearance_m = Get<double>(f, "clearance_m");
     p.figures.joint_margin_deg = Get<double>(f, "joint_margin_deg");
+    // Plans written before the pad was a figure were planned without one.
+    p.figures.plan_pad_m = f.contains("plan_pad_m") ? Get<double>(f, "plan_pad_m") : 0.0;
     p.figures.to_full_speed_s = Get<double>(f, "to_full_speed_s");
     p.figures.jerk_rise_s = Get<double>(f, "jerk_rise_s");
     p.figures.settle_s = Get<double>(f, "settle_s");
@@ -1143,6 +1146,9 @@ class Verifier {
     const MoveWorld world(scene_, arm, s.tool, s.held, s.built,
                           f_.clearance_m - o_.tolerance_m);
     mjData* d = data_.get();
+    // As the planner: the other arms stand at their wait poses, whatever
+    // this data was used for before.
+    scene_.AllAtWait(d);
     std::int64_t queries = 0;
     const IsFree is_free = [&](const Eigen::VectorXd& v) {
       return world.Free(d, ToConfig(v));
@@ -1265,8 +1271,33 @@ class Verifier {
                     std::string* held, PoseRef* at) {
     const std::string name = Arm(i);
     const std::string label = StepName(&step, step.number);
+    // Parking: a step may begin with a move to the wait pose (and a wait,
+    // which is not in `idx`) before the move to its goal.
+    size_t own = 0;
+    if (idx.size() >= 2 && segs[idx[0]].kind == "move" && segs[idx[1]].kind == "move") {
+      const Segment& s = segs[idx[0]];
+      if (s.tool != *tool || s.held != *held) {
+        Fault(Fmt("arm %s, %s: its move to park from %.3f s has tool \"%s\" holding \"%s\"; "
+                  "the step gives tool \"%s\" holding \"%s\"",
+                  name.c_str(), label.c_str(), s.t0, s.tool.c_str(), s.held.c_str(),
+                  tool->c_str(), held->c_str()));
+      }
+      if (!s.path.empty()) {
+        CheckPose(i, s, s.path.front(), *at, "starts");
+        CheckPose(i, s, s.path.back(), WaitPose(i), "ends");
+        const double d = MoveDuration(s.path, motion, f_);
+        Timing(i, s, d < 0.0 ? d : d + f_.settle_s, "its path and settle_s");
+        if (d >= 0.0 && std::abs(s.planned_s - d) > o_.time_tolerance_s) {
+          Fault(Fmt("arm %s, %s: its move from %.3f s says planned_s %.4f s, its path gives "
+                    "%.4f s",
+                    name.c_str(), label.c_str(), s.t0, s.planned_s, d));
+        }
+      }
+      *at = WaitPose(i);
+      own = 1;
+    }
     std::string kinds;
-    for (int g : idx) kinds += (kinds.empty() ? "" : ",") + segs[g].kind;
+    for (size_t k = own; k < idx.size(); ++k) kinds += (kinds.empty() ? "" : ",") + segs[idx[k]].kind;
     const bool work_kind = step.index >= 0 && step.kind != "tool_change" &&
                            step.kind != "to_wait";
     bool pattern_ok = false;
@@ -1299,8 +1330,8 @@ class Verifier {
     const PoseRef retreat =
         p != nullptr && !p->retreat_leg_deg.empty() ? PointPose(p, "retreat") : work;
     bool changed = false;  // The tool change's work is behind.
-    for (int g : idx) {
-      const Segment& s = segs[g];
+    for (size_t k = own; k < idx.size(); ++k) {
+      const Segment& s = segs[idx[k]];
       std::string want_held = *held;
       if (p != nullptr && (s.kind == "approach" || s.kind == "work")) want_held = p->held_approach;
       if (p != nullptr && s.kind == "retreat") want_held = p->held_retreat;

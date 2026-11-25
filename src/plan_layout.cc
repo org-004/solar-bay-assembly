@@ -242,6 +242,7 @@ int main(int argc, char** argv) {
     std::printf("pin_arms: %d\n", pin_arms);
     std::printf("arms: %d\n", static_cast<int>(layout->arms.size()));
     std::printf("clearance_m: %s\n", Num(plan.figures.clearance_m, 4).c_str());
+    std::printf("plan_pad_m: %s\n", Num(plan.figures.plan_pad_m, 4).c_str());
     std::printf("joint_margin_deg: %s\n",
                 Num(plan.figures.joint_margin_deg, 1).c_str());
     std::printf("moves: %d\n", static_cast<int>(r.rows.size()));
@@ -297,12 +298,14 @@ int main(int argc, char** argv) {
     std::string budgets;
     for (int b : f.budgets) budgets += (budgets.empty() ? "" : "/") + std::to_string(b);
     std::printf(
-        "# figures: clearance_m %s, joint_margin_deg %s, to_full_speed_s %s, "
+        "# figures: clearance_m %s (planned at + plan_pad_m %s), "
+        "joint_margin_deg %s, to_full_speed_s %s, "
         "jerk_rise_s %s, settle_s %s, leg_speed %s m/s, leg_accel %s m/s^2, "
         "max_deviation %s rad, edge_resolution %s m, shorten_tries %d, "
         "budgets %s, seed %u, sample_s %s; planned_s and model_s include the "
         "settle\n",
-        Num(f.clearance_m, 4).c_str(), Num(f.joint_margin_deg, 1).c_str(),
+        Num(f.clearance_m, 4).c_str(), Num(f.plan_pad_m, 4).c_str(),
+        Num(f.joint_margin_deg, 1).c_str(),
         Num(f.to_full_speed_s).c_str(), Num(f.jerk_rise_s).c_str(),
         Num(f.settle_s).c_str(), Num(f.leg_speed).c_str(),
         Num(f.leg_accel).c_str(), Num(f.max_deviation, 4).c_str(),

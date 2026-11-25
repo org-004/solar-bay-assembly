@@ -596,18 +596,20 @@ void Planner::PlanOne(MoveJob& job, mjData* d) {
   // which.
   scene_->AllAtWait(d);
   job.log.clear();
+  const double clear = f_.clearance_m + f_.plan_pad_m;
   const MoveWorld world(*scene_, job.arm, job.tool, job.held, job.built,
-                        f_.clearance_m);
+                        clear);
   const ArmMotion& m = motions_[job.arm];
   std::int64_t queries = 0;
   // Start and goal: a finding when either is not free.
   for (int end = 0; end < 2; ++end) {
     const Config& c = end == 0 ? job.from : job.to;
-    const Nearest nearest = world.Least(d, c, f_.clearance_m);
+    const Nearest nearest = world.Least(d, c, clear);
     ++queries;
-    if (nearest.distance < f_.clearance_m) {
-      job.note += Fmt("%s%s not free: %s at %.4f m", job.note.empty() ? "" : "; ",
-                      end == 0 ? "start" : "goal",
+    if (nearest.distance < clear) {
+      job.note += Fmt("%s%s not free at %.4f m: %s at %.4f m",
+                      job.note.empty() ? "" : "; ",
+                      end == 0 ? "start" : "goal", clear,
                       scene_->PairText(nearest).c_str(), nearest.distance);
     }
   }
@@ -867,9 +869,10 @@ Planner::Conflict Planner::Check(int a, const Block& b, double s, mjData* d) {
     const std::vector<MovingGeom>& set = ArmSet(a, tool, held);
     for (const Other& x : others) {
       ++schedule_queries_;
+      const double apart = f_.clearance_m + f_.plan_pad_m;
       const Nearest nn = scene_->LeastDistance(
-          d, set, ArmObstacles(x.arm, x.tool, x.held), f_.clearance_m);
-      if (nn.distance < f_.clearance_m) {
+          d, set, ArmObstacles(x.arm, x.tool, x.held), apart);
+      if (nn.distance < apart) {
         out.any = true;
         out.other = x.arm;
         out.t = t;
@@ -1379,14 +1382,15 @@ std::vector<std::string> Planner::Why(const std::vector<int>& steps) {
       bay += Fmt(", %d on the pallets", job.built.on_pallets);
       out.push_back(bay);
       scene_->AllAtWait(d.get());
+      const double clear = f_.clearance_m + f_.plan_pad_m;
       const MoveWorld world(*scene_, job.arm, job.tool, job.held, job.built,
-                            f_.clearance_m);
+                            clear);
       for (int end = 0; end < 2; ++end) {
         const Nearest n = world.Least(d.get(), end == 0 ? job.from : job.to,
                                       kSceneFar);
         out.push_back(Fmt("  at the %s: %.4f m, %s (%s)", end == 0 ? "start" : "goal",
                           n.distance, scene_->PairText(n).c_str(),
-                          n.distance >= f_.clearance_m ? "free" : "not free"));
+                          n.distance >= clear ? "free" : "not free"));
       }
       // The straight line, marched at the edge resolution from each end.
       const ArmMotion& m = motions_[job.arm];
@@ -1407,7 +1411,7 @@ std::vector<std::string> Planner::Why(const std::vector<int>& steps) {
           const double u = dir == 0 ? static_cast<double>(i) / n
                                     : 1.0 - static_cast<double>(i) / n;
           const Nearest nn = world.Least(d.get(), at(u), kSceneFar);
-          if (nn.distance < f_.clearance_m) {
+          if (nn.distance < clear) {
             out.push_back(Fmt("  straight line marched from the %s: first blocked "
                               "at u = %.3f (0 the start, 1 the goal), %s at "
                               "%.4f m",
