@@ -485,6 +485,11 @@ std::string BuildLayoutXml(const Layout& layout, const LayoutState& state,
   t += LayoutDefaults("");
   t += BayDefaults();
   t += "  <asset>\n";
+  // A pale sky, so that a picture taken from below the bay or toward the
+  // horizon has no black in it.
+  t += "    <texture name=\"layout_sky\" type=\"skybox\" builtin=\"gradient\" "
+       "rgb1=\"0.80 0.86 0.93\" rgb2=\"0.96 0.97 0.98\" width=\"64\" "
+       "height=\"64\"/>\n";
   for (const ArmUse& arm : layout.arms) {
     t += "    <model name=\"" + arm.name + "_model\" file=\"" + ArmPartName(arm) +
          "\"/>\n";
