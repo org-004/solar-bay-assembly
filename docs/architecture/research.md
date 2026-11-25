@@ -3,15 +3,17 @@
 This is the research behind the repository's design principles: what is known, from
 primary sources and from three comparable code bases, about how software of this kind and
 size is divided, built, tested, documented and kept in shape. Every source was read on
-2026-11-25 by a reader that fetched it that day and took notes; this document was written
-from those notes by an editor that did not open the sources again. A source is primary
-when it is the author's own text, a project's own documentation or its source code; a
-summary of someone else's work is secondary. Sources are cited as `[S7]` and listed under
-Sources with what was read of each. There are 59 sources, 58 of them primary. Each topic
-section says what the sources say and ends with what follows for this repository; those
-paragraphs state implications, not decisions, which belong to the principles and the
-decision records. Facts about this repository are those of the base commit `940a01b`,
-each with the command that printed it.
+2026-11-25 by a reader that fetched it that day and took notes, and this document was
+written from those notes. Afterwards, on the same day, checkers that had written none of
+it opened all 59 sources again and compared every claim and every quotation with the
+source; 29 passages were corrected from what they found. A source is primary when it is
+the author's own text, a project's own documentation or its source code; a summary of
+someone else's work is secondary. Sources are cited as `[S7]` and listed under Sources
+with what was read of each. There are 59 sources, 58 of them primary. Each topic section
+says what the sources say and ends with what follows for this repository; those paragraphs
+state implications, not decisions, which belong to the principles and the decision
+records. Facts about this repository are those of the base commit `940a01b`, each with the
+command that printed it.
 
 ## Sources
 
@@ -26,9 +28,9 @@ each with the command that printed it.
   into one release: "Thus the dependency structure must always be monitored for cycles."
 - [S3] Winters, Manshreck, Wright (eds.), "Software Engineering at Google", ch. 18, 2020. https://abseil.io/resources/swe-book/html/ch18.html
   Primary. Read 2026-11-25, in part (strict transitive dependencies, visibility).
-  An undeclared use of a dependency's dependency fails the build "with an error and a shell
-  command that can be used to automatically insert the dependency."; visibility is kept
-  as narrow as possible.
+  An undeclared use of a dependency's dependency fails the build "with an error and a
+  shell command that can be used to automatically insert the dependency."; visibility is
+  kept as narrow as possible.
 - [S4] Bazel project, "Visibility". https://bazel.build/concepts/visibility
   Primary. Read 2026-11-25, in part (target visibility, specifications, package_group).
   Visibility lists allowed packages and is checked at analysis; a target without one is
@@ -39,8 +41,9 @@ each with the command that printed it.
   dependencies only; a BUILD file in each directory, with a dependency graph between them.
 - [S6] Bazel project, "C / C++ Rules" (Build Encyclopedia). https://bazel.build/reference/be/c-cpp
   Primary. Read 2026-11-25, in part (hdrs and srcs, layering_check, implementation_deps).
-  `hdrs` against `srcs` is the choice of what dependents may include; for `layering_check`,
-  "The toolchains provided by Bazel only support this feature with clang on Unix and macOS."
+  `hdrs` against `srcs` is the choice of what dependents may include; for
+  `layering_check`, "The toolchains provided by Bazel only support this feature with clang
+  on Unix and macOS."
 - [S7] Martin Medler, "Depend on what you use (DWYU)", README. https://raw.githubusercontent.com/martis42/depend_on_what_you_use/main/README.md
   Primary. Read 2026-11-25, whole.
   An aspect that checks a `cc_*` target's includes against its `deps`, finds unused deps,
@@ -72,8 +75,9 @@ each with the command that printed it.
   description: "They provide ideal behavior by mirroring commands to their states."
 - [S14] GNU Project, GCC manual, Optimize Options, `-ffp-contract`. https://gcc.gnu.org/onlinedocs/gcc/Optimize-Options.html
   Primary. Read 2026-11-25, in part (the `-ffp-contract` entry).
-  Fused multiply-add changes rounding; "The default is -ffp-contract=off for C in a
-  standards compliant mode (-std=c11 or similar), -ffp-contract=fast otherwise."
+  Fused multiply-add is formed where the target supports it; "The default is
+  -ffp-contract=off for C in a standards compliant mode (-std=c11 or similar),
+  -ffp-contract=fast otherwise."
 - [S15] Michael Feathers, "Characterization Testing", 2016-08-08. https://michaelfeathers.silvrback.com/characterization-testing
   Primary. Read 2026-11-25, whole.
   "The purpose of characterization testing is to document your system's actual behavior,
@@ -85,7 +89,8 @@ each with the command that printed it.
 - [S17] ApprovalTests.cpp, "Custom Comparators" and "ApprovalTesting (the concept)". https://raw.githubusercontent.com/approvals/ApprovalTests.cpp/master/doc/CustomComparators.md
   Primary. Read 2026-11-25, in part (both short pages).
   The default comparator "reads both files, one character at a time, and tests if their
-  contents are identical."; its own example of a custom one is output that varies by machine.
+  contents are identical."; its own example of a custom one is output that varies by
+  machine.
 - [S18] Bazel project, "Test Encyclopedia". https://bazel.build/reference/test-encyclopedia
   Primary. Read 2026-11-25, in part (size and timeout).
   A test's `size` implies its timeout; an unstated size is `medium`, and
@@ -100,8 +105,8 @@ each with the command that printed it.
   superseded."; one short numbered file each, with real alternatives and consequences.
 - [S21] ADR organization, MADR 4.0.0 template. https://raw.githubusercontent.com/adr/madr/4.0.0/template/adr-template.md
   Primary. Read 2026-11-25, whole.
-  An optional Confirmation section: "Describe how the implementation of/compliance with the
-  ADR can/will be confirmed."
+  An optional Confirmation section: "Describe how the implementation of/compliance with
+  the ADR can/will be confirmed."
 - [S22] Olaf Zimmermann, "How to create Architectural Decision Records (ADRs) — and how not to", 2023-04-03. https://ozimmer.ch/practices/2023/04/03/ADRCreation.html
   Primary. Read 2026-11-25, whole.
   Named failures, among them Fairy Tale, Free Lunch Coupon, Dummy Alternative and the
@@ -116,16 +121,17 @@ each with the command that printed it.
   duplicate; a small set of fresh documents beats a large stale one.
 - [S25] Daniele Procida, "Diátaxis" and "Start here". https://diataxis.fr/
   Primary. Read 2026-11-25, whole (both pages).
-  Tutorials, how-to guides, reference and explanation; "Crossing or blurring the boundaries
-  described in the map is at the heart of a vast number of problems in documentation."
+  Tutorials, how-to guides, reference and explanation; "Crossing or blurring the
+  boundaries described in the map is at the heart of a vast number of problems in
+  documentation."
 - [S26] TNG, "ArchUnit User Guide". https://www.archunit.org/userguide/html/000_Index.html
   Primary. Read 2026-11-25, in part (cycle checks, layer checks, freezing).
   Rules as tests, with known violations frozen: "If violations are fixed, FreezingArchRule
   will automatically reduce the known stored violations to prevent any regression."
 - [S27] qntm, "Ratchets in software development", 2021-11-21. https://qntm.org/ratchet
   Primary. Read 2026-11-25, whole.
-  A script counts a banned pattern; more fails, and "If it counts too few, it also raises an
-  error, this time congratulating you and prompting you to lower the expected number."
+  A script counts a banned pattern; more fails, and "If it counts too few, it also raises
+  an error, this time congratulating you and prompting you to lower the expected number."
 - [S28] Gloaguen et al., "Evaluating AGENTS.md", arXiv:2602.11988v3, 2026. https://arxiv.org/abs/2602.11988
   Primary. Read 2026-11-25, in part (abstract, setup, results, analysis, limitations).
   Four agents, Python repositories: "providing context files does not generally improve
@@ -137,7 +143,7 @@ each with the command that printed it.
 - [S30] Anthropic, "Best practices for Claude Code". https://code.claude.com/docs/en/best-practices
   Primary (vendor guidance). Read 2026-11-25, in part (length, verification, hooks).
   "Claude reads the repo itself. Only write down what isn’t in there."; a rule with no
-  exceptions belongs in a hook, a deny rule or CI.
+  exceptions belongs in a hook, a deny rule or a managed setting.
 - [S31] "CodeTaste: Can LLMs Generate Human-Level Code Refactorings?", arXiv:2603.04177, 2026. https://arxiv.org/abs/2603.04177
   Primary. Read 2026-11-25, in part (abstract, introduction, benchmark, results).
   "agents perform well at implementing refactorings that are specified in detail, but
@@ -165,9 +171,11 @@ each with the command that printed it.
 - [S37] LLVM project, "bugprone-narrowing-conversions". https://clang.llvm.org/extra/clang-tidy/checks/bugprone/narrowing-conversions.html
   Primary. Read 2026-11-25, whole.
   Finds int, float and double narrowing beyond `-Wconversion`; by default not inside
-  template instantiations, which matters for Eigen code.
-- [S38] GCC project, "Static Analyzer Options" (14.2) and GCC 13, 14, 15 release notes. https://gcc.gnu.org/onlinedocs/gcc-14.2.0/gcc/Static-Analyzer-Options.html
-  Primary. Read 2026-11-25, in part (the `-fanalyzer` sentences).
+  template instantiations (the Eigen remark is this document's inference; the page does
+  not mention Eigen).
+- [S38] GCC project, "Static Analyzer Options" (14.2) and GCC 13, 14, 15 release notes. https://gcc.gnu.org/onlinedocs/gcc-14.2.0/gcc/Static-Analyzer-Options.html and https://gcc.gnu.org/gcc-14/changes.html
+  Primary. Read 2026-11-25, in part (the `-fanalyzer` sentences; the quotation is from the
+  release notes, in GCC 13, 14 and 15, not on the 14.2 options page).
   "In particular, using it on C++ is unlikely to give meaningful output."
 - [S39] GCC project, "Program Instrumentation Options", GCC 14.2 manual. https://gcc.gnu.org/onlinedocs/gcc-14.2.0/gcc/Instrumentation-Options.html
   Primary. Read 2026-11-25, in part (the sanitizer entries).
@@ -179,12 +187,14 @@ each with the command that printed it.
   "MemorySanitizer requires that all program code is instrumented."; described for Clang.
 - [S41] Chromium project, "clang-tidy" (docs/clang_tidy.md). https://chromium.googlesource.com/chromium/src/+/main/docs/clang_tidy.md?format=TEXT
   Primary. Read 2026-11-25, whole.
-  A new check needs a count and 30 or more reviewed findings; old code is reported on
-  touched lines only: "making Chromium clang-tidy clean is an explicit non-goal".
+  A new check needs a count and a sample of more than 30 reviewed findings; old code is
+  reported on touched lines only: "making Chromium clang-tidy clean is an explicit
+  non-goal".
 - [S42] gRPC project, `.clang-tidy`, master. https://raw.githubusercontent.com/grpc/grpc/master/.clang-tidy
   Primary. Read 2026-11-25, in part (the comment block and the check list).
-  Each disabled check has a reason; the numeric checks are listed as "not activated yet"
-  because of existing findings.
+  Each check disabled on purpose in the comment block has a reason; the checks to enable
+  later (numeric ones among them) share one: "it's not activated yet due to the existing
+  issues".
 - [S43] Titus Winters, "Dependency Management", Software Engineering at Google, ch. 21. https://abseil.io/resources/swe-book/html/ch21.html
   Primary. Read 2026-11-25, in part (opening, diamond dependencies, SemVer, pinning).
   "Just because you get to avoid a development cost doesn’t mean importing a dependency is
@@ -196,7 +206,7 @@ each with the command that printed it.
 - [S45] include-what-you-use, "Why include what you use?". https://raw.githubusercontent.com/include-what-you-use/include-what-you-use/master/docs/WhyIWYU.md
   Primary. Read 2026-11-25, whole.
   If every file includes what it uses, an include can be removed without breaking distant
-  code; the tool is built on Clang.
+  code.
 - [S46] FSFE, "REUSE Specification, version 3.3". https://reuse.software/spec-3.3/
   Primary. Read 2026-11-25, in part (headers, LICENSES directory).
   An SPDX identifier per file, and "Each License File MUST be placed in the LICENSES/
@@ -222,7 +232,8 @@ each with the command that printed it.
   "we enable -Werror by default for Drake's *own* targets, but not for our externals.";
   sanitizers are named configs with scaled timeouts.
 - [S52] Drake, doc/_pages/developers.md and code_review_checklist.md at commit 5186757f. https://github.com/RobotLocomotion/drake/blob/master/doc/_pages/developers.md
-  Primary. Read 2026-11-25, in part (developers.md outside IDE lists, checklist lines 25-117).
+  Primary. Read 2026-11-25, in part (developers.md outside IDE lists, checklist lines
+  25-117).
   Two review phases, the second by one of nine named owners, and a cap on change size;
   `Eigen::Random` and libc `rand` are forbidden in code and tests.
 - [S53] MuJoCo, cmake/MujocoOptions.cmake at commit 72a06685. https://github.com/google-deepmind/mujoco/blob/main/cmake/MujocoOptions.cmake
@@ -231,8 +242,8 @@ each with the command that printed it.
   adds `-Wno-maybe-uninitialized`; symbols hidden unless exported.
 - [S54] MuJoCo, src/engine/BUILD.bazel at commit 72a06685. https://github.com/google-deepmind/mujoco/blob/main/src/engine/BUILD.bazel
   Primary. Read 2026-11-25, in part (lines 1 to about 120, a scan of the rest).
-  Private by default to a `package_group` of five trees; one `cc_library` per C file; its
-  options (`-Wshadow`, `-ffp-contract=off`) differ from the CMake build's.
+  Private by default to a `package_group` of five trees; one `cc_library` per one to three
+  C files; its options (`-Wshadow`, `-ffp-contract=off`) differ from the CMake build's.
 - [S55] MuJoCo, test/fixture.h and test/engine/engine_forward_test.cc at commit 72a06685. https://github.com/google-deepmind/mujoco/blob/main/test/fixture.h
   Primary. Read 2026-11-25, in part (helpers of fixture.h; tolerance uses in the test).
   Tolerances per precision, `MjTol(double_tol, float_tol)`: "Setting MJTOL_SCALE=0 scales
@@ -291,11 +302,12 @@ aspect per target [S8]. Drake cuts much finer than the guide asks, one library p
 with a rollup and a `test/` directory per package [S47][S49]; MuJoCo shows that one
 `package_group` over a few trees is enough for a public and a private part [S54].
 
-**What this means here.** All code is one package: `bazel query 'kind(rule, //...)' | wc -l`
-prints 110 and `grep -c visibility BUILD.bazel` prints 0, so visibility keeps no cut
-today [S4]. The one file is a decision of its own: `AGENTS.md` makes `BUILD.bazel` the
-one shared file with a section per piece, and `docs/ompl-integration.md:1391` already
-weighed a package with `visibility` against that rule. `layering_check` does not apply:
+**What this means here.** All code is one package:
+`bazel query 'kind(rule, //...)' | wc -l` prints 110 and `grep -c visibility BUILD.bazel`
+prints 0, so visibility keeps no cut today [S4]. The one file is a decision of its own:
+`AGENTS.md` makes `BUILD.bazel` the one shared file with a section per piece, and
+`docs/ompl-integration.md:1391` already weighed a package with `visibility` against that
+rule. `layering_check` does not apply:
 `grep -n -i 'clang\|toolchain' .bazelrc MODULE.bazel BUILD.bazel` prints nothing [S6].
 What works without a toolchain is comparing each target's includes with its `deps`, which
 `tools/architecture/measure.sh` already counts [S7]. A split into packages would turn
@@ -308,11 +320,12 @@ configuration as settings other parts read, and warns that imposing a whole arch
 early is "a recipe for failure in the long term" [S9]. ros2_control puts a mock in the
 place of the real hardware, chosen in the robot's description, so controllers run
 unchanged against either [S13]. REP 103 fixes SI units, radians and right-handed frames
-and asks that another convention be named and justified [S10]. Repeatable runs have three
-enemies: MuJoCo is exact only within one version on one architecture [S11]; the standard
-pins engines such as `mt19937` but leaves distributions to the library [S12]; GCC may
-fuse multiply and add by target, which changes rounding [S14]. MuJoCo builds its engine
-with `-ffp-contract=off` [S54]; Drake forbids `Eigen::Random` and libc `rand` [S52].
+and asks that another convention be well justified and well documented [S10]. Repeatable
+runs have three enemies: MuJoCo is exact only within one version on one architecture
+[S11]; the standard pins engines such as `mt19937` but leaves distributions to the library
+[S12]; GCC may fuse multiply and add where the target supports it, and the default depends
+on the language mode [S14]. MuJoCo builds its engine with `-ffp-contract=off` [S54]; Drake
+forbids `Eigen::Random` and libc `rand` [S52].
 
 **What this means here.** `src/portable_random.h` answers the standard's gap, yet
 `src/rrt.cc:442` still draws through `std::uniform_real_distribution`, and the committed
@@ -322,9 +335,10 @@ with named exceptions [S12]. The line between the simulated world and control is
 scene, the scorer and tests; the names are greppable, but any file that includes
 `src/cell.h` can read the whole simulation, so a seam like ros2_control's [S13] is work
 for the new cell, not the stand-in. A cell as data is already the rule of `src/layout.h`:
-a file in `layouts/*.json` is the one source of model and checks [S9]. `AGENTS.md` says
+a file in `layouts/*.json` is the one source of model and checks, configuration kept apart
+from computation as [S9] asks. `AGENTS.md` says
 metres and radians while `base_rpy_deg` in `src/layout.h:195` carries degrees from the
-JSON into the checker, which REP 103's named-suffix practice covers if written down
+JSON into the checker, which REP 103 allows if it is well justified and well documented
 [S10]. One bound mixes units: `src/path_timing.h:138-141` gives `max_deviation` in
 radians, and `src/layout_plan.h:145-146` passes six joints in radians and a track in
 metres to it. `.bazelrc` sets no `-ffp-contract` [S14].
@@ -340,7 +354,8 @@ tolerance per precision, calibrated by one variable [S55], and MoveIt asks for e
 tolerances and tests of the contract [S57]. Bazel gives each test a size that sets its
 timeout, `medium` when unstated [S18]; Drake defaults tests to `small` under each
 package's `test/` [S47]. The sources disagree on exact golden files: one tool's default
-[S17] is what a simulator's documentation warns against [S11].
+[S17] is what a simulator's documentation shows to be fragile across versions and
+systems [S11].
 
 **What this means here.** No test and no CI step runs a program: `bazel query
 'kind(cc_binary, deps(tests(//...))) intersect //:*'` prints nothing, and
@@ -353,7 +368,8 @@ generator, which holds while the generator's arithmetic prints the same text on 
 x86-64; it is where [S11] and [S14] would show first. `tests/plan_replay_test.cc`
 verifies a committed plan with tolerances and never compares a fresh plan
 (`src/layout_plan.h:118-121`), the design the sources favour [S55]. A capture of program
-output should compare numbers with stated tolerances and leave out columns of time [S17].
+output should compare numbers with stated tolerances (a custom comparator allows it [S17])
+and leave out columns of time.
 
 ## (e) Decision records
 
@@ -384,9 +400,10 @@ DRY is about knowledge, comments and documents included: "Every piece of knowled
 have a single, unambiguous, authoritative representation within a system." [S23].
 Google's guide asks that documents change in the same commit as the code they describe,
 that dead ones be deleted, and that a document link rather than repeat [S24]. Diátaxis
-holds that mixing tutorial, how-to, reference and explanation causes most documentation
-problems [S25]. MuJoCo settles conflicts by letting its style guide win over the code
-[S56]. All of this rests on experience and testimonials, not measurement.
+holds that mixing tutorial, how-to, reference and explanation is at the heart of a vast
+number of documentation problems [S25]. MuJoCo settles conflicts by letting its style
+guide win over the code [S56]. All of this rests on experience and testimonials, not
+measurement.
 
 **What this means here.** Facts written more than once can be counted. The stand-in
 module's size, 2.3 by 1.1 by 0.035 m, is written as constants in four headers,
@@ -394,10 +411,10 @@ module's size, 2.3 by 1.1 by 0.035 m, is written as constants in four headers,
 `src/point_generator.h:64-66`, none derived from another; `Fmt` is defined in four files
 (`grep -ln '^std::string Fmt(' src/*.cc | wc -l` prints 4) and `SecondsSince` in five
 (`grep -ln '^double SecondsSince(' src/*.cc | wc -l` prints 5). The real hardware has one
-home, `src/bay_hardware.h`, from which `models/bay.xml` is generated [S23]. Documents
-drift as [S24] warns: `docs/layout.md:667` still tells the reader to run a program whose
-source, `src/print_layout_moves.cc` (gone), was removed. For the stand-in cell, which is
-to be replaced, a count of copies that may not grow may be enough.
+home, `src/bay_hardware.h`, from which `models/bay.xml` is generated, as DRY asks [S23].
+Documents drift as [S24] warns: `docs/layout.md:667` still tells the reader to run a
+program whose source, `src/print_layout_moves.cc` (gone), was removed. For the stand-in
+cell, which is to be replaced, a count of copies that may not grow may be enough.
 
 ## (g) How principles are kept true by machine
 
@@ -406,9 +423,9 @@ freezes the violations that exist so that only new ones fail and fixed ones cann
 [S26]. A ratchet does the same with a plain script: it counts a pattern and fails both
 when the count rises and when it falls, so the expected number is lowered by hand [S27].
 Chromium applies this to clang-tidy by reporting on touched lines only [S41], and gRPC
-lists in its configuration the checks deferred for existing findings, each with a reason
-[S42]. Drake attaches lint tests to every BUILD file [S47] but declares its broad
-`.clang-tidy` unused by CI [S50]: a rule without a machine. The fitness-function
+lists in its configuration the checks deferred for existing findings, with one reason for
+all [S42]. Drake's math/BUILD.bazel ends with a lint-test call [S49] but declares its
+broad `.clang-tidy` unused by CI [S50]: a rule without a machine. The fitness-function
 literature itself could not be read first-hand (see the last section).
 
 **What this means here.** Part of the machine exists: `tools/architecture/deps.py`
@@ -427,17 +444,17 @@ What was measured. Four agents on Python tasks, with no context file, a generate
 the developers' own: success did not rise significantly, cost rose by over 20 percent,
 agents followed the instructions, and repository overviews did not help them find files
 [S28]. On 100 refactorings, agents did well when the refactoring was specified in detail
-and poorly when left to find it, and passing tests did not show the intended change was
-made [S31]. Differential fuzzing found 19 to 35 percent of LLM refactorings of single
-functions not equivalent, a fifth of those unnoticed by the tests [S32]. None of the
-three measured C++ under Bazel.
+and poorly when left to find it, and the benchmark needed static checks beside tests to
+see whether the intended change was made [S31]. Differential fuzzing found 19 to 35
+percent of LLM refactorings of function-level and program-level code not equivalent, a
+fifth of those unnoticed by the tests [S32]. None of the three measured C++ under Bazel.
 
 What vendors recommend, without data. Instruction files are context, not enforcement;
 specific and concise instructions are followed more consistently; stay under 200 lines;
-a rule with no exceptions belongs in a hook or CI [S29][S30]. MoveIt's file for agents
-states its layers and test rules as short imperatives [S57]. Measurements and vendors
-agree on short and specific, and part on overviews, which generators write and the study
-found of no help [S28].
+a rule with no exceptions belongs in a hook, a deny rule or a managed setting [S29][S30].
+MoveIt's file for agents states its layers and test rules as short imperatives [S57].
+Measurements and vendors agree on short and specific, and part on overviews, which
+generators write and the study found of no help [S28].
 
 **What this means here.** `AGENTS.md` is short (`wc -l AGENTS.md` prints 124) and opens
 with exact commands, as [S29] and [S30] advise; its last section, `## Map`, is a tour of
@@ -457,12 +474,12 @@ that several warnings depend on the optimizer: `-Wmaybe-uninitialized` is wrong 
 GCC cannot prove code correct, and `-Warray-bounds=2` gives more false positives [S33].
 Clang's groups of the same names differ, and some names exist in one compiler only
 [S35]. OpenSSF recommends `-Wconversion` and `-Wsign-conversion`, a selective
-`-Werror=<flag>` over a blanket one, and a counted baseline for old code [S34]. Drake,
-MuJoCo and MoveIt all switch `-Wmaybe-uninitialized` off under GCC [S47][S53][S59];
-none turns on `-Wconversion`; Drake makes `-Wshadow` and `-Wlogical-op` errors [S47], and
-MoveIt adds `-Wold-style-cast` and `-Wformat=2` as warnings [S59]. They differ on
-`-Werror`: in MuJoCo's build [S53], for Drake's own targets only [S51], in MoveIt's CI
-only [S57][S59].
+`-Werror=<flag>` rather than a blanket one when distributing source, and a counted
+baseline for old code [S34]. Drake, MuJoCo and MoveIt all switch `-Wmaybe-uninitialized`
+off under GCC [S47][S53][S59]; none turns on `-Wconversion`; Drake makes `-Wshadow` and
+`-Wlogical-op` errors [S47], and MoveIt adds `-Wold-style-cast` and `-Wformat=2` as
+warnings [S59]. They differ on `-Werror`: in MuJoCo's build [S53], for Drake's own targets
+only [S51], in MoveIt's CI only [S57][S59].
 
 **What this means here.** The repository sets no warning flag:
 `grep -n 'Werror\|-Wall' .bazelrc BUILD.bazel` prints nothing and
@@ -481,8 +498,8 @@ baseline [S34].
 clang-tidy reads a compilation database, `WarningsAsErrors` promotes only checks already
 on, and a `NOLINT` can name its check [S36]. `bugprone-narrowing-conversions` finds
 narrowing beyond `-Wconversion` but skips template instantiations by default [S37]. gRPC
-defers exactly the numeric checks because of existing findings [S42], and Chromium admits
-a check only with a count and reviewed findings, on touched lines only [S41]. The
+defers, among others, the numeric checks because of existing findings [S42], and Chromium
+admits a check only with a count and reviewed findings, on touched lines only [S41]. The
 robotics projects enforce little: Drake's `.clang-tidy` is not used by CI [S50], and
 MoveIt's allow-list has style and performance checks, no `bugprone-*` and no
 `WarningsAsErrors` [S58]. GCC's analyzer is, by GCC's own notes, unlikely to help on C++
@@ -495,11 +512,12 @@ database that `tools/architecture/compdb.py` writes from Bazel's own commands, w
 flags clang rejects removed through `RemovedArgs` [S36]. A short allow-list of defect
 checks suits the numeric code of `src/layout_check.cc`, `src/ik.cc` and `src/rrt.cc`
 better than style groups, each check entering with its count of findings and deferred
-with a reason when it has many, as gRPC does [S42]. `-fanalyzer` is not a candidate for
-C++20 code [S38]. ASan and UBSan as named configs in `.bazelrc` work with GCC [S39][S51];
-float division by zero stays off where NaN and infinity are used on purpose. The slow
-tests listed in `AGENTS.md` would be slower still under a sanitizer, so such a run
-belongs in a config run on demand, not in every agent's loop.
+with a stated reason when it has many, as gRPC does with one shared reason [S42].
+`-fanalyzer` is not a candidate for C++20 code [S38]. ASan and UBSan as named configs in
+`.bazelrc` [S51] work with GCC [S39]; float division by zero stays off where NaN and
+infinity are used on purpose. The slow tests listed in `AGENTS.md` would be slower still
+under a sanitizer, so such a run belongs in a config run on demand, not in every agent's
+loop.
 
 ## (k) A healthy dependency tree
 
@@ -510,8 +528,8 @@ committed with `.bazelversion` [S44]. A file should include what it uses, so tha
 removing an include breaks nothing far away [S45]; DWYU checks the same at the level of
 targets and finds deps listed but unused [S7]. REUSE puts licence texts in a LICENSES
 directory and an SPDX identifier on each file [S46]. The code bases keep outside code
-behind few targets: MuJoCo hides everything not exported [S53], and MoveIt keeps planner and
-collision implementations out of its core, behind abstract interfaces [S57].
+behind few targets: MuJoCo hides everything not exported [S53], and MoveIt keeps planner
+and kinematics implementations out of its core, behind abstract interfaces [S57].
 
 **What this means here.** Pinning is in place: each `bazel_dep` in `MODULE.bazel` names
 a version, the robot models come file by file at a commit with a SHA-256 each
@@ -524,9 +542,9 @@ kind [S43] asks to have written down. Declared and used differ a little:
 `//:bay_model_test`, `//:print_plane_fit` and `//:print_points` list `@eigen`, yet
 `grep -l '#include <Eigen' tests/bay_model_test.cc src/print_plane_fit.cc src/print_points.cc`
 prints nothing [S7]. `tools/architecture/measure.sh` counts the targets that list each
-outside library, which may not grow. No licence file is tracked (`git ls-files | grep -i
-licen` prints nothing); for one owner a table of outside libraries and their licences is
-the proportionate part of [S46].
+outside library, which may not grow. No licence file is tracked
+(`git ls-files | grep -i licen` prints nothing); for one owner a table of outside
+libraries and their licences is the proportionate part of [S46].
 
 ## Three code bases, read in their source
 
@@ -534,9 +552,9 @@ the proportionate part of [S46].
 
 Read at commit `5186757f28d541f90428158c123fd84585e8eaee` of RobotLocomotion/drake.
 
-- The tree: top-level areas (common, math, solvers, systems, geometry, multibody,
-  planning, examples), with a written direction between them and experimental code kept
-  apart [S48], and at least one exception marked by a TODO [S49].
+- The tree: top-level areas (among them common, math, solvers, systems, geometry,
+  multibody, planning, examples), with a written direction between them and experimental
+  code kept apart [S48], and at least one exception marked by a TODO [S49].
 - Targets and visibility: one library per header and a rollup per package, made through a
   macro layer; `internal = True` requires a non-public visibility [S47][S49].
 - Tests: in each package's `test/` directory, named after the unit, `small` unless stated
@@ -561,7 +579,7 @@ Read at commit `72a06685bffb8f3a39af0a1573fab1521dc94693` of google-deepmind/muj
 
 - The tree: public headers apart from the sources, the engine one flat directory grouped
   by file-name prefixes, the tests mirroring the sources (the reader's listing); the
-  engine's build file names one library per C file [S54].
+  engine's build file names one library per one to three C files [S54].
 - Targets and visibility: private by default, a `package_group` of the five trees that
   may see engine internals, one public aggregate [S54]; CMake hides unexported symbols
   [S53].
@@ -569,9 +587,9 @@ Read at commit `72a06685bffb8f3a39af0a1573fab1521dc94693` of google-deepmind/muj
   a calibration switch, no stored expected outputs [S55].
 - Decisions and style: a style guide of consistency that wins over the code [S56]; no
   directory of decision records in the root listing.
-- Warnings and analysis: `-Werror -Wall -Wpedantic` and a few more, `-Wmaybe-uninitialized`
-  off under GCC [S53]; the engine's Bazel build adds `-Wshadow` and `-ffp-contract=off`
-  [S54].
+- Warnings and analysis: `-Werror -Wall -Wpedantic` and a few more,
+  `-Wmaybe-uninitialized` off under GCC [S53]; the engine's Bazel build adds `-Wshadow`
+  and `-ffp-contract=off` [S54].
 
 **Not to copy:** two build systems with two warning lists, the CMake options [S53]
 against the engine's Bazel options [S54]. This repository has one build; a flag list kept
@@ -608,17 +626,18 @@ with `-Werror` held by the build, not by CI alone.
 
 ## Considered and not taken
 
-1. `layering_check` and `parse_headers` [S6]: they need a Clang toolchain; this
-   repository builds with GCC and names no Clang toolchain in `.bazelrc` or `MODULE.bazel`.
+1. `layering_check` [S6]: it needs a Clang toolchain; this
+   repository builds with GCC and names no Clang toolchain in `.bazelrc` or
+   `MODULE.bazel`.
 2. DWYU or a clang-tidy aspect as a build dependency today [S7][S8]: each adds a module to
    `MODULE.bazel`, and `bazel_clang_tidy` has no pinned release; a script over includes
    and the database of `tools/architecture/compdb.py` answer most of the same questions.
 3. One library per header with a rollup per package [S47][S49]: with 110 rules in one
    `BUILD.bazel` and one owner it multiplies targets before any package cut uses them.
-4. A blanket `-Werror` [S34]: optimizer-dependent warnings move with the compiler
-   version and every build here is optimized; `-Werror=<flag>` for flags already clean
-   is the form that holds.
-5. Wholesale `modernize-*` and `readability-*` groups [S50][S58]: style findings by the
+4. A blanket `-Werror`, which [S34] advises against only for source that is distributed:
+   optimizer-dependent warnings move with the compiler version and every build here is
+   optimized; `-Werror=<flag>` for flags already clean is the form that holds.
+5. Wholesale `modernize-*` and `readability-*` groups [S50]: style findings by the
    hundred, which agents would "fix" at a risk to behaviour that their task forbids.
 6. GCC's `-fanalyzer` [S38]: GCC's own notes say it is unlikely to help on C++, and this
    code is C++20.
@@ -635,7 +654,8 @@ with `-Werror` held by the build, not by CI alone.
 11. Byte-for-byte golden files across platforms [S17]: MuJoCo is exact only on one
     version and architecture [S11], and development here is on ARM while CI is x86-64.
 12. A long `AGENTS.md` with a tour of directories [S28]: overviews did not help agents
-    and raised cost, and the stand-in cell's part of a tour goes stale when it is replaced.
+    and raised cost, and the stand-in cell's part of a tour goes stale when it is
+    replaced.
 13. A tree made clean of findings before a check is switched on [S41]: Chromium calls
     that a non-goal; a count that may not grow lets agents keep working meanwhile.
 14. A full 5C component framework [S9]: built for teams on a framework; for one owner and
