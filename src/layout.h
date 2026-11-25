@@ -45,7 +45,45 @@
 //                under a hole, 36 points;
 //   pin          a pin put in, at the same 36 points;
 //   swage        its collar swaged from below, at the same 36 points;
-//   pins_take    a magazine of pins taken from the stock "pins", once a bay.
+//   pins_take    a magazine of pins taken from a stock of pins, once a bay
+//                for each arm that pins: point i is taken from the i-th
+//                stock whose name is "pins" or starts with "pins_".
+//
+// The base. "base" names what the cell stands on: "container", the closed
+// container of src/container.h with its sides open (the five layouts of run
+// 011), or "flat_rack", the base alone of src/flat_rack.h. The model and
+// every check are made with that base. A layout on the container has the
+// field "container" and none of "flat_rack", "margins", "ports" and
+// "approaches"; a layout on the flat rack has those four and no "container".
+// LoadLayout refuses either kind of file with a field of the other.
+//
+// Work divided among arms. "work" may hold several entries of one kind, each
+// naming an arm, a tool and the points of the kind that arm does: "points" is
+// "all" or a list of numbers and ranges such as "0-11,14,20-23", both ends
+// included. PointCount gives how many points a kind has in a layout. Each
+// point of each kind must be given to exactly one entry: LoadLayout refuses a
+// layout with a point given to no arm or to two, and says which. Several arms
+// may be of the same model.
+//
+// Pallets. "pallets" is a list of pallet places. The points of module_take
+// run through the pallets in order: point j of pallet p has the number
+// (modules of the pallets before p) + j. The bay that is checked takes its
+// module m as point m, so from the first pallet; the points of the other
+// pallets are checked for reach and clearance only.
+//
+// Ports (flat rack). A port is where a separate unit, one that can be
+// exchanged, stands against the cell: what feeds it parts or takes bays
+// away. docs/flat-rack-cell.md, "The ports", gives them as an interface.
+//
+// Approaches (flat rack). For each kind of work, from where the tool comes
+// to a work point and to where it leaves it, by rule: a direction and a
+// distance. The approach pose is the work pose with the tool's working point
+// moved by approach_m along approach_dir and the tool's orientation kept; the
+// tool then moves straight to the work pose. The retreat pose is the work
+// pose moved by retreat_m along retreat_dir; the tool moves straight to it
+// after the work. A direction is given in the tool's frame as it is at the
+// work pose ("tool": [0, 0, -1] is straight back along the tool's axis) or in
+// the layout's frame ("world": [0, 0, 1] is straight up).
 
 #ifndef SRC_LAYOUT_H_
 #define SRC_LAYOUT_H_
@@ -74,6 +112,21 @@ struct ContainerState {
   std::vector<std::string> sides_open;  // "-x", "+x".
   bool rear_doors_open = true;
   std::string note;  // What the layout asks of the container, in words.
+};
+
+// The flat rack while the cell works: the base alone (src/flat_rack.h).
+struct FlatRackState {
+  std::string end_frames;  // "taken_off" or "dropped".
+  std::string note;        // What the layout asks of the base, in words.
+};
+
+// The margins the checks and the planner keep for this layout. Never below
+// 0.010 m and 5 degrees.
+struct Margins {
+  double clearance_m = 0.010;
+  double joint_margin_deg = 5.0;
+  std::string reason;
+  std::string basis;
 };
 
 struct TubePlace {
@@ -205,11 +258,13 @@ struct Way {
 };
 
 // Who does a kind of work, with which tool, and how long it takes at the
-// point, not counting the move there.
+// point, not counting the move there. One entry for each arm that does some
+// of the kind's points.
 struct Work {
   std::string kind;
   std::string arm;
   std::string tool;
+  std::string points;          // "all", or numbers and ranges: "0-11,14".
   double process_s = 0.0;
   std::string note;
   std::string basis;
@@ -226,16 +281,65 @@ struct Item {
   std::string source;
 };
 
+// A port: where a separate unit stands against the cell.
+struct Port {
+  std::string name;            // Unique in the layout.
+  // What crosses it, one of: "tubes" (bare tubes in), "bays" (finished bays
+  // out), "modules", "rails", "pin_magazines".
+  std::string crosses;
+  std::string unit;            // The unit that stands there, in words.
+  // The port's frame, fixed to the base: its origin on the outline of the
+  // base's footprint at the deck's height, its x axis turned by frame_yaw_deg
+  // about z from the layout's x and pointing out of the base into the zone.
+  Vec3 frame_pos{};
+  double frame_yaw_deg = 0.0;
+  // The space the unit may occupy, in the layout's frame: outside the base's
+  // footprint. `name` of the box is not used.
+  Box zone;
+  // What stands in the zone and where parts are handed over, each one of
+  //   "pallet:<index>"   a pallet place and the modules on it,
+  //   "stock:<name>"     a stock; parts are handed over at its pick point,
+  //   "item:<name>"      an item that does not travel (a cart),
+  //   "way:tube_in"      the tube at the first offset of tube_in,
+  //   "way:bay_out"      the bay at the last offset of bay_out.
+  std::vector<std::string> hands_over;
+  // The name of another port whose zone this one shares because one unit
+  // serves both (tubes in and bays out on one cart), or "".
+  std::string shares_zone_with;
+  std::string presents;        // In which pose a part is presented, in words.
+  double per_bay = 0.0;        // How many parts cross it for one bay.
+  std::string basis;
+};
+
+// The approach and the retreat of one kind of work, by rule.
+struct Approach {
+  std::string kind;
+  std::string approach_frame;  // "tool" or "world".
+  Vec3 approach_dir{};         // From the work pose to the approach pose; unit length.
+  double approach_m = 0.0;
+  std::string retreat_frame;   // "tool" or "world".
+  Vec3 retreat_dir{};          // From the work pose to the retreat pose; unit length.
+  double retreat_m = 0.0;
+  std::string note;            // Why this direction and distance.
+  std::string basis;
+};
+
 struct Layout {
   std::string name;            // The file's stem.
   std::string title;
   std::string summary;         // One paragraph.
   bool chosen = false;
   std::string small_arms_stand;  // "below", "beside" or "above" the tube.
-  ContainerState container;
+  std::string base;              // "container" or "flat_rack".
+  ContainerState container;      // Only with base "container".
+  FlatRackState flat_rack;       // Only with base "flat_rack".
+  Margins margins;               // In the file only with base "flat_rack".
   TubePlace tube;
   Holder holder;
   std::vector<ArmUse> arms;
+  std::vector<Pallet> pallets;   // At least one.
+  // TRANSITIONAL, removed before this work lands: a copy of pallets[0], so
+  // that code not yet moved to `pallets` still compiles.
   Pallet pallet;
   std::vector<Stock> stocks;
   std::string strap_bolts_from;  // In words.
@@ -245,6 +349,8 @@ struct Layout {
   // "all_rails_then_all_bolts" or "each_rail_then_its_bolt".
   std::string rail_order;
   std::vector<Item> items;
+  std::vector<Port> ports;            // Only with base "flat_rack".
+  std::vector<Approach> approaches;   // Only with base "flat_rack"; one a kind.
 };
 
 // Reads layouts/<name>.json. Returns nothing and sets *error on any fault.
@@ -256,7 +362,24 @@ std::vector<std::string> ListLayouts(const std::string& directory);
 // Small lookups. Each returns nullptr when there is none.
 const ArmUse* FindArm(const Layout& layout, const std::string& name);
 const Tool* FindTool(const ArmUse& arm, const std::string& name);
+// The first entry of the kind: the only one where the kind is not divided.
 const Work* FindWork(const Layout& layout, const std::string& kind);
+// The entry of the kind that has the point `index`.
+const Work* FindWork(const Layout& layout, const std::string& kind, int index);
+// The points of a work entry, sorted; "all" gives 0 .. PointCount - 1.
+std::vector<int> PointsOf(const Layout& layout, const Work& work);
+// How many points a kind of work has in this layout: rail_take, rail_set and
+// strap_bolt 10, module_set 9, locate, pin and swage 36, module_take the
+// modules of all pallets, pins_take the number of stocks of pins.
+int PointCount(const Layout& layout, const std::string& kind);
+// The stocks of pins in the file's order: named "pins" or "pins_...".
+std::vector<const Stock*> PinStocks(const Layout& layout);
+// The names of the arms that have a point of any of these kinds, in the
+// layout's order of arms.
+std::vector<std::string> ArmsDoing(const Layout& layout,
+                                   const std::vector<std::string>& kinds);
+const Approach* FindApproach(const Layout& layout, const std::string& kind);
+const Port* FindPort(const Layout& layout, const std::string& name);
 const Stock* FindStock(const Layout& layout, const std::string& name);
 
 // The kinds of work, in the order of the comment above.

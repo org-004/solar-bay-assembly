@@ -560,4 +560,20 @@ const std::vector<std::string>& WorkKinds() {
   return kinds;
 }
 
+// STUBS written with the header; the loader's owner replaces them.
+const Work* FindWork(const Layout& layout, const std::string& kind, int) {
+  return FindWork(layout, kind);
+}
+std::vector<int> PointsOf(const Layout&, const Work&) { return {}; }
+int PointCount(const Layout&, const std::string&) { return 0; }
+std::vector<const Stock*> PinStocks(const Layout&) { return {}; }
+std::vector<std::string> ArmsDoing(const Layout&,
+                                   const std::vector<std::string>&) {
+  return {};
+}
+const Approach* FindApproach(const Layout&, const std::string&) {
+  return nullptr;
+}
+const Port* FindPort(const Layout&, const std::string&) { return nullptr; }
+
 }  // namespace cell::layout

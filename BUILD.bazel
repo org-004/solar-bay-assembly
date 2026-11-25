@@ -1808,6 +1808,17 @@ cc_binary(
 )
 # END container
 
+# BEGIN flat_rack
+# The flat rack the first cell stands on, in its working state: the base
+# alone (docs/bay-hardware.md, "The container", "The flat rack this project
+# assumes"). Header only. Include as "src/flat_rack.h".
+cc_library(
+    name = "flat_rack",
+    hdrs = ["src/flat_rack.h"],
+    deps = ["@eigen"],
+)
+# END flat_rack
+
 # BEGIN layout
 # A layout of the new cell as data (layouts/*.json, src/layout.h), the arms
 # it may use (src/arm_catalog.h), and the MuJoCo model made from a layout
@@ -1899,11 +1910,18 @@ cc_binary(
 # them.
 cc_library(
     name = "layout_check",
-    srcs = ["src/layout_check.cc"],
-    hdrs = ["src/layout_check.h"],
+    srcs = [
+        "src/layout_check.cc",
+        "src/layout_rows.cc",
+    ],
+    hdrs = [
+        "src/layout_check.h",
+        "src/layout_rows.h",
+    ],
     deps = [
         ":bay_hardware",
         ":container",
+        ":flat_rack",
         ":layout",
         ":layout_model",
         ":mj_handles",
