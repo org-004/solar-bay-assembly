@@ -1,7 +1,7 @@
 {
  "name": "above",
  "title": "Small arm hanging upside down from a roof track above the bay, module arm on a floor track beside it",
- "summary": "The tube lies along the container 1.05 m off its centre line toward the -X side, axis 0.95 m above the floor, on four stands. A KUKA KR 210 on a floor track along the +X half takes modules from a pallet outside the +X side and sets each down from one pitch ahead of it. One Universal Robots UR10e hangs upside down (base roll 180 degrees) from a carriage on a beam under the roof at x = -0.55, base z = 2.20, running along the container above the bay; it sets the rails from above, drives the strap bolts and is meant to locate, pin and swage from above, which cannot reach the underside of the rails once the modules lie on them. Tubes come in and bays leave through the -X side on one transfer cart.",
+ "summary": "The tube lies along the container 1.05 m off its centre line toward the -X side, axis 0.95 m above the floor, on four stands. A KUKA KR 210 on a floor track along the +X half takes modules from a pallet outside the +X side and sets each down from one pitch ahead of it. One Universal Robots UR10e hangs upside down (base roll 180 degrees) from a carriage on a beam under the roof at x = -0.55, base z = 2.20, running along the container above the bay; it sets the rails from above and drives the strap bolts, and is given the locating, the pins and the swaging too; the checker finds a pose for every such point, but only with the arm passing through the modules that lie on the rails, and the beam is where the module arm's upper arm has to be, so the layout fails the clearance check. Tubes come in and bays leave through the -X side on one transfer cart.",
  "chosen": false,
  "small_arms_stand": "above",
  "container": {
@@ -549,12 +549,12 @@
        "size": [
         0.07,
         0.07,
-        0.17
+        0.145
        ],
        "pos": [
         0,
         0,
-        0.085
+        0.0725
        ]
       },
       {
@@ -562,12 +562,12 @@
        "size": [
         0.016,
         0.016,
-        0.075
+        0.105
        ],
        "pos": [
         0,
         0,
-        0.2075
+        0.1975
        ]
       }
      ],
@@ -582,7 +582,7 @@
       0.26
      ],
      "basis": "ours",
-     "source": "Designed here: envelope and mass; the socket is inside the 12 mm free radius of Fastenings."
+     "source": "Designed here: envelope and mass; the socket and its extension, 105 long, are inside the 12 mm free radius of Fastenings over its 100 mm."
     },
     {
      "name": "pin_tool",

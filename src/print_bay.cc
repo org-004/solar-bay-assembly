@@ -142,6 +142,17 @@ void PrintSummary() {
   std::printf("capture_yaw_at_gate_offset_deg,%.4f\n",
               CaptureYawAtOffset() * deg);
   std::printf("capture_covers_gate,%s\n", CapturesGate() ? "yes" : "no");
+  // The capture takes the rails' slots at their nominal places. From the
+  // tube's nominal frame the rail's own play would add along the tube.
+  std::printf("rail_play_along_mm,%.3f\n", kRailPlayAlongTube * mm);
+  std::printf("rail_play_yaw_deg,%.3f\n", kRailPlayYaw * deg);
+  std::printf("rail_play_yaw_along_at_hole_mm,%.3f\n",
+              kRailPlayYaw * kHolePairSpacing / 2.0 * mm);
+  std::printf("rail_play_along_at_hole_mm,%.3f\n", RailPlayAlongAtHole() * mm);
+  const double tube_frame = HoleErrorAlongFromTubeFrame(d);
+  std::printf("hole_error_along_from_tube_frame_mm,%.3f\n", tube_frame * mm);
+  std::printf("capture_along_exceeded_from_tube_frame,%s\n",
+              tube_frame > CaptureLimit(d).y() ? "yes" : "no");
   const Eigen::Vector2d leaves = NoseLeaves(d);
   const Eigen::Vector2d play = PinPlay(d);
   std::printf("nose_in_hole_across_mm,%.3f\n", leaves.x() * mm);
@@ -179,6 +190,8 @@ void PrintSummary() {
   std::printf("nose_push_n,%.1f\n", NosePush(d));
   std::printf("nose_lift_n,%.1f\n", NoseLift(d));
   std::printf("half_module_weight_n,%.1f\n", ModuleWeight() / 2.0);
+  std::printf("friction_lift_limit,%.3f\n", LiftLimitFriction(d));
+  std::printf("friction_lift_margin,%.3f\n", LiftLimitFriction(d) - d.friction);
   std::printf("nose_thrust_n,%.1f\n", NoseThrust(d));
   std::printf("nose_tool_rated_thrust_n,%.1f\n", kNoseToolThrust);
 }

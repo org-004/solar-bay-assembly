@@ -129,7 +129,7 @@ struct LayoutHandles {
   // from the cylinder. Each cylinder lies behind the point, from z = -length
   // to z = -0.001. Present only in the `everything` state.
   int probe_mocap = -1;          // Index into mocap_pos, or -1.
-  int probe_bolt_geom = -1;      // Radius kStrapBoltFreeRadius, 0.10 long.
+  int probe_bolt_geom = -1;      // kStrapBoltFreeRadius, kStrapBoltFreeLength.
   int probe_pin_geom = -1;       // kPinFreeRadius, kPinToolLength.
   int probe_locate_below_geom = -1;  // kLocateFreeRadiusBelow, kLocateFreeLengthBelow.
   // Radius kLocateFreeRadiusAbove, from z = +0.004 to

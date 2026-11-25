@@ -21,7 +21,8 @@
 //   ways       the space a tube sweeps coming in and a bay sweeps leaving is
 //              empty;
 //   time       the time one bay takes, from the steps, by a stated model of
-//              the arms' moves;
+//              the arms' moves; it has no limit: its rows pass when every
+//              step has a pose;
 //   hold       the holder grips only stretches the document allows, not the
 //              two ends alone, and is built for the moment the document asks.
 //
@@ -79,7 +80,11 @@
 // one per point); without one it is searched: the value that stands the
 // base opposite the point, then 0.15, 0.30, 0.45, 0.60 m either side,
 // clamped to the track. The first pose that is reached and clear wins; if
-// none is clear, the reached pose with the most clearance is reported.
+// none is clear, the reached pose with the most clearance is reported. A
+// stop outside the track's lo..hi fails the reach row of its point ("stop X
+// outside the track's lo..hi"); a wait_track outside it fails the reach row
+// "wait track <arm>", a stow_track the transport row "stow track <arm>"
+// (figure: how far inside the range, negative outside, limit 0).
 //
 // What is there at a step. The container, the holder, the tube, the pallet's
 // base and the modules left on it, the stocks, the items, every arm's beam,
@@ -98,7 +103,7 @@
 // holds (a rail at rail_take and rail_set, a module at module_take and
 // module_set).
 //
-// What touches by design and is not counted:
+// What touches by design and is not counted at all:
 //   - the arm's links against each other, against its own carriage and its
 //     tool, and the tool against the part it holds: the maker's ranges and
 //     the tool's mount are trusted;
@@ -109,6 +114,10 @@
 //     m against rails m and m+1 at module_set, pallet module j at its take
 //     against module j+1 behind (or below) it and the deck it stands on
 //     (flat: the deck only for the last), a magazine against its stock;
+// What is near by design, and so is held to no distance but must not go
+// into it: a pair of these counts only when its distance is below zero, and
+// then it is the row's figure, named with "(near by design, but into each
+// other)":
 //   - at module_set m, the held module against module m-1 beside it: the
 //     bay's own gap, kModuleGap (10 mm), which is not the layout's;
 //   - a fastening tool's last box against the two parts its fastening
@@ -116,7 +125,22 @@
 //     tube, whose underside is 18 mm above the bolt's axis; the pin tool's
 //     nose against the rail and the module of the hole. The working point
 //     stops 5 mm short of the sheets, so these are 5 to 10 mm by design.
-// The held part against the arm's own links does count.
+// The held part counts against the arm's own links and carriage, at
+// clearance_m: every link geom except those of the last wrist body (the
+// body that carries the flange, with the bodies welded to it, up to and
+// including the first one with a joint: the UR's wrist_3_link, the KUKA's
+// link 6 and its flange), to which the tool is bolted and which the part
+// cannot but be near.
+//
+// The tool in the free space. The probe's cylinders say what else must keep
+// out of the free space; the tool itself must fit in it too. One row per
+// fastening kind that a layout gives to a tool, "tool in free space <kind>
+// <tool>": every box of the tool that reaches into the length of the free
+// space behind the working point (kStrapBoltFreeLength for
+// strap_bolt; kPinToolLength for pin and swage; kLocateFreeLengthBelow for
+// locate) must lie within its radius (kStrapBoltFreeRadius, kPinFreeRadius,
+// kLocateFreeRadiusBelow). Figure: the radius less the box's farthest reach
+// from the tool's axis (worst box), limit 0.
 //
 // The free spaces. For each strap bolt, pin and locating point the probe of
 // LayoutHandles is put at point a of the fastening with its z along the
@@ -162,9 +186,11 @@
 // out, and each arm back to its wait pose and first tool. Every arm starts
 // at its wait pose with its first tool. Two phases can be worked by two
 // arms side by side (SideBySide): the rails, when rail_set and strap_bolt
-// are given to different arms (the bolting arm one rail behind), and the
-// modules, when module_set and pin are (the pin arm one module behind);
-// with one arm a phase is the plain sum of its steps. The model of a move
+// are given to different arms (the bolting arm one rail behind, each take
+// counted with the arm that takes), and the modules, when module_set and
+// pin are (the pin arm one module behind); with one arm a phase is the
+// plain sum of its steps. The time row has no limit: it passes when every
+// step it needs has a pose. The model of a move
 // and of the bay's time is TimeModelText(), printed with the rows.
 
 #ifndef SRC_LAYOUT_CHECK_H_
@@ -273,8 +299,10 @@ inline constexpr double kSettleS = 0.3;
 
 // Two arms side by side on a row of units (rails or modules), the second
 // one unit behind the first: lead[k] and follow[k] are each arm's time on
-// unit k, its tool changes included. max(sum(lead) + follow.back(),
-// lead.front() + sum(follow)); 0 when either is empty.
+// unit k, its tool changes included. The follower starts unit k when the
+// leader has finished unit k and it has finished unit k-1, so the end is
+// the largest over k of sum(lead[0..k]) + sum(follow[k..end]); 0 when
+// either is empty.
 double SideBySide(const std::vector<double>& lead,
                   const std::vector<double>& follow);
 

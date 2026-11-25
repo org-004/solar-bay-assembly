@@ -287,7 +287,7 @@
   {
    "name": "module_arm",
    "model": "kr210_r2700_2",
-   "does": "Takes modules off the pallet and sets them on the rails.",
+   "does": "Sets the rails on the tube, then takes modules off the pallet and sets them on the rails, with one gripper for both.",
    "base_pos": [
     0.7,
     0.0,
@@ -455,7 +455,7 @@
   {
    "name": "small_arm",
    "model": "ur10e",
-   "does": "Sets the rails, drives the strap bolts, locates the modules, puts in the pins and swages them, changing tools.",
+   "does": "Drives the strap bolts one rail behind the module arm, then locates the modules, puts in the pins and swages them, changing tools once.",
    "base_pos": [
     -0.35,
     0.0,
@@ -518,12 +518,12 @@
        "size": [
         0.07,
         0.07,
-        0.17
+        0.145
        ],
        "pos": [
         0,
         0,
-        0.085
+        0.0725
        ]
       },
       {
@@ -531,12 +531,12 @@
        "size": [
         0.016,
         0.016,
-        0.075
+        0.105
        ],
        "pos": [
         0,
         0,
-        0.2075
+        0.1975
        ]
       }
      ],
@@ -551,7 +551,7 @@
       0.26
      ],
      "basis": "ours",
-     "source": "Designed here: envelope and mass; the socket is inside the 12 mm free radius of Fastenings."
+     "source": "Designed here: envelope and mass; the socket and its extension, 105 long, are inside the 12 mm free radius of Fastenings over its 100 mm."
     },
     {
      "name": "pin_tool",

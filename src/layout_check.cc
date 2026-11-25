@@ -42,6 +42,7 @@ constexpr double kShort = 0.005;          // A fastening tool stops this short.
 constexpr double kPosTol = 1e-4;          // m
 constexpr double kAngTol = 1e-3;          // rad
 constexpr double kOrientWeight = 0.5;     // m per rad in the IK's error.
+constexpr double kBoltFreeLength = bay::kStrapBoltFreeLength;  // m
 
 std::string Fmt(const char* format, ...) {
   char buffer[4096];
@@ -151,18 +152,23 @@ enum Group : unsigned {
 
 struct Obstacle {
   int geom = -1;
-  unsigned skip = 0;
+  unsigned skip = 0;  // Groups that do not measure against it.
+  // Of those, the groups that are near it by design but must not go into
+  // it: their pair counts only when its distance is below zero.
+  unsigned near = 0;
 };
 
 struct Nearest {
   double distance = kFar;
   int moving = -1;
   int obstacle = -1;
+  bool near = false;  // A pair near by design that goes into each other.
 };
 
 std::string PairText(const mjModel& m, const Nearest& n) {
   if (n.moving < 0) return "nothing within 1 m";
-  return GeomName(m, n.moving) + " to " + GeomName(m, n.obstacle);
+  return GeomName(m, n.moving) + " to " + GeomName(m, n.obstacle) +
+         (n.near ? " (near by design, but into each other)" : "");
 }
 
 // The least distance between the moving geoms (with their groups) and the
@@ -182,11 +188,17 @@ Nearest LeastDistance(const mjModel& m, mjData* d,
     double gap;
     int i, j;
   };
-  std::vector<Pair> pairs;
+  std::vector<Pair> pairs, near;
   for (size_t i = 0; i < moving.size(); ++i) {
     for (size_t j = 0; j < obstacles.size(); ++j) {
-      if (obstacles[j].skip & moving[i].second) continue;
       if (moving[i].first == obstacles[j].geom) continue;
+      if (obstacles[j].skip & moving[i].second) {
+        if ((obstacles[j].near & moving[i].second) &&
+            AabbGap(mb[i], ob[j]) <= 0.0) {
+          near.push_back({0.0, static_cast<int>(i), static_cast<int>(j)});
+        }
+        continue;
+      }
       const double gap = AabbGap(mb[i], ob[j]);
       if (gap < far) pairs.push_back({gap, static_cast<int>(i),
                                       static_cast<int>(j)});
@@ -208,6 +220,18 @@ Nearest LeastDistance(const mjModel& m, mjData* d,
       best.distance = dist;
       best.moving = g;
       best.obstacle = h;
+    }
+  }
+  // Pairs near by design: only going into each other counts.
+  for (const Pair& p : near) {
+    const int g = moving[p.i].first;
+    const int h = obstacles[p.j].geom;
+    const double dist = mj_geomDistance(&m, d, g, h, 0.0, nullptr);
+    if (dist < 0.0 && dist < best.distance) {
+      best.distance = dist;
+      best.moving = g;
+      best.obstacle = h;
+      best.near = true;
     }
   }
   return best;
@@ -308,8 +332,9 @@ class Checker {
     std::string held;  // "module", "rail", "pin magazine" or "".
     PointResult result;
     std::vector<Built> scenes;  // One or two; the worse counts.
-    std::set<int> held_skip;
-    std::set<int> last_skip;
+    std::set<int> held_skip;   // Touching by design.
+    std::set<int> last_skip;   // Near by design: not into it.
+    std::set<int> held_near;   // Near by design: not into it.
     std::string error;  // No arm, no tool, no work.
   };
 
@@ -337,10 +362,17 @@ class Checker {
   IkResult Solve(const ArmCtx& a, int site, const Target& t, double track,
                  const Q6& seed);
   std::vector<std::pair<double, std::string>> TrackCandidates(
-      const ArmCtx& a, const WorkPoint& p, int count) const;
+      const ArmCtx& a, const WorkPoint& p, int count, std::string* why) const;
   std::vector<Obstacle> Scene(int active, const std::string& tool,
                               const Built& b, const std::set<int>& held_skip,
-                              const std::set<int>& last_skip) const;
+                              const std::set<int>& last_near,
+                              const std::set<int>& held_near = {}) const;
+  // The geoms of the arm's links that may be measured against the part it
+  // holds: all but those of the last wrist body (and what is welded to it),
+  // which carries the flange and the tool.
+  std::vector<int> LinksForHeld(const ArmCtx& a) const;
+  CheckRow ToolInFreeSpace(const std::string& kind, const ArmUse& arm,
+                           const Tool& tool) const;
   std::vector<std::pair<int, unsigned>> Moving(int active,
                                                const std::string& tool,
                                                const std::string& held) const;
@@ -541,7 +573,7 @@ IkResult Checker::Solve(const ArmCtx& a, int site, const Target& t,
 }
 
 std::vector<std::pair<double, std::string>> Checker::TrackCandidates(
-    const ArmCtx& a, const WorkPoint& p, int count) const {
+    const ArmCtx& a, const WorkPoint& p, int count, std::string* why) const {
   std::vector<std::pair<double, std::string>> out;
   if (!a.use->track) {
     out.push_back({0.0, "no track"});
@@ -551,6 +583,15 @@ std::vector<std::pair<double, std::string>> Checker::TrackCandidates(
   auto stop = a.use->stops.find(p.kind);
   if (stop != a.use->stops.end() && !stop->second.empty()) {
     const std::vector<double>& v = stop->second;
+    const double value = v.size() == 1 ? v[0]
+                         : p.index < static_cast<int>(v.size()) ? v[p.index]
+                                                                : 0.0;
+    if ((v.size() == 1 || static_cast<int>(v.size()) == count) &&
+        (value < tr.lo - 1e-9 || value > tr.hi + 1e-9)) {
+      *why = Fmt("stop %.3f outside the track's %.3f..%.3f", value, tr.lo,
+                 tr.hi);
+      return {};
+    }
     if (v.size() == 1) {
       out.push_back({v[0], Fmt("track %.3f (the stop)", v[0])});
     } else if (static_cast<int>(v.size()) == count && p.index < count) {
@@ -575,14 +616,22 @@ std::vector<std::pair<double, std::string>> Checker::TrackCandidates(
 std::vector<Obstacle> Checker::Scene(int active, const std::string& tool,
                                      const Built& b,
                                      const std::set<int>& held_skip,
-                                     const std::set<int>& last_skip) const {
+                                     const std::set<int>& last_near,
+                                     const std::set<int>& held_near) const {
   std::vector<Obstacle> out;
   auto add = [&](const std::vector<int>& geoms, unsigned skip = 0) {
     for (int g : geoms) {
-      unsigned s = skip;
-      if (held_skip.count(g)) s |= kHeld;
-      if (last_skip.count(g)) s |= kToolLast;
-      out.push_back({g, s});
+      Obstacle o{g, skip, 0u};
+      if (held_skip.count(g)) o.skip |= kHeld;
+      if (last_near.count(g)) {
+        o.skip |= kToolLast;
+        o.near |= kToolLast;
+      }
+      if (held_near.count(g) && !held_skip.count(g)) {
+        o.skip |= kHeld;
+        o.near |= kHeld;
+      }
+      out.push_back(o);
     }
   };
   add(H_.container_geoms);
@@ -617,6 +666,28 @@ std::vector<Obstacle> Checker::Scene(int active, const std::string& tool,
     for (const auto& w : a.h->waiting_tool_geoms) {
       if (w.first != on) add(w.second, me ? kCarriage : 0u);
     }
+    // The part it holds against its own links and carriage.
+    if (me) {
+      add(LinksForHeld(a), ~static_cast<unsigned>(kHeld));
+      add(a.h->carriage_geoms, ~static_cast<unsigned>(kHeld));
+    }
+  }
+  return out;
+}
+
+std::vector<int> Checker::LinksForHeld(const ArmCtx& a) const {
+  const mjModel& m = *model_;
+  std::set<int> wrist;  // The flange's body, up to and with the last joint.
+  if (a.h->flange_site >= 0) {
+    for (int b = m.site_bodyid[a.h->flange_site]; b > 0;
+         b = m.body_parentid[b]) {
+      wrist.insert(b);
+      if (m.body_jntnum[b] > 0) break;
+    }
+  }
+  std::vector<int> out;
+  for (int g : a.h->link_geoms) {
+    if (!wrist.count(m.geom_bodyid[g])) out.push_back(g);
   }
   return out;
 }
@@ -736,7 +807,7 @@ void Checker::SetUpJob(Job& job) {
     b.pallet = pallet_total - p.index - 1;
     ins(&job.held_skip, rail(p.index));
     ins(&job.held_skip, rail(p.index + 1));
-    ins(&job.held_skip, module(p.index - 1));
+    ins(&job.held_near, module(p.index - 1));
     job.scenes.push_back(b);
   } else if (kind == "locate" || kind == "pin" || kind == "swage") {
     b.rails = range(R);
@@ -766,7 +837,8 @@ Nearest Checker::PoseClearance(Job& job) {
   int which = 0;
   for (size_t s = 0; s < job.scenes.size(); ++s) {
     const auto obstacles =
-        Scene(job.arm, job.tool, job.scenes[s], job.held_skip, job.last_skip);
+        Scene(job.arm, job.tool, job.scenes[s], job.held_skip, job.last_skip,
+              job.held_near);
     const Nearest n = LeastDistance(*model_, data_.get(), moving, obstacles);
     if (n.distance < worst.distance) {
       worst = n;
@@ -802,10 +874,13 @@ void Checker::SolveJob(Job& job, int count) {
   }
   ArmCtx& a = arms_[job.arm];
   const int site = a.h->work_site.at(job.tool);
-  const auto tracks = TrackCandidates(a, job.point, count);
+  std::string why;
+  const auto tracks = TrackCandidates(a, job.point, count, &why);
   if (tracks.empty()) {
-    r.why = Fmt("the layout's stops for %s do not fit its %d points",
-                job.point.kind.c_str(), count);
+    r.why = !why.empty()
+                ? why
+                : Fmt("the layout's stops for %s do not fit its %d points",
+                      job.point.kind.c_str(), count);
     return;
   }
   std::vector<Target> targets;
@@ -974,8 +1049,23 @@ CheckRow Row(const std::string& check, const std::string& item,
   return {check, item, arm, tool, figure, unit, limit, pass, detail};
 }
 
+// How far a track value is inside the track's range (negative: outside).
+double InsideTrack(const Track& t, double s) {
+  return std::min(s - t.lo, t.hi - s);
+}
+
 std::vector<CheckRow> Checker::ReachRows() {
   std::vector<CheckRow> rows;
+  // Where each arm waits must be on its track.
+  for (const ArmCtx& a : arms_) {
+    if (!a.use->track) continue;
+    const double in = InsideTrack(*a.use->track, a.use->wait_track);
+    rows.push_back(Row("reach", "wait track " + a.use->name, a.use->name, "",
+                       in, "m", 0.0, in >= -1e-9,
+                       Fmt("wait_track %.3f on the track's %.3f..%.3f",
+                           a.use->wait_track, a.use->track->lo,
+                           a.use->track->hi)));
+  }
   for (const std::string& kind : WorkKinds()) {
     auto e = kind_errors_.find(kind);
     if (e != kind_errors_.end()) {
@@ -1136,8 +1226,52 @@ std::vector<CheckRow> Checker::ClearanceRows() {
                            detail));
       }
     }
+    // The tool's own boxes within the free space's radius.
+    if (kind == "strap_bolt" || kind == "pin" || kind == "swage" ||
+        kind == "locate") {
+      const Work* w = FindWork(L_, kind);
+      const ArmUse* arm = w != nullptr ? FindArm(L_, w->arm) : nullptr;
+      const Tool* tool = arm != nullptr ? FindTool(*arm, w->tool) : nullptr;
+      if (tool != nullptr) rows.push_back(ToolInFreeSpace(kind, *arm, *tool));
+    }
   }
   return rows;
+}
+
+CheckRow Checker::ToolInFreeSpace(const std::string& kind, const ArmUse& arm,
+                                  const Tool& tool) const {
+  double length = 0.0, radius = 0.0;
+  if (kind == "strap_bolt") {
+    length = kBoltFreeLength;
+    radius = bay::kStrapBoltFreeRadius;
+  } else if (kind == "locate") {
+    length = bay::kLocateFreeLengthBelow;
+    radius = bay::kLocateFreeRadiusBelow;
+  } else {
+    length = bay::kPinToolLength;
+    radius = bay::kPinFreeRadius;
+  }
+  // The free space: from the working point (z = tool.length) back along the
+  // tool's z for `length`.
+  const double z_lo = tool.length - length, z_hi = tool.length;
+  double worst = radius;
+  std::string worst_box = "no box within it";
+  for (const Box& b : tool.boxes) {
+    const double lo = b.pos[2] - b.size[2] / 2.0;
+    const double hi = b.pos[2] + b.size[2] / 2.0;
+    if (hi <= z_lo + 1e-12 || lo >= z_hi - 1e-12) continue;
+    const double across = std::hypot(std::abs(b.pos[0]) + b.size[0] / 2.0,
+                                     std::abs(b.pos[1]) + b.size[1] / 2.0);
+    if (radius - across < worst) {
+      worst = radius - across;
+      worst_box = Fmt("box %s reaches %.4f from the axis", b.name.c_str(),
+                      across);
+    }
+  }
+  return Row("clearance", "tool in free space " + kind + " " + tool.name,
+             arm.name, tool.name, worst, "m", 0.0, worst >= -1e-12,
+             Fmt("free radius %.3f over the %.3f behind the working point; %s",
+                 radius, length, worst_box.c_str()));
 }
 
 std::vector<CheckRow> Checker::TransportRows(const ModelPaths& paths) {
@@ -1188,6 +1322,15 @@ std::vector<CheckRow> Checker::TransportRows(const ModelPaths& paths) {
     row("stowed y", fy, gy, Fmt("inside +/-%.3f", ehi.y()).c_str());
     row("stowed top", ftop, gtop, Fmt("under %.3f", ehi.z()).c_str());
     row("stowed bottom", fbot, gbot, Fmt("above %.3f", elo.z()).c_str());
+  }
+  // Where each arm is stowed must be on its track.
+  for (const ArmUse& a : L_.arms) {
+    if (!a.track) continue;
+    const double in = InsideTrack(*a.track, a.stow_track);
+    rows.push_back(Row("transport", "stow track " + a.name, a.name, "", in,
+                       "m", 0.0, in >= -1e-9,
+                       Fmt("stow_track %.3f on the track's %.3f..%.3f",
+                           a.stow_track, a.track->lo, a.track->hi)));
   }
   // Mass.
   double arms = 0.0, tracks = 0.0, tools = 0.0, items = 0.0;
@@ -1769,10 +1912,18 @@ double JointMoveTime(const std::array<double, 6>& change_deg,
 double SideBySide(const std::vector<double>& lead,
                   const std::vector<double>& follow) {
   if (lead.empty() || follow.empty()) return 0.0;
-  double sum_lead = 0.0, sum_follow = 0.0;
-  for (double t : lead) sum_lead += t;
-  for (double t : follow) sum_follow += t;
-  return std::max(sum_lead + follow.back(), lead.front() + sum_follow);
+  // The follower starts unit k once the leader has finished it and it has
+  // finished unit k-1: the end is the largest over k of the leader's units
+  // 0..k and the follower's units k..end.
+  const size_t n = std::min(lead.size(), follow.size());
+  double best = 0.0, before = 0.0, after = 0.0;
+  for (size_t k = 0; k < follow.size(); ++k) after += follow[k];
+  for (size_t k = 0; k < n; ++k) {
+    before += lead[k];
+    best = std::max(best, before + after);
+    after -= follow[k];
+  }
+  return best;
 }
 
 double TrackMoveTime(double distance, double speed, double accel) {
@@ -1797,17 +1948,19 @@ std::string TimeModelText() {
       "Every arm starts the bay at its wait pose with its first tool.\n"
       "The bay: tube in + clamp + the rail phase + the module phase + the "
       "end. In the rail phase, when one arm sets the rails and another "
-      "drives the strap bolts, the bolting arm works one rail behind: "
-      "max(the setting arm's steps + the bolting arm's steps on the last "
-      "rail, the setting arm's steps on the first rail + the bolting arm's "
-      "steps), each rail's take counted with the arm that takes; when one "
+      "drives the strap bolts, the bolting arm works one rail behind: it "
+      "starts rail k when the setting arm has finished rail k and it has "
+      "finished rail k-1, so the phase is the largest over k of (the "
+      "setting arm's steps on rails 0..k + the bolting arm's steps on rails "
+      "k..9), each rail's take counted with the arm that takes; when one "
       "arm does both, the plain sum in the layout's rail_order. In the "
       "module phase the module arm and the pin arm work side by side the "
-      "same way, the pin arm one module behind: max(the module arm's steps "
-      "+ the pin arm's steps on the last module, the module arm's steps on "
-      "the first module + the pin arm's steps), the magazine taken with the "
-      "first module's; if one arm does both, the plain sum. An arm's steps "
-      "include its tool changes. The end: release + bay out, or the longest of "
+      "same way, the pin arm one module behind: the largest over m of (the "
+      "module arm's steps on modules 0..m + the pin arm's steps on modules "
+      "m..8), the magazine taken with the first module's; if one arm does "
+      "both, the plain sum. An arm's steps "
+      "include its tool changes. The time has no limit: its row passes when "
+      "every step has a pose. The end: release + bay out, or the longest of "
       "the arms' moves back to their wait poses and first tools if that is "
       "longer.",
       kAccelFactor, kSettleS);

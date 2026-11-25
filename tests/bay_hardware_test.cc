@@ -843,6 +843,34 @@ TEST(LocatingMove, ForcesDoNotLiftTheModule) {
               bay::kNoseToolThrust);
 }
 
+// The capture takes the rails' slots at their nominal places; measured from
+// the tube's nominal frame, the rail's own play would put a hole outside it.
+// So the assumption that the gate is measured from the rails matters.
+TEST(LocatingMove, RailPlayWouldExceedTheCaptureFromTheTubeFrame) {
+  const bay::LocatingDims d;
+  EXPECT_NEAR(bay::RailPlayAlongAtHole(),
+              bay::kRailPlayAlongTube + bay::kRailPlayYaw * 0.200, 1e-12);
+  const double along = bay::HoleErrorAlongFromTubeFrame(d);
+  EXPECT_NEAR(along, 4.524 * kMm + bay::RailPlayAlongAtHole(), 1e-6);
+  EXPECT_GT(along, bay::CaptureLimit(d).y());
+  // Without the rail's play it is inside.
+  EXPECT_LT(bay::WorstOverGate().error_along, bay::CaptureLimit(d).y());
+  std::printf("from the tube's frame: %.3f along against the capture's "
+              "%.3f mm\n",
+              along / kMm, bay::CaptureLimit(d).y() / kMm);
+}
+
+// Above this friction the nose would lift the frame's edge, not slide it.
+TEST(LocatingMove, FrictionIsUnderTheLiftLimit) {
+  const bay::LocatingDims d;
+  const double limit = bay::LiftLimitFriction(d);
+  EXPECT_GT(limit, d.friction);
+  bay::LocatingDims at = d;
+  at.friction = limit;
+  EXPECT_NEAR(bay::NoseLift(at), bay::ModuleWeight() / 2.0, 1e-6);
+  std::printf("friction %.2f, lift limit %.3f\n", d.friction, limit);
+}
+
 // The check can fail: with a bad nose or a bad slot the capture is lost.
 TEST(LocatingMove, BadDimensionsFailTheCapture) {
   bay::LocatingDims big_tip;

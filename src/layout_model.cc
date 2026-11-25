@@ -586,7 +586,7 @@ std::string BuildLayoutXml(const Layout& layout, const LayoutState& state,
              Num(radius) + "\" fromto=\"0 0 " + Num(z0) + " 0 0 " + Num(z1) + "\"/>\n";
     };
     t += "    <body name=\"probe\" mocap=\"true\" pos=\"0 0 -1\">\n";
-    t += cylinder("bolt", bay::kStrapBoltFreeRadius, -0.10, -0.001);
+    t += cylinder("bolt", bay::kStrapBoltFreeRadius, -bay::kStrapBoltFreeLength, -0.001);
     t += cylinder("pin", bay::kPinFreeRadius, -bay::kPinToolLength, -0.001);
     t += cylinder("locate_below", bay::kLocateFreeRadiusBelow,
                   -bay::kLocateFreeLengthBelow, -0.001);

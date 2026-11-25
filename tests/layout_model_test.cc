@@ -509,8 +509,11 @@ std::map<int, Thing> Things(const mjModel* m, const Layout& layout, const Layout
   return t;
 }
 
-// The pairs that touch by design (docs and /root/logs/layout_design.md,
-// "What counts as touching by design"), each with its reason. `ga`/`gb` are
+// The pairs that touch by design, each with its reason: a held part
+// against what it is set on or taken from, the tube in the holder's
+// saddles, an arm's base on its carriage, a carriage on its beam, beams and
+// stands on the floor (docs/layout.md). Such a pair may touch, but not
+// interpenetrate by more than kTouchDepth (Overlaps). `ga`/`gb` are
 // the geoms, so that a rule can name the body a geom is on. Returns the
 // reason, or "" when the pair must be clear. The ground plane of common.xml
 // ("floor", z = 0) is not a thing at all: everything outside the container
@@ -578,7 +581,6 @@ std::string TouchesByDesign(const mjModel* m, const Layout& layout, const Thing&
     const int mi = thing_of("module").index, ri = other_of("module").index;
     if (ri == mi || ri == mi + 1) return "a module lies on its two rails";
   }
-  // The pallet: module 0 on the deck, each module on the one below.
   // The pallet: modules on their long edge each stand on the deck and lean
   // on their neighbours; flat ones lie each on the one below, the lowest
   // (the last taken) on the deck.
@@ -593,15 +595,32 @@ std::string TouchesByDesign(const mjModel* m, const Layout& layout, const Thing&
   return "";
 }
 
+// How far a pair that touches by design may sink into each other. Every
+// such pair is built to meet at exactly zero (a stand's foot on the floor's
+// top, a rail's web ending on the tube, a carriage's top at the base's
+// frame); the deliberate gaps of the model are 1 mm and more (the gripper's
+// cups 1 mm short of the working point, the saddles 3 mm under the tube). So
+// 1 mm allows for the convex hulls of the KUKA's meshes and round-off, and
+// still catches a box modelled into what it rests on.
+constexpr double kTouchDepth = 0.001;
+
+struct OverlapReport {
+  std::vector<std::string> lines;  // Each pair that fails.
+  double worst_excused = 1.0;      // The least distance of an excused pair.
+  std::string worst_excused_pair;
+};
+
 // Every pair of geoms of different things that is not further apart than
-// zero and does not touch by design, one line each.
-std::vector<std::string> Overlaps(const mjModel* m, mjData* d, const Layout& layout,
-                                  const LayoutHandles& h) {
+// zero and does not touch by design, and every pair that touches by design
+// but sinks in deeper than kTouchDepth, one line each.
+OverlapReport Overlaps(const mjModel* m, mjData* d, const Layout& layout,
+                       const LayoutHandles& h) {
+  OverlapReport report;
+  std::vector<std::string>& out = report.lines;
   const std::map<int, Thing> things = Things(m, layout, h);
   std::vector<int> geoms;
   for (const auto& [g, t] : things) geoms.push_back(g);
   // Every geom that collides must belong to a thing, or it is not checked.
-  std::vector<std::string> out;
   for (int g = 0; g < m->ngeom; ++g) {
     if (m->geom_contype[g] == 0 && m->geom_conaffinity[g] == 0) continue;
     if (m->geom_type[g] == mjGEOM_PLANE) continue;
@@ -617,24 +636,35 @@ std::vector<std::string> Overlaps(const mjModel* m, mjData* d, const Layout& lay
       if ((V(d->geom_xpos + 3 * g1) - V(d->geom_xpos + 3 * g2)).norm() > reach) continue;
       const double dist = mj_geomDistance(m, d, g1, g2, 0.01, nullptr);
       if (dist > 0.0) continue;
-      if (!TouchesByDesign(m, layout, t1, g1, t2, g2).empty()) continue;
-      char line[300];
-      std::snprintf(line, sizeof(line), "%s [%s] and %s [%s]: %.4f m", GeomName(m, g1).c_str(),
-                    t1.Text().c_str(), GeomName(m, g2).c_str(), t2.Text().c_str(), dist);
+      const std::string reason = TouchesByDesign(m, layout, t1, g1, t2, g2);
+      char line[400];
+      std::snprintf(line, sizeof(line), "%s [%s] and %s [%s]: %.6f m%s%s",
+                    GeomName(m, g1).c_str(), t1.Text().c_str(), GeomName(m, g2).c_str(),
+                    t2.Text().c_str(), dist, reason.empty() ? "" : ", touching by design: ",
+                    reason.c_str());
+      if (!reason.empty()) {
+        if (dist < report.worst_excused) {
+          report.worst_excused = dist;
+          report.worst_excused_pair = line;
+        }
+        if (dist >= -kTouchDepth) continue;
+      }
       out.push_back(line);
     }
   }
-  return out;
+  return report;
 }
 
-void ExpectNoOverlaps(const Layout& layout, const LayoutState& state, const char* what) {
+void ExpectNoOverlaps(const Layout& layout, const LayoutState& state, const std::string& what) {
   Built b = Build(layout, state);
   ASSERT_TRUE(b.model);
-  const std::vector<std::string> overlaps =
-      Overlaps(b.model.get(), b.data.get(), layout, b.handles);
+  const OverlapReport report = Overlaps(b.model.get(), b.data.get(), layout, b.handles);
   std::string all;
-  for (const std::string& line : overlaps) all += "  " + line + "\n";
-  EXPECT_TRUE(overlaps.empty()) << what << ": " << overlaps.size() << " overlaps\n" << all;
+  for (const std::string& line : report.lines) all += "  " + line + "\n";
+  std::printf("%s, %s: worst pair touching by design: %s\n", layout.name.c_str(), what.c_str(),
+              report.worst_excused_pair.empty() ? "none" : report.worst_excused_pair.c_str());
+  EXPECT_TRUE(report.lines.empty())
+      << layout.name << ", " << what << ": " << report.lines.size() << " overlaps\n" << all;
 }
 
 TEST(ChosenLayout, NothingOverlapsWithABareTube) {
@@ -682,16 +712,40 @@ TEST(ChosenLayout, StowedHasOnlyWhatTravelsInside) {
     for (const auto& [tool, g] : a.tool_geoms) geoms.insert(geoms.end(), g.begin(), g.end());
     for (int g : geoms) {
       const Eigen::Vector3d x = Eigen::Vector3d::UnitX(), z = Eigen::Vector3d::UnitZ();
-      EXPECT_GE(-Extent(m, d, g, -x), -1.165) << arm.name << " " << GeomName(m, g);
-      EXPECT_LE(Extent(m, d, g, x), 1.165) << arm.name << " " << GeomName(m, g);
-      EXPECT_GE(-Extent(m, d, g, -z), 0.45) << arm.name << " " << GeomName(m, g);
-      EXPECT_LE(Extent(m, d, g, z), 2.69) << arm.name << " " << GeomName(m, g);
+      const double half_width = container::kInsideWidth / 2.0;
+      const double floor = container::kFloorHeight;
+      const double ceiling = container::kFloorHeight + container::kInsideHeight;
+      EXPECT_GE(-Extent(m, d, g, -x), -half_width) << arm.name << " " << GeomName(m, g);
+      EXPECT_LE(Extent(m, d, g, x), half_width) << arm.name << " " << GeomName(m, g);
+      EXPECT_GE(-Extent(m, d, g, -z), floor) << arm.name << " " << GeomName(m, g);
+      EXPECT_LE(Extent(m, d, g, z), ceiling) << arm.name << " " << GeomName(m, g);
     }
   }
-  const std::vector<std::string> overlaps = Overlaps(m, b.data.get(), layout, h);
+  const OverlapReport report = Overlaps(m, b.data.get(), layout, h);
   std::string all;
-  for (const std::string& line : overlaps) all += "  " + line + "\n";
-  EXPECT_TRUE(overlaps.empty()) << "stowed: " << overlaps.size() << " overlaps\n" << all;
+  for (const std::string& line : report.lines) all += "  " + line + "\n";
+  std::printf("%s, stowed: worst pair touching by design: %s\n", layout.name.c_str(),
+              report.worst_excused_pair.empty() ? "none" : report.worst_excused_pair.c_str());
+  EXPECT_TRUE(report.lines.empty()) << "stowed: " << report.lines.size() << " overlaps\n" << all;
+}
+
+// Every layout's model compiles with a bare tube, a finished bay and
+// stowed, so that no candidate rots.
+TEST(Layouts, EveryModelCompiles) {
+  for (const std::string& name : ListLayouts(LayoutDir())) {
+    std::string error;
+    std::optional<Layout> layout = LoadLayout(LayoutPath(name), &error);
+    ASSERT_TRUE(layout.has_value()) << error;
+    LayoutState stowed;
+    stowed.stowed = true;
+    for (const LayoutState& state : {LayoutState{}, Bay(10, 9), stowed}) {
+      ModelPtr model = LoadLayoutModel(*layout, state, ModelPaths::FromEnvironment(), &error);
+      EXPECT_TRUE(model) << name << ": " << error;
+      if (model) {
+        EXPECT_EQ(model->nkey, 1) << name;
+      }
+    }
+  }
 }
 
 TEST(ChosenLayout, EverythingHasEveryToolPartAndTheProbe) {
@@ -746,87 +800,4 @@ TEST(ChosenLayout, EverythingHasEveryToolPartAndTheProbe) {
 }
 
 }  // namespace
-}  // namespace cell::layout
-namespace cell::layout {
-// Not a test: with SEARCH=<arm index> set, prints the compact poses of that
-// arm at its wait track, for tuning the file's wait and stow poses.
-TEST(Debug, SearchPose) {
-  const char* which = std::getenv("SEARCH");
-  if (which == nullptr) return;
-  const Layout layout = Chosen();
-  const size_t ai = std::atoi(which);
-  Built b = Build(layout, Bay(10, 9));
-  const mjModel* m = b.model.get();
-  mjData* d = b.data.get();
-  const ArmHandle& a = b.handles.arms[ai];
-  const ArmUse& arm = layout.arms[ai];
-  std::vector<int> mine = a.link_geoms;
-  for (const auto& [t, g] : a.tool_geoms) mine.insert(mine.end(), g.begin(), g.end());
-  std::set<int> mine_set(mine.begin(), mine.end());
-  const std::map<int, Thing> things = Things(m, layout, b.handles);
-  std::vector<int> others;
-  for (const auto& [g, t] : things) {
-    if (mine_set.count(g)) continue;
-    others.push_back(g);
-  }
-  const int root = m->geom_bodyid[a.link_geoms[0]];
-  const int last = m->geom_bodyid[a.link_geoms.back()];
-  struct Row { double clear; std::array<double, 6> q; double top, xlo, xhi; std::string pair; double reach = 0; };
-  std::vector<Row> rows;
-  const double lo2 = std::atof(std::getenv("J2LO") ? std::getenv("J2LO") : "-140");
-  const double hi2 = std::atof(std::getenv("J2HI") ? std::getenv("J2HI") : "-5");
-  const double j1 = std::atof(std::getenv("J1") ? std::getenv("J1") : "180");
-  for (double q2 = lo2; q2 <= hi2; q2 += 5)
-    for (double q3 = -120; q3 <= 168; q3 += 6)
-      for (double q5 = -120; q5 <= 120; q5 += 15) {
-        std::array<double, 6> q = {j1, q2, q3, 0, q5, 0};
-        for (int j = 0; j < 6; ++j) d->qpos[a.qpos[j]] = q[j] * kPi / 180.0;
-        if (a.track_qpos >= 0) d->qpos[a.track_qpos] = arm.wait_track;
-        mj_kinematics(m, d);
-        double top = -1e9, xlo = 1e9, xhi = -1e9;
-        for (int g : mine) {
-          top = std::max(top, Extent(m, d, g, Eigen::Vector3d::UnitZ()));
-          xhi = std::max(xhi, Extent(m, d, g, Eigen::Vector3d::UnitX()));
-          xlo = std::min(xlo, -Extent(m, d, g, -Eigen::Vector3d::UnitX()));
-        }
-        if (top > 2.69 || xlo < -1.165 || xhi > 1.165) continue;
-        double clear = 0.3;
-        std::string pair;
-        auto take = [&](int g1, int g2, double dist) {
-          if (dist < clear) {
-            clear = dist;
-            pair = GeomName(m, g1) + "/" + GeomName(m, g2);
-          }
-        };
-        for (int g1 : mine) {
-          const bool tool = things.at(g1).kind == "tool";
-          const int b1 = m->geom_bodyid[g1];
-          for (int g2 : others) {
-            if (b1 <= root + 1) continue;  // The base and link 1 move with joint 1 only.
-            const double reach = m->geom_rbound[g1] + m->geom_rbound[g2] + clear;
-            if ((V(d->geom_xpos + 3 * g1) - V(d->geom_xpos + 3 * g2)).norm() > reach) continue;
-            take(g1, g2, mj_geomDistance(m, d, g1, g2, clear, nullptr));
-          }
-          for (int g2 : a.link_geoms) {
-            const int b2 = m->geom_bodyid[g2];
-            if (tool ? (b2 >= last - 1) : (b2 <= b1 + 1 || b1 >= root + 4)) continue;
-            if (b1 == root && b2 == root + 1) continue;
-            take(g1, g2, mj_geomDistance(m, d, g1, g2, clear, nullptr));
-          }
-        }
-        double reach = 0;
-        const Eigen::Vector3d base = V(d->xpos + 3 * root);
-        for (int g : mine) {
-          reach = std::max(reach, Extent(m, d, g, Eigen::Vector3d::UnitY()) - base.y());
-          reach = std::max(reach, base.y() + Extent(m, d, g, -Eigen::Vector3d::UnitY()));
-        }
-        if (clear >= 0.05 && top <= 2.59 && reach <= 1.7) rows.push_back({clear, q, top, xlo, xhi, pair, reach});
-      }
-  std::sort(rows.begin(), rows.end(), [](const Row& x, const Row& y) { return x.top < y.top; });
-  for (size_t i = 0; i < rows.size() && i < 25; ++i) {
-    const Row& r = rows[i];
-    std::printf("pose clear %.3f q %g %g %g %g %g %g top %.3f x %.3f..%.3f %s reach %.3f\n", r.clear, r.q[0],
-                r.q[1], r.q[2], r.q[3], r.q[4], r.q[5], r.top, r.xlo, r.xhi, r.pair.c_str(), r.reach);
-  }
-}
 }  // namespace cell::layout

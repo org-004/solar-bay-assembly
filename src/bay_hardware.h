@@ -178,6 +178,10 @@ inline constexpr double kStrapBoltDiameter = 0.008;
 inline constexpr double kStrapBoltHole = 0.009;
 inline constexpr double kStrapBoltTorque = 17.6;  // N m
 inline constexpr double kStrapBoltFreeRadius = 0.012;
+// How far out from the ear's mouth, along the bolt's axis, that radius is
+// kept free: the length of socket and extension a tool must have before its
+// body begins. Ours; the reference gives none.
+inline constexpr double kStrapBoltFreeLength = 0.100;
 // Play of the bolt in its hole, each way across its axis.
 inline constexpr double kStrapBoltPlay =
     (kStrapBoltHole - kStrapBoltDiameter) / 2.0;
@@ -904,6 +908,22 @@ inline Eigen::Vector3d WorstFirstSlide(double offset = kGateOffset,
   return w;
 }
 
+// The capture takes each rail's slot at its nominal place: the gate's
+// offset is measured from the rails as they lie (what the cell senses;
+// PlacementTolerance is "in the rails' plane"), so a rail's own play is not
+// in a hole's error. If the gate were measured from the tube's nominal
+// frame instead, a rail's play along the tube and its yaw (at the holes,
+// 200 from the tube's axis) would add to a hole's error along the tube.
+inline double RailPlayAlongAtHole() {
+  return kRailPlayAlongTube + kRailPlayYaw * kHolePairSpacing / 2.0;
+}
+// The largest hole error along the tube over what the gate accepts, with
+// the rail's play added: what it would be from the tube's nominal frame.
+inline double HoleErrorAlongFromTubeFrame(const LocatingDims& d = {}) {
+  return WorstOverGate(kGateOffset, kGateYaw, d).error_along +
+         RailPlayAlongAtHole();
+}
+
 // The forces, newtons. The module's weight, 32.4 x 9.81.
 inline double ModuleWeight() { return kModuleMass * 9.81; }
 // The taper's half angle: atan(2.3 / 8.6).
@@ -931,8 +951,22 @@ inline double NosePush(const LocatingDims& d = {}) {
 inline double NoseLift(const LocatingDims& d = {}) {
   return NosePush(d) * LiftPerPush(d);
 }
-// The thrust along the nose's axis: wedged between the two slots, the lift
-// at each, twice.
+// The friction (the same on the rails and on the nose's faces) above which
+// the nose would lift the frame's edge instead of sliding the module: where
+// NoseLift reaches half the module's weight. NoseLift grows with the
+// friction, so it is found by halving.
+inline double LiftLimitFriction(const LocatingDims& d = {}) {
+  LocatingDims t = d;
+  double lo = 0.0, hi = 10.0;
+  for (int i = 0; i < 60; ++i) {
+    t.friction = (lo + hi) / 2.0;
+    (NoseLift(t) < ModuleWeight() / 2.0 ? lo : hi) = t.friction;
+  }
+  return lo;
+}
+// The thrust along the nose's axis, an upper figure: wedged between the two
+// slots, the rail's side is taken to push back as hard as the frame's, so
+// the lift twice. Not a computed force.
 inline double NoseThrust(const LocatingDims& d = {}) {
   return 2.0 * NoseLift(d);
 }

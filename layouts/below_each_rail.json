@@ -549,12 +549,12 @@
        "size": [
         0.07,
         0.07,
-        0.17
+        0.145
        ],
        "pos": [
         0,
         0,
-        0.085
+        0.0725
        ]
       },
       {
@@ -562,12 +562,12 @@
        "size": [
         0.016,
         0.016,
-        0.075
+        0.105
        ],
        "pos": [
         0,
         0,
-        0.2075
+        0.1975
        ]
       }
      ],
@@ -582,7 +582,7 @@
       0.26
      ],
      "basis": "ours",
-     "source": "Designed here: envelope and mass; the socket is inside the 12 mm free radius of Fastenings."
+     "source": "Designed here: envelope and mass; the socket and its extension, 105 long, are inside the 12 mm free radius of Fastenings over its 100 mm."
     },
     {
      "name": "pin_tool",

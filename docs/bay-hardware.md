@@ -225,7 +225,7 @@ Rail to tube:
 | Hole in the strap's ears | 9.0 | The medium clearance hole for M8 in ISO 273, read in the identical Indian standard [S30] | published |
 | Height of the bolt's axis | Z = -80 | 18 below the tube's underside: the strap, half a bolt head and room for a socket | ours |
 | Side the tool comes from | +X, moving toward -X | The reference fixes only the axis; one side for all ten rails lets one tool reach them all | ours |
-| Free space the tool needs | 12 mm radius round the axis | A 13 mm socket for an M8 head is about 18 mm across; no source was read for it | ours |
+| Free space the tool needs | 12 mm radius round the axis, 100 mm along it out from the ear's mouth | A 13 mm socket for an M8 head is about 18 mm across; no source was read for it. The 100 is the length of socket and extension a tool must have before its body begins, so that the body stays clear of the tube's flank | ours |
 | Rails beside a bearing, for comparison | 1 U-bolt with M10 nuts at 24.4 N m (manual of 2020) or 28 N m (manual of 2022) | Both print 18 ft-lb, which is 24.4 N m [S8] [S7]. The model has no such rail | published |
 
 Module to rail:
@@ -477,6 +477,20 @@ at 0.700.
 
 The capture range covers everything the gate accepts.
 
+The capture takes each rail's slot at its nominal place. The gate's 3.00 is taken as
+measured from the rails as they lie, which is what the cell senses
+(`cell::PlacementTolerance` is "in the rails' plane"), so a rail's own play is not in a
+hole's error. If the gate were measured from the tube's nominal frame instead, the
+rail's play would add to a hole's error along the tube and the capture would not hold:
+
+| Figure | Value | Source, computation or reason | Basis |
+|---|---|---|---|
+| Rail's play along the tube | 2.606 | Tolerances | derived |
+| Rail's yaw, and what it moves a hole along the tube | 0.825 degrees; 2.880 at the holes 200 from the tube's axis | Tolerances; the yaw in radians times 200 | derived |
+| Rail's play along the tube at a hole, in all | 5.486 | 2.606 + 2.880 | derived |
+| Largest hole error along the tube, if the gate were measured from the tube's nominal frame | 10.010, more than the capture's 7.500 | 4.524 + 5.486 | derived |
+| What the capture assumes | the gate's offset is measured from the rails as they lie | Measured from the tube's nominal frame, the capture would be lost along the tube, so the assumption matters | ours |
+
 Which holes are located, and in what order:
 
 | Figure | Value | Source, computation or reason | Basis |
@@ -516,14 +530,15 @@ How far the module slides, and the force:
 | Slide at hole 0, across | up to 2.985, toward the hole's place (+X or -X) | 4.935 - 1.950 | derived |
 | Slide at hole 0, along | up to 1.152 (+Y or -Y) | The hole is brought to the nearest point of what the nose leaves, whose corner is rounded at 0.450, so the slide along is more than 4.524 - 3.400 alone would give. It is never at its largest together with the slide across | derived |
 | Slide at hole 0, in all | up to 2.985 | The largest over all the gate accepts | derived |
-| Friction, frame on rail and nose on the slots' edges | 0.61, static | The handbook figure for aluminium on mild steel, clean and dry [S65]. Here it is applied to anodised aluminium on galvanised steel, for which no figure was read. It is taken for the nose on the edges too, on the cautious side | ours |
+| Friction, frame on rail and nose on the slots' edges | 0.61, static | The handbook figure for aluminium on mild steel, clean and dry [S65]. Here it is applied to anodised aluminium on galvanised steel, for which no figure was read. It is taken for the nose on the edges too. It is on the cautious side for the force, and 0.158 under the figure at which the design stops working (next row): whoever measures the friction must compare it with both | ours |
+| Friction above which the nose lifts the frame's edge instead of sliding the module | 0.768 | Where the lift reaches 158.9 N, half the module's weight, with the same friction on the rails and on the nose's faces; found by halving | derived |
 | Weight of the module | 317.8 N | 32.4 kg x 9.81 (Module) | derived |
 | Force to slide the whole module | 193.9 N | 0.61 x 317.8 | derived |
 | Force to turn it about its other rail | 96.9 N | Half: half the weight is on the rail where it slides | derived |
 | Lift for each newton of push | 1.048 | tan(14.97 degrees + atan 0.61): the taper lifts the frame's edge as it pushes it | derived |
 | Push across that slides the whole module | 118.3 N | 193.9 / (1 + 0.61 x 1.048): the lift takes weight off the rails | derived |
 | Lift at that push | 124.0 N | 118.3 x 1.048. Under the 158.9 N (half the weight) that would raise the module's edge off its rail | derived |
-| Thrust along the nose's axis | 248.0 N | Twice the lift, because the nose is wedged between the frame's slot and the rail's. The tool makes it inside itself and bears on the rail, as the swaging tool does, so the arm carries the tool and not the thrust | derived |
+| Thrust along the nose's axis | 248.0 N, an upper figure | Twice the lift: the nose is wedged between the frame's slot and the rail's, and the rail's side is taken to push back as hard as the frame's. It is not a computed force. The tool makes it inside itself and bears on the rail, as the swaging tool does, so the arm carries the tool and not the thrust | derived |
 | Rated thrust of the nose's tool | 300.0 N | More than 248.0 | ours |
 
 What the module rests on while it slides:
@@ -540,13 +555,16 @@ for the tools:
 |---|---|---|---|
 | Below the rail's top | a cylinder of radius 19.0, 80.0 long | The swaging tool's 13, plus the 5.50 the tip's centre travels along the slot, rounded up. The swaging tool's 80 of length | ours |
 | What bounds it inside the hat | the web's inner face, 24.0 from the axis along the tube | 100 / 2 - 2.0 - (5 + 19): half the rail's top, its sheet, and the hole's distance from the rail's centre line | derived |
-| Above the flange | a cylinder of radius 7.0, 11.0 high, of the 23.30 free | The nose narrows upward, so above the flange it stays inside the rail's slot's outline, 13 / 2 from the axis. The tip rises 10.60 | ours |
+| Above the flange | a cylinder of radius 7.0, 11.0 high, of the 23.30 free | The nose narrows upward, so above the flange it stays inside the rail's slot's outline, 13 / 2 = 6.5 from the axis, rounded up to 7.0. The tip rises 10.60 | ours |
 | What bounds it above the flange | the frame's upright part, 9.0 from the axis | 19 - 10 (Module) | derived |
 | Anything else | nothing | | ours |
 
 What is taken as given: that a nose which has entered both slots does pull the module
 over, as the owner has decided. Whether it does on the real parts depends on the slots'
 edges, the nose's finish and the mount's give, and no test of that was made on parts.
+Holes 3 and 1, located after holes 0 and 2, are argued here and not computed: the
+arithmetic of `print_bay` computes only the state after hole 0. The physics test below
+locates all four holes in sequence, 0, 2, 3, 1, for five starts in simulation.
 
 In simulation the move does what this section says. `tests/locate_physics_test.cc` lays
 one module on two rails of the bay's model, with the slots cut as rectangles of the
@@ -563,8 +581,8 @@ each tip starts under its opening. Friction is 0.61 on every face.
 | 3.0 along, +0.15 degrees | 1.471, 2.465 | 1.434, 2.360 | 1.433, 3.390 | 0.154 to 0.148 degrees | 221.8 N | derived |
 | 3.0 at 45 degrees, -0.15 degrees | 0.687, 2.647 | 0.626, 2.249 | 1.947, 2.248 | -0.150 to -0.069 degrees | 208.6 N | derived |
 
-Every hole of every start ends inside the pin's play, no hole rises more than 0.005 off
-its rail, and the largest force stays under the 248.0 N of thrust worked out above. A
+Every hole of every start ends inside the pin's play, no hole rises more than 0.0051 off
+its rail, and the largest force the simulation showed was 221.8 N, under the 248.0 N worked out above. A
 hole ends where the arithmetic leaves it: 1.941 to 1.949 across against 1.950, and 3.390
 along against 3.400. The module that starts 3.0 along keeps its yaw, because its holes
 are already inside 1.950 across and no nose pushes it sideways. The simulation's
@@ -713,11 +731,13 @@ footprint, between the posts, its modules' ends in the planes of the open sides.
 cannot leave through an end, where the door is 2,340 wide, so it leaves sideways, with
 607 mm to spare at each end between the posts. A bay one module longer would have
 35 mm, and that is why the bay is nine modules (The bay). A tube section, 10.62 m long
-and 124 across, can go in through the end doors, whose opening is 2,340 wide, or
-through an open side. Which way it comes in is a layout's to say: the layout chosen in
-`docs/layout.md` brings tubes in through the same open side the bays leave by, because
-a tube that comes through the door frame has to lie within 0.98 m of the container's
-centre line, and the cell wants it further out.
+and 124 across, can go in through the end doors or through an open side. Through the
+usual door opening of 2,340 the tube's axis could lie up to 1,108 from the container's
+centre line (2,340 / 2 - 62). Between the posts this container assumes, 2,078 apart
+(2,438 - 2 x 180), it could lie up to 977 out (2,078 / 2 - 62). The layout of
+`docs/layout.md` puts the tube's axis 1,050 out, which the assumed posts do not let
+through and the usual door would, by 58. That layout brings tubes in through the open
+side in any case, on the cart that takes the bays out.
 
 ![The container in its working state with a bay passing out through one side](img/container.png)
 

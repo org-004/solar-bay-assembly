@@ -3,6 +3,7 @@
 
 #include "src/layout_check.h"
 
+#include <cmath>
 #include <cstdlib>
 #include <map>
 #include <optional>
@@ -133,6 +134,10 @@ TEST(LayoutCheck, MoveModel) {
 TEST(LayoutCheck, SideBySide) {
   // The follower is the slower: the leader's first unit, then all of its.
   EXPECT_DOUBLE_EQ(SideBySide({5, 5, 5}, {10, 10, 10}), 5.0 + 30.0);
+  // A slow unit in the middle of both: the follower waits for the leader's
+  // unit 1 and then does its own units 1 and 2 (11 + 11), more than either
+  // end alone gives (13).
+  EXPECT_DOUBLE_EQ(SideBySide({1, 10, 1}, {1, 10, 1}), 22.0);
   // The leader is the slower: all of its, then the follower's last unit.
   EXPECT_DOUBLE_EQ(SideBySide({10, 10, 10}, {2, 2, 3}), 30.0 + 3.0);
   // Never less than either arm alone, never more than the plain sum.
@@ -170,6 +175,51 @@ TEST(LayoutCheck, ReferenceReport) {
   EXPECT_GT(report.bay_time_s, 0.0);
   EXPECT_FALSE(report.steps.empty());
   std::printf("reference failures:\n%s", Failures(report).c_str());
+}
+
+// The layout marked chosen passes every row.
+TEST(LayoutCheck, ChosenLayoutPasses) {
+  std::optional<Layout> chosen;
+  for (const std::string& name : ListLayouts(Dir())) {
+    std::string error;
+    auto layout = LoadLayout(Dir() + "/" + name + ".json", &error);
+    ASSERT_TRUE(layout.has_value()) << name << ": " << error;
+    if (layout->chosen) chosen = layout;
+  }
+  ASSERT_TRUE(chosen.has_value());
+  const CheckReport report = CheckLayout(*chosen, Paths());
+  ASSERT_TRUE(report.error.empty()) << report.error;
+  EXPECT_TRUE(report.pass) << chosen->name << " fails:\n" << Failures(report);
+  std::map<std::string, int> kinds;
+  for (const CheckRow& r : report.rows) ++kinds[r.check];
+  for (const char* kind :
+       {"transport", "reach", "clearance", "load", "ways", "time"}) {
+    EXPECT_GT(kinds[kind], 0) << kind;
+  }
+  int reach = 0;
+  for (const CheckRow& r : report.rows) {
+    if (r.check != "reach") continue;
+    const std::string kind = r.item.substr(0, r.item.find(' '));
+    if (kind == "rail_set" || kind == "strap_bolt" || kind == "pin" ||
+        kind == "module_set" || kind == "module_take") {
+      ++reach;
+      EXPECT_TRUE(r.pass) << r.item << ": " << r.detail;
+    }
+  }
+  EXPECT_GE(reach, 101);
+}
+
+// "above" fails, and only on clearance: its small arms cannot work under
+// the modules from above.
+TEST(LayoutCheck, AboveFailsOnClearanceOnly) {
+  std::string error;
+  const auto above = LoadLayout(Dir() + "/above.json", &error);
+  ASSERT_TRUE(above.has_value()) << error;
+  const CheckReport report = CheckLayout(*above, Paths());
+  EXPECT_FALSE(report.pass);
+  for (const CheckRow& r : report.rows) {
+    if (!r.pass) EXPECT_EQ(r.check, "clearance") << r.item << ": " << r.detail;
+  }
 }
 
 // Each check made to fail in a copy changed in memory. Each compares with
@@ -217,6 +267,132 @@ TEST(LayoutCheck, ReachFails) {
   const CheckReport after = RunChecks(far, {"reach"}, {"rail_set"});
   EXPECT_EQ(Failing(before, "reach"), 0) << Failures(before);
   EXPECT_EQ(Failing(after, "reach"), 10) << Failures(after);
+  for (int k = 0; k < bay::kRailCount; ++k) {
+    const std::string item = "rail_set " + std::to_string(k);
+    const CheckRow* r0 = FindRow(before, "reach", item);
+    const CheckRow* r = FindRow(after, "reach", item);
+    ASSERT_NE(r0, nullptr) << item;
+    ASSERT_NE(r, nullptr) << item;
+    EXPECT_TRUE(r0->pass) << item;
+    EXPECT_FALSE(r->pass) << item;
+    EXPECT_NE(r->detail.find("not reached"), std::string::npos) << r->detail;
+  }
+}
+
+// A stop, a wait or a stow off the end of the track.
+TEST(LayoutCheck, TrackValuesOutsideTheTrackFail) {
+  const Layout reference = Reference();
+  ASSERT_TRUE(reference.arms[0].track.has_value());
+  const double beyond = reference.arms[0].track->hi + 1.0;
+  Layout off = reference;
+  off.arms[0].stops["module_set"] = {beyond};
+  off.arms[0].wait_track = beyond;
+  off.arms[0].stow_track = beyond;
+  const CheckReport before =
+      RunChecks(reference, {"reach", "transport"}, {"module_set"});
+  const CheckReport after =
+      RunChecks(off, {"reach", "transport"}, {"module_set"});
+  for (const char* item : {"module_set 0", "module_set 8"}) {
+    const CheckRow* r0 = FindRow(before, "reach", item);
+    const CheckRow* r = FindRow(after, "reach", item);
+    ASSERT_NE(r0, nullptr);
+    ASSERT_NE(r, nullptr);
+    EXPECT_TRUE(r0->pass);
+    EXPECT_FALSE(r->pass);
+    EXPECT_NE(r->detail.find("outside the track's"), std::string::npos)
+        << r->detail;
+  }
+  const std::string arm = reference.arms[0].name;
+  const CheckRow* wait0 = FindRow(before, "reach", "wait track " + arm);
+  const CheckRow* wait = FindRow(after, "reach", "wait track " + arm);
+  const CheckRow* stow0 = FindRow(before, "transport", "stow track " + arm);
+  const CheckRow* stow = FindRow(after, "transport", "stow track " + arm);
+  ASSERT_NE(wait0, nullptr);
+  ASSERT_NE(wait, nullptr);
+  ASSERT_NE(stow0, nullptr);
+  ASSERT_NE(stow, nullptr);
+  EXPECT_TRUE(wait0->pass);
+  EXPECT_TRUE(stow0->pass);
+  EXPECT_FALSE(wait->pass);
+  EXPECT_FALSE(stow->pass);
+  EXPECT_NEAR(wait->figure, -1.0, 1e-9);
+}
+
+Tool* FindToolIn(Layout* layout, const std::string& name) {
+  for (ArmUse& a : layout->arms) {
+    for (Tool& t : a.tools) {
+      if (t.name == name) return &t;
+    }
+  }
+  return nullptr;
+}
+Box* FindBox(Tool* tool, const std::string& name) {
+  for (Box& b : tool->boxes) {
+    if (b.name == name) return &b;
+  }
+  return nullptr;
+}
+
+// A tool too fat for the free space it works in fails, however its last
+// box is excused against the parts it joins.
+TEST(LayoutCheck, ToolTooFatForItsFreeSpaceFails) {
+  const std::string item = "tool in free space strap_bolt nutrunner";
+  // First a nutrunner whose body stays behind the free space: it passes.
+  Layout slim = Reference();
+  Tool* nut = FindToolIn(&slim, "nutrunner");
+  ASSERT_NE(nut, nullptr);
+  Box* body = FindBox(nut, "body");
+  Box* socket = FindBox(nut, "socket");
+  ASSERT_NE(body, nullptr);
+  ASSERT_NE(socket, nullptr);
+  const double body_top = nut->length - 0.11;
+  body->size[2] = body_top;
+  body->pos[2] = body_top / 2.0;
+  socket->size[2] = nut->length - body_top;
+  socket->pos[2] = body_top + socket->size[2] / 2.0;
+  const CheckReport ok = RunChecks(slim, {"clearance"}, {"strap_bolt"});
+  const CheckRow* r0 = FindRow(ok, "clearance", item);
+  ASSERT_NE(r0, nullptr);
+  EXPECT_TRUE(r0->pass) << r0->detail;
+  // Then the same with a socket 50 mm square.
+  Layout fat = slim;
+  Box* fat_socket = FindBox(FindToolIn(&fat, "nutrunner"), "socket");
+  fat_socket->size[0] = 0.05;
+  fat_socket->size[1] = 0.05;
+  const CheckReport bad = RunChecks(fat, {"clearance"}, {"strap_bolt"});
+  const CheckRow* r = FindRow(bad, "clearance", item);
+  ASSERT_NE(r, nullptr);
+  EXPECT_FALSE(r->pass) << r->detail;
+  EXPECT_NEAR(r->figure,
+              bay::kStrapBoltFreeRadius - std::hypot(0.025, 0.025), 1e-9);
+}
+
+// A nose so long and wide that it goes into the rail fails the pin's
+// clearance, although the nose is excused against the rail down to zero.
+TEST(LayoutCheck, NoseIntoTheRailFails) {
+  const Layout reference = Reference();
+  const CheckReport before = RunChecks(reference, {"clearance"}, {"pin"});
+  Layout bad = reference;
+  Tool* pin = FindToolIn(&bad, "pin_tool");
+  ASSERT_NE(pin, nullptr);
+  Box* nose = FindBox(pin, "nose");
+  ASSERT_NE(nose, nullptr);
+  // 40 mm square, reaching 20 mm past the working point: through the rail's
+  // sheet, 5 mm above the working point.
+  const double lo = nose->pos[2] - nose->size[2] / 2.0;
+  const double hi = pin->length + 0.020;
+  nose->size = {0.04, 0.04, hi - lo};
+  nose->pos[2] = (lo + hi) / 2.0;
+  const CheckReport after = RunChecks(bad, {"clearance"}, {"pin"});
+  const CheckRow* r0 = FindRow(before, "clearance", "pin 0/0");
+  const CheckRow* r = FindRow(after, "clearance", "pin 0/0");
+  ASSERT_NE(r0, nullptr);
+  ASSERT_NE(r, nullptr);
+  EXPECT_TRUE(r0->pass) << r0->detail;
+  EXPECT_FALSE(r->pass) << r->detail;
+  EXPECT_LT(r->figure, 0.0);
+  EXPECT_NE(r->detail.find("into each other"), std::string::npos) << r->detail;
+  EXPECT_GT(Failing(after, "clearance"), Failing(before, "clearance"));
 }
 
 TEST(LayoutCheck, ClearanceFails) {
