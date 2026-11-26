@@ -1,7 +1,9 @@
 # The layout of the cell that builds bays
 
-**Notice.** Since run 012 the chosen layout is `flat_rack_3_pin_arms`, on the flat rack,
-described in [`docs/flat-rack-cell.md`](flat-rack-cell.md). This document stands as the
+**Notice.** Since run 012 the chosen layout is on the flat rack: `flat_rack_3_pin_arms`,
+described in [`docs/flat-rack-cell.md`](flat-rack-cell.md), and since run 018 the same cell
+with a shorter order of work, `flat_rack_3_pin_arms_ordered`
+([`docs/flat-rack-order.md`](flat-rack-order.md)). This document stands as the
 record of the closed container (run 011). Its five layouts are kept and load in the new
 form of the file; their rows of the seven old kinds are what this document gives
 (`bazel run --config=opt //:check_layout -- <name> --checks

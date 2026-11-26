@@ -992,20 +992,25 @@ bool Planner::Schedule() {
   // The precedences of each block.
   int first_take = -1;
   std::vector<int> bolts;
-  std::map<int, int> rail_set_step, module_set_step;
+  std::map<int, int> rail_set_step, module_set_step, bolt_step;
   for (const BayStep& st : report_.steps) {
     if (st.kind == "module_take" && first_take < 0) first_take = st.number;
     if (st.kind == "strap_bolt") bolts.push_back(st.number);
+    if (st.kind == "strap_bolt") bolt_step[st.index] = st.number;
     if (st.kind == "rail_set") rail_set_step[st.index] = st.number;
     if (st.kind == "module_set") module_set_step[st.index] = st.number;
   }
+  // The order of work (src/layout.h, WorkOrder).
+  const std::vector<int> module_order = ModuleOrder(layout_);
+  const bool after_their_rails = layout_.order.modules_start == "after_their_rails";
+  const bool early_pin_tools = layout_.order.pin_tools == "early";
   // Just in time: a step of phase "modules" of an arm that is neither a
   // take nor a set (a tool change, the take of a pin magazine) waits for
   // what that arm's next hole step waits for, so that the arm does not
   // stand over the lane, in the module arm's way, before its module is set.
   auto next_hole = [&](const Block& b) -> int {
     const BayStep& st = report_.steps[b.step_index];
-    if (st.phase != "modules") return -1;
+    if (st.phase != "modules" || early_pin_tools) return -1;
     if (st.kind != "tool_change" && st.kind != "pins_take") return -1;
     for (size_t k = b.step_index + 1; k < report_.steps.size(); ++k) {
       const BayStep& q = report_.steps[k];
@@ -1033,6 +1038,15 @@ bool Planner::Schedule() {
         if (IsHoleKind(q.kind) && q.index / 4 == m) {
           needs.push_back({q.number, false});
           break;
+        }
+      }
+    } else if (st.kind == "module_take" && after_their_rails) {
+      // The take of module m (rails m and m+1) after those rails' bolts.
+      if (st.index >= 0 && st.index < static_cast<int>(module_order.size())) {
+        const int m = module_order[st.index];
+        for (int rail : {m, m + 1}) {
+          auto it = bolt_step.find(rail);
+          if (it != bolt_step.end()) needs.push_back({it->second, false});
         }
       }
     } else if (st.number == first_take) {

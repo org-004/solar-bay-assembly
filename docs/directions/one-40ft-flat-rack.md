@@ -6,11 +6,11 @@ The cell is rebuilt on the real parts of a tracker bay, a round torque tube, rai
 
 ## Where it stands
 
-The chosen version is v09, "Three pin arms on the flat rack: a whole bay planned".
+The chosen version is v10, "Three pin arms on the flat rack, the bay shortened by the order of work".
 
 | Rank | Measure | Value | Unit | Better | How known | Basis |
 |---|---|---|---|---|---|---|
-| P0 | cycle_s | 644.28 | s per bay | lower | planned | the committed plan's bay_planned_s: kinematic, on assumed speeds and process times |
+| P0 | cycle_s | 560.45 | s per bay | lower | planned | the committed plan's bay_planned_s: kinematic, on assumed speeds and process times |
 | P0 | failures_per_bay | 0.385 | - | lower | modelled | count of operations by kind x rates of scores/rates.json; 100% of it on rates of basis ours |
 | P0 | physics_share | 0 | - | higher | counted | no committed, repeatable run in physics of this layout's arms and parts |
 | P1 | part_count | 39 | - | lower | counted | pieces of equipment by the rule of docs/scorecard.md |
@@ -24,7 +24,7 @@ The chosen version is v09, "Three pin arms on the flat rack: a whole bay planned
 | Gate | Figure | Limit | Result |
 |---|---|---|---|
 | check_rows_failed | 0 rows | <= 0 rows | pass |
-| least_clearance_m | 0.0181 m | >= 0.015 m | pass |
+| least_clearance_m | 0.018 m | >= 0.015 m | pass |
 | mass_in_transit_kg | 3426.3 kg | <= 13608.0 kg | pass |
 
 The measures and gates are defined in [the scorecard](../scorecard.md).
@@ -38,16 +38,67 @@ The measures and gates are defined in [the scorecard](../scorecard.md).
 | v07 | 2026-11-25 | One pin arm on the flat rack (candidate) | 907.34 s per bay | 2 | none | none | planned |
 | v08 | 2026-11-25 | Two pin arms on the flat rack (candidate) | 700.08 s per bay | 3 | 31 | 3376.9 kg | planned |
 | v09 | 2026-11-25 | Three pin arms on the flat rack: a whole bay planned | 644.28 s per bay | 4 | 39 | 3426.3 kg | planned |
+| v10 | 2026-11-26 | Three pin arms on the flat rack, the bay shortened by the order of work | 560.45 s per bay | 4 | 39 | 3426.3 kg | planned |
 
 ![Cycle time of each version](one-40ft-flat-rack-cycle.svg)
 
 A filled circle is a cycle time that is planned, a square one that is measured, a hollow circle one that is modelled; a lighter marker is a candidate that was not chosen.
 
+## v10 Three pin arms on the flat rack, the bay shortened by the order of work
+
+![v10  2026-11-26  Three pin arms on the flat rack, the bay shortened by the order of work; cycle 560.45 s per bay (planned), 4 arms](../evolution/v10.gif)
+
+2026-11-26, chosen, commit the commit that added v10: `git log --format=%h -S '"id": "v10"' -- versions/versions.json | tail -1`
+
+**What changed.** The same cell as v09, with no new part, arm or tool and no changed time, speed or margin: only the order of work changed. The modules are set in the order 0, 1, 4, 2, 5, 7, 6, 3, 8, so that the three pin arms' modules come in turn. A module is taken as soon as the strap bolts of its own two rails are driven, not after the last bolt. A pin arm changes to its pin tool and takes its magazine as soon as its bolts are done, not when its first module is set. The planned bay is 560.45 s, down from 644.28 s.
+
+**Why.** The cycle time of a bay is the first measure. Of 23 orders planned in full (tools/order/search.py), this one gave the shortest bay that the verifier passes. Every other measure of the scorecard is unchanged: 0.3849 failures per bay, 39 parts, 4 arms, 40 driven axes, 3,426.3 kg in transit. The least clearance over the schedule is 0.0180 m against 0.015 m.
+
+| Rank | Measure | Value | Unit | Better | How known | Basis |
+|---|---|---|---|---|---|---|
+| P0 | cycle_s | 560.45 | s per bay | lower | planned | the committed plan's bay_planned_s: kinematic, on assumed speeds and process times |
+| P0 | failures_per_bay | 0.385 | - | lower | modelled | count of operations by kind x rates of scores/rates.json; 100% of it on rates of basis ours |
+| P0 | physics_share | 0 | - | higher | counted | no committed, repeatable run in physics of this layout's arms and parts |
+| P1 | part_count | 39 | - | lower | counted | pieces of equipment by the rule of docs/scorecard.md |
+| P1 | arms | 4 | arms | lower | counted | arms of the layout |
+| P1 | driven_axes | 40 | - | lower | counted | arm joints, tracks, driven tools and grips by the rule of docs/scorecard.md |
+| P1 | placement_mm | none | mm | lower | none | nothing is held or sensed in this cell; the stand-in cell's figure is another cell's |
+| P2 | mass_in_transit_kg | 3426.3 | kg | lower | counted | the transport row's parts less infed parts (owner's definition) |
+| P2 | input_tolerance | none | mm | higher | none | nothing is sensed in this cell, so no error of the infed parts is measured or corrected |
+| P2 | plan_s | none | s | lower | none | the committed plan does not hold the time plan_layout took |
+
+| Gate | Figure | Limit | Result |
+|---|---|---|---|
+| check_rows_failed | 0 rows | <= 0 rows | pass |
+| least_clearance_m | 0.018 m | >= 0.015 m | pass |
+| mass_in_transit_kg | 3426.3 kg | <= 13608.0 kg | pass |
+
+The measures and gates are defined in [the scorecard](../scorecard.md).
+
+**Against v09.**
+
+Each figure as the two versions' own sources report it; the conditions of a run may differ between them (see each figure's source).
+
+| Measure | Before (v09) | Now (v10) | Difference |
+|---|---|---|---|
+| arms | 4 arms | 4 arms | 0 arms |
+| cycle_s | 644.28 s per bay | 560.45 s per bay | -83.83 s per bay |
+| driven_axes | 40 | 40 | 0 |
+| failures_per_bay | 0.385 | 0.385 | 0 |
+| input_tolerance | none | none | not comparable: not known |
+| mass_in_transit_kg | 3426.3 kg | 3426.3 kg | 0.0 kg |
+| part_count | 39 | 39 | 0 |
+| physics_share | 0 | 0 | 0 |
+| placement_mm | none | none | not comparable: not known |
+| plan_s | none | none | not comparable: not known |
+
+**Files.** [layout](../../layouts/flat_rack_3_pin_arms_ordered.json), [plan](../../plans/flat_rack_3_pin_arms_ordered.json), [scorecard](../../scores/flat_rack_3_pin_arms_ordered.json)
+
 ## v09 Three pin arms on the flat rack: a whole bay planned
 
 ![v09  2026-11-25  Three pin arms on the flat rack: a whole bay planned; cycle 644.28 s per bay (planned), 4 arms](../evolution/v09.gif)
 
-2026-11-25, chosen, commit [940a01b](https://github.com/org-004/solar-bay-assembly/commit/940a01b)
+2026-11-25, superseded, commit [940a01b](https://github.com/org-004/solar-bay-assembly/commit/940a01b)
 
 **What changed.** The cell stands on the base of a 40 ft flat rack: one KUKA KR 210 on a track sets the ten rails and nine modules, and three UR10e on tracks below the bay drive the strap bolts and locate, pin and swage the modules. Every move of every arm for one bay is planned free of collision, the four arms are scheduled on one clock, and the plan is verified and committed.
 
@@ -88,7 +139,7 @@ Each figure as the two versions' own sources report it; the conditions of a run 
 
 | Version | Cycle time | Arms | Part count | Mass in transit | Failures per bay | Cycle time is | Recording | Layout | Commit | Status |
 |---|---|---|---|---|---|---|---|---|---|---|
-| v09 (this version) | 644.28 s per bay | 4 | 39 | 3426.3 kg | 0.385 | planned | [v09.gif](../evolution/v09.gif) | [flat_rack_3_pin_arms.json](../../layouts/flat_rack_3_pin_arms.json) | [940a01b](https://github.com/org-004/solar-bay-assembly/commit/940a01b) | chosen |
+| v09 (this version) | 644.28 s per bay | 4 | 39 | 3426.3 kg | 0.385 | planned | [v09.gif](../evolution/v09.gif) | [flat_rack_3_pin_arms.json](../../layouts/flat_rack_3_pin_arms.json) | [940a01b](https://github.com/org-004/solar-bay-assembly/commit/940a01b) | superseded |
 | v07 | 907.34 s per bay | 2 | none | none | none | planned | [v07.png](../evolution/v07.png) | [flat_rack_1_pin_arm.json](../../layouts/flat_rack_1_pin_arm.json) | [940a01b](https://github.com/org-004/solar-bay-assembly/commit/940a01b) | candidate |
 | v08 | 700.08 s per bay | 3 | 31 | 3376.9 kg | 0.382 | planned | [v08.gif](../evolution/v08.gif) | [flat_rack_2_pin_arms.json](../../layouts/flat_rack_2_pin_arms.json) | [940a01b](https://github.com/org-004/solar-bay-assembly/commit/940a01b) | candidate |
 

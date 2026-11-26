@@ -957,6 +957,73 @@ Layout FlatRackNamed(const std::string& name) {
 }
 
 // The steps carry their kind, point, phase and the tool after a change.
+// The steps follow the layout's order of modules: the k-th take is pallet
+// module k and the k-th set is module order[k], each module's holes come
+// after its set, and the plain layout keeps 0, 1, ..., 8.
+TEST(LayoutCheck, StepsFollowTheOrderOfModules) {
+  CheckOptions options;
+  options.checks = {"time"};
+  for (const char* name : {"flat_rack_3_pin_arms", "flat_rack_3_pin_arms_ordered"}) {
+    const Layout layout = FlatRackNamed(name);
+    const std::vector<int> order = ModuleOrder(layout);
+    const CheckReport report = CheckLayout(layout, Paths(), options);
+    ASSERT_TRUE(report.error.empty()) << report.error;
+    std::vector<int> takes, sets;
+    std::set<int> set_so_far;
+    for (const BayStep& s : report.steps) {
+      if (s.kind == "module_take") takes.push_back(s.index);
+      if (s.kind == "module_set") {
+        sets.push_back(s.index);
+        set_so_far.insert(s.index);
+      }
+      if (s.kind == "locate" || s.kind == "pin" || s.kind == "swage") {
+        EXPECT_TRUE(set_so_far.count(s.index / 4)) << name << ": " << s.what;
+      }
+      if (s.kind == "module_take") {
+        EXPECT_EQ(s.what, "take module " + std::to_string(order[takes.size() - 1])) << name;
+      }
+    }
+    EXPECT_EQ(takes, (std::vector<int>{0, 1, 2, 3, 4, 5, 6, 7, 8})) << name;
+    EXPECT_EQ(sets, order) << name;
+  }
+}
+
+// What is built at a work point follows the order too: at the set of a module
+// the modules set before it are there, with both neighbours near by design
+// when both are, and at its holes also the next set and both neighbours.
+TEST(LayoutCheck, BuiltFollowsTheOrderOfModules) {
+  const Layout layout = FlatRackNamed("flat_rack_3_pin_arms_ordered");
+  std::string error;
+  const auto scene = LayoutScene::Load(layout, Paths(), 5.0, &error);
+  ASSERT_NE(scene, nullptr) << error;
+  // The order is 0, 1, 4, 2, 5, 7, 6, 3, 8: module 3 is the 8th set.
+  ASSERT_EQ(ModuleOrder(layout), (std::vector<int>{0, 1, 4, 2, 5, 7, 6, 3, 8}));
+  const int total = PointCount(layout, "module_take");
+  for (const WorkPoint& p : WorkPoints(layout, "module_set")) {
+    if (p.index != 3) continue;
+    const StepScene s = scene->AtWorkPoint(p, Leg::kWork);
+    ASSERT_EQ(s.built.size(), 1u);
+    EXPECT_EQ(s.built[0].modules, (std::vector<int>{0, 1, 2, 4, 5, 6, 7}));
+    EXPECT_EQ(s.built[0].on_pallets, total - 8);
+    const std::vector<int>& two = scene->handles().module_geoms[2];
+    const std::vector<int>& four = scene->handles().module_geoms[4];
+    ASSERT_FALSE(two.empty());
+    EXPECT_TRUE(s.pairs.held_near.count(two[0]));
+    EXPECT_TRUE(s.pairs.held_near.count(four[0]));
+    const StepScene r = scene->AtWorkPoint(p, Leg::kRetreat);
+    for (const Built& b : r.built) {
+      EXPECT_EQ(b.modules, (std::vector<int>{0, 1, 2, 3, 4, 5, 6, 7}));
+    }
+  }
+  for (const WorkPoint& p : WorkPoints(layout, "locate")) {
+    if (p.index != 4 * 4) continue;  // Module 4, the 3rd set.
+    const StepScene s = scene->AtWorkPoint(p, Leg::kWork);
+    ASSERT_EQ(s.built.size(), 2u);
+    EXPECT_EQ(s.built[0].modules, (std::vector<int>{0, 1, 4}));
+    EXPECT_EQ(s.built[1].modules, (std::vector<int>{0, 1, 2, 3, 4, 5}));
+  }
+}
+
 TEST(LayoutCheck, StepsCarryKindIndexAndPhase) {
   const Layout layout = FlatRackNamed("flat_rack_2_pin_arms");
   CheckOptions options;

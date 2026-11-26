@@ -78,6 +78,38 @@ TEST(Layouts, EveryFileLoads) {
       << "the chosen layout " << *chosen << " is not in " << LayoutDir();
 }
 
+// The order of work (src/layout.h, WorkOrder): a layout without "order" has
+// the plain one, the ordered layout reads its own, and the ordered layout is
+// flat_rack_3_pin_arms but for its name, title, summary and order (spec 018,
+// R2: the order of work changes, nothing of the cell does).
+TEST(Layouts, OrderOfWork) {
+  std::string error;
+  const std::optional<Layout> plain = LoadLayout(LayoutPath("flat_rack_3_pin_arms"), &error);
+  ASSERT_TRUE(plain.has_value()) << error;
+  EXPECT_TRUE(plain->order.modules.empty());
+  EXPECT_EQ(plain->order.modules_start, "after_all_bolts");
+  EXPECT_EQ(plain->order.pin_tools, "just_in_time");
+  EXPECT_EQ(ModuleOrder(*plain), (std::vector<int>{0, 1, 2, 3, 4, 5, 6, 7, 8}));
+  const std::optional<Layout> ordered =
+      LoadLayout(LayoutPath("flat_rack_3_pin_arms_ordered"), &error);
+  ASSERT_TRUE(ordered.has_value()) << error;
+  const std::vector<int> order = ModuleOrder(*ordered);
+  const std::vector<int> pos = ModulePositions(*ordered);
+  ASSERT_EQ(order.size(), 9u);
+  for (int k = 0; k < 9; ++k) EXPECT_EQ(pos[order[k]], k);
+  EXPECT_EQ(ordered->order.modules_start, "after_their_rails");
+  EXPECT_EQ(ordered->order.pin_tools, "early");
+
+  nlohmann::json a = nlohmann::json::parse(ReadText(LayoutPath("flat_rack_3_pin_arms")));
+  nlohmann::json b = nlohmann::json::parse(ReadText(LayoutPath("flat_rack_3_pin_arms_ordered")));
+  for (const char* k : {"name", "title", "summary", "order"}) {
+    a.erase(k);
+    b.erase(k);
+  }
+  EXPECT_EQ(a, b) << "the ordered layout differs from flat_rack_3_pin_arms in more than its "
+                     "name, title, summary and order";
+}
+
 // Writes `j` as <tmp>/<case>/below.json and loads it.
 std::string LoadBroken(const nlohmann::json& j, const std::string& name,
                        const std::string& which) {
@@ -100,6 +132,33 @@ TEST(Layouts, BrokenCopiesAreRefused) {
     j["arms"][0]["colour"] = "orange";
     const std::string e = LoadBroken(j, "below", "unknown_field");
     EXPECT_NE(e.find("arms[0].colour"), std::string::npos) << e;
+    EXPECT_NE(e.find("unknown field"), std::string::npos) << e;
+  }
+  {
+    // An order of modules that is not one of each, a word that is not one of
+    // the rules, and an order on a layout of the container.
+    const nlohmann::json flat =
+        nlohmann::json::parse(ReadText(LayoutPath("flat_rack_3_pin_arms_ordered")));
+    nlohmann::json j = flat;
+    j["order"]["modules"][1] = 0;
+    std::string e = LoadBroken(j, "flat_rack_3_pin_arms_ordered", "order_twice");
+    EXPECT_NE(e.find("order.modules[1]"), std::string::npos) << e;
+    j = flat;
+    j["order"]["modules"].erase(8);
+    e = LoadBroken(j, "flat_rack_3_pin_arms_ordered", "order_short");
+    EXPECT_NE(e.find("order.modules"), std::string::npos) << e;
+    j = flat;
+    j["order"]["modules_start"] = "soon";
+    e = LoadBroken(j, "flat_rack_3_pin_arms_ordered", "order_start");
+    EXPECT_NE(e.find("order.modules_start"), std::string::npos) << e;
+    j = flat;
+    j["order"]["pin_tools"] = "late";
+    e = LoadBroken(j, "flat_rack_3_pin_arms_ordered", "order_tools");
+    EXPECT_NE(e.find("order.pin_tools"), std::string::npos) << e;
+    j = good;
+    j["order"] = flat["order"];
+    e = LoadBroken(j, "below", "order_on_container");
+    EXPECT_NE(e.find("order"), std::string::npos) << e;
     EXPECT_NE(e.find("unknown field"), std::string::npos) << e;
   }
   {

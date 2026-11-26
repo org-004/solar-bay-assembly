@@ -647,7 +647,8 @@ Layout ReadLayout(const Json& j) {
            {"name", "title", "summary", "small_arms_stand", "base",
             "flat_rack", "margins", "ports", "approaches", "tube", "holder",
             "arms", "pallets", "stocks", "strap_bolts_from", "tube_in",
-            "bay_out", "work", "rail_order", "items"});
+            "bay_out", "work", "rail_order", "items"},
+           {"order"});
   } else {
     throw LayoutError("base", "is \"container\" or \"flat_rack\", not \"" +
                                   l.base + "\"");
@@ -761,6 +762,46 @@ Layout ReadLayout(const Json& j) {
   Unique(l.items, "items", "item");
   if (!flat_rack) return l;
 
+  if (j.contains("order")) {
+    const Json& o = j.at("order");
+    const std::string op = "order";
+    Fields(o, op, {"modules", "modules_start", "pin_tools", "note", "basis"});
+    const Json& mods = o.at("modules");
+    Array(mods, Sub(op, "modules"));
+    const int n = PointCount(l, "module_set");
+    std::vector<bool> seen(n, false);
+    for (size_t i = 0; i < mods.size(); ++i) {
+      const int m = Integer(mods[i], At(Sub(op, "modules"), i));
+      if (m < 0 || m >= n || seen[m]) {
+        throw LayoutError(At(Sub(op, "modules"), i),
+                          "is not one of the modules 0.." +
+                              std::to_string(n - 1) + " not named before");
+      }
+      seen[m] = true;
+      l.order.modules.push_back(m);
+    }
+    if (static_cast<int>(l.order.modules.size()) != n) {
+      throw LayoutError(Sub(op, "modules"),
+                        "names " + std::to_string(l.order.modules.size()) +
+                            " modules, not all " + std::to_string(n));
+    }
+    l.order.modules_start = String(FIELD(o, op, "modules_start"));
+    if (l.order.modules_start != "after_all_bolts" &&
+        l.order.modules_start != "after_their_rails") {
+      throw LayoutError(Sub(op, "modules_start"),
+                        "is \"after_all_bolts\" or \"after_their_rails\", not \"" +
+                            l.order.modules_start + "\"");
+    }
+    l.order.pin_tools = String(FIELD(o, op, "pin_tools"));
+    if (l.order.pin_tools != "just_in_time" && l.order.pin_tools != "early") {
+      throw LayoutError(Sub(op, "pin_tools"),
+                        "is \"just_in_time\" or \"early\", not \"" +
+                            l.order.pin_tools + "\"");
+    }
+    l.order.note = String(FIELD(o, op, "note"));
+    l.order.basis = String(FIELD(o, op, "basis"));
+  }
+
   const Json& ports = j.at("ports");
   Array(ports, "ports");
   for (size_t i = 0; i < ports.size(); ++i) {
@@ -845,37 +886,6 @@ std::vector<std::string> ListLayouts(const std::string& directory) {
   }
   std::sort(names.begin(), names.end());
   return names;
-}
-
-std::string VersionsPath() {
-  const char* path = std::getenv("VERSIONS_JSON");
-  return path != nullptr && path[0] != '\0' ? path : "versions/versions.json";
-}
-
-std::optional<std::string> ChosenLayout(const std::string& versions_path,
-                                        std::string* error) {
-  auto fail = [&](const std::string& message) -> std::optional<std::string> {
-    if (error != nullptr) *error = versions_path + ": " + message;
-    return std::nullopt;
-  };
-  std::ifstream in(versions_path);
-  if (!in) return fail("cannot open the file");
-  std::stringstream text;
-  text << in.rdbuf();
-  try {
-    const Json j = Json::parse(text.str());
-    std::optional<std::string> chosen;
-    for (const Json& v : j.at("versions")) {
-      if (!v.contains("status") || v.at("status") != "chosen") continue;
-      if (!v.contains("layout")) continue;
-      const std::string path = v.at("layout").at("path").get<std::string>();
-      chosen = std::filesystem::path(path).stem().string();
-    }
-    if (!chosen) return fail("no version with status \"chosen\" records a layout");
-    return chosen;
-  } catch (const Json::exception& e) {
-    return fail(e.what());
-  }
 }
 
 const ArmUse* FindArm(const Layout& layout, const std::string& name) {

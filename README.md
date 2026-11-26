@@ -23,11 +23,11 @@ layout, and [`docs/scorecard.md`](docs/scorecard.md) defines each one.
 
 ### One 40 ft base: the cell on the real parts
 
-![v09  2026-11-25  Three pin arms on the flat rack: a whole bay planned; cycle 644.28 s per bay (planned), 4 arms](docs/evolution/v09.gif)
+![v10  2026-11-26  Three pin arms on the flat rack, the bay shortened by the order of work; cycle 560.45 s per bay (planned), 4 arms](docs/evolution/v10.gif)
 
 | Version | Cycle time | Failures per bay | Arms | Part count | Placement error | Mass in transit | Gates |
 |---|---|---|---|---|---|---|---|
-| v09 | 644.28 s per bay (planned) | 0.385 | 4 | 39 | none | 3426.3 kg | all 3 pass |
+| v10 | 560.45 s per bay (planned) | 0.385 | 4 | 39 | none | 3426.3 kg | all 3 pass |
 
 [One 40 ft base: the cell on the real parts: progress and versions](docs/directions/one-40ft-flat-rack.md)
 
@@ -75,12 +75,15 @@ not the bay it builds. Five earlier layouts built the bay inside a container wit
 requirement.
 
 **The planner and scheduler of a bay.** `plan_layout` plans every move of every arm for one
-bay of the chosen layout, `flat_rack_3_pin_arms`, free of collision, and schedules the four
-arms on one clock. A verifier checks the schedule, and the plan is committed (`plans/`),
-replayed and checked by a test, and played back in the viewer. A bay takes 644.28 s planned
-and 416.32 s by the time model ([`docs/flat-rack-cell.md`](docs/flat-rack-cell.md)).
+bay of a layout free of collision, and schedules the four arms on one clock. A verifier
+checks the schedule, and the plan is committed (`plans/`), replayed and checked by a test,
+and played back in the viewer. With run 011's order of work (`flat_rack_3_pin_arms`) a bay
+takes 644.28 s planned and 416.32 s by the time model
+([`docs/flat-rack-cell.md`](docs/flat-rack-cell.md)). With the order of the chosen layout,
+`flat_rack_3_pin_arms_ordered`, it takes 560.45 s
+([`docs/flat-rack-order.md`](docs/flat-rack-order.md); its recording is v10's, above).
 
-![The whole bay as planned motion, 16 times real time](docs/bay_planned.gif)
+![The whole bay as planned with run 011's order, 16 times real time](docs/bay_planned.gif)
 
 **Physics.** The simulator is MuJoCo 4.0.0. The stand-in cell runs in physics with its
 cameras, and a gate runs eight whole pallets (240 modules) in it and fails if one is not

@@ -744,7 +744,7 @@ TEST(Committed, TamperingIsFound) {
   }
   // R22 along the schedule, in a short stretch of it.
   {
-    // A pin arm's longest wait put at the work pose of its next locate: the
+    // A pin arm's longest wait before a locate put at that locate's work pose: the
     // tool's nose then stands 5 to 10 mm from the rail outside its work.
     Plan p = c.plan;
     int pa = -1, g = -1, w = -1;
@@ -756,14 +756,15 @@ TEST(Committed, TamperingIsFound) {
         if (as[i].kind != "wait" || as[i].t1 - as[i].t0 <= longest) continue;
         for (size_t j = i + 1; j < as.size(); ++j) {
           if (as[j].kind != "work") continue;
+          // Only a wait whose next work is the locate.
           const StepTime* st = StepOf(p, as[j].step);
           if (st != nullptr && Begins(st->what, "locate ")) {
             pa = static_cast<int>(k);
             g = static_cast<int>(i);
             w = static_cast<int>(j);
             longest = as[i].t1 - as[i].t0;
-            break;
           }
+          break;
         }
       }
     }
@@ -817,6 +818,126 @@ TEST(Committed, TamperingIsFound) {
                              ") has ended"}))
         << Faults(r);
   }
+}
+
+// ------------------------------------------------- the order of work
+
+// The committed plan of flat_rack_3_pin_arms_ordered (src/layout.h,
+// WorkOrder) against the verifier's copies of the order's rules: it passes
+// as it is, a take before its own rails' bolts is found, and so is the first
+// take before the last bolt when the layout says modules start after all
+// bolts; a wait right after a tool change, at the tool-change pose, is
+// allowed (R21), and one moved off that pose is not.
+struct OrderedPlan {
+  std::string error;
+  Layout layout;
+  Plan plan;
+  std::string sha256;
+};
+
+// A committed plan by its layout's name.
+OrderedPlan NamedPlan(const std::string& name) {
+  OrderedPlan o;
+  std::string error;
+  const std::optional<Layout> l = LoadLayout(LayoutDir() + "/" + name + ".json", &error);
+  if (!l) {
+    o.error = error;
+    return o;
+  }
+  o.layout = *l;
+  const std::optional<Plan> p = PlanFromJson(ReadFile(PlanDir() + "/" + name + ".json"), &error);
+  if (!p) {
+    o.error = "plans/" + name + ".json: " + error;
+    return o;
+  }
+  o.plan = *p;
+  o.sha256 = Sha256OfFile(LayoutDir() + "/" + name + ".json");
+  return o;
+}
+
+const OrderedPlan& TheOrdered() {
+  static const OrderedPlan o = NamedPlan("flat_rack_3_pin_arms_ordered");
+  return o;
+}
+
+// v09's plan, no longer the chosen one, still verifies against its layout.
+TEST(Superseded, FlatRack3PinArmsPassesTheVerifierWithoutTheSchedule) {
+  const OrderedPlan o = NamedPlan("flat_rack_3_pin_arms");
+  ASSERT_TRUE(o.error.empty()) << o.error;
+  const VerifyReport r =
+      VerifyPlan(o.layout, ModelPaths::FromEnvironment(), o.plan, o.sha256, Quick(false));
+  EXPECT_TRUE(r.ok) << Faults(r);
+  EXPECT_NEAR(o.plan.bay_planned_s, 644.28, 0.005);
+}
+
+TEST(Ordered, PassesTheVerifierWithoutTheSchedule) {
+  const OrderedPlan& o = TheOrdered();
+  ASSERT_TRUE(o.error.empty()) << o.error;
+  const VerifyReport r =
+      VerifyPlan(o.layout, ModelPaths::FromEnvironment(), o.plan, o.sha256, Quick(false));
+  EXPECT_TRUE(r.ok) << Faults(r);
+  EXPECT_LE(o.plan.bay_planned_s, 600.0);
+}
+
+TEST(Ordered, ATakeBeforeItsRailsBoltsIsFound) {
+  const OrderedPlan& o = TheOrdered();
+  ASSERT_TRUE(o.error.empty()) << o.error;
+  // Module 8 first: its rails 8 and 9 are bolted after the first take starts.
+  Layout l = o.layout;
+  l.order.modules = {8, 1, 4, 2, 5, 7, 6, 3, 0};
+  const VerifyReport r = VerifyPlan(l, ModelPaths::FromEnvironment(), o.plan, o.sha256, Quick(false));
+  EXPECT_TRUE(AnyFault(r, {"take module 8", "rail 9's strap bolt is driven"})) << Faults(r);
+}
+
+TEST(Ordered, TheFirstTakeBeforeTheLastBoltIsFoundWhenAllBoltsComeFirst) {
+  const OrderedPlan& o = TheOrdered();
+  ASSERT_TRUE(o.error.empty()) << o.error;
+  Layout l = o.layout;
+  l.order.modules_start = "after_all_bolts";
+  const VerifyReport r = VerifyPlan(l, ModelPaths::FromEnvironment(), o.plan, o.sha256, Quick(false));
+  EXPECT_TRUE(AnyFault(r, {"take module 0", "the last strap bolt is driven"})) << Faults(r);
+}
+
+TEST(Ordered, AWaitAtTheToolChangePose) {
+  const OrderedPlan& o = TheOrdered();
+  ASSERT_TRUE(o.error.empty()) << o.error;
+  // A wait of no length put right after a pin arm's first tool change.
+  Plan p = o.plan;
+  int arm = -1;
+  size_t g = 0;
+  for (size_t a = 0; a < p.arms.size() && arm < 0; ++a) {
+    const std::vector<Segment>& ps = p.arms[a].segments;
+    for (size_t i = 0; i + 1 < ps.size(); ++i) {
+      if (ps[i].kind == "work" && ps[i + 1].kind == "move" && !ps[i].path.empty()) {
+        bool change = false;
+        for (const StepTime& st : p.steps) {
+          change = change || (st.number == ps[i].step && st.what == "tool change");
+        }
+        if (change) {
+          arm = static_cast<int>(a);
+          g = i + 1;
+          break;
+        }
+      }
+    }
+  }
+  ASSERT_GE(arm, 0) << "no tool change followed by a move";
+  std::vector<Segment>& ps = p.arms[arm].segments;
+  Segment w;
+  w.kind = "wait";
+  w.step = ps[g].step;
+  w.t0 = w.t1 = ps[g].t0;
+  w.tool = ps[g].tool;
+  w.held = ps[g].held;
+  w.path = {ps[g - 1].path.back()};
+  w.reason = "for nothing (a test)";
+  ps.insert(ps.begin() + static_cast<long>(g), w);
+  VerifyReport r = VerifyPlan(o.layout, ModelPaths::FromEnvironment(), p, o.sha256, Quick(false));
+  EXPECT_FALSE(AnyFault(r, {"its wait", "stands neither"})) << Faults(r);
+  // The same wait elsewhere: half way along the move after it.
+  ps[g].path[0] = ps[g + 1].path[ps[g + 1].path.size() / 2];
+  r = VerifyPlan(o.layout, ModelPaths::FromEnvironment(), p, o.sha256, Quick(false));
+  EXPECT_TRUE(AnyFault(r, {"its wait", "stands neither"})) << Faults(r);
 }
 
 }  // namespace

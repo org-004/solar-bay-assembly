@@ -255,9 +255,11 @@
 //
 // The order of the steps of one bay (BaySteps): tube in, clamp; the rails
 // and their bolts in the layout's rail_order (take rail k, set rail k, then
-// the bolts, or each rail's bolt after it); then for each module m: take
-// pallet module m and set it, then locate and pin its four holes in
-// bay::kLocateOrder and swage them in bay::kSwageOrder; release, bay out,
+// the bolts, or each rail's bolt after it); then for each module m, in the
+// layout's order of modules (src/layout.h, ModuleOrder; 0 .. 8 without
+// one), the k-th of them: take pallet module k and set it as module m, then
+// locate and pin its four holes in bay::kLocateOrder and swage them in
+// bay::kSwageOrder; release, bay out,
 // and each arm back to its wait pose and first tool. Each step is done by
 // the arm the layout's division gives it; an arm takes its magazine (its
 // pins_take points) before its first hole (an arm with a magazine and no
@@ -268,7 +270,9 @@
 // set) and following pieces (its bolt; its holes), a following piece
 // starting when the unit's leading pieces have ended and its arm has ended
 // the pieces before it, and a set of unit k starting no earlier than the end
-// of unit k-1's leading pieces (rails and modules are set in order); with
+// of unit k-1's leading pieces (rails and modules are set in order; a
+// module's unit is its place in the order of modules, and the model knows
+// nothing of modules_start or pin_tools); with
 // one leading and one following arm this is
 // SideBySide, with one arm the plain sum. The time rows: "bay", whose detail
 // gives the phases, and "busy <arm>" for each arm, the sum of its steps.

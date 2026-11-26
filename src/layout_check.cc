@@ -1832,14 +1832,14 @@ std::vector<CheckRow> Checker::TimeRows(std::vector<BayStep>* steps,
   // The module phase: each module's take and set lead, its holes follow;
   // an arm takes its magazine before its first hole.
   std::vector<Piece> module_pieces;
-  auto hole = [&](const std::string& kind, int m, int i, const std::string& what,
-                  const std::string& part) {
+  auto hole = [&](const std::string& kind, int m, int unit, int i,
+                  const std::string& what, const std::string& part) {
     const Work* w = FindWork(L_, kind, 4 * m + i);
     const int ai = w != nullptr ? scene_->ArmIndex(w->arm) : -1;
     if (ai >= 0) {
       for (int point : now[ai].magazines) {
         Piece p;
-        p.unit = m;
+        p.unit = unit;
         p.magazine = true;
         p.t = work("pins_take", point, "take a pin magazine", "pin magazine",
                    &p.arm);
@@ -1847,15 +1847,20 @@ std::vector<CheckRow> Checker::TimeRows(std::vector<BayStep>* steps,
       }
       now[ai].magazines.clear();
     }
-    piece(&module_pieces, kind, 4 * m + i, m, false, what, part);
+    piece(&module_pieces, kind, 4 * m + i, unit, false, what, part);
   };
-  for (int m = 0; m < M; ++m) {
-    piece(&module_pieces, "module_take", m, m, true, Fmt("take module %d", m),
-          Fmt("pallet module %d", m));
-    piece(&module_pieces, "module_set", m, m, true, Fmt("set module %d", m),
+  // In the layout's order of modules (src/layout.h, WorkOrder): the k-th
+  // take is pallet module k, set as bay module order[k]; the time model's
+  // unit is the place k in that order.
+  const std::vector<int> order = ModuleOrder(L_);
+  for (int k = 0; k < M; ++k) {
+    const int m = order[k];
+    piece(&module_pieces, "module_take", k, k, true, Fmt("take module %d", m),
+          Fmt("pallet module %d", k));
+    piece(&module_pieces, "module_set", m, k, true, Fmt("set module %d", m),
           Fmt("module %d", m));
     // An arm that has a magazine but no hole takes it after the first set.
-    if (m == 0) {
+    if (k == 0) {
       const std::vector<std::string> holers =
           ArmsDoing(L_, {"locate", "pin", "swage"});
       for (int ai = 0; ai < arm_count; ++ai) {
@@ -1875,12 +1880,12 @@ std::vector<CheckRow> Checker::TimeRows(std::vector<BayStep>* steps,
       }
     }
     for (int i : bay::kLocateOrder) {
-      hole("locate", m, i, Fmt("locate %d/%d", m, i),
+      hole("locate", m, k, i, Fmt("locate %d/%d", m, i),
            Fmt("module %d hole %d", m, i));
-      hole("pin", m, i, Fmt("pin %d/%d", m, i), Fmt("pin %d/%d", m, i));
+      hole("pin", m, k, i, Fmt("pin %d/%d", m, i), Fmt("pin %d/%d", m, i));
     }
     for (int i : bay::kSwageOrder) {
-      hole("swage", m, i, Fmt("swage %d/%d", m, i),
+      hole("swage", m, k, i, Fmt("swage %d/%d", m, i),
            Fmt("collar %d/%d", m, i));
     }
   }
