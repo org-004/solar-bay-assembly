@@ -1,0 +1,12 @@
+ac7 EXIT 0 MONO 7.1s | 42
+ac15_build EXIT 0 MONO 2.1s | INFO: Build completed successfully, 198 total actions
+ac15_count EXIT 0 MONO 81.3s | W-lines-equal-baseline
+ac6_a EXIT 0 MONO 182.2s | plan_layout.flat_rack_3_pin_arms.summary exit=0 41.6s bytes=663
+ac6_b EXIT 0 MONO 182.5s | plan_layout.flat_rack_3_pin_arms.summary exit=0 40.5s bytes=663
+ac6_cmp EXIT 0 MONO 0.2s | listed-all
+ac18 EXIT 0 MONO 0.0s | same
+ac14 EXIT 0 MONO 0.4s | 0
+ac17 EXIT 0 MONO 4.2s | ok
+ac16 EXIT 0 MONO 525.0s | T-lines-equal-baseline
+ac16_snip EXIT 2 MONO 1.3s | tidy.sh: error from a check under WarningsAsErrors: clang-analyzer-core.NullDereference
+DONE
