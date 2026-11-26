@@ -2202,6 +2202,26 @@ cc_test(
         "@googletest//:gtest_main",
     ],
 )
+
+# The committed plan of the two-rack cell, a bay built in stages
+# (src/layout_plan_stages.h): verified in pieces, and tampered with between
+# its stages.
+#   bazel test --config=opt //:plan_replay_staged_test
+cc_test(
+    name = "plan_replay_staged_test",
+    size = "medium",
+    srcs = ["tests/plan_replay_staged_test.cc"],
+    data = LAYOUT_FILES + LAYOUT_MODEL_FILES + PLAN_FILES,
+    env = LAYOUT_ENV | {"PLAN_DIR": "plans"},
+    shard_count = 4,
+    deps = [
+        ":layout",
+        ":layout_check",
+        ":layout_model",
+        ":layout_plan",
+        "@googletest//:gtest_main",
+    ],
+)
 # END layout_plan
 
 # BEGIN layout_bays

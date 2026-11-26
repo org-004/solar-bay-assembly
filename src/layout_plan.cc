@@ -21,7 +21,6 @@
 #include <thread>
 #include <tuple>
 
-#include "src/bay_hardware.h"
 #include "src/layout_bays.h"
 #include "src/layout_plan_stages.h"
 #include "src/layout_stages.h"
@@ -95,19 +94,6 @@ Built Union(const std::vector<Built>& states) {
   return b;
 }
 
-// For an arm that follows another: every part the leading arm may set
-// before the move ends, by the move's phase.
-void AddLeadersParts(const std::string& phase, Built* b) {
-  if (phase != "rails" && phase != "modules" && phase != "end") return;
-  std::set<int> rails(b->rails.begin(), b->rails.end());
-  for (int k = 0; k < bay::kRailCount; ++k) rails.insert(k);
-  b->rails.assign(rails.begin(), rails.end());
-  if (phase == "rails") return;
-  std::set<int> modules(b->modules.begin(), b->modules.end());
-  for (int k = 0; k < bay::kModuleCount; ++k) modules.insert(k);
-  b->modules.assign(modules.begin(), modules.end());
-}
-
 bool IsHoleKind(const std::string& kind) {
   return kind == "locate" || kind == "pin" || kind == "swage";
 }
@@ -125,6 +111,10 @@ struct MoveJob {
   std::uint32_t seed = 0;
   bool in_range = true;
   int stage = 0;        // Planned in this stage's scene (staged work).
+  // Staged work: the bay without the modules set after the hole's module,
+  // tried when the move is not found in `built` (PlanNarrowed).
+  bool narrowable = false, narrowed = false;
+  Built narrow;
   // Results.
   bool found = false;
   int budget = 0;
@@ -222,6 +212,7 @@ class Planner {
   bool Assemble();
   void PlanMoves();
   void PlanOne(MoveJob& job, mjData* d);
+  void PlanNarrowed(MoveJob& job, mjData* d);
   bool Schedule();
   void FillPlan();
 
@@ -255,8 +246,7 @@ class Planner {
   // parts of a move of `phase` at `stage`.
   double TransferEnd(int s) const;
   void Lead(int stage, const std::string& phase, Built* b) const {
-    if (staged_) LeadersParts(scopes_[stage], phase, b);
-    if (!staged_) AddLeadersParts(phase, b);
+    LeadersParts(staged_ ? &scopes_[stage] : nullptr, phase, b);
   }
   void Place(int a, Block& b, double s, double ready,
              const std::string& need_reason, const std::string& wait_reason);
@@ -277,6 +267,7 @@ class Planner {
   bool staged_ = false;
   std::vector<StageScope> scopes_;
   std::map<int, int> stage_of_step_;                  // Step number to stage.
+  std::vector<int> staged_pos_;                       // Module to its place in the order.
   PlanFigures f_;
   std::vector<ArmMotion> motions_;
   std::vector<MoveJob> moves_;
@@ -590,8 +581,21 @@ bool Planner::Assemble() {
       if (staged_) BuiltInStage(scopes_[stage], pallet_total, &at);
       Built built = Union(at.built);
       if (!leader) Lead(stage, staged_ && st.kind == "pins_take" ? "rails" : st.phase, &built);
+      Built narrow = built;  // Without the modules set after the hole's.
+      narrow.modules.clear();
+      for (int m : built.modules) {
+        if (staged_ && staged_pos_[m] <= staged_pos_[std::clamp(st.index / 4, 0, 8)]) {
+          narrow.modules.push_back(m);
+        }
+      }
+      const size_t before = moves_.size();
       add_move(a, block, bi, approach.front(), p->item + " approach",
                BuiltInBay(built, bay_, per_bay), t);
+      if (moves_.size() > before && staged_ && !leader && IsHoleKind(st.kind) &&
+          narrow.modules != built.modules) {
+        moves_.back().narrowable = true;
+        moves_.back().narrow = BuiltInBay(narrow, bay_, per_bay);
+      }
       push("approach", p->tool, p->held_approach, approach, ta);
     }
     push("work", p->tool, p->held_approach, {work_c}, work->process_s);
@@ -751,6 +755,24 @@ void Planner::PlanOne(MoveJob& job, mjData* d) {
   job.found = true;
 }
 
+// Staged work (src/layout_plan_stages.h): a move between the holes of module
+// m not found where the next modules may have been set is planned without
+// them; the next module's set then waits for it (Schedule).
+void Planner::PlanNarrowed(MoveJob& job, mjData* d) {
+  PlanOne(job, d);
+  if (job.found || !job.narrowable) return;
+  MoveJob narrow = job;
+  narrow.built = job.narrow;
+  narrow.note.clear();
+  PlanOne(narrow, d);
+  narrow.queries += job.queries;
+  narrow.log.insert(narrow.log.begin(), job.log.begin(), job.log.end());
+  if (!narrow.found) narrow.note = job.note + "; without the next modules: " + narrow.note;
+  if (!narrow.found) narrow.built = job.built;
+  narrow.narrowed = narrow.found;
+  job = narrow;
+}
+
 void Planner::PlanMoves() {
   std::vector<int> todo;
   for (size_t i = 0; i < moves_.size(); ++i) {
@@ -766,7 +788,7 @@ void Planner::PlanMoves() {
       if (k >= static_cast<int>(todo.size())) break;
       MoveJob& job = moves_[todo[k]];
       if (!d[job.stage]) d[job.stage] = scenes_[job.stage]->MakeData();
-      PlanOne(job, d[job.stage].get());
+      PlanNarrowed(job, d[job.stage].get());
     }
   };
   if (threads == 1) {
@@ -807,6 +829,7 @@ void Planner::PlanMoves() {
     s.planned_s = job.planned_s;
     s.model_s = job.model_s;
     s.seed = job.seed;
+    s.built = job.built;
     if (job.found) s.path = job.path;
     // The move's duration, and every later segment of the block after it.
     const double duration = job.found ? job.planned_s + f_.settle_s : 0.0;
@@ -1183,6 +1206,20 @@ bool Planner::Schedule() {
         r = moved;
         reason = "for the tube to move to stage " + scopes_[b.stage].name;
       }
+      for (const MoveJob& j : moves_) {
+        const BayStep& set = report_.steps[b.step_index];
+        if (!j.narrowed || set.kind != "module_set" || j.stage != b.stage ||
+            std::count(j.built.modules.begin(), j.built.modules.end(), set.index) > 0) {
+          continue;
+        }
+        const Block& mb = blocks_[j.block];
+        can = can && mb.placed;
+        if (mb.placed && mb.start + mb.segs[j.segment].t1 > r) {
+          r = mb.start + mb.segs[j.segment].t1;
+          reason = Fmt("for %s's move to step %d, planned without module %d",
+                       scene_->arm(j.arm).use->name.c_str(), j.step, set.index);
+        }
+      }
       for (const Block& pb : blocks_) {
         if (!pb.magazine || pb.stage != b.stage || !pb.in_range ||
             report_.steps[b.step_index].kind != "module_set") {
@@ -1461,6 +1498,9 @@ PlanResult Planner::Run(bool plan, bool verify) {
   for (int k = 0; staged_ && k < StageCount(layout_); ++k) {
     scopes_.push_back(ScopeOfStage(layout_, k));
   }
+  const std::vector<int> order = StagedModuleOrder(layout_);
+  staged_pos_.assign(order.size(), 0);
+  for (size_t k = 0; k < order.size(); ++k) staged_pos_[order[k]] = static_cast<int>(k);
   if (!scene_) {
     Fault("the scene could not be loaded: " + error);
     return done();
@@ -1600,7 +1640,7 @@ std::vector<std::string> Planner::Why(const std::vector<int>& steps) {
         out.push_back(Fmt("  straight line free (%d points checked)", n - 1));
         continue;
       }
-      PlanOne(job, d.get());
+      PlanNarrowed(job, d.get());
       for (const std::string& line : job.log) out.push_back("  " + line);
       out.push_back(job.found ? Fmt("  found at budget %d, %d waypoints, %lld "
                                     "queries",

@@ -46,6 +46,14 @@
 //     magazine take, whose moves are planned with the stage's rails and no
 //     module of the stage: the take's approach pose is nearer a set module
 //     0 than the clearance allows.
+//   - a move between the holes of module m (an arm that follows another)
+//     that is not found in its world, which holds the modules that may be
+//     set after m while m's holes are worked (the checker's next module and
+//     the leaders' parts), is planned once more without them (run 022: in
+//     stages 2 and 3 a pin arm's swing from hole 2 to hole 3 passes where
+//     module m+1 would be). The set of each module that world lacks then
+//     starts only when that move has ended; the verifier holds it as it
+//     holds every move's world (what is there while it runs).
 //   - phases: per bay "tube in", "clamp", "rails", "modules", "end" and
 //     "transfer". For each stage, from its start (the clamp's end, or its
 //     transfer's) to its end (the next transfer's start, or the bay's end):
@@ -89,11 +97,12 @@ std::vector<std::unique_ptr<LayoutScene>> StageScenes(const Layout& layout,
                                                       double joint_margin_deg,
                                                       std::string* error);
 
-// For an arm that follows another in staged work: what the leading arms may
-// set before its move ends, kept to the stage (above). `phase` "rails"
-// adds the earlier stages' and this stage's rails, "modules" and "end" also
-// their modules; anything else adds nothing.
-void LeadersParts(const StageScope& stage, const std::string& phase, Built* b);
+// For an arm that follows another (bolts, pins): every part the leading
+// arms may set before its move ends, by the move's phase: "rails" adds all
+// rails, "modules" and "end" all rails and all nine modules, anything else
+// nothing. In staged work (`stage` given) "all" is the earlier stages' and
+// this stage's (above).
+void LeadersParts(const StageScope* stage, const std::string& phase, Built* b);
 
 // Where the tube stands at time t of a plan, for bay `bay`: the stage
 // (0-based), its offset from the first stage's place, and whether a

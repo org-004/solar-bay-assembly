@@ -100,6 +100,8 @@
 //     bay 0 starts every arm after its clamp, as before).
 // Staged work (a layout's "staging"): stage by stage, with a transfer
 // between stages, src/layout_plan_stages.h; without it nothing changes.
+// There an arm takes its pin magazine before its stage's first module set
+// and parks at its wait pose, and the stage's module sets wait for that.
 // The verifier holds all four (src/layout_bays.h, BetweenBays, and its own
 // check of each bay's events: an arm off its wait pose during a tube_in or
 // bay_out is measured against the tube or the bay where it is on its way;

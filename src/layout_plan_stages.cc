@@ -10,6 +10,7 @@
 #include <set>
 #include <utility>
 
+#include "src/bay_hardware.h"
 #include "src/layout_bays.h"
 #include "src/layout_stages.h"
 
@@ -94,13 +95,19 @@ std::vector<std::unique_ptr<LayoutScene>> StageScenes(const Layout& layout,
   return out;
 }
 
-void LeadersParts(const StageScope& stage, const std::string& phase, Built* b) {
+void LeadersParts(const StageScope* stage, const std::string& phase, Built* b) {
   if (phase != "rails" && phase != "modules" && phase != "end") return;
-  AddAll(stage.rails_before, &b->rails);
-  AddAll(stage.rails, &b->rails);
-  if (phase == "rails") return;
-  AddAll(stage.modules_before, &b->modules);
-  AddAll(stage.modules, &b->modules);
+  std::vector<int> rails, modules;
+  for (int k = 0; k < bay::kRailCount; ++k) rails.push_back(k);
+  for (int k = 0; k < bay::kModuleCount; ++k) modules.push_back(k);
+  if (stage != nullptr) {
+    rails = stage->rails_before;
+    rails.insert(rails.end(), stage->rails.begin(), stage->rails.end());
+    modules = stage->modules_before;
+    modules.insert(modules.end(), stage->modules.begin(), stage->modules.end());
+  }
+  AddAll(rails, &b->rails);
+  if (phase != "rails") AddAll(modules, &b->modules);
 }
 
 StagePlace StagePlaceAt(const Layout& layout, const std::vector<BayEvent>& events, int bay,
@@ -362,8 +369,9 @@ std::vector<std::string> StagedFaults(const LayoutScene& scene, const CheckRepor
           last = static_cast<int>(g);
         }
       }
+      if (last < 0) continue;  // A step left out: the verifier says so.
       double parked = -1.0;
-      for (size_t g = static_cast<size_t>(last + 1); last >= 0 && g < ap->segments.size(); ++g) {
+      for (size_t g = static_cast<size_t>(last + 1); g < ap->segments.size(); ++g) {
         const Segment& x = ap->segments[g];
         if (x.kind == "wait") continue;
         if (x.kind == "move" && !x.path.empty() && at_wait(arm, x.path.back())) parked = x.t1;
