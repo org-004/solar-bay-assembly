@@ -126,7 +126,12 @@ def norm_unit(name, unit):
 
 
 def items(reg, v):
-    """name -> {value, unit, known, rank, better, basis, source} for a version."""
+    """name -> {value, unit, known, rank, better, basis, source} for a version.
+
+    A cycle_s of a bay is marked "one_bay" when it is the time of one bay: a
+    version's own figure (no plan), or a scorecard whose plan holds one bay
+    (no interval_s). A scorecard of three bays back to back carries one_bay_s
+    and interval_s beside its cycle_s (docs/scorecard.md)."""
     out = {}
     for f in v.get("figures", []):
         out[f["name"]] = {"value": f.get("value"), "unit": norm_unit(f["name"], f.get("unit", "")),
@@ -137,7 +142,39 @@ def items(reg, v):
             out[m["name"]] = {"value": m.get("value"), "unit": norm_unit(m["name"], m.get("unit", "")),
                               "known": m.get("known", "none"), "rank": m.get("rank", ""),
                               "better": m.get("better", ""), "basis": m.get("basis", "")}
+        for f in card.get("figures", []):
+            out[f["name"]] = {"value": f.get("value"), "unit": f.get("unit", ""),
+                              "known": f.get("known", "none"), "basis": f.get("basis", "")}
+    cyc = out.get("cycle_s")
+    if cyc is not None and cyc["unit"] == "s per bay":
+        interval = out.get("interval_s")
+        cyc["one_bay"] = interval is None or interval["value"] is None
     return out
+
+
+def one_bay(reg, v):
+    """The time of one bay: one_bay_s beside a cycle of several bays, or a
+    cycle_s that is one bay's; none otherwise."""
+    its = items(reg, v)
+    if its.get("one_bay_s") is not None:
+        return with_unit("one_bay_s", its["one_bay_s"])
+    cyc = its.get("cycle_s")
+    if cyc is not None and cyc.get("one_bay") and cyc["value"] is not None:
+        return fmt("cycle_s", cyc["value"]) + " s"
+    return "none"
+
+
+def of_bays(reg, vs):
+    """Whether any of the versions has a cycle time of a bay (the column "One bay")."""
+    return any((items(reg, v).get("cycle_s") or {}).get("unit") == "s per bay" for v in vs)
+
+
+def cycle_cell(reg, v):
+    """cycle_s with its unit, marked "(one bay)" where it is one bay's."""
+    cyc = items(reg, v).get("cycle_s")
+    text = with_unit("cycle_s", cyc)
+    return text + (" (one bay)" if cyc is not None and cyc.get("one_bay") and cyc["value"] is not None
+                   else "")
 
 
 def fmt(name, value):
@@ -233,7 +270,8 @@ def caption_lines(reg, v):
     if cyc is None or cyc["value"] is None:
         parts.append("cycle time: none at this version")
     else:
-        parts.append("cycle %s (%s)" % (with_unit("cycle_s", cyc), cyc["known"]))
+        parts.append("cycle %s (%s%s)" % (with_unit("cycle_s", cyc), cyc["known"],
+                                          ", one bay" if cyc.get("one_bay") else ""))
     arms = its.get("arms")
     if arms is not None and arms["value"] is not None:
         n = int(round(arms["value"]))
@@ -258,6 +296,11 @@ def measure_table(card):
         rows.append([m.get("rank", ""), m["name"], fmt(m["name"], m.get("value")),
                      norm_unit(m["name"], m.get("unit", "")) or "-", m.get("better", ""),
                      m.get("known", ""), m.get("basis", "")])
+        if m["name"] == "cycle_s":
+            # Beside cycle_s, not ranked (docs/scorecard.md).
+            for f in card.get("figures", []):
+                rows.append(["not ranked", f["name"], fmt(f["name"], f.get("value")),
+                             f.get("unit", "") or "-", "-", f.get("known", ""), f.get("basis", "")])
     return table(["Rank", "Measure", "Value", "Unit", "Better", "How known", "Basis"], rows)
 
 
@@ -298,6 +341,8 @@ def compare_table(reg, prev, v):
         x, y = a[name], b[name]
         if x["value"] is None or y["value"] is None:
             diff = "not comparable: not known"
+        elif x.get("one_bay", False) != y.get("one_bay", False):
+            diff = "not comparable: one bay against the average of three"
         elif x["unit"] != y["unit"]:
             diff = "not comparable: %s vs %s" % (x["unit"] or "no unit", y["unit"] or "no unit")
         else:
@@ -326,13 +371,13 @@ def competition_table(reg, v, cands):
     rows = []
     for w in [v] + cands:
         rows.append([w["id"] + (" (this version)" if w is v else ""),
-                     cell(reg, w, "cycle_s"), plain(reg, w, "arms"), plain(reg, w, "part_count"),
+                     cycle_cell(reg, w), one_bay(reg, w), plain(reg, w, "arms"), plain(reg, w, "part_count"),
                      cell(reg, w, "mass_in_transit_kg"), plain(reg, w, "failures_per_bay"),
                      cycle_known(reg, w), "[%s](../evolution/%s)" % (recording_name(w), recording_name(w)),
                      "[%s](../../%s)" % (os.path.basename(w["layout"]["path"]), w["layout"]["path"])
                      if w.get("layout") else "none",
                      reg.commit_link(w), w["status"]])
-    return table(["Version", "Cycle time", "Arms", "Part count", "Mass in transit",
+    return table(["Version", "Cycle time", "One bay", "Arms", "Part count", "Mass in transit",
                   "Failures per bay", "Cycle time is", "Recording", "Layout", "Commit", "Status"], rows)
 
 
@@ -378,11 +423,17 @@ def direction_page(reg, d):
     L += ["## Progress", ""]
     rows = []
     for v in vs:
+        bay = [one_bay(reg, v)] if of_bays(reg, vs) else []
         rows.append([v["id"], v["date"], v["title"] + (" (candidate)" if v["status"] == "candidate" else ""),
-                     cell(reg, v, "cycle_s"), plain(reg, v, "arms"), plain(reg, v, "part_count"),
+                     cycle_cell(reg, v)] + bay + [plain(reg, v, "arms"), plain(reg, v, "part_count"),
                      cell(reg, v, "mass_in_transit_kg"), cycle_known(reg, v)])
-    L += table(["Version", "Date", "Title", "Cycle time", "Arms", "Part count", "Mass in transit",
-                "Cycle time is"], rows) + [""]
+    L += table(["Version", "Date", "Title", "Cycle time"] + (["One bay"] if of_bays(reg, vs) else [])
+               + ["Arms", "Part count", "Mass in transit", "Cycle time is"], rows) + [""]
+    if any(items(reg, v).get("one_bay_s") is not None for v in vs):
+        L += ["The cycle time of a version with a plan is the average bay of three bays planned back "
+              "to back, (end of bay 2's bay out \u2212 start of bay 0's tube in) / 3; \"One bay\" is its "
+              "bay 0 alone, from tube in to bay out. A version without a plan has the time of one bay, "
+              "marked so ([the scorecard](../scorecard.md)).", ""]
     unit = chart_unit(reg, vs)
     if unit is None:
         L += ["No version of this direction has a cycle time yet, so there is no chart.", ""]
@@ -390,6 +441,9 @@ def direction_page(reg, d):
         L += ["![Cycle time of each version](%s-cycle.svg)" % d["id"], "",
               "A filled circle is a cycle time that is planned, a square one that is measured, a hollow "
               "circle one that is modelled; a lighter marker is a candidate that was not chosen."]
+        if any(items(reg, v).get("one_bay_s") is not None for v in vs):
+            L[-1] += (" A value marked \"1 bay\" is one bay's; the others are the average of three bays "
+                      "back to back.")
         left = [v["id"] for v in vs if (items(reg, v).get("cycle_s") or {}).get("value") is not None
                 and items(reg, v)["cycle_s"]["unit"] != unit]
         if left:
@@ -484,8 +538,11 @@ def chart_svg(reg, d):
         else:
             S.append('<circle cx="%.2f" cy="%.2f" r="5" fill="%s" stroke="%s" stroke-width="2"/>'
                      % (X(i), Y(it["value"]), fill, colour))
+        label = fmt("cycle_s", it["value"])
+        if it.get("one_bay") and any(items(reg, w).get("one_bay_s") is not None for w in vs):
+            label += " (1 bay)"
         S.append('<text x="%.2f" y="%.2f" text-anchor="middle" fill="#222222">%s</text>'
-                 % (X(i), Y(it["value"]) - 10, fmt("cycle_s", it["value"])))
+                 % (X(i), Y(it["value"]) - 10, xml_escape(label)))
     ly = H - 12
     S.append('<circle cx="%d" cy="%d" r="4" fill="#1f5fa8" stroke="#1f5fa8" stroke-width="2"/>' % (ml, ly - 4))
     S.append('<text x="%d" y="%d" fill="#444444">planned</text>' % (ml + 10, ly))
@@ -512,12 +569,14 @@ def results_block(reg):
             continue
         card = reg.card(best)
         L += ["![%s](%s)" % (alt_text(reg, best), best["recording"]), ""]
-        row = [best["id"], cell(reg, best, "cycle_s") + ("" if cycle_known(reg, best) == "none"
-               else " (%s)" % cycle_known(reg, best)),
+        bay = of_bays(reg, [best])
+        row = [best["id"], cycle_cell(reg, best) + ("" if cycle_known(reg, best) == "none"
+               else " (%s)" % cycle_known(reg, best))] + ([one_bay(reg, best)] if bay else []) + [
                plain(reg, best, "failures_per_bay"), plain(reg, best, "arms"), plain(reg, best, "part_count"),
                known_cell(reg, best, "placement_mm"), cell(reg, best, "mass_in_transit_kg"),
                gate_status(card) if card else "none"]
-        L += table(["Version", "Cycle time", "Failures per bay", "Arms", "Part count", "Placement error",
+        L += table(["Version", "Cycle time"] + (["One bay"] if bay else []) + ["Failures per bay", "Arms",
+                    "Part count", "Placement error",
                     "Mass in transit", "Gates"], [row]) + ["", link, ""]
     return "\n".join(L)
 

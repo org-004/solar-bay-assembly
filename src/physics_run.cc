@@ -418,7 +418,7 @@ std::unique_ptr<PhysicsRun> PhysicsRun::Create(const Layout& layout, const Plan&
   r.plan = &plan;
   r.options = options;
   r.result.layout = layout.name;
-  r.result.cycle_s = plan.bay_planned_s;
+  r.result.one_bay_s = plan.bay_planned_s;
   if (!(options.timestep > 0.0) || !(options.sample_s >= options.timestep)) {
     return fail("the timestep must be positive and no more than sample_s");
   }
@@ -788,8 +788,8 @@ std::string PhysicsText(const PhysicsResult& r) {
   for (const PhysicsStep& s : rec.steps) {
     t += Fmt("  step %d: %s\n", s.number, s.counted ? "counts" : "does not count");
   }
-  t += Fmt("counted %.6f s of cycle_s %.6f s: physics_share %.6f\n", rec.counted_s, r.cycle_s,
-           r.cycle_s > 0.0 ? rec.counted_s / r.cycle_s : 0.0);
+  t += Fmt("counted %.6f s of one_bay_s %.6f s: physics_share %.6f\n", rec.counted_s,
+           r.one_bay_s, r.one_bay_s > 0.0 ? rec.counted_s / r.one_bay_s : 0.0);
   return t;
 }
 

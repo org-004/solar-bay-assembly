@@ -17,6 +17,7 @@
 #include <gtest/gtest.h>
 
 #include "src/layout.h"
+#include "src/layout_bays.h"
 #include "src/layout_model.h"
 #include "src/layout_plan.h"
 #include "src/physics_record.h"
@@ -139,7 +140,56 @@ TEST(Scorecard, EveryStepOfEveryPlanMaps) {
     ASSERT_TRUE(counts.has_value()) << name << ": " << error;
     int total = 0;
     for (const OperationCount& c : *counts) total += c.count;
-    EXPECT_GE(total, static_cast<int>(in->plan.steps.size())) << name;
+    int steps = 0;  // One bay's: bay 0's.
+    for (const StepTime& t : in->plan.steps) steps += t.bay == 0 ? 1 : 0;
+    EXPECT_GE(total, steps) << name;
+    // Every step of every bay maps, though only bay 0's are counted.
+    for (const StepTime& t : in->plan.steps) {
+      EXPECT_FALSE(OperationKinds(t).empty()) << name << " step " << t.number;
+    }
+  }
+}
+
+// cycle_s, one_bay_s and interval_s of every committed card are the plan's
+// CycleFiguresOf, rounded as the card rounds them.
+TEST(Scorecard, TheCycleFiguresAreThePlans) {
+  for (const std::string& name : PlanNames()) {
+    const std::optional<Inputs> in = Read(name);
+    ASSERT_TRUE(in.has_value()) << name;
+    std::string error;
+    const std::optional<Scorecard> card = ScorecardFromJson(
+        ReadFile(Dir("SCORES_DIR", "scores") + "/" + name + ".json"), &error);
+    ASSERT_TRUE(card.has_value()) << name << ": " << error;
+    const CycleFigures cycle = CycleFiguresOf(in->plan);
+    ASSERT_EQ(cycle.bays, 3) << name;
+    auto rounded = [](double v) { return std::round(v * 1e6) / 1e6; };
+    const Measure* m = FindMeasure(*card, "cycle_s");
+    ASSERT_NE(m, nullptr) << name;
+    EXPECT_EQ(m->value, rounded(cycle.cycle_s)) << name;
+    EXPECT_EQ(m->known, "planned");
+    ASSERT_EQ(card->figures.size(), 2u) << name;
+    EXPECT_EQ(card->figures[0].name, "one_bay_s");
+    EXPECT_EQ(card->figures[0].value, rounded(cycle.one_bay_s)) << name;
+    EXPECT_EQ(card->figures[0].value, rounded(in->plan.bay_planned_s)) << name;
+    EXPECT_EQ(card->figures[1].name, "interval_s");
+    EXPECT_EQ(card->figures[1].value, rounded(cycle.interval_s)) << name;
+  }
+}
+
+// failures_per_bay counts one bay: bay 0's steps, one tube in and one bay out.
+TEST(Scorecard, TheOperationsAreOneBays) {
+  for (const std::string& name : PlanNames()) {
+    const std::optional<Inputs> in = Read(name);
+    ASSERT_TRUE(in.has_value()) << name;
+    std::string error;
+    const auto counts = CountOperations(in->plan, in->rates, &error);
+    ASSERT_TRUE(counts.has_value()) << name << ": " << error;
+    for (const OperationCount& c : *counts) {
+      if (c.kind == "tube_in" || c.kind == "bay_out" || c.kind == "clamp") {
+        EXPECT_EQ(c.count, 1) << name << " " << c.kind;
+      }
+      if (c.kind == "locate") EXPECT_EQ(c.count, 36) << name;
+    }
   }
 }
 
@@ -187,7 +237,12 @@ TEST(Scorecard, TheChosenLayoutsCard) {
   };
   ASSERT_EQ(card->measures.size(), 10u);
   EXPECT_EQ(value("arms"), 4.0);
-  EXPECT_EQ(value("cycle_s"), 644.284416);
+  // One bay is v09's bay as it was planned before the plans held three.
+  ASSERT_EQ(card->figures.size(), 2u);
+  EXPECT_EQ(card->figures[0].name, "one_bay_s");
+  EXPECT_EQ(card->figures[0].value, 644.284416);
+  EXPECT_EQ(card->figures[1].name, "interval_s");
+  EXPECT_LT(value("cycle_s"), 644.284416);
   EXPECT_EQ(value("physics_share"), 0.0);
   EXPECT_FALSE(value("placement_mm").has_value());
   EXPECT_FALSE(value("input_tolerance").has_value());

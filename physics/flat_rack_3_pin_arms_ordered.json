@@ -1,7 +1,7 @@
 {
   "layout": "flat_rack_3_pin_arms_ordered",
   "layout_sha256": "fd836ffa497b16e91c0ffdeef360b678367275f0e49a70dac36545cafb3e2963",
-  "plan_sha256": "99f1797e5990eb9f3445b65beee65a01221d5290d1dd8a8546c0fbeb2b68c19c",
+  "plan_sha256": "63afb2c72751cd3d6fc8d5a8c196686edef98fa389561a98c910e5c573b1465a",
   "command": "bazel run --config=opt //:run_physics -- flat_rack_3_pin_arms_ordered --write",
   "module": 4,
   "take": 2,

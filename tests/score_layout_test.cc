@@ -52,6 +52,10 @@ TEST(ScoreLayout, PrintsEveryMeasureAndGateOfTheChosenLayout) {
         "plan_s"}) {
     EXPECT_FALSE(RowOf(run.out, name).empty()) << name << " in\n" << run.out;
   }
+  // Beside cycle_s, not ranked.
+  for (const char* name : {"one_bay_s", "interval_s"}) {
+    EXPECT_FALSE(RowOf(run.out, name).empty()) << name << " in\n" << run.out;
+  }
   for (const char* name :
        {"check_rows_failed", "least_clearance_m", "mass_in_transit_kg"}) {
     EXPECT_NE(run.out.find(std::string("\n") + name), std::string::npos) << name;
@@ -70,6 +74,9 @@ TEST(ScoreLayout, AllListsEveryScoredLayout) {
   EXPECT_EQ(run.exit_code, 0) << run.out;
   EXPECT_FALSE(RowOf(run.out, "flat_rack_2_pin_arms").empty()) << run.out;
   EXPECT_FALSE(RowOf(run.out, "flat_rack_3_pin_arms").empty()) << run.out;
+  for (const char* name : {"cycle_s", "one_bay_s", "interval_s"}) {
+    EXPECT_NE(run.out.find(name), std::string::npos) << name << " in\n" << run.out;
+  }
 }
 
 TEST(ScoreLayout, JsonReadsBack) {
@@ -80,6 +87,9 @@ TEST(ScoreLayout, JsonReadsBack) {
   ASSERT_TRUE(card.has_value()) << error;
   EXPECT_EQ(card->layout, "flat_rack_3_pin_arms");
   EXPECT_EQ(card->measures.size(), 10u);
+  ASSERT_EQ(card->figures.size(), 2u);
+  EXPECT_EQ(card->figures[0].name, "one_bay_s");
+  EXPECT_EQ(card->figures[1].name, "interval_s");
 }
 
 }  // namespace

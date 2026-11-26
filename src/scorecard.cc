@@ -22,6 +22,7 @@
 #include <nlohmann/json.hpp>
 
 #include "src/layout.h"
+#include "src/layout_bays.h"
 #include "src/layout_check.h"
 #include "src/layout_model.h"
 #include "src/layout_plan.h"
@@ -230,6 +231,7 @@ std::optional<std::vector<OperationCount>> CountOperations(
     out.push_back(o);
   }
   for (const StepTime& step : plan.steps) {
+    if (step.bay != 0) continue;  // One bay's operations.
     const std::vector<std::string> kinds = OperationKinds(step);
     const std::string where =
         "step " + std::to_string(step.number) + " \"" + step.what + "\"";
@@ -317,8 +319,8 @@ std::vector<MassLeftOut> MassLeftOutOfTransit(const Layout& layout) {
 namespace {
 
 // physics_share: 0 without a record or with one that does not agree with the
-// committed plan, else the planned seconds that count over cycle_s.
-Measure PhysicsShare(const std::string& name, const Plan& plan,
+// committed plan, else the planned seconds that count over one_bay_s.
+Measure PhysicsShare(const std::string& name, const Plan& plan, double one_bay_s,
                      const std::string& plan_sha256,
                      const PhysicsRecord* physics) {
   if (physics == nullptr) {
@@ -341,11 +343,11 @@ Measure PhysicsShare(const std::string& name, const Plan& plan,
     steps += (steps.empty() ? "" : ", ") + std::to_string(s.number);
   }
   char seconds[64];
-  std::snprintf(seconds, sizeof(seconds), "%.6f s of %.6f s counted",
-                CountedSeconds(*physics), plan.bay_planned_s);
+  std::snprintf(seconds, sizeof(seconds), "%.6f s of one bay's %.6f s counted",
+                CountedSeconds(*physics), one_bay_s);
   return MakeMeasure(
       "physics_share", "P0",
-      Round(CountedSeconds(*physics) / plan.bay_planned_s, 6), "1", "higher",
+      Round(CountedSeconds(*physics) / one_bay_s, 6), "1", "higher",
       "measured",
       file + ": " + (steps.empty() ? "no step" : "steps " + steps) +
           " of module " + std::to_string(physics->module) +
@@ -389,17 +391,27 @@ std::optional<Scorecard> ComputeScorecard(
   mass = Round(mass, 1);
   const int arms = static_cast<int>(layout.arms.size());
 
+  const CycleFigures cycle = CycleFiguresOf(plan);
+  const double one_bay = cycle.bays > 0 ? cycle.one_bay_s : plan.bay_planned_s;
+  const int bays = std::max(1, cycle.bays);
+  char how[256];
+  std::snprintf(how, sizeof(how),
+                "the committed plan's %d bays back to back: (end of bay %d's bay_out - "
+                "start of bay 0's tube_in) / %d; kinematic, on assumed speeds and "
+                "process times",
+                bays, bays - 1, bays);
   card.measures = {
-      MakeMeasure("cycle_s", "P0", Round(plan.bay_planned_s, 6), "s", "lower",
-                  "planned",
-                  "the committed plan's bay_planned_s: kinematic, on assumed "
-                  "speeds and process times"),
+      MakeMeasure("cycle_s", "P0", Round(cycle.bays > 0 ? cycle.cycle_s : one_bay, 6), "s",
+                  "lower", "planned",
+                  bays > 1 ? std::string(how)
+                           : "the committed plan's one bay, from tube in to bay out: "
+                             "kinematic, on assumed speeds and process times"),
       MakeMeasure("failures_per_bay", "P0", Sig6(failures), "1", "lower",
                   "modelled",
                   "count of operations by kind x rates of scores/rates.json; " +
                       Percent(on_ours, failures) +
                       " of it on rates of basis ours"),
-      PhysicsShare(layout.name, plan, plan_sha256, physics),
+      PhysicsShare(layout.name, plan, one_bay, plan_sha256, physics),
       MakeMeasure("part_count", "P1", Total(card.part_count), "1", "lower",
                   "counted", "pieces of equipment by the rule of "
                              "docs/scorecard.md"),
@@ -421,6 +433,17 @@ std::optional<Scorecard> ComputeScorecard(
       MakeMeasure("plan_s", "P2", std::nullopt, "s", "lower", "none",
                   "the committed plan does not hold the time plan_layout "
                   "took"),
+  };
+
+  card.figures = {
+      {"one_bay_s", Round(one_bay, 6), "s", "planned",
+       "bay 0 of the committed plan alone, from the start of its tube_in to the end of "
+       "its bay_out"},
+      bays > 1 ? Figure{"interval_s", Round(cycle.interval_s, 6), "s", "planned",
+                        "from the end of bay " + std::to_string(bays - 2) +
+                            "'s bay_out to the end of bay " + std::to_string(bays - 1) + "'s"}
+               : Figure{"interval_s", std::nullopt, "s", "none",
+                        "the committed plan holds one bay"},
   };
 
   Gate rows;
@@ -483,6 +506,17 @@ std::string ScorecardToJson(const Scorecard& card) {
     measures.push_back(e);
   }
   j["measures"] = measures;
+  OJson figures = OJson::array();
+  for (const Figure& f : card.figures) {
+    OJson e = OJson::object();
+    e["name"] = f.name;
+    e["value"] = f.value ? OJson(*f.value) : OJson(nullptr);
+    e["unit"] = f.unit;
+    e["known"] = f.known;
+    e["basis"] = f.basis;
+    figures.push_back(e);
+  }
+  j["figures"] = figures;
   OJson gates = OJson::array();
   for (const Gate& g : card.gates) {
     OJson e = OJson::object();
@@ -564,6 +598,17 @@ std::optional<Scorecard> ScorecardFromJson(const std::string& text,
       m.basis = e.at("basis").get<std::string>();
       card.measures.push_back(m);
     }
+    if (j.contains("figures")) {
+      for (const nlohmann::json& e : j.at("figures")) {
+        Figure f;
+        f.name = e.at("name").get<std::string>();
+        if (!e.at("value").is_null()) f.value = e.at("value").get<double>();
+        f.unit = e.at("unit").get<std::string>();
+        f.known = e.at("known").get<std::string>();
+        f.basis = e.at("basis").get<std::string>();
+        card.figures.push_back(f);
+      }
+    }
     card.pass = true;
     for (const nlohmann::json& e : j.at("gates")) {
       Gate g;
@@ -624,6 +669,13 @@ std::string ScorecardText(const Scorecard& card) {
                      m.better, m.known, m.basis});
   }
   out += Aligned(table) + "\n";
+  if (!card.figures.empty()) {
+    table = {{"figure", "value", "unit", "known", "basis"}};
+    for (const Figure& f : card.figures) {
+      table.push_back({f.name, f.value ? Num(*f.value) : "none", f.unit, f.known, f.basis});
+    }
+    out += "# beside cycle_s, not ranked\n" + Aligned(table) + "\n";
+  }
   table = {{"gate", "figure", "limit", "unit", "pass", "basis"}};
   for (const Gate& g : card.gates) {
     table.push_back({g.name, Num(g.figure), g.holds + " " + Num(g.limit), g.unit,
@@ -658,7 +710,11 @@ std::string ScorecardsTable(const std::vector<Scorecard>& cards) {
   std::vector<std::vector<std::string>> table;
   std::vector<std::string> head = {"layout"};
   if (!cards.empty()) {
-    for (const Measure& m : cards.front().measures) head.push_back(m.name);
+    for (const Measure& m : cards.front().measures) {
+      head.push_back(m.name);
+      if (m.name != "cycle_s") continue;
+      for (const Figure& f : cards.front().figures) head.push_back(f.name);
+    }
   }
   head.push_back("gates");
   table.push_back(head);
@@ -666,6 +722,8 @@ std::string ScorecardsTable(const std::vector<Scorecard>& cards) {
     std::vector<std::string> row = {c.layout};
     for (const Measure& m : c.measures) {
       row.push_back(m.value ? Num(*m.value) : "none");
+      if (m.name != "cycle_s") continue;
+      for (const Figure& f : c.figures) row.push_back(f.value ? Num(*f.value) : "none");
     }
     std::string failing;
     for (const Gate& g : c.gates) {

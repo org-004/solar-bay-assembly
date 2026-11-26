@@ -1,18 +1,18 @@
 {
   "layout": "flat_rack_3_pin_arms_ordered",
   "layout_sha256": "fd836ffa497b16e91c0ffdeef360b678367275f0e49a70dac36545cafb3e2963",
-  "plan_sha256": "99f1797e5990eb9f3445b65beee65a01221d5290d1dd8a8546c0fbeb2b68c19c",
+  "plan_sha256": "63afb2c72751cd3d6fc8d5a8c196686edef98fa389561a98c910e5c573b1465a",
   "rates_sha256": "92ab60e5a186cfa526dc292ba67cf3583391499d692475f143aaa1287ab63614",
-  "physics_sha256": "f07da0edd319562f81b9d5b0a39f86c079d1efc57cacebd19bbf7985d5718192",
+  "physics_sha256": "fa4cbf5c024d4b662107ec4df785b002a1d6d9b7f418a0dfd93437f04c3ead9e",
   "measures": [
     {
       "name": "cycle_s",
       "rank": "P0",
-      "value": 560.452329,
+      "value": 554.548896,
       "unit": "s",
       "better": "lower",
       "known": "planned",
-      "basis": "the committed plan's bay_planned_s: kinematic, on assumed speeds and process times"
+      "basis": "the committed plan's 3 bays back to back: (end of bay 2's bay_out - start of bay 0's tube_in) / 3; kinematic, on assumed speeds and process times"
     },
     {
       "name": "failures_per_bay",
@@ -30,7 +30,7 @@
       "unit": "1",
       "better": "higher",
       "known": "measured",
-      "basis": "physics/flat_rack_3_pin_arms_ordered.json: steps 63, 64 of module 4 carried out in physics, 22.068854 s of 560.452329 s counted"
+      "basis": "physics/flat_rack_3_pin_arms_ordered.json: steps 63, 64 of module 4 carried out in physics, 22.068854 s of one bay's 560.452329 s counted"
     },
     {
       "name": "part_count",
@@ -94,6 +94,22 @@
       "better": "lower",
       "known": "none",
       "basis": "the committed plan does not hold the time plan_layout took"
+    }
+  ],
+  "figures": [
+    {
+      "name": "one_bay_s",
+      "value": 560.452329,
+      "unit": "s",
+      "known": "planned",
+      "basis": "bay 0 of the committed plan alone, from the start of its tube_in to the end of its bay_out"
+    },
+    {
+      "name": "interval_s",
+      "value": 554.493207,
+      "unit": "s",
+      "known": "planned",
+      "basis": "from the end of bay 1's bay_out to the end of bay 2's"
     }
   ],
   "gates": [
