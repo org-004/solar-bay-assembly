@@ -334,6 +334,28 @@ struct Approach {
   std::string basis;
 };
 
+// The order of the bay's work, where it differs from the plain one (an
+// optional field "order" of a layout on the flat rack; without it every
+// member has its default, which is the order of run 011). The planner's
+// rules for each member are in the opening comment of src/layout_plan.h.
+struct WorkOrder {
+  // The bay's modules in the order they are set: the k-th module taken (the
+  // nearest left on the pallet, module_take point k) is set as bay module
+  // modules[k]. A permutation of 0..8; empty: 0, 1, ..., 8.
+  std::vector<int> modules;
+  // When the first module may be taken: "after_all_bolts" (once every strap
+  // bolt is driven) or "after_their_rails" (each module once the strap bolts
+  // of its own two rails are driven).
+  std::string modules_start = "after_all_bolts";
+  // When an arm with holes changes to its pin tool and takes its magazine:
+  // "just_in_time" (for its first hole, once that hole's module is set) or
+  // "early" (as soon as its work before is done; it then waits for the
+  // module where the magazine take's retreat left it).
+  std::string pin_tools = "just_in_time";
+  std::string note;
+  std::string basis;
+};
+
 struct Layout {
   std::string name;            // The file's stem.
   std::string title;
@@ -354,6 +376,7 @@ struct Layout {
   std::vector<Work> work;
   // "all_rails_then_all_bolts" or "each_rail_then_its_bolt".
   std::string rail_order;
+  WorkOrder order;                    // Only with base "flat_rack"; optional.
   std::vector<Item> items;
   std::vector<Port> ports;            // Only with base "flat_rack".
   std::vector<Approach> approaches;   // Only with base "flat_rack"; one a kind.
@@ -389,6 +412,10 @@ std::vector<int> PointsOf(const Layout& layout, const Work& work);
 // strap_bolt 10, module_set 9, locate, pin and swage 36, module_take the
 // modules of all pallets, pins_take the number of stocks of pins.
 int PointCount(const Layout& layout, const std::string& kind);
+// The bay's modules in the order they are set (WorkOrder::modules, or
+// 0..8 when the layout gives none), and the inverse: where module m comes.
+std::vector<int> ModuleOrder(const Layout& layout);
+std::vector<int> ModulePositions(const Layout& layout);
 // The stocks of pins in the file's order: named "pins" or "pins_...".
 std::vector<const Stock*> PinStocks(const Layout& layout);
 // The names of the arms that have a point of any of these kinds, in the

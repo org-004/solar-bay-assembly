@@ -647,7 +647,8 @@ Layout ReadLayout(const Json& j) {
            {"name", "title", "summary", "small_arms_stand", "base",
             "flat_rack", "margins", "ports", "approaches", "tube", "holder",
             "arms", "pallets", "stocks", "strap_bolts_from", "tube_in",
-            "bay_out", "work", "rail_order", "items"});
+            "bay_out", "work", "rail_order", "items"},
+           {"order"});
   } else {
     throw LayoutError("base", "is \"container\" or \"flat_rack\", not \"" +
                                   l.base + "\"");
@@ -760,6 +761,46 @@ Layout ReadLayout(const Json& j) {
   }
   Unique(l.items, "items", "item");
   if (!flat_rack) return l;
+
+  if (j.contains("order")) {
+    const Json& o = j.at("order");
+    const std::string op = "order";
+    Fields(o, op, {"modules", "modules_start", "pin_tools", "note", "basis"});
+    const Json& mods = o.at("modules");
+    Array(mods, Sub(op, "modules"));
+    const int n = PointCount(l, "module_set");
+    std::vector<bool> seen(n, false);
+    for (size_t i = 0; i < mods.size(); ++i) {
+      const int m = Integer(mods[i], At(Sub(op, "modules"), i));
+      if (m < 0 || m >= n || seen[m]) {
+        throw LayoutError(At(Sub(op, "modules"), i),
+                          "is not one of the modules 0.." +
+                              std::to_string(n - 1) + " not named before");
+      }
+      seen[m] = true;
+      l.order.modules.push_back(m);
+    }
+    if (static_cast<int>(l.order.modules.size()) != n) {
+      throw LayoutError(Sub(op, "modules"),
+                        "names " + std::to_string(l.order.modules.size()) +
+                            " modules, not all " + std::to_string(n));
+    }
+    l.order.modules_start = String(FIELD(o, op, "modules_start"));
+    if (l.order.modules_start != "after_all_bolts" &&
+        l.order.modules_start != "after_their_rails") {
+      throw LayoutError(Sub(op, "modules_start"),
+                        "is \"after_all_bolts\" or \"after_their_rails\", not \"" +
+                            l.order.modules_start + "\"");
+    }
+    l.order.pin_tools = String(FIELD(o, op, "pin_tools"));
+    if (l.order.pin_tools != "just_in_time" && l.order.pin_tools != "early") {
+      throw LayoutError(Sub(op, "pin_tools"),
+                        "is \"just_in_time\" or \"early\", not \"" +
+                            l.order.pin_tools + "\"");
+    }
+    l.order.note = String(FIELD(o, op, "note"));
+    l.order.basis = String(FIELD(o, op, "basis"));
+  }
 
   const Json& ports = j.at("ports");
   Array(ports, "ports");
@@ -945,6 +986,20 @@ int PointCount(const Layout& layout, const std::string& kind) {
   }
   if (kind == "pins_take") return static_cast<int>(PinStocks(layout).size());
   return 0;
+}
+
+std::vector<int> ModuleOrder(const Layout& layout) {
+  if (!layout.order.modules.empty()) return layout.order.modules;
+  std::vector<int> order(PointCount(layout, "module_set"));
+  for (size_t k = 0; k < order.size(); ++k) order[k] = static_cast<int>(k);
+  return order;
+}
+
+std::vector<int> ModulePositions(const Layout& layout) {
+  const std::vector<int> order = ModuleOrder(layout);
+  std::vector<int> pos(order.size());
+  for (size_t k = 0; k < order.size(); ++k) pos[order[k]] = static_cast<int>(k);
+  return pos;
 }
 
 std::vector<const Stock*> PinStocks(const Layout& layout) {

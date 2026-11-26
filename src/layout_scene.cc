@@ -331,6 +331,20 @@ StepScene LayoutScene::AtWorkPoint(const WorkPoint& p, Leg leg) const {
                ? H.pallet_module_geoms[j]
                : none;
   };
+  // The modules in the order they are set (src/layout.h, WorkOrder): the
+  // first k of them, sorted, are on the bay once k have been set.
+  const std::vector<int> order = ModuleOrder(layout_);
+  const std::vector<int> pos = ModulePositions(layout_);
+  auto set_before = [&](int k) {
+    k = std::clamp(k, 0, M);
+    std::vector<int> v(order.begin(), order.begin() + k);
+    std::sort(v.begin(), v.end());
+    return v;
+  };
+  // Whether module a is set before module b.
+  auto set_earlier = [&](int a, int b) {
+    return a >= 0 && a < M && b >= 0 && b < M && pos[a] < pos[b];
+  };
   DesignPairs& d = s.pairs;
   Built b;
   b.on_pallets = pallet_total;
@@ -351,7 +365,7 @@ StepScene LayoutScene::AtWorkPoint(const WorkPoint& p, Leg leg) const {
     Insert(&d.last_near, H.tube_geoms);
   } else if (kind == "module_take") {
     b.rails = Range(R);
-    b.modules = Range(std::min(p.index, M));
+    b.modules = set_before(std::min(p.index, M));
     b.on_pallets = pallet_total - p.index - 1;  // Module j is the one held.
     // It touches module j+1 behind (or below) it on its pallet, and the
     // deck it stands on (flat: only the last of its pallet).
@@ -370,21 +384,34 @@ StepScene LayoutScene::AtWorkPoint(const WorkPoint& p, Leg leg) const {
     }
   } else if (kind == "module_set") {
     b.rails = Range(R);
-    b.modules = Range(p.index);
-    b.on_pallets = pallet_total - p.index - 1;
+    const int k = p.index >= 0 && p.index < M ? pos[p.index] : p.index;
+    b.modules = set_before(k);
+    b.on_pallets = pallet_total - k - 1;
     Insert(&d.held_skip, rail(p.index));
     Insert(&d.held_skip, rail(p.index + 1));
     Insert(&d.held_near, module(p.index - 1));
+    // Set out of order, a module may have its neighbour on either side.
+    if (set_earlier(p.index + 1, p.index)) Insert(&d.held_near, module(p.index + 1));
   } else if (kind == "locate" || kind == "pin" || kind == "swage") {
+    const int k = p.module >= 0 && p.module < M ? pos[p.module] : p.module;
     b.rails = Range(R);
-    b.modules = Range(p.module + 1);
-    b.on_pallets = pallet_total - p.module - 1;
+    b.modules = set_before(k + 1);
+    b.on_pallets = pallet_total - k - 1;
     // The nose goes into the holes of the rail and the module it joins.
     Insert(&d.last_near, rail(p.rail));
     Insert(&d.last_near, module(p.module));
     s.built.push_back(b);
-    if (p.module + 1 < M) {
-      b.modules = Range(p.module + 2);
+    if (k + 1 < M) {
+      // The next module set, and both neighbours, which a module arm that
+      // runs ahead may set while these holes are worked.
+      std::vector<int> more = set_before(k + 2);
+      for (int nb : {p.module - 1, p.module + 1}) {
+        if (nb >= 0 && nb < M && std::find(more.begin(), more.end(), nb) == more.end()) {
+          more.push_back(nb);
+        }
+      }
+      std::sort(more.begin(), more.end());
+      b.modules = more;
     } else {
       return s;
     }
@@ -424,7 +451,8 @@ StepScene LayoutScene::AtWorkPoint(const WorkPoint& p, Leg leg) const {
         x.rails = Range(p.index + 1);
         Insert(&s.pairs.tool_near, rail(p.index));
       } else {
-        x.modules = Range(p.index + 1);
+        x.modules = set_before(
+            (p.index >= 0 && p.index < M ? pos[p.index] : p.index) + 1);
         Insert(&s.pairs.tool_near, module(p.index));
       }
     }

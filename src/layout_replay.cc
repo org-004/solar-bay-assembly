@@ -1093,15 +1093,22 @@ class Verifier {
       }
       if (s.kind == "wait") {
         if (s.reason.empty()) Fault(where + " is a wait with no reason");
-        // R21: an arm waits at its wait pose or where its last retreat ended.
+        // R21: an arm waits at its wait pose, where its last retreat ended,
+        // or at the tool-change pose where it has just changed its tool.
         int before = static_cast<int>(g) - 1;
         while (before >= 0 && segs[before].kind == "wait") --before;
         const bool after_retreat = before >= 0 && segs[before].kind == "retreat" &&
                                    !segs[before].path.empty() &&
                                    MaxDiff(segs[before].path.back(), s.path.front()) <= kSameConfig;
-        if (!after_retreat && !Off(i, s.tool, s.path.front(), WaitPose(i)).empty()) {
-          Fault(where + " stands neither at the arm's wait pose nor where a retreat just before "
-                        "it ended");
+        const BayStep* by = before >= 0 ? Step(segs[before].step) : nullptr;
+        const bool after_tool_change = before >= 0 && segs[before].kind == "work" &&
+                                       by != nullptr && by->kind == "tool_change" &&
+                                       !segs[before].path.empty() &&
+                                       MaxDiff(segs[before].path.back(), s.path.front()) <= kSameConfig;
+        if (!after_retreat && !after_tool_change &&
+            !Off(i, s.tool, s.path.front(), WaitPose(i)).empty()) {
+          Fault(where + " stands neither at the arm's wait pose, where a retreat just before "
+                        "it ended, nor where a tool change just before it ended");
         }
         if (s.t1 - s.t0 > tol) {
           ++r_->waits;
@@ -1615,7 +1622,22 @@ class Verifier {
         }
         last_hole[m] = s.number;
       }
-      if (s.kind == "module_take" && first_take) {
+      if (s.kind == "module_take" && L_.order.modules_start == "after_their_rails") {
+        // src/layout.h, WorkOrder: the take of module m after the bolts of
+        // rails m and m+1.
+        const std::vector<int> order = ModuleOrder(L_);
+        if (s.index >= 0 && s.index < static_cast<int>(order.size())) {
+          const int m = order[s.index];
+          for (int rail : {m, m + 1}) {
+            auto it = number.find({"strap_bolt", rail});
+            if (it == number.end()) continue;
+            auto t = times_.find(it->second);
+            if (t != times_.end()) {
+              before(t->second.end, Fmt("rail %d's strap bolt is driven", rail));
+            }
+          }
+        }
+      } else if (s.kind == "module_take" && first_take) {
         first_take = false;
         before(last_strap_end_, "the last strap bolt is driven");
       }
