@@ -2164,7 +2164,8 @@ cc_test(
     ],
 )
 
-# Replays the committed plan of the chosen layout without planning anything.
+# The replay's pieces (motion, the plan file, the player) and the committed
+# plans' order of work, without planning anything.
 #   bazel test --config=opt //:plan_replay_test
 cc_test(
     name = "plan_replay_test",
@@ -2179,6 +2180,24 @@ cc_test(
         ":layout_plan",
         "@googletest//:gtest_main",
         "@nlohmann_json//:json",
+    ],
+)
+
+# The committed plan of the chosen layout verified whole, broken and
+# tampered with.
+#   bazel test --config=opt //:plan_replay_committed_test
+cc_test(
+    name = "plan_replay_committed_test",
+    size = "medium",
+    srcs = ["tests/plan_replay_committed_test.cc"],
+    data = LAYOUT_FILES + LAYOUT_MODEL_FILES + PLAN_FILES,
+    env = LAYOUT_ENV | {"PLAN_DIR": "plans"},
+    deps = [
+        ":layout",
+        ":layout_check",
+        ":layout_model",
+        ":layout_plan",
+        "@googletest//:gtest_main",
     ],
 )
 # END layout_plan
