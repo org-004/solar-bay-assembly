@@ -88,8 +88,8 @@ gate adds about 4 on four cores.
   test; bound a count.
 - **A number comes from a run.** A figure in the README, a report or a commit message
   is reproduced with `run_cell` or a `print_*` program at that commit, not copied from
-  another agent's summary. A change that moves a number in the README's Status updates
-  it there.
+  another agent's summary. A change that moves a number in the README or a document
+  updates it there; the README's results come from `tools/evolution/pages.py`.
 - **Layouts and versions.** A change to the chosen layout or its plan adds a new layout
   file and a version with `tools/evolution/add.sh`; a registered version does not change
   (`//:versions_test`). A change that should move a measure quotes
