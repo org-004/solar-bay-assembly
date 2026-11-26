@@ -41,7 +41,7 @@
           "name": "arms",
           "value": 1,
           "unit": "arms",
-          "known": "planned",
+          "known": "counted",
           "source": "README.md at 83970cc, Status, The cell: a KUKA KR 210 R2700-2 with a suction tool"
         },
         {
@@ -59,9 +59,9 @@
           "source": "README.md at 83970cc, Status: with the pallet exactly where the script assumes, a module lands within 0.1 mm of its slot, for all 30 modules; `bazel run //:run_cell -- --pretty --nominal --modules 2`"
         },
         {
-          "name": "input_tolerance",
-          "value": 5,
-          "unit": "mm (and 0.3 deg)",
+          "name": "placed_at_5mm_0.3deg",
+          "value": 8,
+          "unit": "of 10 trials",
           "known": "measured",
           "source": "README.md at 83970cc, Status: with the pallet set down 5 mm and 0.3 degrees off, 8 of 10 trials placed; run_cell flags `--trials`, `--xy`, `--yaw`"
         },
@@ -94,7 +94,7 @@
           "name": "arms",
           "value": 1,
           "unit": "arms",
-          "known": "planned",
+          "known": "counted",
           "source": "README.md at a2f4e85, Status, The cell: a KUKA KR 210 R2700-2 with a suction tool"
         },
         {
@@ -154,7 +154,7 @@
           "name": "arms",
           "value": 1,
           "unit": "arms",
-          "known": "planned",
+          "known": "counted",
           "source": "README.md at 69b9087, Status, The cell: a KUKA KR 210 R2700-2 with a suction tool"
         },
         {
@@ -203,18 +203,18 @@
       "status": "superseded",
       "changed": "A test, the gate, runs eight whole pallets of 30 modules with the planned carry and the check, with noisy pictures and both cameras' calibrations off by 1 mm and 0.05 degrees. It fails if any module is not placed or lands more than 3 mm or 0.15 degrees from its slot, and it saves every failure with the command that reruns it.",
       "why": "Single trials had shown the cycle worked, but nothing stopped a later change from breaking it, so whole pallets in tolerance became a condition of the tests.",
-      "recording": "docs/evolution/v04.png",
+      "recording": "docs/evolution/v04.gif",
       "recording_source": {
-        "path": "docs/img/gate.png",
-        "added_at": "52f5818",
-        "shows": "The gate's 240 placements plotted against the 3 mm and 0.15 degree tolerance, each pallet's modules landing together."
+        "path": "docs/cycle.gif",
+        "added_at": "dd03149",
+        "shows": "One cycle at twice real speed: the camera finds the front module, the arm grips it and lifts it off the stack, carries it over the check camera and sets it on the rails, with the pallet 26 mm and 1.25 degrees off (README.md at dd03149)."
       },
       "figures": [
         {
           "name": "arms",
           "value": 1,
           "unit": "arms",
-          "known": "planned",
+          "known": "counted",
           "source": "README.md at dd03149, Status, The cell: a KUKA KR 210 R2700-2 with a suction tool"
         },
         {
@@ -341,7 +341,7 @@
           "name": "arms",
           "value": 2,
           "unit": "arms",
-          "known": "planned",
+          "known": "counted",
           "source": "docs/layout.md at 68a1199, comparison table, Arms: one KUKA KR 210 R2700-2 and one UR10e, both on floor tracks"
         },
         {
@@ -352,11 +352,11 @@
           "source": "docs/bay-hardware.md at 68a1199, The bay: tube 95.16 + 10 rails x 2.35 + 9 modules x 32.4 (derived); `bazel run --config=opt //:print_bay -- --summary`"
         },
         {
-          "name": "moving_mass_kg",
+          "name": "mass_in_transit_kg",
           "value": 3227.3,
           "unit": "kg",
-          "known": "modelled",
-          "source": "docs/layout.md at 68a1199, comparison table, Mass that travels inside, of 17,200 kg: arms 1110, tracks 1850, tools 47.0, holder 220; `bazel run --config=opt //:check_layout -- below_rails_by_module_arm`"
+          "known": "counted",
+          "source": "docs/layout.md at 68a1199, comparison table, Mass that travels inside, of 17,200 kg: arms 1110, tracks 1850, tools 47.0, holder 220; `bazel run --config=opt //:check_layout -- below_rails_by_module_arm`. No stocks travelled inside at that commit, so the whole row is mass in transit by the owner's definition"
         },
         {
           "name": "reach_rows_passed",
@@ -371,6 +371,59 @@
           "unit": "of 270",
           "known": "modelled",
           "source": "docs/layout.md at 68a1199, comparison table, clearance, tightest 0.0003 m; `bazel run --config=opt //:check_layout -- below_rails_by_module_arm --summary`"
+        }
+      ]
+    },
+    {
+      "id": "v07",
+      "date": "2026-11-25",
+      "commit": "940a01b",
+      "title": "One pin arm on the flat rack",
+      "direction": "one-40ft-flat-rack",
+      "status": "candidate",
+      "changed": "The cell moves onto the base of a 40 ft flat rack with one KUKA KR 210 for rails and modules and a single UR10e that bolts, locates, pins and swages every hole. The bay was planned whole, but its plan was not committed.",
+      "why": "The fewest arms that can build a bay, compared with two and three pin arms to see how much each extra arm buys in cycle time.",
+      "recording": "docs/evolution/v07.png",
+      "competed_with": "v09",
+      "layout": {
+        "path": "layouts/flat_rack_1_pin_arm.json",
+        "sha256": "6d1c7b4476efeb1c22a8789e02c2b83e7bb5c812ef00a239ea56302fe0a5e4f5"
+      },
+      "figures": [
+        {
+          "name": "cycle_s",
+          "value": 907.34,
+          "unit": "s per bay",
+          "known": "planned",
+          "source": "docs/flat-rack-cell.md at 940a01b, How many pin arms (R12), Bay planned (derived; its plan is not committed, so no scorecard)"
+        },
+        {
+          "name": "bay_model_s",
+          "value": 633.13,
+          "unit": "s per bay",
+          "known": "modelled",
+          "source": "docs/flat-rack-cell.md at 940a01b, How many pin arms (R12), Bay by the time model"
+        },
+        {
+          "name": "arms",
+          "value": 2,
+          "unit": "arms",
+          "known": "counted",
+          "source": "docs/flat-rack-cell.md at 940a01b, How many pin arms (R12), Arms"
+        },
+        {
+          "name": "least_clearance_m",
+          "value": 0.0179,
+          "unit": "m",
+          "known": "planned",
+          "source": "docs/flat-rack-cell.md at 940a01b, How many pin arms (R12), Least clearance over the schedule"
+        },
+        {
+          "name": "check_rows_passed",
+          "value": 911,
+          "unit": "of 911",
+          "known": "counted",
+          "source": "docs/flat-rack-cell.md at 940a01b, How many pin arms (R12), Rows passed (all); `bazel run --config=opt //:check_layout -- flat_rack_1_pin_arm --summary`"
         }
       ]
     }
