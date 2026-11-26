@@ -31,10 +31,8 @@
 // the plan verifies and every checker row passes.
 //
 // Exit status: 0 when the plan is complete; 1 when a move was not found,
-// the schedule is blocked or, for one bay, the verifier found a fault (the
-// verifier does not know bays yet: with several its faults are printed as
-// verify_fault lines and leave the plan complete); 2 on a usage or loading
-// error.
+// the schedule is blocked or the verifier found a fault; 2 on a usage or
+// loading error.
 
 #include <cstdio>
 #include <cstdlib>
@@ -427,12 +425,6 @@ int main(int argc, char** argv) {
     std::printf("complete: %s\n", plan.complete ? "true" : "false");
     for (const std::string& f : r.faults) {
       std::printf("fault: %s\n", f.c_str());
-    }
-    if (plan.bays > 1) {
-      std::printf("verify_faults: %d\n", static_cast<int>(r.verify.faults.size()));
-      for (const std::string& f : r.verify.faults) {
-        std::printf("verify_fault: %s\n", f.c_str());
-      }
     }
   } else {
     std::vector<std::vector<std::string>> table;

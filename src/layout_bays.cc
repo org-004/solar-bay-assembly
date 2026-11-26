@@ -3,6 +3,7 @@
 #include "src/layout_bays.h"
 
 #include <algorithm>
+#include <cmath>
 #include <cstdarg>
 #include <cstdio>
 #include <memory>
@@ -174,9 +175,17 @@ WayPassing TubePassesBay(const LayoutScene& scene, mjData* d,
     }
   };
   const double bay_span = bay_out.t1 - bay_out.t0;
-  for (int k = 0;; ++k) {
-    const double t = tube_start + k * sample_s;
-    if (t >= bay_out.t1) break;
+  // The samples from the tube's start and those of the plan's clock (the
+  // verifier's) while both are on their ways.
+  std::vector<double> times;
+  for (int k = 0; tube_start + k * sample_s < bay_out.t1; ++k) {
+    times.push_back(tube_start + k * sample_s);
+  }
+  for (long k = static_cast<long>(std::ceil(tube_start / sample_s)); k * sample_s < bay_out.t1; ++k) {
+    times.push_back(static_cast<double>(k) * sample_s);
+  }
+  std::sort(times.begin(), times.end());
+  for (double t : times) {
     put(WayOffsetAt(L.tube_in.path, WayFraction(tube_start, L.tube_in.time_s, t)),
         WayOffsetAt(L.bay_out.path, WayFraction(bay_out.t0, bay_span, t)));
     const Nearest n = scene.LeastDistance(d, tube, obstacles, clearance_m);
@@ -205,6 +214,10 @@ double NextTubeStart(const LayoutScene& scene, const BayEvent& bay_out,
 
 // ------------------------------------------------------------ joining
 
+double ArmShift(double tube_start, double clamp_end, const BayEvent& last_out) {
+  return tube_start + std::max(0.0, last_out.t1 - (tube_start + clamp_end));
+}
+
 Plan JoinBays(const std::vector<Plan>& bays, int steps_per_bay,
               const NextTubeStartFn& next_start) {
   if (bays.size() <= 1) return bays.empty() ? Plan{} : bays.front();
@@ -225,8 +238,7 @@ Plan JoinBays(const std::vector<Plan>& bays, int steps_per_bay,
     if (b > 0) {
       start = next_start(last_out);
       const BayEvent* clamp = FindEvent(p.events, "clamp");
-      const double clamp_end = start + (clamp != nullptr ? clamp->t1 : 0.0);
-      shift = start + std::max(0.0, last_out.t1 - clamp_end);
+      shift = ArmShift(start, clamp != nullptr ? clamp->t1 : 0.0, last_out);
     }
     std::set<int> early;  // The steps of tube_in and clamp.
     for (BayEvent e : p.events) {
@@ -250,6 +262,8 @@ Plan JoinBays(const std::vector<Plan>& bays, int steps_per_bay,
     }
     for (PhaseTime ph : p.phases) {
       ph.bay = b;
+      // The arms' wait for the bay before to be out counts in the rails.
+      if (ph.name == "rails") ph.planned_s += shift - start;
       out.phases.push_back(ph);
     }
     for (size_t a = 0; a < out.arms.size() && a < p.arms.size(); ++a) {
@@ -308,17 +322,94 @@ CycleFigures CycleFiguresOf(const Plan& plan) {
   return c;
 }
 
+// ------------------------------------------------------------ checking
+
+std::vector<std::string> BetweenBays(const LayoutScene& scene, const Plan& plan,
+                                     int steps_per_bay, double tolerance_s,
+                                     double tolerance_m) {
+  std::vector<std::string> out;
+  if (plan.bays <= 1) return out;
+  auto event = [&](int bay, const char* kind) -> const BayEvent* {
+    for (const BayEvent& e : plan.events) {
+      if (e.bay == bay && e.kind == kind) return &e;
+    }
+    return nullptr;
+  };
+  const Layout& L = scene.layout();
+  const bool shared = WaysShareZone(L);
+  DataPtr d;
+  for (int b = 1; b < plan.bays; ++b) {
+    const BayEvent* last = event(b - 1, "bay_out");
+    const BayEvent* in = event(b, "tube_in");
+    const BayEvent* clamp = event(b, "clamp");
+    if (last == nullptr || in == nullptr || clamp == nullptr) continue;  // The verifier says so.
+    const double empty = HolderEmptyAt(L, *last);
+    if (in->t0 < empty - tolerance_s) {
+      out.push_back(Fmt("bay %d: tube_in starts at %.3f s, before the holder is empty at %.3f s "
+                        "(bay %d lifted out of the saddles)",
+                        b, in->t0, empty, b - 1));
+    }
+    if (shared && in->t0 < last->t1 - tolerance_s) {
+      out.push_back(Fmt("bay %d: tube_in starts at %.3f s, before bay %d's bay_out ends at "
+                        "%.3f s, and the ways share their zone or unit",
+                        b, in->t0, b - 1, last->t1));
+    } else if (!shared && in->t0 < last->t1) {
+      if (!d) d = scene.MakeData();
+      const double apart = plan.figures.clearance_m - tolerance_m;
+      const WayPassing w =
+          TubePassesBay(scene, d.get(), *last, in->t0, plan.figures.sample_s, apart);
+      if (!w.clear) {
+        out.push_back(Fmt("bay %d: at %.2f s its tube coming in is %.4f m from bay %d going "
+                          "out (%s), below %.4f m",
+                          b, w.t, w.nearest.distance, b - 1, scene.PairText(w.nearest).c_str(),
+                          plan.figures.clearance_m));
+      }
+    }
+    for (const ArmPlan& a : plan.arms) {
+      for (const Segment& g : a.segments) {
+        if (g.kind == "wait" || BayOfStep(g.step, steps_per_bay) != b ||
+            g.t0 >= clamp->t1 - tolerance_s) {
+          continue;
+        }
+        out.push_back(Fmt("bay %d: arm %s starts its %s of step %d at %.3f s, before the "
+                          "bay's clamp ends at %.3f s",
+                          b, a.name.c_str(), g.kind.c_str(), g.step, g.t0, clamp->t1));
+        break;
+      }
+    }
+  }
+  return out;
+}
+
 // ------------------------------------------------------------ planning
 
 PlanResult PlanBays(const Layout& layout, const ModelPaths& paths,
                     const PlanOptions& options, const PlanOneBayFn& plan_bay) {
   const CheckReport report = CheckLayout(layout, paths);
-  if (!report.error.empty() || !report.pass) return plan_bay(0, report);
-  const int n = static_cast<int>(report.steps.size());
+  if (!report.error.empty() || !report.pass) return plan_bay(0, report, 0.0);
+  std::string error;
+  const std::unique_ptr<LayoutScene> scene =
+      LayoutScene::Load(layout, paths, report.joint_margin_deg, &error);
   PlanResult out;
+  if (!scene) {
+    out.faults.push_back("the scene could not be loaded: " + error);
+    return out;
+  }
+  const int n = static_cast<int>(report.steps.size());
+  const double clamp_end = layout.tube_in.time_s + layout.holder.clamp_s;
   std::vector<Plan> plans;
+  std::vector<double> starts;  // Each bay's tube_in on the joint clock.
+  BayEvent last_out;
   for (int b = 0; b < std::max(1, options.bays); ++b) {
-    PlanResult r = plan_bay(b, report);
+    // Where the bay's arms start on the joint clock, so that its schedule
+    // is sampled at the instants the verifier samples.
+    double start = 0.0, shift = 0.0;
+    if (b > 0) {
+      const PlanFigures& f = plans.front().figures;
+      start = NextTubeStart(*scene, last_out, f.sample_s, f.clearance_m);
+      shift = ArmShift(start, clamp_end, last_out);
+    }
+    PlanResult r = plan_bay(b, report, shift);
     for (MoveRow row : r.rows) {
       row.step = StepNumberInBay(row.step, b, n);
       out.rows.push_back(std::move(row));
@@ -329,21 +420,17 @@ PlanResult PlanBays(const Layout& layout, const ModelPaths& paths,
       out.plan = std::move(r.plan);
       return out;
     }
+    const BayEvent* bay_out = FindEvent(r.plan.events, "bay_out");
+    if (bay_out != nullptr) {
+      last_out = *bay_out;
+      last_out.t0 += shift;
+      last_out.t1 += shift;
+    }
+    starts.push_back(start);
     plans.push_back(std::move(r.plan));
   }
-  std::string error;
-  const std::unique_ptr<LayoutScene> scene =
-      LayoutScene::Load(layout, paths, report.joint_margin_deg, &error);
-  if (!scene) {
-    out.faults.push_back("the scene could not be loaded: " + error);
-    out.plan = plans.front();
-    out.plan.complete = false;
-    return out;
-  }
-  const PlanFigures& f = plans.front().figures;
-  out.plan = JoinBays(plans, n, [&](const BayEvent& bay_out) {
-    return NextTubeStart(*scene, bay_out, f.sample_s, f.clearance_m);
-  });
+  size_t next = 1;
+  out.plan = JoinBays(plans, n, [&](const BayEvent&) { return starts[next++]; });
   return out;
 }
 

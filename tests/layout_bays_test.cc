@@ -363,5 +363,99 @@ TEST(NextTube, ATubeFromAboveComesInWhileTheBayGoesOut) {
   }
 }
 
+// ------------------------------------------------------------ checking
+
+// Two bays' events, the second's tube_in from `tube_start`, on the chosen
+// layout's figures, and one arm whose bay 1 move starts at `move_at`.
+Plan TwoBays(const Layout& layout, double tube_start, double move_at) {
+  Plan p;
+  p.bays = 2;
+  p.figures.clearance_m = layout.margins.clearance_m;
+  const double in = layout.tube_in.time_s, clamp = layout.holder.clamp_s;
+  p.events = {{"tube_in", 1, 0.0, in, 0},
+              {"clamp", 2, in, in + clamp, 0},
+              {"release", 5, 90.0, 95.0, 0},
+              {"bay_out", 6, 100.0, 100.0 + layout.bay_out.time_s, 0},
+              {"tube_in", 7, tube_start, tube_start + in, 1},
+              {"clamp", 8, tube_start + in, tube_start + in + clamp, 1}};
+  ArmPlan a{"module_arm", {Seg("wait", 8, 0.0, move_at), Seg("move", 9, move_at, move_at + 5.0)}};
+  p.arms = {a};
+  return p;
+}
+
+TEST(BetweenBays, ASharedCartWaitsForTheBayToBeOut) {
+  const Layout layout = Load();
+  const Ways w = WaysOf(layout);
+  ASSERT_NE(w.scene, nullptr);
+  const double out_end = 100.0 + layout.bay_out.time_s;
+  const double clamp_end = out_end + layout.tube_in.time_s + layout.holder.clamp_s;
+  EXPECT_TRUE(BetweenBays(*w.scene, TwoBays(layout, out_end, clamp_end), 6, 1e-3, 1e-4).empty());
+  const std::vector<std::string> early =
+      BetweenBays(*w.scene, TwoBays(layout, out_end - 10.0, clamp_end), 6, 1e-3, 1e-4);
+  ASSERT_EQ(early.size(), 1u);
+  EXPECT_NE(early[0].find("before bay 0's bay_out ends"), std::string::npos) << early[0];
+  const std::vector<std::string> arm =
+      BetweenBays(*w.scene, TwoBays(layout, out_end, clamp_end - 1.0), 6, 1e-3, 1e-4);
+  ASSERT_EQ(arm.size(), 1u);
+  EXPECT_NE(arm[0].find("arm module_arm starts its move of step 9"), std::string::npos) << arm[0];
+}
+
+TEST(BetweenBays, WithoutASharedZoneTheTubeMustPassTheBay) {
+  const Layout layout = Unshared(Load());
+  const Ways w = WaysOf(layout);
+  ASSERT_NE(w.scene, nullptr);
+  const BayEvent out{"bay_out", 6, 100.0, 100.0 + layout.bay_out.time_s};
+  const double empty = HolderEmptyAt(layout, out);
+  // Before the holder is empty, and in the lane while the bay is in it.
+  const std::vector<std::string> before = BetweenBays(
+      *w.scene, TwoBays(layout, empty - 0.5, 1000.0), 6, 1e-3, 1e-4);
+  ASSERT_EQ(before.size(), 2u);
+  EXPECT_NE(before[0].find("before the holder is empty"), std::string::npos) << before[0];
+  EXPECT_NE(before[1].find("its tube coming in is"), std::string::npos) << before[1];
+  // Once the bay is out there is nothing to pass.
+  EXPECT_TRUE(BetweenBays(*w.scene, TwoBays(layout, out.t1, 1000.0), 6, 1e-3, 1e-4).empty());
+}
+
+TEST(Player, EachBayStartsBareAndThePalletCountsOn) {
+  const Layout layout = Load();
+  const Ways w = WaysOf(layout);
+  ASSERT_NE(w.scene, nullptr);
+  CheckReport report;
+  report.steps = {Step(1, "tube_in", -1), Step(2, "rail_set", 0), Step(3, "module_take", 0),
+                  Step(4, "bay_out", -1)};
+  for (int k : {1, 2}) report.steps[k].arm = "module_arm";
+  Plan p;
+  p.bays = 2;
+  p.events = {{"tube_in", 1, 0.0, 4.0, 0},    {"bay_out", 4, 9.0, 10.0, 0},
+              {"tube_in", 5, 10.0, 14.0, 1},  {"bay_out", 8, 19.0, 20.0, 1}};
+  p.arms = {{"module_arm",
+             {Seg("wait", 2, 0.0, 5.0), Seg("work", 2, 5.0, 6.0), Seg("wait", 3, 6.0, 7.0),
+              Seg("work", 3, 7.0, 8.0), Seg("wait", 6, 8.0, 15.0), Seg("work", 6, 15.0, 16.0),
+              Seg("wait", 7, 16.0, 17.0), Seg("work", 7, 17.0, 18.0), Seg("wait", 8, 18.0, 20.0)}}};
+  const PlanPlayer player(*w.scene, report, p);
+  ASSERT_NE(player.Step(7), nullptr);
+  EXPECT_EQ(player.Step(7)->kind, "module_take");
+  EXPECT_EQ(player.Step(7)->index, 1);  // One take a bay here: bay 1 takes point 1.
+  const WorldAt a = player.At(6.5);
+  EXPECT_EQ(a.bay, 0);
+  EXPECT_EQ(a.rails, std::vector<int>{0});
+  const WorldAt going = player.At(9.5);
+  EXPECT_EQ(going.bay, 0);
+  EXPECT_EQ(going.event, "bay_out");
+  EXPECT_EQ(going.rails, std::vector<int>{0});
+  const WorldAt coming = player.At(12.0);
+  EXPECT_EQ(coming.bay, 1);
+  EXPECT_EQ(coming.event, "tube_in");
+  EXPECT_TRUE(coming.rails.empty());
+  EXPECT_EQ(coming.pallet_taken, std::vector<int>{0});
+  const WorldAt later = player.At(18.5);
+  EXPECT_EQ(later.rails, std::vector<int>{0});
+  EXPECT_EQ(later.pallet_taken, (std::vector<int>{0, 1}));
+  EXPECT_EQ(player.BuiltAt(later).on_pallets, PointCount(layout, "module_take") - 2);
+  const WorldAt out = player.At(25.0);
+  EXPECT_EQ(out.bay, 1);
+  EXPECT_EQ(out.event, "bay_out");
+}
+
 }  // namespace
 }  // namespace cell::layout

@@ -24,7 +24,8 @@
 //   - JoinBays puts the bays' plans on one clock, labels their events, steps
 //     and phases with the bay, and keeps every arm's row without a gap;
 //   - CycleFiguresOf gives the cycle of the joint plan.
-// The verifier (src/layout_replay.cc) does not know bays yet.
+// The verifier (src/layout_replay.cc) plays and checks a plan of several
+// bays with the same pieces: StepsOfBays for its steps, BetweenBays for R2.
 
 #ifndef SRC_LAYOUT_BAYS_H_
 #define SRC_LAYOUT_BAYS_H_
@@ -89,8 +90,9 @@ bool WaysShareZone(const Layout& layout);
 double HolderEmptyAt(const Layout& layout, const BayEvent& bay_out);
 
 // The test of a tube that starts its tube_in at `tube_start` while the bay
-// travels its bay_out: at every sample, tube_start + k sample_s while the bay
-// is still on its way (before bay_out.t1), the tube at least clearance_m
+// travels its bay_out: at every sample, tube_start + k sample_s and the plan
+// clock's k sample_s, while the bay is still on its way (before
+// bay_out.t1), the tube at least clearance_m
 // from the bay's rails and modules. The model has one tube, so the bay's
 // own tube is not measured: its rails' closed straps go round it and are
 // nearer than it to anything that comes at it across its axis, as both ways
@@ -131,6 +133,11 @@ using NextTubeStartFn = std::function<double(const BayEvent& bay_out)>;
 Plan JoinBays(const std::vector<Plan>& bays, int steps_per_bay,
               const NextTubeStartFn& next_start);
 
+// Where bay b's arms start on the joint clock: its tube's start, put off so
+// that no arm starts (at the clamp's end, `clamp_end` after the tube's
+// start) before the bay before is out.
+double ArmShift(double tube_start, double clamp_end, const BayEvent& last_out);
+
 // The cycle of a plan: one_bay_s, bay 0 from the start of its tube_in to
 // the end of its bay_out; cycle_s, from bay 0's tube_in to the last bay's
 // bay_out, over the number of bays; interval_s, from the end of the last
@@ -144,15 +151,32 @@ struct CycleFigures {
 };
 CycleFigures CycleFiguresOf(const Plan& plan);
 
+// ------------------------------------------------------------ checking
+
+// R2 between the bays of a plan, for the verifier (src/layout_replay.cc),
+// as faults; none for one bay. For each bay b > 0: its tube_in starts when
+// the holder is empty; where the ways share their zone, not before bay
+// b-1's bay_out ends; where they do not, TubePassesBay holds (at
+// clearance_m less tolerance_m); and no arm starts a segment of bay b's
+// steps but a wait before bay b's clamp ends. That every arm stands at its
+// wait pose with its first tool during each tube_in and bay_out is the
+// verifier's own check of each bay's events.
+std::vector<std::string> BetweenBays(const LayoutScene& scene, const Plan& plan,
+                                     int steps_per_bay, double tolerance_s,
+                                     double tolerance_m);
+
 // ------------------------------------------------------------ planning
 
 // Plans one bay of the layout (src/layout_plan.cc's planner, without the
-// verifier) with the checker's report.
+// verifier) with the checker's report; `shift` is where the bay's arms
+// start on the joint clock (JoinBays), so that the schedule can be sampled
+// at the joint clock's instants.
 using PlanOneBayFn =
-    std::function<PlanResult(int bay, const CheckReport& report)>;
+    std::function<PlanResult(int bay, const CheckReport& report, double shift)>;
 
 // Checks the layout once, plans options.bays bays one after another with
-// `plan_bay` and joins them (NextTubeStart on the layout's scene). Rows'
+// `plan_bay`, each knowing where it starts (NextTubeStart on the layout's
+// scene after the bay before, ArmShift), and joins them. Rows'
 // steps are numbered in the joint plan and a bay's faults are named with
 // it; the first bay that is not complete ends planning, and its plan is
 // returned. Neither the wall time nor the verifier is this function's.

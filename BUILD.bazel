@@ -2183,8 +2183,8 @@ cc_test(
     ],
 )
 
-# The committed plan of the chosen layout verified whole, broken and
-# tampered with.
+# The committed plan of the chosen layout verified whole, broken, tampered
+# with and, with several bays, doctored between them.
 #   bazel test --config=opt //:plan_replay_committed_test
 cc_test(
     name = "plan_replay_committed_test",

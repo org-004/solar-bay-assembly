@@ -201,12 +201,17 @@ struct PlanPlayer::Cache {
   std::vector<int> plan_arm;  // For each arm of the scene, its ArmPlan or -1.
   // For each ArmPlan, one trajectory per segment (set for moves only).
   std::vector<std::vector<std::optional<Trajectory>>> trajectories;
-  std::map<int, const BayStep*> steps;
-  // When each part is set or taken: the end of its work segment.
-  std::vector<std::pair<double, int>> rail_set, module_set, module_take;
-  std::vector<double> magazines;
-  const BayEvent* tube_in = nullptr;
-  const BayEvent* bay_out = nullptr;
+  std::vector<StepInBay> all;  // Every step of every bay (src/layout_bays.h).
+  std::map<int, const StepInBay*> steps;
+  // When each part is set or taken (the end of its work segment), and in
+  // which bay; a take's point is the pallet's.
+  struct Part {
+    double t = 0.0;
+    int index = 0, bay = 0;
+  };
+  std::vector<Part> rail_set, module_set, module_take, magazines;
+  // Each bay's tube_in and bay_out.
+  std::vector<const BayEvent*> tube_in, bay_out;
   int takes = 0;
   double duration = 0.0;
 };
@@ -239,7 +244,8 @@ PlanPlayer::PlanPlayer(const LayoutScene& scene, const CheckReport& report,
     }
     cache->plan_arm.push_back(found);
   }
-  for (const BayStep& s : report.steps) cache->steps[s.number] = &s;
+  cache->all = StepsOfBays(report, std::max(1, plan.bays));
+  for (const StepInBay& s : cache->all) cache->steps[s.step.number] = &s;
   cache->trajectories.resize(plan.arms.size());
   for (size_t k = 0; k < plan.arms.size(); ++k) {
     const ArmPlan& ap = plan.arms[k];
@@ -255,16 +261,20 @@ PlanPlayer::PlanPlayer(const LayoutScene& scene, const CheckReport& report,
       if (seg.kind != "work") continue;
       auto it = cache->steps.find(seg.step);
       if (it == cache->steps.end()) continue;
-      const BayStep& s = *it->second;
-      if (s.kind == "rail_set") cache->rail_set.push_back({seg.t1, s.index});
-      if (s.kind == "module_set") cache->module_set.push_back({seg.t1, s.index});
-      if (s.kind == "module_take") cache->module_take.push_back({seg.t1, s.index});
-      if (s.kind == "pins_take") cache->magazines.push_back(seg.t1);
+      const BayStep& s = it->second->step;
+      const Cache::Part part{seg.t1, s.index, it->second->bay};
+      if (s.kind == "rail_set") cache->rail_set.push_back(part);
+      if (s.kind == "module_set") cache->module_set.push_back(part);
+      if (s.kind == "module_take") cache->module_take.push_back(part);
+      if (s.kind == "pins_take") cache->magazines.push_back(part);
     }
   }
   for (const BayEvent& e : plan.events) {
-    if (e.kind == "tube_in") cache->tube_in = &e;
-    if (e.kind == "bay_out") cache->bay_out = &e;
+    const size_t b = static_cast<size_t>(std::max(0, e.bay));
+    if (cache->tube_in.size() <= b) cache->tube_in.resize(b + 1, nullptr);
+    if (cache->bay_out.size() <= b) cache->bay_out.resize(b + 1, nullptr);
+    if (e.kind == "tube_in") cache->tube_in[b] = &e;
+    if (e.kind == "bay_out") cache->bay_out[b] = &e;
     cache->duration = std::max(cache->duration, e.t1);
   }
   cache->takes = PointCount(scene.layout(), "module_take");
@@ -303,28 +313,42 @@ WorldAt PlanPlayer::At(double t) const {
     a.step = seg.step;
     w.arms.push_back(a);
   }
-  for (const auto& [time, k] : c.rail_set) if (t >= time) w.rails.push_back(k);
-  for (const auto& [time, k] : c.module_set) if (t >= time) w.modules.push_back(k);
-  for (const auto& [time, k] : c.module_take) if (t >= time) w.pallet_taken.push_back(k);
-  for (double time : c.magazines) if (t >= time) ++w.magazines_taken;
+  // The bay in the holder or going out.
+  const int bays = static_cast<int>(c.bay_out.size());
+  while (w.bay + 1 < bays && c.bay_out[w.bay] != nullptr && t >= c.bay_out[w.bay]->t1) ++w.bay;
+  const BayEvent* in = w.bay < static_cast<int>(c.tube_in.size()) ? c.tube_in[w.bay] : nullptr;
+  const BayEvent* out = w.bay < bays ? c.bay_out[w.bay] : nullptr;
+  for (const Cache::Part& p : c.rail_set) {
+    if (t >= p.t && p.bay == w.bay) w.rails.push_back(p.index);
+  }
+  for (const Cache::Part& p : c.module_set) {
+    if (t >= p.t && p.bay == w.bay) w.modules.push_back(p.index);
+  }
+  for (const Cache::Part& p : c.module_take) {
+    if (t >= p.t) w.pallet_taken.push_back(p.index);
+  }
+  for (const Cache::Part& p : c.magazines) w.magazines_taken += t >= p.t && p.bay == w.bay;
   std::sort(w.rails.begin(), w.rails.end());
   std::sort(w.modules.begin(), w.modules.end());
   std::sort(w.pallet_taken.begin(), w.pallet_taken.end());
-  w.tube = c.tube_in == nullptr || t >= c.tube_in->t0;
+  w.tube = in == nullptr || t >= in->t0;
   for (const BayEvent& e : plan_.events) {
-    if (t >= e.t0 && t < e.t1) w.event = e.kind;
+    if (e.bay == w.bay && t >= e.t0 && t < e.t1) w.event = e.kind;
   }
   const Layout& L = scene_.layout();
-  if (c.tube_in != nullptr && t >= c.tube_in->t0 && t < c.tube_in->t1) {
-    const double span = c.tube_in->t1 - c.tube_in->t0;
-    w.way_offset = WayOffsetAt(L.tube_in.path, span > 0.0 ? (t - c.tube_in->t0) / span : 1.0);
-  } else if (c.bay_out != nullptr && t >= c.bay_out->t0) {
-    // The bay stays where its way ends once it is out.
+  if (in != nullptr && t >= in->t0 && t < in->t1) {
+    w.way_offset = WayOffsetAt(L.tube_in.path, WayFraction(in->t0, in->t1 - in->t0, t));
+  } else if (out != nullptr && t >= out->t0) {
+    // The last bay stays where its way ends once it is out.
     w.event = "bay_out";
-    const double span = c.bay_out->t1 - c.bay_out->t0;
-    w.way_offset = WayOffsetAt(L.bay_out.path, span > 0.0 ? (t - c.bay_out->t0) / span : 1.0);
+    w.way_offset = WayOffsetAt(L.bay_out.path, WayFraction(out->t0, out->t1 - out->t0, t));
   }
   return w;
+}
+
+const BayStep* PlanPlayer::Step(int number) const {
+  auto it = cache_->steps.find(number);
+  return it == cache_->steps.end() ? nullptr : &it->second->step;
 }
 
 void PlanPlayer::SetPoses(const WorldAt& w, mjData* d) const {
@@ -359,10 +383,8 @@ void Merge(DesignPairs* into, const DesignPairs& p) {
 // lists while nothing they depend on changes.
 class Measurer {
  public:
-  Measurer(const LayoutScene& scene, const CheckReport& report,
-           const PlanPlayer& player)
+  Measurer(const LayoutScene& scene, const PlanPlayer& player)
       : scene_(scene), player_(player), arms_(scene.ArmCount()) {
-    for (const BayStep& s : report.steps) steps_[s.number] = &s;
     const LayoutHandles& H = scene.handles();
     way_geoms_.insert(H.tube_geoms.begin(), H.tube_geoms.end());
     for (const auto& r : H.rail_geoms) way_geoms_.insert(r.begin(), r.end());
@@ -456,9 +478,11 @@ class Measurer {
   DesignPairs PairsOf(const ArmAt& a) {
     DesignPairs pairs;
     if (a.kind != "approach" && a.kind != "retreat" && a.kind != "work") return pairs;
-    auto it = steps_.find(a.step);
-    if (it == steps_.end()) return pairs;
-    const BayStep& s = *it->second;
+    // A later bay's step is bay 0's, but for a take at its own pallet point
+    // (src/layout_bays.h): a take's pairs are the pallet's only.
+    const BayStep* step = player_.Step(a.step);
+    if (step == nullptr) return pairs;
+    const BayStep& s = *step;
     if (s.index < 0) return pairs;
     auto pit = points_.find(s.kind);
     if (pit == points_.end()) {
@@ -477,7 +501,6 @@ class Measurer {
   const LayoutScene& scene_;
   const PlanPlayer& player_;
   std::vector<ArmCache> arms_;
-  std::map<int, const BayStep*> steps_;
   std::map<std::string, std::vector<WorkPoint>> points_;
   std::set<int> way_geoms_;
 };
@@ -485,11 +508,11 @@ class Measurer {
 }  // namespace
 
 std::vector<Closest> InstantDistances(const LayoutScene& scene,
-                                      const CheckReport& report,
+                                      const CheckReport& /*report*/,
                                       const PlanPlayer& player,
                                       const WorldAt& w, mjData* d,
                                       const std::function<void(mjData*)>& adjust) {
-  Measurer m(scene, report, player);
+  Measurer m(scene, player);
   std::int64_t queries = 0;
   return m.Measure(w, d, &queries, adjust);
 }
@@ -548,19 +571,41 @@ class Verifier {
            VerifyReport* r)
       : L_(layout), plan_(plan), report_(report), scene_(scene), player_(player), o_(options),
         r_(r),
-        f_(plan.figures), data_(scene.MakeData()) {
-    for (const BayStep& s : report.steps) steps_[s.number] = &s;
+        f_(plan.figures), data_(scene.MakeData()),
+        n_(static_cast<int>(report.steps.size())), bays_(std::max(1, plan.bays)),
+        all_(StepsOfBays(report, bays_)), events_(bays_) {
+    for (const StepInBay& s : all_) steps_[s.step.number] = &s.step;
     for (const SolvedPoint& p : report.points) points_[{p.kind, p.index}] = &p;
-    for (const BayEvent& e : plan.events) events_[e.kind] = &e;
+    for (const BayEvent& e : plan.events) {
+      if (e.bay >= 0 && e.bay < bays_) {
+        events_[e.bay][e.kind] = &e;
+      } else {
+        Fault(Fmt("the event %s is of bay %d; the plan has %d bays", e.kind.c_str(), e.bay,
+                  bays_));
+      }
+    }
   }
 
   void Fault(const std::string& s) { r_->faults.push_back(s); }
 
   void Run() {
-    Events();
+    for (int b = 0; b < bays_; ++b) Events(b);
+    const BayEvent* last = Event(bays_ - 1, "bay_out");
+    bay_end_ = 0.0;
+    if (last != nullptr) {
+      bay_end_ = last->t1;
+    } else {
+      for (const ArmPlan& a : plan_.arms) {
+        if (!a.segments.empty()) bay_end_ = std::max(bay_end_, a.segments.back().t1);
+      }
+    }
     for (int i = 0; i < scene_.ArmCount(); ++i) CheckArm(i);
     StepsAndPhases();
-    Order();
+    for (int b = 0; b < bays_; ++b) Order(b);
+    for (const std::string& f : BetweenBays(scene_, plan_, n_, o_.time_tolerance_s,
+                                            o_.tolerance_m)) {
+      Fault(f);
+    }
   }
 
   double bay_end() const { return bay_end_; }
@@ -575,51 +620,51 @@ class Verifier {
     return it == points_.end() ? nullptr : it->second;
   }
   std::string Arm(int i) const { return scene_.arm(i).use->name; }
+  const BayEvent* Event(int bay, const std::string& kind) const {
+    if (bay < 0 || bay >= bays_) return nullptr;
+    auto it = events_[bay].find(kind);
+    return it == events_[bay].end() ? nullptr : it->second;
+  }
+  // "" for a plan of one bay, so that its faults read as they always have.
+  std::string Of(int bay) const { return bays_ > 1 ? Fmt("bay %d: ", bay) : ""; }
 
-  void Events() {
+  void Events(int b) {
     const std::vector<std::pair<std::string, double>> want = {
         {"tube_in", L_.tube_in.time_s},
         {"clamp", L_.holder.clamp_s},
         {"release", L_.holder.release_s},
         {"bay_out", L_.bay_out.time_s}};
     for (const auto& [kind, seconds] : want) {
-      auto it = events_.find(kind);
-      if (it == events_.end()) {
-        Fault("the plan has no event " + kind);
+      const BayEvent* e = Event(b, kind);
+      if (e == nullptr) {
+        Fault(Of(b) + "the plan has no event " + kind);
         continue;
       }
-      const BayEvent& e = *it->second;
-      if (std::abs((e.t1 - e.t0) - seconds) > o_.time_tolerance_s) {
-        Fault(Fmt("the event %s takes %.3f s from %.3f s, the layout gives %.3f s",
-                  kind.c_str(), e.t1 - e.t0, e.t0, seconds));
+      if (std::abs((e->t1 - e->t0) - seconds) > o_.time_tolerance_s) {
+        Fault(Of(b) + Fmt("the event %s takes %.3f s from %.3f s, the layout gives %.3f s",
+                          kind.c_str(), e->t1 - e->t0, e->t0, seconds));
       }
-      const BayStep* s = Step(e.step);
-      if (s == nullptr || s->kind != kind) {
-        Fault(Fmt("the event %s names step %d, which is not the bay's %s step",
-                  kind.c_str(), e.step, kind.c_str()));
+      const BayStep* s = Step(e->step);
+      if (s == nullptr || s->kind != kind || BayOfStep(e->step, n_) != b) {
+        Fault(Of(b) + Fmt("the event %s names step %d, which is not the bay's %s step",
+                          kind.c_str(), e->step, kind.c_str()));
       }
     }
-    if (events_.count("tube_in") && std::abs(events_["tube_in"]->t0) > o_.time_tolerance_s) {
-      Fault(Fmt("tube_in starts at %.3f s, not at 0", events_["tube_in"]->t0));
+    const BayEvent* in = Event(b, "tube_in");
+    if (b == 0 && in != nullptr && std::abs(in->t0) > o_.time_tolerance_s) {
+      Fault(Fmt("tube_in starts at %.3f s, not at 0", in->t0));
     }
-    auto follows = [&](const char* a, const char* b) {
-      if (!events_.count(a) || !events_.count(b)) return;
-      if (events_[b]->t0 < events_[a]->t1 - o_.time_tolerance_s) {
-        Fault(Fmt("%s starts at %.3f s, before %s ends at %.3f s", b, events_[b]->t0, a,
-                  events_[a]->t1));
+    auto follows = [&](const char* a, const char* c) {
+      const BayEvent* x = Event(b, a);
+      const BayEvent* y = Event(b, c);
+      if (x == nullptr || y == nullptr) return;
+      if (y->t0 < x->t1 - o_.time_tolerance_s) {
+        Fault(Of(b) + Fmt("%s starts at %.3f s, before %s ends at %.3f s", c, y->t0, a, x->t1));
       }
     };
     follows("tube_in", "clamp");
     follows("clamp", "release");
     follows("release", "bay_out");
-    bay_end_ = 0.0;
-    if (events_.count("bay_out")) {
-      bay_end_ = events_["bay_out"]->t1;
-    } else {
-      for (const ArmPlan& a : plan_.arms) {
-        if (!a.segments.empty()) bay_end_ = std::max(bay_end_, a.segments.back().t1);
-      }
-    }
   }
 
   // Forward kinematics of the arm's working point with `tool` at `c`.
@@ -790,22 +835,24 @@ class Verifier {
       Fault(Fmt("arm %s ends at %.3f s, the bay at %.3f s", name.c_str(), segs.back().t1,
                 bay_end_));
     }
-    // The arm at its wait pose during tube_in, clamp and bay_out.
-    for (const char* kind : {"tube_in", "clamp", "bay_out"}) {
-      auto it = events_.find(kind);
-      if (it == events_.end()) continue;
-      const BayEvent& e = *it->second;
+    // The arm at its wait pose during each bay's tube_in, clamp and bay_out,
+    // with its first tool during tube_in and bay_out.
+    for (const BayEvent& e : plan_.events) {
+      const std::string kind = e.kind;
+      if (kind != "tube_in" && kind != "clamp" && kind != "bay_out") continue;
+      const bool first = kind != "clamp";
       for (const Segment& s : segs) {
         if (s.path.empty() || s.t1 <= e.t0 + tol || s.t0 >= e.t1 - tol) continue;
         const bool still = s.kind == "wait";
         const std::string off = Off(i, s.tool, s.path.front(), WaitPose(i));
-        const bool tool_ok = std::string(kind) != "bay_out" ||
-                             (s.tool == scene_.arm(i).use->first_tool && s.held.empty());
+        const bool tool_ok =
+            !first || (s.tool == scene_.arm(i).use->first_tool && s.held.empty());
         if (!still || !off.empty() || !tool_ok) {
-          Fault(Fmt("arm %s is not at its wait pose%s during %s (%.3f to %.3f s): its %s "
+          Fault(Of(e.bay) +
+                Fmt("arm %s is not at its wait pose%s during %s (%.3f to %.3f s): its %s "
                     "of %s from %.3f s%s",
-                    name.c_str(), std::string(kind) == "bay_out" ? " with its first tool" : "",
-                    kind, e.t0, e.t1, s.kind.c_str(),
+                    name.c_str(), first ? " with its first tool" : "",
+                    kind.c_str(), e.t0, e.t1, s.kind.c_str(),
                     StepName(Step(s.step), s.step).c_str(), s.t0,
                     off.empty() ? (tool_ok ? "" : (", with tool \"" + s.tool + "\" holding \"" +
                                                    s.held + "\"").c_str())
@@ -931,10 +978,11 @@ class Verifier {
   void Sequence(int i, const std::vector<Segment>& segs, const ArmMotion& motion) {
     const std::string name = Arm(i);
     const SceneArm& sa = scene_.arm(i);
-    std::vector<const BayStep*> mine;
-    for (const BayStep& s : report_.steps) {
-      if (s.arm == name) mine.push_back(&s);
+    std::vector<const BayStep*> mine;  // Bay by bay.
+    for (const StepInBay& s : all_) {
+      if (s.step.arm == name) mine.push_back(&s.step);
     }
+    auto bay_of = [&](size_t k) { return BayOfStep(mine[k]->number, n_); };
     // Groups of the non-wait segments by step.
     struct Group {
       int step = 0;
@@ -989,16 +1037,16 @@ class Verifier {
       // Parking is allowed directly after the arm's last step of phase
       // "rails", for an arm that does not lead the phase.
       bool park = false;
-      if (found > 0 && mine[found - 1]->phase == "rails") {
+      if (found > 0 && mine[found - 1]->phase == "rails" && bay_of(found - 1) == bay_of(found)) {
         park = true;
-        for (size_t k = found; k < mine.size(); ++k) {
+        for (size_t k = found; k < mine.size() && bay_of(k) == bay_of(found); ++k) {
           if (mine[k]->phase == "rails") park = false;
         }
         const Work* lead = FindWork(L_, "rail_set");
         if (lead != nullptr && lead->arm == name) park = false;
       }
-      StepSegments(i, *step, found + 1 == mine.size(), park, segs, grp.segs, motion, &tool,
-                   &held, &at);
+      const bool last = found + 1 == mine.size() || bay_of(found + 1) != bay_of(found);
+      StepSegments(i, *step, last, park, segs, grp.segs, motion, &tool, &held, &at);
     }
     for (size_t k = next; k < mine.size(); ++k) {
       Fault(Fmt("arm %s leaves out %s", name.c_str(), StepName(mine[k], mine[k]->number).c_str()));
@@ -1171,14 +1219,15 @@ class Verifier {
   void StepsAndPhases() {
     const double tol = o_.time_tolerance_s;
     for (const BayEvent& e : plan_.events) times_[e.step] = {e.step, "", "", e.t0, e.t1};
-    if (plan_.steps.size() != report_.steps.size()) {
-      Fault(Fmt("the plan has %zu step times, the bay %zu steps", plan_.steps.size(),
-                report_.steps.size()));
+    if (plan_.steps.size() != all_.size()) {
+      Fault(Fmt("the plan has %zu step times, the bay%s %zu steps", plan_.steps.size(),
+                bays_ > 1 ? "s" : "", all_.size()));
     }
-    for (size_t k = 0; k < plan_.steps.size() && k < report_.steps.size(); ++k) {
+    for (size_t k = 0; k < plan_.steps.size() && k < all_.size(); ++k) {
       const StepTime& t = plan_.steps[k];
-      const BayStep& s = report_.steps[k];
-      if (t.number != s.number || t.what != s.what || t.arm != s.arm) {
+      const BayStep& s = all_[k].step;
+      if (t.number != s.number || t.what != s.what || t.arm != s.arm ||
+          (bays_ > 1 && t.bay != all_[k].bay)) {
         Fault(Fmt("the plan's step time %zu is \"%d %s %s\", the bay's step is \"%d %s %s\"",
                   k, t.number, t.what.c_str(), t.arm.c_str(), s.number, s.what.c_str(),
                   s.arm.c_str()));
@@ -1195,49 +1244,66 @@ class Verifier {
                   t.end));
       }
     }
-    // The phases.
-    const double clamp_end = events_.count("clamp") ? events_["clamp"]->t1 : 0.0;
-    double rails_end = clamp_end, modules_end = 0.0;
-    for (const BayStep& s : report_.steps) {
-      auto it = times_.find(s.number);
-      if (it == times_.end() || s.arm.empty()) continue;
-      if (s.kind == "strap_bolt") rails_end = std::max(rails_end, it->second.end);
-      if (s.phase == "modules") modules_end = std::max(modules_end, it->second.end);
+    // The phases, five for each bay.
+    last_strap_end_.assign(bays_, 0.0);
+    last_modules_end_.assign(bays_, 0.0);
+    if (plan_.phases.size() != 5u * static_cast<size_t>(bays_)) {
+      Fault(bays_ > 1 ? Fmt("the plan has %zu phases, not five for each of %d bays",
+                            plan_.phases.size(), bays_)
+                      : Fmt("the plan has %zu phases, not five", plan_.phases.size()));
     }
-    modules_end = std::max(modules_end, rails_end);
-    last_strap_end_ = rails_end;
-    last_modules_end_ = modules_end;
-    auto event_span = [&](const char* k) {
-      return events_.count(k) ? events_[k]->t1 - events_[k]->t0 : 0.0;
-    };
-    const std::vector<std::pair<std::string, double>> want = {
-        {"tube in", event_span("tube_in")},
-        {"clamp", event_span("clamp")},
-        {"rails", rails_end - clamp_end},
-        {"modules", modules_end - rails_end},
-        {"end", bay_end_ - modules_end}};
-    if (plan_.phases.size() != want.size()) {
-      Fault(Fmt("the plan has %zu phases, not five", plan_.phases.size()));
-    }
-    double sum = 0.0;
-    for (size_t k = 0; k < want.size(); ++k) {
-      sum += want[k].second;
-      if (k >= plan_.phases.size()) continue;
-      const PhaseTime& p = plan_.phases[k];
-      if (p.name != want[k].first || std::abs(p.planned_s - want[k].second) > tol) {
-        Fault(Fmt("the phase \"%s\" says %.3f s; by the schedule \"%s\" takes %.3f s",
-                  p.name.c_str(), p.planned_s, want[k].first.c_str(), want[k].second));
+    for (int b = 0; b < bays_; ++b) {
+      const BayEvent* clamp = Event(b, "clamp");
+      const BayEvent* out = Event(b, "bay_out");
+      const double clamp_end = clamp != nullptr ? clamp->t1 : 0.0;
+      double rails_end = clamp_end, modules_end = 0.0;
+      for (const StepInBay& x : all_) {
+        const BayStep& s = x.step;
+        auto it = times_.find(s.number);
+        if (x.bay != b || it == times_.end() || s.arm.empty()) continue;
+        if (s.kind == "strap_bolt") rails_end = std::max(rails_end, it->second.end);
+        if (s.phase == "modules") modules_end = std::max(modules_end, it->second.end);
       }
-    }
-    if (std::abs(plan_.bay_planned_s - sum) > tol || std::abs(plan_.bay_planned_s - bay_end_) > tol) {
-      Fault(Fmt("bay_planned_s is %.3f s; the phases sum to %.3f s and the bay ends at %.3f s",
-                plan_.bay_planned_s, sum, bay_end_));
+      modules_end = std::max(modules_end, rails_end);
+      last_strap_end_[b] = rails_end;
+      last_modules_end_[b] = modules_end;
+      auto event_span = [&](const char* k) {
+        const BayEvent* e = Event(b, k);
+        return e != nullptr ? e->t1 - e->t0 : 0.0;
+      };
+      const double end = bays_ > 1 && out != nullptr ? out->t1 : bay_end_;
+      const std::vector<std::pair<std::string, double>> want = {
+          {"tube in", event_span("tube_in")},
+          {"clamp", event_span("clamp")},
+          {"rails", rails_end - clamp_end},
+          {"modules", modules_end - rails_end},
+          {"end", end - modules_end}};
+      double sum = 0.0;
+      for (size_t k = 0; k < want.size(); ++k) {
+        sum += want[k].second;
+        const size_t at = 5u * static_cast<size_t>(b) + k;
+        if (at >= plan_.phases.size()) continue;
+        const PhaseTime& p = plan_.phases[at];
+        if (p.name != want[k].first || std::abs(p.planned_s - want[k].second) > tol ||
+            (bays_ > 1 && p.bay != b)) {
+          Fault(Of(b) + Fmt("the phase \"%s\" says %.3f s; by the schedule \"%s\" takes %.3f s",
+                            p.name.c_str(), p.planned_s, want[k].first.c_str(),
+                            want[k].second));
+        }
+      }
+      if (b == 0 && (std::abs(plan_.bay_planned_s - sum) > tol ||
+                     std::abs(plan_.bay_planned_s - end) > tol)) {
+        Fault(Fmt("bay_planned_s is %.3f s; the phases sum to %.3f s and the bay ends at %.3f s",
+                  plan_.bay_planned_s, sum, end));
+      }
     }
   }
 
-  // R21's order.
-  void Order() {
+  // R21's order, within bay b: the checker's steps of one bay, numbered in
+  // the plan.
+  void Order(int b) {
     const double tol = o_.time_tolerance_s;
+    auto in_plan = [&](int number) { return StepNumberInBay(number, b, n_); };
     // The end of the work segment of each step.
     std::map<int, double> work_end;
     for (const ArmPlan& a : plan_.arms) {
@@ -1247,7 +1313,7 @@ class Verifier {
     }
     std::map<std::pair<std::string, int>, int> number;  // (kind, index) to step.
     for (const BayStep& s : report_.steps) {
-      if (s.index >= 0) number[{s.kind, s.index}] = s.number;
+      if (s.index >= 0) number[{s.kind, s.index}] = in_plan(s.number);
     }
     auto start_of = [&](int n) {
       auto it = times_.find(n);
@@ -1262,9 +1328,10 @@ class Verifier {
     std::map<int, int> last_hole;  // Module to the step before in its holes.
     bool first_take = true;
     for (const BayStep& s : report_.steps) {
-      const double start = start_of(s.number);
+      const int n = in_plan(s.number);
+      const double start = start_of(n);
       if (start < 0.0) continue;
-      const std::string label = StepName(&s, s.number);
+      const std::string label = StepName(&s, n);
       auto before = [&](double t, const std::string& what) {
         if (t >= 0.0 && start < t - tol) {
           Fault(Fmt("arm %s starts %s at %.3f s, before %s at %.3f s", s.arm.c_str(),
@@ -1284,7 +1351,7 @@ class Verifier {
             before(t->second.end, StepName(Step(it->second), it->second) + " has ended");
           }
         }
-        last_hole[m] = s.number;
+        last_hole[m] = n;
       }
       if (s.kind == "module_take" && L_.order.modules_start == "after_their_rails") {
         // src/layout.h, WorkOrder: the take of module m after the bolts of
@@ -1303,11 +1370,11 @@ class Verifier {
         }
       } else if (s.kind == "module_take" && first_take) {
         first_take = false;
-        before(last_strap_end_, "the last strap bolt is driven");
+        before(last_strap_end_[b], "the last strap bolt is driven");
       }
-      if (s.kind == "release") before(last_modules_end_, "the last step of the modules has ended");
-      if (s.kind == "bay_out" && events_.count("release")) {
-        before(events_["release"]->t1, "release has ended");
+      if (s.kind == "release") before(last_modules_end_[b], "the last step of the modules has ended");
+      if (s.kind == "bay_out" && Event(b, "release") != nullptr) {
+        before(Event(b, "release")->t1, "release has ended");
       }
     }
   }
@@ -1321,19 +1388,23 @@ class Verifier {
   VerifyReport* r_;
   const PlanFigures& f_;
   DataPtr data_;
+  const int n_;      // Steps of one bay.
+  const int bays_;
+  const std::vector<StepInBay> all_;  // Every step of every bay.
   std::map<int, const BayStep*> steps_;
   std::map<std::pair<std::string, int>, const SolvedPoint*> points_;
-  std::map<std::string, const BayEvent*> events_;
+  std::vector<std::map<std::string, const BayEvent*>> events_;  // By bay, by kind.
   std::map<int, StepTime> times_;
   double bay_end_ = 0.0;
-  double last_strap_end_ = 0.0, last_modules_end_ = 0.0;
+  // Each bay's end of its last strap bolt and of its last step of the modules.
+  std::vector<double> last_strap_end_, last_modules_end_;
 };
 
 // R22 along the schedule, and the least distances and joint margins.
 void Schedule(const LayoutScene& scene, const CheckReport& report, const Plan& plan,
               const VerifyOptions& o, double end, VerifyReport* r) {
   const PlanPlayer player(scene, report, plan);
-  Measurer measurer(scene, report, player);
+  Measurer measurer(scene, player);
   DataPtr data = scene.MakeData();
   const double sample = plan.figures.sample_s > 0.0 ? plan.figures.sample_s : 0.05;
   const double clearance = plan.figures.clearance_m;

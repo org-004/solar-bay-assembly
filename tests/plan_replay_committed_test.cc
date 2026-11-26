@@ -1,9 +1,12 @@
 // The committed plan of the chosen layout, verified whole without planning
-// anything (R20), and broken and tampered with in ways the verifier must
-// find. The tests fail until plans/<chosen>.json exists for a chosen layout
-// on the flat rack: passing only with a real plan is what they are for. The
-// chosen layout is the one versions/versions.json names (src/layout.h,
-// ChosenLayout). The replay's pieces are tests/plan_replay_test.cc's.
+// anything (R20), broken and tampered with in ways the verifier must find,
+// and, once it is a plan of several bays (src/layout_bays.h), doctored
+// between its bays. The tests fail until plans/<chosen>.json exists for a
+// chosen layout on the flat rack: passing only with a real plan is what they
+// are for. The chosen layout is the one versions/versions.json names
+// (src/layout.h, ChosenLayout). The tests of the bays are skipped while the
+// committed plan has one bay. The replay's pieces are
+// tests/plan_replay_test.cc's.
 
 #include <algorithm>
 #include <cstdio>
@@ -233,7 +236,7 @@ TEST(Committed, BreakagesAreFound) {
     ASSERT_NE(bolt, nullptr);
     int set_step = -1;
     for (const StepTime& s : p.steps) {
-      if (s.what == "set rail " + std::to_string(rail)) set_step = s.number;
+      if (set_step < 0 && s.what == "set rail " + std::to_string(rail)) set_step = s.number;
     }
     int pa = -1;
     for (size_t k = 0; k < p.arms.size(); ++k) {
@@ -459,6 +462,108 @@ TEST(Committed, TamperingIsFound) {
                              ") has ended"}))
         << Faults(r);
   }
+}
+
+// ----------------------------------------------------- bays back to back
+
+// The committed plan of several bays doctored between its bays: each change
+// must fault. Skipped while the committed plan has one bay.
+BayEvent* EventOf(Plan& p, int bay, const std::string& kind) {
+  for (BayEvent& e : p.events) {
+    if (e.bay == bay && e.kind == kind) return &e;
+  }
+  return nullptr;
+}
+
+TEST(Bays, TheNextTubeBeforeTheBayIsOutIsFound) {
+  const Committed& c = TheCommitted();
+  ASSERT_TRUE(c.error.empty()) << c.error;
+  if (c.plan.bays < 2) GTEST_SKIP() << "the committed plan has one bay";
+  Plan p = c.plan;
+  BayEvent* in = EventOf(p, 1, "tube_in");
+  ASSERT_NE(in, nullptr);
+  in->t0 -= 10.0;
+  in->t1 -= 10.0;
+  const VerifyReport r = VerifyPlan(c.layout, ModelPaths::FromEnvironment(), p, c.sha256,
+                                    Quick(false));
+  EXPECT_TRUE(AnyFault(r, {"bay 1: tube_in starts", "before bay 0's bay_out ends"}))
+      << Faults(r);
+}
+
+TEST(Bays, AnArmOffItsWaitPoseDuringABayOutIsFound) {
+  const Committed& c = TheCommitted();
+  ASSERT_TRUE(c.error.empty()) << c.error;
+  if (c.plan.bays < 2) GTEST_SKIP() << "the committed plan has one bay";
+  Plan p = c.plan;
+  const BayEvent* out = EventOf(p, 0, "bay_out");
+  ASSERT_NE(out, nullptr);
+  const double mid = 0.5 * (out->t0 + out->t1);
+  ArmPlan& a = p.arms.back();
+  bool moved = false;
+  for (Segment& g : a.segments) {
+    if (g.kind == "wait" && g.t0 < mid && mid < g.t1 && !g.path.empty()) {
+      g.path[0][0] += 0.2;
+      moved = true;
+    }
+  }
+  ASSERT_TRUE(moved);
+  const VerifyReport r = VerifyPlan(c.layout, ModelPaths::FromEnvironment(), p, c.sha256,
+                                    Quick(false));
+  EXPECT_TRUE(AnyFault(r, {"bay 0: arm " + a.name, "is not at its wait pose", "during bay_out"}))
+      << Faults(r);
+}
+
+TEST(Bays, AnArmOfTheNextBayBeforeItsClampEndsIsFound) {
+  const Committed& c = TheCommitted();
+  ASSERT_TRUE(c.error.empty()) << c.error;
+  if (c.plan.bays < 2) GTEST_SKIP() << "the committed plan has one bay";
+  // Bay 1's tube and clamp 30 s later: its arms now start before its clamp
+  // has ended.
+  Plan p = c.plan;
+  for (const char* kind : {"tube_in", "clamp"}) {
+    BayEvent* e = EventOf(p, 1, kind);
+    ASSERT_NE(e, nullptr);
+    e->t0 += 30.0;
+    e->t1 += 30.0;
+  }
+  const VerifyReport r = VerifyPlan(c.layout, ModelPaths::FromEnvironment(), p, c.sha256,
+                                    Quick(false));
+  EXPECT_TRUE(AnyFault(r, {"bay 1: arm", "before the bay's clamp ends"})) << Faults(r);
+}
+
+TEST(Bays, ATakeAtTheFirstBaysPalletPointIsFound) {
+  const Committed& c = TheCommitted();
+  ASSERT_TRUE(c.error.empty()) << c.error;
+  if (c.plan.bays < 2) GTEST_SKIP() << "the committed plan has one bay";
+  // Bay 1's first take done at pallet point k, bay 0's, not at 9 + k.
+  Plan p = c.plan;
+  const int ma = ModuleArmPlan(c);
+  ASSERT_GE(ma, 0);
+  const int n = static_cast<int>(p.steps.size()) / p.bays;
+  int take = -1, per_bay = 0;
+  for (const StepTime& s : p.steps) {
+    if (s.bay != 0 || !Begins(s.what, "take module ")) continue;
+    if (take < 0) take = s.number;
+    ++per_bay;
+  }
+  ASSERT_GT(take, 0);
+  std::vector<Segment>& segs = p.arms[ma].segments;
+  int copied = 0;
+  for (Segment& later : segs) {
+    if (later.step != take + n || later.kind == "wait" || later.kind == "move") continue;
+    for (const Segment& first : c.plan.arms[ma].segments) {
+      if (first.step == take && first.kind == later.kind) {
+        later.path = first.path;
+        ++copied;
+      }
+    }
+  }
+  ASSERT_GT(copied, 0);
+  const VerifyReport r = VerifyPlan(c.layout, ModelPaths::FromEnvironment(), p, c.sha256,
+                                    Quick(false));
+  EXPECT_TRUE(AnyFault(r, {"step " + std::to_string(take + n),
+                           "pose of module_take " + std::to_string(per_bay)}))
+      << Faults(r);
 }
 
 }  // namespace

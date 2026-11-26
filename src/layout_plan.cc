@@ -193,12 +193,13 @@ namespace {
 class Planner {
  public:
   // Plans bay `bay` of several (src/layout_bays.h) with the checker's
-  // `report` when one is given.
+  // `report` when one is given; `shift` is where its arms' t = 0 lies on
+  // the joint clock.
   Planner(const Layout& layout, const ModelPaths& paths,
           const std::string& sha, const PlanOptions& options, int bay = 0,
-          const CheckReport* report = nullptr)
+          const CheckReport* report = nullptr, double shift = 0.0)
       : layout_(layout), paths_(paths), sha_(sha), options_(options),
-        bay_(bay), given_(report) {}
+        bay_(bay), given_(report), shift_(shift) {}
 
   PlanResult Run(bool plan = true, bool verify = true);
   std::vector<std::string> Why(const std::vector<int>& steps);
@@ -253,6 +254,7 @@ class Planner {
   const PlanOptions options_;
   const int bay_;
   const CheckReport* given_;
+  const double shift_;
   PlanResult result_;
   CheckReport report_;
   std::unique_ptr<LayoutScene> scene_;
@@ -1509,19 +1511,23 @@ PlanResult PlanLayout(const Layout& layout, const ModelPaths& paths,
   }
   const auto t0 = std::chrono::steady_clock::now();
   PlanResult r = PlanBays(layout, paths, options,
-                          [&](int bay, const CheckReport& report) {
+                          [&](int bay, const CheckReport& report, double shift) {
                             Planner planner(layout, paths, layout_sha256,
-                                            options, bay, &report);
+                                            options, bay, &report, shift);
                             return planner.Run(true, false);
                           });
   r.seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - t0)
                   .count();
-  // The verifier does not know bays yet: its report is kept beside the
-  // plan, and its faults are not the plan's.
+  if (!r.plan.complete) return r;
   const char* skip = std::getenv("PLAN_SKIP_VERIFY");
-  if (r.plan.complete && !(skip != nullptr && std::string(skip) == "1")) {
-    r.verify = VerifyPlan(layout, paths, r.plan, layout_sha256);
+  if (skip != nullptr && std::string(skip) == "1") {
+    r.faults.push_back("not verified (PLAN_SKIP_VERIFY=1)");
+    r.plan.complete = false;
+    return r;
   }
+  r.verify = VerifyPlan(layout, paths, r.plan, layout_sha256);
+  for (const std::string& v : r.verify.faults) r.faults.push_back("verify: " + v);
+  r.plan.complete = r.verify.ok && r.verify.faults.empty();
   return r;
 }
 

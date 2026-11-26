@@ -88,8 +88,10 @@
 //     apart from the bay every sample_s;
 //   - an arm's steps of bay b+1 start neither before bay b+1's clamp has
 //     ended nor before bay b's bay_out has ended.
-// The verifier is to hold all four; until it knows bays it checks a plan of
-// several as if it were one, and PlanLayout keeps its faults apart.
+// The verifier holds all four (src/layout_bays.h, BetweenBays, and its own
+// check of each bay's events); it checks each bay's events, order of work
+// and phases on their own, and a later bay's moves and design pairs as bay
+// 0's at the same step, with the pallet counting on.
 //
 // The planning world of a move (R16): the moving set is the arm's links,
 // carriage, the tool on its flange and the part it holds (LayoutScene::
@@ -148,8 +150,8 @@
 //                  driven, and then waits for its first module where the
 //                  magazine take's retreat left it (or, if another arm is in
 //                  its way, at the tool-change pose).
-// Which pin arm works which hole is the layout's `work` list, as before. At every instant, sampled every sample_s, every
-// arm with its carriage, the tool on its flange, its waiting tools and what
+// Which pin arm works which hole is the layout's `work` list, as before.
+// At every instant, sampled every sample_s, every arm with its carriage, the tool on its flange, its waiting tools and what
 // it holds is at least clearance_m from every other arm with the same, and
 // from the bay, the pallets and the stocks as they are at that instant;
 // while an arm is on a leg or at work, the pairs that touch or are near by
@@ -167,7 +169,9 @@
 // of that arm's last block has the schedule taken back to before that
 // block, which is placed again only after it (once for each pair of
 // blocks; the first bay of the chosen layout never needs it, its later
-// bays do). No evasive move is made.
+// bays do). No evasive move is made. The verifier needs no check of giving
+// way: it decides only the order in which blocks are placed, and what is
+// placed holds every rule above.
 //
 // Repeatable (R18). Every move has a seed drawn through
 // src/portable_random.h from PlanFigures::seed and the move's ordinal, and
@@ -402,6 +406,10 @@ struct WorldAt {
   // place in the holder; zero when it lies in the holder.
   Eigen::Vector3d way_offset = Eigen::Vector3d::Zero();
   std::string event;           // "tube_in", "clamp", "release", "bay_out" or "".
+  // The bay in the holder or going out: the first whose bay_out has not
+  // ended (the last once all are out). What follows is that bay's; the
+  // pallet counts on over the bays.
+  int bay = 0;
   std::vector<int> rails;      // On the tube.
   std::vector<int> modules;    // On their rails.
   std::vector<int> pallet_taken;  // module_take points already taken (held or set).
@@ -411,10 +419,13 @@ struct WorldAt {
 // Plays a plan: where everything is at an instant.
 class PlanPlayer {
  public:
-  // The report is the checker's for the layout (its steps and points).
+  // The report is the checker's for the layout (its steps and points, of
+  // one bay); a plan of several bays is played with StepsOfBays.
   PlanPlayer(const LayoutScene& scene, const CheckReport& report,
              const Plan& plan);
   double duration() const;
+  // A step of the plan by its number in the plan, nullptr if none.
+  const BayStep* Step(int number) const;
   WorldAt At(double t) const;
   // Puts every arm's pose of `w` into the data (no kinematics).
   void SetPoses(const WorldAt& w, mjData* d) const;
@@ -524,9 +535,8 @@ struct PlanResult {
 
 // Plans and schedules one bay, or options.bays back to back. `layout_sha256`
 // goes into the plan. The figures' margins are the checker's for the layout.
-// A plan of one bay is complete when the verifier finds no fault; a plan of
-// several when every move is found and every bay scheduled: the verifier's
-// report on it is in `verify` and its faults are not the plan's.
+// The plan is complete when every move is found, every bay is scheduled
+// and the verifier finds no fault.
 PlanResult PlanLayout(const Layout& layout, const ModelPaths& paths,
                       const std::string& layout_sha256,
                       const PlanOptions& options = {});
