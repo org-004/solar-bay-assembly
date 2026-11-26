@@ -1,6 +1,7 @@
-// Plans one bay of a layout (src/layout_plan.h) and prints one row per move.
+// Plans bays of a layout back to back (src/layout_plan.h, src/layout_bays.h)
+// and prints one row per move.
 //
-//   plan_layout <name> [--summary] [--out PATH] [--threads N]
+//   plan_layout <name> [--bays N] [--summary] [--out PATH] [--threads N]
 //               [--first-step A --last-step B] [--pretty]
 //               [--budgets A,B,C] [--why STEP]... [--why all-failed]
 //   plan_layout <name> --margins [--pretty]
@@ -13,8 +14,11 @@
 // phase's planned and model seconds, each arm's working, moving and waiting
 // seconds, every wait with its reason, how long planning took and its
 // collision queries, and the faults. --pretty lines the CSV's columns up.
-// --summary prints `key: value` lines instead. --out PATH writes the plan
-// as JSON (PlanToJson). --budgets sets the RRT iteration budgets (default
+// --summary prints `key: value` lines instead, with each bay's events and
+// the cycle's figures (CycleFiguresOf). --bays N plans N bays back to back
+// (default 3; 1 gives the plan of one bay as before; a part of the bay,
+// --first-step, is always one bay). --out PATH writes the plan as JSON
+// (PlanToJson). --budgets sets the RRT iteration budgets (default
 // the figures' 5000,40000,160000). --why STEP explains the moves that lead
 // to a step and plans nothing else; --why all-failed plans as usual and then
 // explains every move not found. Layouts are read from LAYOUT_DIR.
@@ -27,8 +31,10 @@
 // the plan verifies and every checker row passes.
 //
 // Exit status: 0 when the plan is complete; 1 when a move was not found,
-// the schedule is blocked or the verifier found a fault; 2 on a usage or
-// loading error.
+// the schedule is blocked or, for one bay, the verifier found a fault (the
+// verifier does not know bays yet: with several its faults are printed as
+// verify_fault lines and leave the plan complete); 2 on a usage or loading
+// error.
 
 #include <cstdio>
 #include <cstdlib>
@@ -41,6 +47,7 @@
 #include <vector>
 
 #include "src/layout.h"
+#include "src/layout_bays.h"
 #include "src/layout_check.h"
 #include "src/layout_model.h"
 #include "src/layout_plan.h"
@@ -76,7 +83,7 @@ std::string Num(double v, int digits = 2) {
 
 int Usage() {
   std::fprintf(stderr,
-               "usage: plan_layout <name> [--summary] [--out PATH] "
+               "usage: plan_layout <name> [--bays N] [--summary] [--out PATH] "
                "[--threads N] [--first-step A --last-step B] [--pretty] "
                "[--budgets A,B,C] [--why STEP|all-failed]... "
                "| plan_layout <name> --margins [--pretty]\n");
@@ -248,6 +255,7 @@ int main(int argc, char** argv) {
   std::string name, out;
   bool summary = false, pretty = false, margins = false;
   PlanOptions options;
+  options.bays = 3;
   std::vector<int> why;
   bool why_failed = false;
   for (int i = 1; i < argc; ++i) {
@@ -268,6 +276,12 @@ int main(int argc, char** argv) {
       if (!value(&v)) return Usage();
       options.threads = std::atoi(v.c_str());
       if (options.threads < 1) return Usage();
+    } else if (a == "--bays") {
+      if (!value(&v)) return Usage();
+      char* end = nullptr;
+      const long bays = std::strtol(v.c_str(), &end, 10);
+      if (end == v.c_str() || *end != '\0' || bays < 1 || bays > 100) return Usage();
+      options.bays = static_cast<int>(bays);
     } else if (a == "--first-step") {
       if (!value(&v)) return Usage();
       options.first_step = std::atoi(v.c_str());
@@ -376,11 +390,21 @@ int main(int argc, char** argv) {
     std::printf("moves_found: %d\n", found);
     std::printf("bay_planned_s: %s\n", Num(plan.bay_planned_s).c_str());
     std::printf("bay_model_s: %s\n", Num(plan.bay_model_s).c_str());
+    std::printf("bays: %d\n", plan.bays);
+    for (const BayEvent& e : plan.events) {
+      std::printf("bay_%d_%s: %s to %s s\n", e.bay, e.kind.c_str(),
+                  Num(e.t0).c_str(), Num(e.t1).c_str());
+    }
+    const CycleFigures cycle = CycleFiguresOf(plan);
+    std::printf("one_bay_s: %s\n", Num(cycle.one_bay_s).c_str());
+    std::printf("cycle_s: %s\n", Num(cycle.cycle_s).c_str());
+    std::printf("interval_s: %s\n", Num(cycle.interval_s).c_str());
     for (const PhaseTime& p : plan.phases) {
       std::string key = p.name;
       for (char& c : key) {
         if (c == ' ') c = '_';
       }
+      if (plan.bays > 1) key = "bay_" + std::to_string(p.bay) + "_" + key;
       std::printf("phase_%s_planned_s: %s\n", key.c_str(),
                   Num(p.planned_s).c_str());
       std::printf("phase_%s_model_s: %s\n", key.c_str(), Num(p.model_s).c_str());
@@ -403,6 +427,12 @@ int main(int argc, char** argv) {
     std::printf("complete: %s\n", plan.complete ? "true" : "false");
     for (const std::string& f : r.faults) {
       std::printf("fault: %s\n", f.c_str());
+    }
+    if (plan.bays > 1) {
+      std::printf("verify_faults: %d\n", static_cast<int>(r.verify.faults.size()));
+      for (const std::string& f : r.verify.faults) {
+        std::printf("verify_fault: %s\n", f.c_str());
+      }
     }
   } else {
     std::vector<std::vector<std::string>> table;
@@ -439,8 +469,11 @@ int main(int argc, char** argv) {
         Num(f.edge_resolution, 4).c_str(), f.shorten_tries, budgets.c_str(),
         f.seed, Num(f.sample_s).c_str());
     for (const PhaseTime& p : plan.phases) {
-      std::printf("# phase %s: planned %s s, model %s s\n", p.name.c_str(),
-                  Num(p.planned_s).c_str(), Num(p.model_s).c_str());
+      const std::string bay =
+          plan.bays > 1 ? "bay " + std::to_string(p.bay) + " " : "";
+      std::printf("# phase %s%s: planned %s s, model %s s\n", bay.c_str(),
+                  p.name.c_str(), Num(p.planned_s).c_str(),
+                  Num(p.model_s).c_str());
     }
     std::printf("# bay: planned %s s, model %s s\n",
                 Num(plan.bay_planned_s).c_str(), Num(plan.bay_model_s).c_str());

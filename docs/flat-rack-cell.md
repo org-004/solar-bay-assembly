@@ -15,9 +15,10 @@ physics: [`docs/flat-rack-physics.md`](flat-rack-physics.md). Every result below
   `--checks <kinds>`): every row of every check as CSV
   (`check,item,arm,tool,figure,unit,limit,result,detail`), then the time model, the
   margins and each arm's posture as `#` lines.
-- `bazel run --config=opt //:plan_layout -- <name> [--summary|--margins|--out PATH]`:
-  one row per planned move, then the phases, each arm's share, every wait, the costliest
-  moves and the planning time; `--margins` the tightest margins of the committed plan
+- `bazel run --config=opt //:plan_layout -- <name> [--bays N] [--summary|--margins|--out PATH]`:
+  three bays back to back unless `--bays` says otherwise (`src/layout_bays.h`); one row
+  per planned move, then the phases, each arm's share, every wait, the costliest moves
+  and the planning time; `--margins` the tightest margins of the committed plan
   (`plans/<name>.json`).
 - `bazel run --config=opt //:viewer_layout -- <name> --play`: the committed plan played
   back (needs a display).

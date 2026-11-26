@@ -2130,9 +2130,10 @@ cc_library(
     ],
 )
 
-# Plans one bay of a layout and prints one row per move.
+# Plans bays of a layout back to back (three unless --bays N says) and prints
+# one row per move.
 #   bazel run --config=opt //:plan_layout -- flat_rack_3_pin_arms [--summary]
-#   bazel run --config=opt //:plan_layout -- flat_rack_3_pin_arms --out /tmp/a.json
+#   bazel run --config=opt //:plan_layout -- flat_rack_3_pin_arms --bays 1 --out /tmp/a.json
 cc_binary(
     name = "plan_layout",
     srcs = ["src/plan_layout.cc"],
