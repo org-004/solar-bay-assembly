@@ -109,8 +109,9 @@ and locate, pin and swage the modules. Every move of every arm for one bay is
 planned free of collision and the four arms are scheduled on one clock
 (`bazel run --config=opt //:plan_layout -- flat_rack_3_pin_arms --summary`);
 the plan is committed (`plans/`), replayed and checked by a test, and played
-back in the viewer (`//:viewer_layout -- flat_rack_3_pin_arms --play`). A bay
-takes 644.28 s planned and 416.32 s by the time model.
+back in the viewer (`//:viewer_layout -- flat_rack_3_pin_arms --play`). One bay
+takes 644.28 s planned and 416.32 s by the time model; three bays back to back average
+622.31 s a bay ([`docs/three-bays.md`](three-bays.md)).
 [`docs/flat-rack-cell.md`](flat-rack-cell.md) holds the design, the
 ports, the margins and three recordings.
 

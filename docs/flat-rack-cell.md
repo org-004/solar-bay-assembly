@@ -9,7 +9,10 @@ three Universal Robots UR10e below the bay drive the strap bolts and locate, pin
 swage the modules. The cell is designed, not built, and kinematic: arms, tools, parts
 and envelopes are checked at poses and along planned motion. Since run 019 one module's
 cycle of the chosen plan, the module arm's take and set of module 4, is also run in
-physics: [`docs/flat-rack-physics.md`](flat-rack-physics.md). Every result below is printed by these commands:
+physics: [`docs/flat-rack-physics.md`](flat-rack-physics.md). Since run 021 every plan
+holds three bays back to back, and the scorecard's `cycle_s` is their average bay:
+[`docs/three-bays.md`](three-bays.md); the tables below are of one bay unless they say
+otherwise. Every result below is printed by these commands:
 
 - `bazel run --config=opt //:check_layout -- <name>` (`--list`, `--summary`, `--steps`,
   `--checks <kinds>`): every row of every check as CSV
@@ -127,7 +130,7 @@ whole.
 |---|---|---|---|---|
 | Arms | 2 | 3 | 4 | ours |
 | Bay by the time model | 633.13 s | 470.63 s | 416.32 s | derived |
-| Bay planned | 907.34 s | 700.08 s | 644.28 s | derived |
+| One bay planned | 907.34 s | 700.08 s | 644.28 s | derived |
 | Planned over the model | 1.433 | 1.488 | 1.548 | derived (ratio) |
 | Tightest clearance at a pose, not near by design (`clearance` row) | 0.0187 m, `locate 0/3` | 0.0187 m, `locate 0/3` | 0.0187 m, `locate 0/3` | derived |
 | Least `approach` row | 0.0187 m, `locate 0/3 approach` | 0.0187 m, `locate 0/3 approach` | 0.0187 m, `locate 0/3 approach` | derived |
@@ -146,8 +149,8 @@ each; load 3, 5, 7; reach 189, 193, 197; clearance 273, 280, 287; ways 2 each; t
 
 Three pin arms were taken forward to be planned because they are the shortest by the
 time model, the tightest pose clearance is the same in all three, and the planned times
-(R24, below) confirm the order. R17's rule, applied: the shortest planned bay is three
-arms', 644.28 s. The two-arm layout is within 10% of it (700.08 / 644.28 = 1.087), but
+(R24, below) confirm the order. R17's rule, applied to one bay: the shortest planned bay is
+three arms', 644.28 s. The two-arm layout is within 10% of it (700.08 / 644.28 = 1.087), but
 its least clearance over the schedule, 0.0179 m, is not larger than 0.0181 m; the
 one-arm layout is 1.408 times as long. So `flat_rack_3_pin_arms` is the one layout
 marked `chosen` by `--list`. (Since run 018 which layout is chosen is read from
@@ -296,14 +299,16 @@ Its limits:
 | Rails | 180.42 s | 127.39 s | 1.416 | derived |
 | Modules | 365.10 s | 198.93 s | 1.835 | derived |
 | End (release and bay out) | 53.77 s | 45.00 s | 1.195 | derived |
-| **Bay** | **644.28 s** | **416.32 s** | 1.548 | derived |
+| **One bay** | **644.28 s** | **416.32 s** | 1.548 | derived |
 
-The bay takes 644.28 s planned and 416.32 s by the time model. The model is low against
+One bay takes 644.28 s planned and 416.32 s by the time model. Three bays back to back
+average 622.31 s a bay (`cycle_s`, `bazel run --config=opt //:score_layout -- --all`;
+[`docs/three-bays.md`](three-bays.md)). The model is low against
 planned motion, and lowest in the module phase.
 
 ### Each arm's share of the bay
 
-Percent of the planned bay, 644.28 s (derived, ratio).
+Percent of one planned bay, 644.28 s (derived, ratio).
 
 | Arm | Working | Moving | Waiting | Basis |
 |---|---|---|---|---|
@@ -555,7 +560,7 @@ These sentences are the engineer's judgement, not results of a program.
    does not bind, the load row uses 68.4 of 210 kg, and a new model would buy no margin.
    A second module arm would be the one pair of arms on a shared track, and the planned
    times show the pin arms hold the bay: the module arm works and moves 188.19 + 197.65
-   = 385.84 of 644.28 s.
+   = 385.84 of one bay's 644.28 s.
 4. **Three UR10e pin arms below the bay** on one floor rail at x = -0.38 (0.70 m from the
    tube, run 011's distance), 0.15 m above the deck, each on its own stretch so that two
    never share a place. The modules are divided 4/3/2 because an arm can start only
@@ -593,7 +598,8 @@ These sentences are the engineer's judgement, not results of a program.
    first, or giving C its modules earlier, would shorten the bay. Run 018 did that:
    [`docs/flat-rack-order.md`](flat-rack-order.md) gives the new order's tables, which
    change bought how many seconds, and the bound. `flat_rack_3_pin_arms_ordered` (v10,
-   now the chosen layout) plans a bay of 560.45 s with nothing else changed.
+   now the chosen layout) plans one bay of 560.45 s with nothing else changed (three bays
+   back to back: 554.55 s a bay, [`docs/three-bays.md`](three-bays.md)).
 12. **Margins and envelopes changed under R25** (before, after):
     - `clearance_m` 0.010 to 0.015 m for the three flat rack layouts (0.020 would not
       pass: 0.0187 m); `joint_margin_deg` stays 5.

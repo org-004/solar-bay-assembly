@@ -164,7 +164,7 @@ Notes on the table:
 clearance in physics is at least the layout's `clearance_m`, 0.015 m, and the module
 ends within the gate.
 
-Both steps count, so 22.068854 s of the bay's 560.452329 s is carried out in physics:
+Both steps count, so 22.068854 s of one bay's 560.452329 s (`one_bay_s`) is carried out in physics:
 **`physics_share` 0.039377** (derived). Before this run it was 0.
 
 ## The tightest margins of the run

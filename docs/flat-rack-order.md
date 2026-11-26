@@ -6,8 +6,11 @@ arms, tools, parts, process times, speeds, settle figures and margins (`clearanc
 0.015 m, `plan_pad_m` 0.003 m, `joint_margin_deg` 5.0), and the same division of work
 among the arms. `//:layout_model_test` (`Layouts.OrderOfWork`) checks that the two
 files differ only in name, title, summary and `order`. Only the order of work differs,
-and the planned bay is **560.45 s against 644.28 s** (-83.83 s, -13.0%). Every other
-measure of the scorecard is as it was.
+and one planned bay is **560.45 s against 644.28 s** (-83.83 s, -13.0%). Every other
+measure of the scorecard is as it was. Since run 021 the plans hold three bays back to
+back and `cycle_s` is their average bay: 554.55 s against 622.31 s, one bay as here
+(`bazel run --config=opt //:score_layout -- --all`; [`docs/three-bays.md`](three-bays.md)).
+The tables below are run 018's, of one bay.
 
 ```
 bazel run --config=opt //:plan_layout -- flat_rack_3_pin_arms_ordered --summary
@@ -16,8 +19,8 @@ python3 -I tools/order/search.py try layouts/flat_rack_3_pin_arms.json --out DIR
 ```
 
 The recording of the bay as planned is [`docs/evolution/v10.gif`](evolution/v10.gif),
-beside v09's [`docs/evolution/v09.gif`](evolution/v09.gif). Both are captioned with their
-version and cycle time.
+beside v09's [`docs/evolution/v09.gif`](evolution/v09.gif). Both are of one bay and are
+captioned with their version and the time of that one bay.
 
 ## The order
 
@@ -47,7 +50,7 @@ The rules, and how the planner and the verifier hold them, are in the opening co
 right after a tool change (R21). The bay's steps follow the order
 (`src/layout_check.h`), and so does what is built at each work point
 (`src/layout_scene.h`). Without `order`, every layout plans as before:
-`flat_rack_3_pin_arms` plans byte for byte as its committed plan, 644.28 s.
+`flat_rack_3_pin_arms` planned byte for byte as its committed plan of one bay, 644.28 s.
 
 ## Time by phase
 
@@ -61,11 +64,11 @@ that, so the first set falls in the rails' phase and "modules" counts from the l
 | Rails | 180.67 s | 127.39 s | 1.418 | 180.42 s | +0.25 s | derived |
 | Modules | 278.59 s | 198.70 s | 1.402 | 365.10 s | -86.51 s | derived |
 | End (release and bay out) | 56.19 s | 45.00 s | 1.249 | 53.77 s | +2.42 s | derived |
-| **Bay** | **560.45 s** | **416.09 s** | 1.347 | **644.28 s** | -83.83 s | derived |
+| **One bay** | **560.45 s** | **416.09 s** | 1.347 | **644.28 s** | -83.83 s | derived |
 
 ## Each arm's share of the bay
 
-Percent of the planned bay, 560.45 s (derived, ratio).
+Percent of one planned bay, 560.45 s (derived, ratio).
 
 | Arm | Working | Moving | Waiting | Waiting before | Basis |
 |---|---|---|---|---|---|
@@ -112,7 +115,7 @@ Each row is a whole bay planned and verified with `tools/order/search.py try` fr
 same base file. Only the `order` field differs. The variants were planned in run 018, and
 their files are not kept.
 
-| `modules` | `modules_start` | `pin_tools` | Bay planned | Against the old bay | Basis |
+| `modules` | `modules_start` | `pin_tools` | One bay planned | Against the old bay | Basis |
 |---|---|---|---|---|---|
 | 0-8 (as before) | after_all_bolts | just_in_time | 644.28 s | 0 | derived |
 | 0-8 | after_their_rails | early | 592.56 s | -51.72 s | derived |
@@ -168,7 +171,7 @@ The floor of this cell by the order of work, with the rails set first (derived):
   tool change take 13.8 s, and bay out 40 s. Release (5 s) overlaps the return.
 - So the bay cannot be shorter than about 425.55 + 64 + 13.8 + 40 = **543 s**, whatever
   the order of modules, while the rails come first and each module's holes are one arm's.
-  The result, 560.45 s, is about **17 s** from it.
+  The result, 560.45 s for one bay, is about **17 s** from it.
 
 The 17 s are pin arm A's: its 16 holes start no earlier than the first set, at 242 s.
 To come nearer the floor, A would have to start its holes earlier, which means setting

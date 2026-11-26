@@ -68,7 +68,8 @@ its `tube_in` to the end of its `bay_out` (the plan's `bay_planned_s`, and what 
 was before the plans held three bays), and `interval_s`, from the end of bay 1's `bay_out`
 to the end of bay 2's. `score_layout` prints both beside `cycle_s`, and `--all` and
 `--json` carry them. A plan of one bay has `cycle_s` equal to `one_bay_s` and no
-`interval_s`.
+`interval_s`. [`docs/three-bays.md`](three-bays.md) gives the rules of the three bays, the
+layouts' figures and where the time between bays goes.
 
 **`failures_per_bay`** (P0, lower, modelled). The sum, over the kinds of operation, of the
 count of operations of that kind in one bay of the plan (bay 0's steps) times the rate of that kind in
