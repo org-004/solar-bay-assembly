@@ -100,6 +100,17 @@ Those 22.07 s are why `physics_share` is 0.039; the failures are still modelled.
 module's holes into line before pinning (`tests/locate_physics_test.cc`,
 [`docs/bay-hardware.md`](docs/bay-hardware.md)).
 
+## The cell at 5 s
+
+The stand-in cell, run with its defaults (seed 1, scripted carry), 5 simulated seconds
+after the trial's Reset. The arm has the pallet camera's estimate of module 0 and is moving
+to the standoff in front of it.
+
+![The stand-in cell 5 s into its first cycle](docs/img/cell_at_5s.png)
+
+Made with `tools/video/shot.sh docs/img/cell_at_5s.png 1200x900 --quit-at 5` (needs a
+display in `REC_DISPLAY`, default `:7`).
+
 ## Building and running
 
 The build tool is Bazel, run through Bazelisk, which fetches the version named in
