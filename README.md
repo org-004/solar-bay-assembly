@@ -7,6 +7,14 @@ failures per bay first, then part count and placement error, then mass in transi
 error of the infed parts that the cell tolerates. `score_layout` prints them for every
 layout, and [`docs/scorecard.md`](docs/scorecard.md) defines each one.
 
+## The cell at five seconds
+
+![The cell 5 simulated seconds into a trial, seed 3, overview camera](docs/img/cell_5s.png)
+
+The cell 5 simulated seconds after the trial's start (`view_cell`, seed 3). Taken with
+`tools/video/shot.sh docs/img/cell_5s.png 1200x900 --seed 3 --no-overlay --view overview --quit-at 5`
+under Xvfb (`docs/` and the project's notes on pictures say how).
+
 ## Results
 
 <!-- BEGIN results: written by tools/evolution/pages.py; do not edit -->
