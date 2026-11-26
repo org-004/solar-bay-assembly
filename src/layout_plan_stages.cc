@@ -371,7 +371,7 @@ std::vector<std::string> StagedFaults(const LayoutScene& scene, const CheckRepor
       }
       if (last < 0) continue;  // A step left out: the verifier says so.
       double parked = -1.0;
-      for (size_t g = static_cast<size_t>(last + 1); g < ap->segments.size(); ++g) {
+      for (size_t g = static_cast<size_t>(last) + 1; g < ap->segments.size(); ++g) {
         const Segment& x = ap->segments[g];
         if (x.kind == "wait") continue;
         if (x.kind == "move" && !x.path.empty() && at_wait(arm, x.path.back())) parked = x.t1;

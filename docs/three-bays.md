@@ -170,6 +170,23 @@ waits for it to go back to its wait pose (504.262 to 509.923 s) and change back 
 first tool (509.923 to 520.452 s). The module arm is the first to finish a bay and the
 first to start the next; the pin arms wait after the clamp for the rails they bolt.
 
+## Staged work (run 022)
+
+A layout with `staging` is planned stage by stage within each bay
+([the two-rack cell](two-flat-racks-cell.md), "Planning in stages"). The rules between
+bays are the same:
+
+- bay b+1's tube comes in to the first stage's place;
+- bay b leaves from the last stage's place;
+- where the ports do not share a unit, the incoming tube is held apart from the outgoing
+  bay at every sample, each at its place.
+
+Within a bay the stages are joined by `transfer` events of the layout's `transfer_s`,
+30 s. Every arm waits through them at its wait pose, so a bay of three stages spends at
+least two transfers, 60 s, with no arm working. No staged plan is complete yet, so no
+staged layout has a `cycle_s`. That also leaves open where the time between bays goes in
+the two-rack cell, and how much of `bay_out` the next `tube_in` overlaps.
+
 ## What would overlap more
 
 Seconds per boundary between bays; each boundary shortens `interval_s` by as much and

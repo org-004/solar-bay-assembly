@@ -91,13 +91,14 @@ const Committed& TheCommitted() {
 }
 
 // The layout and its checker's report.
-#define NEED_LAYOUT(c)                    \
+// It names the test's Committed `c`.
+#define NEED_LAYOUT()                     \
   const Committed& c = TheCommitted();    \
   if (!c.error.empty()) FAIL() << c.error;
 
 // And the committed plan, skipped while there is none.
-#define NEED_COMMITTED(c)                                                       \
-  NEED_LAYOUT(c);                                                               \
+#define NEED_COMMITTED()                                                        \
+  NEED_LAYOUT();                                                               \
   if (c.no_plan) GTEST_SKIP() << "no committed plan plans/" << kName << ".json";
 
 std::string Faults(const VerifyReport& r) {
@@ -140,7 +141,7 @@ BayEvent* Transfer(Plan& p, int bay, int to_stage) {
 // ------------------------------------------------------------- the scenes
 
 TEST(Scenes, TheStagesDifferOnlyByTheTubesPlace) {
-  NEED_LAYOUT(c);
+  NEED_LAYOUT();
   std::string error;
   const std::vector<std::unique_ptr<LayoutScene>> scenes =
       StageScenes(c.layout, ModelPaths::FromEnvironment(), 5.0, &error);
@@ -256,7 +257,7 @@ void Put(Plan& p, int a, const std::string& kind, int step, double t0, double t1
 }
 
 TEST(MadeUp, AFineStagedBayHasNoFault) {
-  NEED_LAYOUT(c);
+  NEED_LAYOUT();
   MadeUp m = MakeUp(c);
   ASSERT_TRUE(m.scene);
   const std::vector<std::string> f = StagedFaults(*m.scene, c.report, m.plan, VerifyOptions{});
@@ -264,7 +265,7 @@ TEST(MadeUp, AFineStagedBayHasNoFault) {
 }
 
 TEST(MadeUp, TheTransfersAreHeld) {
-  NEED_LAYOUT(c);
+  NEED_LAYOUT();
   auto faults = [&](const std::function<void(MadeUp&)>& change) {
     MadeUp m = MakeUp(c);
     change(m);
@@ -309,7 +310,7 @@ TEST(MadeUp, TheTransfersAreHeld) {
 }
 
 TEST(MadeUp, AModuleSetWaitsForTheMagazineAndItsPark) {
-  NEED_LAYOUT(c);
+  NEED_LAYOUT();
   const BayStep* take = StepOf(c.report, "pins_take", 0, c.layout);
   const BayStep* set = StepOf(c.report, "module_set", 0, c.layout);
   ASSERT_NE(take, nullptr);
@@ -371,7 +372,7 @@ TEST(MadeUp, AnUnstagedPlanHasNoTransfer) {
 }
 
 TEST(MadeUp, TheTubeStandsAtItsStageAndMovesThroughATransfer) {
-  NEED_LAYOUT(c);
+  NEED_LAYOUT();
   MadeUp m = MakeUp(c);
   const Eigen::Vector3d two = StageOffset(c.layout, 1), three = StageOffset(c.layout, 2);
   EXPECT_NEAR(two.y(), -3.432, 1e-9);
@@ -395,7 +396,7 @@ TEST(MadeUp, TheTubeStandsAtItsStageAndMovesThroughATransfer) {
 }
 
 TEST(MadeUp, WaitsAreCutAtTransfersAndPhasesSumToTheBay) {
-  NEED_LAYOUT(c);
+  NEED_LAYOUT();
   MadeUp m = MakeUp(c);
   WaitsThroughTransfers(c.layout, m.plan.events, &m.plan.arms);
   const std::vector<Segment>& row = m.plan.arms[0].segments;
@@ -421,7 +422,7 @@ TEST(MadeUp, WaitsAreCutAtTransfersAndPhasesSumToTheBay) {
 // out from the last stage's, as soon as the two stay clearance_m apart; the
 // ports of this layout do not share their zone.
 TEST(MadeUp, TheNextTubeComesInWhileTheBayGoesOutFromTheLastStage) {
-  NEED_LAYOUT(c);
+  NEED_LAYOUT();
   ASSERT_FALSE(WaysShareZone(c.layout));
   std::string error;
   const std::unique_ptr<LayoutScene> scene = LayoutScene::Load(
@@ -446,7 +447,7 @@ TEST(MadeUp, TheNextTubeComesInWhileTheBayGoesOutFromTheLastStage) {
 // ----------------------------------------------------- the committed plan
 
 TEST(Committed, IsCompleteAndRoundTrips) {
-  NEED_COMMITTED(c);
+  NEED_COMMITTED();
   EXPECT_TRUE(c.plan.complete);
   EXPECT_EQ(c.plan.bays, 3);
   EXPECT_EQ(PlanToJson(c.plan), c.text);
@@ -456,7 +457,7 @@ TEST(Committed, IsCompleteAndRoundTrips) {
 // AC4: each bay's events in time order are tube_in, clamp, transfer,
 // transfer, release, bay_out; each transfer takes transfer_s.
 TEST(Committed, EachBaysEventsAreInOrder) {
-  NEED_COMMITTED(c);
+  NEED_COMMITTED();
   for (int b = 0; b < c.plan.bays; ++b) {
     std::vector<const BayEvent*> events;
     for (const BayEvent& e : c.plan.events) {
@@ -487,7 +488,7 @@ TEST(Committed, EachBaysEventsAreInOrder) {
 }
 
 TEST(Committed, PassesTheRulesOfTheSteps) {
-  NEED_COMMITTED(c);
+  NEED_COMMITTED();
   VerifyOptions o = Quick();
   o.edges = true;
   const VerifyReport r = Verify(c, c.plan, o);
@@ -500,7 +501,7 @@ class Schedule : public ::testing::TestWithParam<int> {};
 constexpr int kPieces = 4;
 
 TEST_P(Schedule, PassesTheVerifier) {
-  NEED_COMMITTED(c);
+  NEED_COMMITTED();
   double end = 0.0;
   for (const ArmPlan& a : c.plan.arms) {
     if (!a.segments.empty()) end = std::max(end, a.segments.back().t1);
@@ -526,7 +527,7 @@ INSTANTIATE_TEST_SUITE_P(Pieces, Schedule, ::testing::Range(0, kPieces));
 // --------------------------------------------------------------- tampering
 
 TEST(Tampered, AStepBeforeItsTransferEndsIsFound) {
-  NEED_COMMITTED(c);
+  NEED_COMMITTED();
   Plan p = c.plan;
   BayEvent* e = Transfer(p, 0, 2);
   ASSERT_NE(e, nullptr);
@@ -538,7 +539,7 @@ TEST(Tampered, AStepBeforeItsTransferEndsIsFound) {
 }
 
 TEST(Tampered, AStepAfterItsTransferStartsIsFound) {
-  NEED_COMMITTED(c);
+  NEED_COMMITTED();
   Plan p = c.plan;
   BayEvent* e = Transfer(p, 1, 3);
   ASSERT_NE(e, nullptr);
@@ -550,7 +551,7 @@ TEST(Tampered, AStepAfterItsTransferStartsIsFound) {
 }
 
 TEST(Tampered, AnArmOffItsWaitPoseDuringATransferIsFound) {
-  NEED_COMMITTED(c);
+  NEED_COMMITTED();
   Plan p = c.plan;
   const BayEvent* e = Transfer(p, 0, 2);
   ASSERT_NE(e, nullptr);
@@ -578,7 +579,7 @@ TEST(Tampered, AnArmOffItsWaitPoseDuringATransferIsFound) {
 }
 
 TEST(Tampered, AShortTransferIsFound) {
-  NEED_COMMITTED(c);
+  NEED_COMMITTED();
   Plan p = c.plan;
   BayEvent* e = Transfer(p, 2, 2);
   ASSERT_NE(e, nullptr);
@@ -590,7 +591,7 @@ TEST(Tampered, AShortTransferIsFound) {
 }
 
 TEST(Tampered, AMissingTransferIsFound) {
-  NEED_COMMITTED(c);
+  NEED_COMMITTED();
   Plan p = c.plan;
   const BayEvent* e = Transfer(p, 1, 3);
   ASSERT_NE(e, nullptr);
@@ -600,7 +601,7 @@ TEST(Tampered, AMissingTransferIsFound) {
 }
 
 TEST(Tampered, AModuleSetBeforeTheMagazineIsFound) {
-  NEED_COMMITTED(c);
+  NEED_COMMITTED();
   Plan p = c.plan;
   // The first module set of bay 0: its start, as the plan says it, put
   // before the magazine takes of its stage.
