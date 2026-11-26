@@ -335,14 +335,17 @@ struct PlanOptions {
 
 // PlanResult and PlanLayout are declared at the end, after VerifyReport.
 
-// ----------------------------------------------------------------- replay
-// (src/layout_replay.cc)
+// ------------------------------------------------------------- plan file
+// (src/layout_plan_file.cc)
 
 // The plan as text, the same for the same plan on one machine, and back.
 std::string PlanToJson(const Plan& plan);
 std::optional<Plan> PlanFromJson(const std::string& text, std::string* error);
 // Lower-case hexadecimal SHA-256 of a file's bytes; empty if it cannot be read.
 std::string Sha256OfFile(const std::string& path);
+
+// ----------------------------------------------------------------- replay
+// (src/layout_replay.cc)
 
 // Where one arm is at an instant.
 struct ArmAt {

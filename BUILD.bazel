@@ -2106,6 +2106,7 @@ cc_library(
     name = "layout_plan",
     srcs = [
         "src/layout_plan.cc",
+        "src/layout_plan_file.cc",
         "src/layout_replay.cc",
     ],
     hdrs = ["src/layout_plan.h"],
