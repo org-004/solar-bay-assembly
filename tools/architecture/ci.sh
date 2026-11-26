@@ -10,6 +10,11 @@
 #   2. tools/architecture/tidy.sh              clang-tidy over every file of
 #                                              src/ and tests/ against the
 #                                              same baseline.
+#   3. tools/evolution/pages.py check          the pages of the directions,
+#                                              their charts and the README's
+#                                              results are what pages.py writes
+#                                              from versions/versions.json and
+#                                              scores/ (ADR 0023).
 #
 # Before the second step it makes sure that the headers clang-tidy reads are
 # in Bazel's output base: the outside libraries' headers (Eigen, MuJoCo,
@@ -21,7 +26,7 @@
 # anyway; a header it did not provide then shows up as a unit that does not
 # parse.
 #
-# Both steps run even when the first fails, so that one run shows everything.
+# Every step runs even when an earlier one fails, so that one run shows everything.
 # Each step's name is printed on standard output as "== step N: ..." before
 # it, and "== N: ok" or "== N: FAILED (exit C)" after it; the last line is
 # "ci.sh: ok" or "ci.sh: FAILED: <the steps>".
@@ -33,7 +38,7 @@
 # clang-tidy-18) are passed on to the tools. Nothing is written into the
 # checkout.
 #
-# Exit codes: 0 both steps passed; 1 a step failed.
+# Exit codes: 0 every step passed; 1 a step failed.
 cd "$(dirname "$0")/../.." || exit 2
 here=tools/architecture
 failed=
@@ -63,6 +68,16 @@ if [ $rc -eq 0 ]; then
 else
     echo "== 2: FAILED (exit $rc)"
     failed="$failed tidy.sh"
+fi
+
+echo "== step 3: pages.py check (direction pages, charts, the README's results)"
+python3 -B tools/evolution/pages.py check
+rc=$?
+if [ $rc -eq 0 ]; then
+    echo "== 3: ok"
+else
+    echo "== 3: FAILED (exit $rc)"
+    failed="$failed pages.py"
 fi
 
 if [ -z "$failed" ]; then

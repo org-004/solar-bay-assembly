@@ -1848,6 +1848,8 @@ cc_test(
 # (src/layout_model.h). docs/layout.md explains the layouts.
 LAYOUT_FILES = glob(["layouts/*.json"])
 PLAN_FILES = glob(["plans/*.json"], allow_empty = True)
+SCORE_FILES = glob(["scores/*.json"], allow_empty = True)
+EVOLUTION_FILES = glob(["docs/evolution/*"], allow_empty = True)
 
 # What a layout's model is built from at run time: the container, the
 # common settings, the KUKA with its meshes, and Menagerie's UR10e.
@@ -2154,11 +2156,70 @@ cc_library(
 cc_binary(
     name = "score_layout",
     srcs = ["src/score_layout.cc"],
-    data = LAYOUT_FILES + LAYOUT_MODEL_FILES + PLAN_FILES + glob(["scores/*.json"]),
+    data = LAYOUT_FILES + LAYOUT_MODEL_FILES + PLAN_FILES + SCORE_FILES,
     env = LAYOUT_ENV | {
         "PLAN_DIR": "plans",
         "SCORES_DIR": "scores",
     },
     deps = [":scorecard"],
+)
+
+# Every committed scorecard is what the program computes for the files as
+# they are (R5), every step of every plan maps to a kind of operation, and
+# the counting rules on the committed layouts.
+#   bazel test --config=opt //:scorecard_test
+cc_test(
+    name = "scorecard_test",
+    size = "medium",
+    srcs = ["tests/scorecard_test.cc"],
+    data = LAYOUT_FILES + LAYOUT_MODEL_FILES + PLAN_FILES + SCORE_FILES,
+    env = LAYOUT_ENV | {
+        "PLAN_DIR": "plans",
+        "SCORES_DIR": "scores",
+    },
+    deps = [
+        ":layout",
+        ":layout_model",
+        ":layout_plan",
+        ":scorecard",
+        "@googletest//:gtest_main",
+    ],
+)
+
+# The program itself: exit codes, the rows it prints, --json and --all.
+#   bazel test --config=opt //:score_layout_test
+cc_test(
+    name = "score_layout_test",
+    size = "small",
+    srcs = ["tests/score_layout_test.cc"],
+    data = LAYOUT_FILES + LAYOUT_MODEL_FILES + PLAN_FILES + SCORE_FILES,
+    env = LAYOUT_ENV | {
+        "PLAN_DIR": "plans",
+        "SCORES_DIR": "scores",
+    },
+    deps = [
+        ":scorecard",
+        "@googletest//:gtest_main",
+    ],
+)
+
+# A registered version does not change (R10), the chosen layout is the
+# newest chosen version, and every recording exists within its size (R11).
+#   bazel test --config=opt //:versions_test
+cc_test(
+    name = "versions_test",
+    size = "small",
+    srcs = ["tests/versions_test.cc"],
+    data = LAYOUT_FILES + PLAN_FILES + SCORE_FILES + EVOLUTION_FILES + ["versions/versions.json"],
+    env = {
+        "LAYOUT_DIR": "layouts",
+        "VERSIONS_JSON": "versions/versions.json",
+    },
+    deps = [
+        ":layout",
+        ":layout_plan",
+        ":scorecard",
+        "@googletest//:gtest_main",
+    ],
 )
 # END scorecard

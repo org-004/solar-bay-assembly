@@ -1,0 +1,267 @@
+// The scorecard (src/scorecard.h): every committed scores/<name>.json is what
+// score_layout computes for the layout, its plan and the rates as they are,
+// every step of every plan maps to a kind of operation, and the counting
+// rules give the figures they should on the committed layouts.
+
+#include "src/scorecard.h"
+
+#include <cmath>
+#include <cstdlib>
+#include <fstream>
+#include <iterator>
+#include <map>
+#include <optional>
+#include <string>
+#include <vector>
+
+#include <gtest/gtest.h>
+
+#include "src/layout.h"
+#include "src/layout_model.h"
+#include "src/layout_plan.h"
+
+namespace cell::layout {
+namespace {
+
+std::string Dir(const char* variable, const char* fallback) {
+  const char* dir = std::getenv(variable);
+  return dir != nullptr && dir[0] != '\0' ? dir : fallback;
+}
+
+std::string ReadFile(const std::string& path) {
+  std::ifstream file(path, std::ios::binary);
+  return std::string((std::istreambuf_iterator<char>(file)),
+                     std::istreambuf_iterator<char>());
+}
+
+struct Inputs {
+  Layout layout;
+  Plan plan;
+  std::vector<Rate> rates;
+  std::string layout_sha, plan_sha, rates_sha;
+};
+
+std::optional<Inputs> Read(const std::string& name) {
+  Inputs in;
+  std::string error;
+  const std::string layout_path = Dir("LAYOUT_DIR", "layouts") + "/" + name + ".json";
+  const std::string plan_path = Dir("PLAN_DIR", "plans") + "/" + name + ".json";
+  const std::string rates_path = Dir("SCORES_DIR", "scores") + "/rates.json";
+  const auto layout = LoadLayout(layout_path, &error);
+  EXPECT_TRUE(layout.has_value()) << error;
+  const auto plan = PlanFromJson(ReadFile(plan_path), &error);
+  EXPECT_TRUE(plan.has_value()) << plan_path << ": " << error;
+  const auto rates = LoadRates(rates_path, &error);
+  EXPECT_TRUE(rates.has_value()) << error;
+  if (!layout || !plan || !rates) return std::nullopt;
+  in.layout = *layout;
+  in.plan = *plan;
+  in.rates = *rates;
+  in.layout_sha = Sha256OfFile(layout_path);
+  in.plan_sha = Sha256OfFile(plan_path);
+  in.rates_sha = Sha256OfFile(rates_path);
+  return in;
+}
+
+std::optional<Scorecard> ComputeUncached(const std::string& name) {
+  const std::optional<Inputs> in = Read(name);
+  if (!in) return std::nullopt;
+  std::string error;
+  const auto card = ComputeScorecard(
+      in->layout, in->plan, in->rates, ModelPaths::FromEnvironment(),
+      in->layout_sha, in->plan_sha, in->rates_sha, &error);
+  EXPECT_TRUE(card.has_value()) << name << ": " << error;
+  return card;
+}
+
+// Computing takes about 12 s, so each layout's card is computed once.
+std::optional<Scorecard> Compute(const std::string& name) {
+  static std::map<std::string, std::optional<Scorecard>> cache;
+  const auto found = cache.find(name);
+  if (found != cache.end()) return found->second;
+  return cache[name] = ComputeUncached(name);
+}
+
+std::vector<std::string> PlanNames() {
+  return ListLayouts(Dir("PLAN_DIR", "plans"));
+}
+
+StepTime Step(const std::string& what) {
+  StepTime s;
+  s.what = what;
+  return s;
+}
+
+TEST(Scorecard, EveryCommittedFileIsWhatTheProgramComputes) {
+  const std::vector<std::string> names = PlanNames();
+  ASSERT_FALSE(names.empty());
+  for (const std::string& name : names) {
+    const std::optional<Scorecard> card = Compute(name);
+    ASSERT_TRUE(card.has_value());
+    const std::string committed =
+        ReadFile(Dir("SCORES_DIR", "scores") + "/" + name + ".json");
+    std::string error;
+    const std::optional<Scorecard> recorded = ScorecardFromJson(committed, &error);
+    ASSERT_TRUE(recorded.has_value()) << "scores/" << name << ".json: " << error;
+    EXPECT_EQ(committed, ScorecardToJson(*card))
+        << "scores/" << name
+        << ".json is not what score_layout computes for layouts/" << name
+        << ".json and plans/" << name << ".json as they are (layout sha256 now "
+        << card->layout_sha256 << ", recorded " << recorded->layout_sha256
+        << "; plan sha256 now " << card->plan_sha256 << ", recorded "
+        << recorded->plan_sha256 << "; rates sha256 now " << card->rates_sha256
+        << ", recorded " << recorded->rates_sha256
+        << "). Run: bazel run --config=opt //:score_layout -- " << name
+        << " --write";
+  }
+}
+
+TEST(Scorecard, EveryStepOfEveryPlanMaps) {
+  for (const std::string& name : PlanNames()) {
+    const std::optional<Inputs> in = Read(name);
+    ASSERT_TRUE(in.has_value());
+    std::string error;
+    const auto counts = CountOperations(in->plan, in->rates, &error);
+    ASSERT_TRUE(counts.has_value()) << name << ": " << error;
+    int total = 0;
+    for (const OperationCount& c : *counts) total += c.count;
+    EXPECT_GE(total, static_cast<int>(in->plan.steps.size())) << name;
+  }
+}
+
+TEST(Scorecard, OperationKindsOfSteps) {
+  using Kinds = std::vector<std::string>;
+  EXPECT_EQ(OperationKinds(Step("tube in")), Kinds({"tube_in"}));
+  EXPECT_EQ(OperationKinds(Step("clamp")), Kinds({"clamp"}));
+  EXPECT_EQ(OperationKinds(Step("take rail 3")), Kinds({"grip", "arm_move"}));
+  EXPECT_EQ(OperationKinds(Step("take a pin magazine")),
+            Kinds({"grip", "arm_move"}));
+  EXPECT_EQ(OperationKinds(Step("set module 4")),
+            Kinds({"set_down", "arm_move"}));
+  EXPECT_EQ(OperationKinds(Step("pin 5/2")), Kinds({"pin_set", "arm_move"}));
+  EXPECT_EQ(OperationKinds(Step("tool change")),
+            Kinds({"tool_change", "arm_move"}));
+  EXPECT_EQ(OperationKinds(Step("back to wait")), Kinds({"arm_move"}));
+  EXPECT_EQ(OperationKinds(Step("release")), Kinds({"unclamp"}));
+  EXPECT_EQ(OperationKinds(Step("bay out")), Kinds({"bay_out"}));
+  EXPECT_TRUE(OperationKinds(Step("juggle 3")).empty());
+  EXPECT_TRUE(OperationKinds(Step("")).empty());
+}
+
+TEST(Scorecard, AnUnknownStepIsAnErrorThatNamesIt) {
+  const std::optional<Inputs> in = Read("flat_rack_3_pin_arms");
+  ASSERT_TRUE(in.has_value());
+  Plan plan = in->plan;
+  StepTime odd = Step("juggle 3");
+  odd.number = 777;
+  plan.steps.push_back(odd);
+  std::string error;
+  EXPECT_FALSE(CountOperations(plan, in->rates, &error).has_value());
+  EXPECT_NE(error.find("777"), std::string::npos) << error;
+  EXPECT_NE(error.find("juggle 3"), std::string::npos) << error;
+}
+
+TEST(Scorecard, TheChosenLayoutsCard) {
+  const std::optional<Inputs> in = Read("flat_rack_3_pin_arms");
+  ASSERT_TRUE(in.has_value());
+  const std::optional<Scorecard> card = Compute("flat_rack_3_pin_arms");
+  ASSERT_TRUE(card.has_value());
+  auto value = [&](const std::string& name) {
+    const Measure* m = FindMeasure(*card, name);
+    EXPECT_NE(m, nullptr) << name;
+    return m != nullptr ? m->value : std::nullopt;
+  };
+  ASSERT_EQ(card->measures.size(), 10u);
+  EXPECT_EQ(value("arms"), 4.0);
+  EXPECT_EQ(value("cycle_s"), 644.284416);
+  EXPECT_EQ(value("physics_share"), 0.0);
+  EXPECT_FALSE(value("placement_mm").has_value());
+  EXPECT_FALSE(value("input_tolerance").has_value());
+  EXPECT_FALSE(value("plan_s").has_value());
+  ASSERT_EQ(card->gates.size(), 3u);
+  for (const Gate& g : card->gates) {
+    EXPECT_TRUE(g.pass) << g.name << ": " << g.basis;
+  }
+  EXPECT_TRUE(card->pass);
+  const std::optional<double> mass = value("mass_in_transit_kg");
+  ASSERT_TRUE(mass.has_value());
+  EXPECT_LE(*mass, 3429.3);
+  EXPECT_NEAR(*mass, 3426.3, 0.05);
+  double sum = 0.0;
+  for (const MassPart& p : card->mass_in_transit) {
+    sum += p.mass_kg;
+    // The names of the arms ("module_arm", "pin_arm_a") are not bay parts.
+    std::string name = p.name;
+    for (const ArmUse& arm : in->layout.arms) {
+      const size_t at = name.find(arm.name);
+      if (at != std::string::npos) name.erase(at, arm.name.size());
+    }
+    for (const char* word :
+         {"module", "rail", "tube", "bolt", "pallet", "base"}) {
+      EXPECT_EQ(p.component.find(word), std::string::npos) << p.component;
+      EXPECT_EQ(name.find(word), std::string::npos) << p.name;
+    }
+    EXPECT_NE(p.component, "stocks inside");
+  }
+  EXPECT_NEAR(sum, *mass, 0.05);
+  ASSERT_EQ(card->mass_left_out.size(), 3u);
+  for (const MassLeftOut& p : card->mass_left_out) {
+    EXPECT_EQ(p.part.component, "stocks inside");
+    EXPECT_FALSE(p.why.empty());
+  }
+}
+
+TEST(Scorecard, CountingRulesOnTheChosenLayout) {
+  const std::optional<Inputs> in = Read("flat_rack_3_pin_arms");
+  ASSERT_TRUE(in.has_value());
+  auto count = [](const std::vector<Count>& counts, const std::string& kind) {
+    for (const Count& c : counts) {
+      if (c.kind == kind) return c.count;
+    }
+    return -1;
+  };
+  const std::vector<Count> parts = PartCount(in->layout);
+  EXPECT_EQ(count(parts, "arm"), 4);
+  EXPECT_EQ(count(parts, "holder_stand"), count(parts, "holder_grip"));
+  EXPECT_EQ(count(parts, "holder_end_unit"), 1);
+  EXPECT_EQ(count(parts, "item"), 3);
+  EXPECT_EQ(count(parts, "pin_magazine"), 6);
+  const std::vector<Count> axes = DrivenAxes(in->layout);
+  EXPECT_EQ(count(axes, "arm_joint"), 24);
+  EXPECT_EQ(count(axes, "holder_angle_pin"), 1);
+}
+
+TEST(Scorecard, FewerArmsLessEverything) {
+  const std::optional<Scorecard> two = Compute("flat_rack_2_pin_arms");
+  const std::optional<Scorecard> three = Compute("flat_rack_3_pin_arms");
+  ASSERT_TRUE(two.has_value());
+  ASSERT_TRUE(three.has_value());
+  for (const char* name : {"part_count", "arms", "mass_in_transit_kg"}) {
+    EXPECT_LT(*FindMeasure(*two, name)->value, *FindMeasure(*three, name)->value)
+        << name;
+  }
+  EXPECT_GT(*FindMeasure(*two, "cycle_s")->value,
+            *FindMeasure(*three, "cycle_s")->value);
+}
+
+TEST(Scorecard, JsonRoundTrips) {
+  const std::optional<Scorecard> card = Compute("flat_rack_3_pin_arms");
+  ASSERT_TRUE(card.has_value());
+  const std::string text = ScorecardToJson(*card);
+  std::string error;
+  const std::optional<Scorecard> back = ScorecardFromJson(text, &error);
+  ASSERT_TRUE(back.has_value()) << error;
+  EXPECT_EQ(ScorecardToJson(*back), text);
+  EXPECT_FALSE(ScorecardFromJson("{}", &error).has_value());
+}
+
+TEST(Scorecard, RatesAreChecked) {
+  std::string error;
+  EXPECT_TRUE(LoadRates(Dir("SCORES_DIR", "scores") + "/rates.json", &error)
+                  .has_value())
+      << error;
+  EXPECT_FALSE(LoadRates("no/such/rates.json", &error).has_value());
+}
+
+}  // namespace
+}  // namespace cell::layout

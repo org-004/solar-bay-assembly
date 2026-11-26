@@ -97,3 +97,7 @@ check_layout.flat_rack_3_pin_arms.checks | //:check_layout | flat_rack_3_pin_arm
 # line 401).
 plan_layout.@plan.margins | //:plan_layout | @plan --margins | -
 plan_layout.@plan.summary | //:plan_layout | @plan --summary | re:^planning_s: (\S+)$
+# score_layout: from the committed scorecards; no clock.
+score_layout.@plan | //:score_layout | @plan | -
+score_layout.@plan.json | //:score_layout | @plan --json | -
+score_layout.all | //:score_layout | --all | -

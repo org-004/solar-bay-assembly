@@ -231,6 +231,15 @@ std::string ScorecardText(const Scorecard& card);
 // column ("pass" or the names of the gates that fail).
 std::string ScorecardsTable(const std::vector<Scorecard>& cards);
 
+// The program //:score_layout (src/score_layout.cc is its main): `args` are
+// its arguments without the program's name. What it prints on standard
+// output is appended to *out; notes and errors go to standard error. Returns
+// the exit code: 0 when every gate passes, 1 when one fails, 2 for a layout
+// without a committed plan, an unknown layout or a usage error. The files
+// come from LAYOUT_DIR, PLAN_DIR and SCORES_DIR; --write writes into
+// BUILD_WORKSPACE_DIRECTORY/scores when that is set (bazel run).
+int RunScoreLayout(const std::vector<std::string>& args, std::string* out);
+
 // The fields of versions/versions.json that the tests check.
 struct VersionFile {
   std::string path, sha256;

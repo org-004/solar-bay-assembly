@@ -1,0 +1,361 @@
+{
+  "layout": "flat_rack_2_pin_arms",
+  "layout_sha256": "d6186f393828cac23e669c5a368e81455f83525c52a9bab16aa6b1d5a237deca",
+  "plan_sha256": "9008bbae403eb6aa2c0cc2e4c80e6ce5162bf7aac93a585fcd93924e3da56278",
+  "rates_sha256": "92ab60e5a186cfa526dc292ba67cf3583391499d692475f143aaa1287ab63614",
+  "measures": [
+    {
+      "name": "cycle_s",
+      "rank": "P0",
+      "value": 700.083428,
+      "unit": "s",
+      "better": "lower",
+      "known": "planned",
+      "basis": "the committed plan's bay_planned_s: kinematic, on assumed speeds and process times"
+    },
+    {
+      "name": "failures_per_bay",
+      "rank": "P0",
+      "value": 0.3815,
+      "unit": "1",
+      "better": "lower",
+      "known": "modelled",
+      "basis": "count of operations by kind x rates of scores/rates.json; 100% of it on rates of basis ours"
+    },
+    {
+      "name": "physics_share",
+      "rank": "P0",
+      "value": 0.0,
+      "unit": "1",
+      "better": "higher",
+      "known": "counted",
+      "basis": "no committed, repeatable run in physics of this layout's arms and parts"
+    },
+    {
+      "name": "part_count",
+      "rank": "P1",
+      "value": 31.0,
+      "unit": "1",
+      "better": "lower",
+      "known": "counted",
+      "basis": "pieces of equipment by the rule of docs/scorecard.md"
+    },
+    {
+      "name": "arms",
+      "rank": "P1",
+      "value": 3.0,
+      "unit": "1",
+      "better": "lower",
+      "known": "counted",
+      "basis": "arms of the layout"
+    },
+    {
+      "name": "driven_axes",
+      "rank": "P1",
+      "value": 31.0,
+      "unit": "1",
+      "better": "lower",
+      "known": "counted",
+      "basis": "arm joints, tracks, driven tools and grips by the rule of docs/scorecard.md"
+    },
+    {
+      "name": "placement_mm",
+      "rank": "P1",
+      "value": null,
+      "unit": "mm",
+      "better": "lower",
+      "known": "none",
+      "basis": "nothing is held or sensed in this cell; the stand-in cell's figure is another cell's"
+    },
+    {
+      "name": "mass_in_transit_kg",
+      "rank": "P2",
+      "value": 3376.9,
+      "unit": "kg",
+      "better": "lower",
+      "known": "counted",
+      "basis": "the transport row's parts less infed parts (owner's definition)"
+    },
+    {
+      "name": "input_tolerance",
+      "rank": "P2",
+      "value": null,
+      "unit": "mm",
+      "better": "higher",
+      "known": "none",
+      "basis": "nothing is sensed in this cell, so no error of the infed parts is measured or corrected"
+    },
+    {
+      "name": "plan_s",
+      "rank": "P2",
+      "value": null,
+      "unit": "s",
+      "better": "lower",
+      "known": "none",
+      "basis": "the committed plan does not hold the time plan_layout took"
+    }
+  ],
+  "gates": [
+    {
+      "name": "check_rows_failed",
+      "figure": 0.0,
+      "limit": 0.0,
+      "unit": "rows",
+      "holds": "<=",
+      "pass": true,
+      "basis": "rows of check_layout that do not pass, of 931"
+    },
+    {
+      "name": "least_clearance_m",
+      "figure": 0.0179,
+      "limit": 0.015,
+      "unit": "m",
+      "holds": ">=",
+      "pass": true,
+      "basis": "least distance over the plan's schedule, from VerifyPlan"
+    },
+    {
+      "name": "mass_in_transit_kg",
+      "figure": 3376.9,
+      "limit": 13608.0,
+      "unit": "kg",
+      "holds": "<=",
+      "pass": true,
+      "basis": "the owner's limit for one container, 30,000 lb"
+    }
+  ],
+  "part_count": [
+    {
+      "kind": "arm",
+      "count": 3
+    },
+    {
+      "kind": "track",
+      "count": 3
+    },
+    {
+      "kind": "tool",
+      "count": 5
+    },
+    {
+      "kind": "tool_stand",
+      "count": 4
+    },
+    {
+      "kind": "holder_stand",
+      "count": 4
+    },
+    {
+      "kind": "holder_grip",
+      "count": 4
+    },
+    {
+      "kind": "holder_end_unit",
+      "count": 1
+    },
+    {
+      "kind": "item",
+      "count": 3
+    },
+    {
+      "kind": "pin_magazine",
+      "count": 4
+    }
+  ],
+  "driven_axes": [
+    {
+      "kind": "arm_joint",
+      "count": 18
+    },
+    {
+      "kind": "track",
+      "count": 3
+    },
+    {
+      "kind": "tool",
+      "count": 5
+    },
+    {
+      "kind": "holder_grip",
+      "count": 4
+    },
+    {
+      "kind": "holder_angle_pin",
+      "count": 1
+    }
+  ],
+  "mass_in_transit": [
+    {
+      "component": "arms",
+      "name": "module_arm",
+      "mass_kg": 1077.0
+    },
+    {
+      "component": "tracks",
+      "name": "module_arm track",
+      "mass_kg": 1600.0
+    },
+    {
+      "component": "tools",
+      "name": "module_arm combined_gripper",
+      "mass_kg": 36.0
+    },
+    {
+      "component": "arms",
+      "name": "pin_arm_a",
+      "mass_kg": 33.3
+    },
+    {
+      "component": "tracks",
+      "name": "pin_arm_a track",
+      "mass_kg": 138.6
+    },
+    {
+      "component": "tools",
+      "name": "pin_arm_a nutrunner",
+      "mass_kg": 3.0
+    },
+    {
+      "component": "tools",
+      "name": "pin_arm_a pin_tool",
+      "mass_kg": 8.0
+    },
+    {
+      "component": "arms",
+      "name": "pin_arm_b",
+      "mass_kg": 33.3
+    },
+    {
+      "component": "tracks",
+      "name": "pin_arm_b track",
+      "mass_kg": 113.6
+    },
+    {
+      "component": "tools",
+      "name": "pin_arm_b nutrunner",
+      "mass_kg": 3.0
+    },
+    {
+      "component": "tools",
+      "name": "pin_arm_b pin_tool",
+      "mass_kg": 8.0
+    },
+    {
+      "component": "holder",
+      "name": "holder",
+      "mass_kg": 220.0
+    },
+    {
+      "component": "items inside",
+      "name": "pin_lane",
+      "mass_kg": 103.1
+    }
+  ],
+  "mass_left_out": [
+    {
+      "component": "stocks inside",
+      "name": "pins",
+      "mass_kg": 1.0,
+      "why": "infed parts: pin magazines with their pins, which the owner's definition leaves out"
+    },
+    {
+      "component": "stocks inside",
+      "name": "pins_1",
+      "mass_kg": 1.0,
+      "why": "infed parts: pin magazines with their pins, which the owner's definition leaves out"
+    }
+  ],
+  "operations": [
+    {
+      "kind": "tube_in",
+      "count": 1,
+      "rate": 0.001,
+      "basis": "ours",
+      "expected": 0.001
+    },
+    {
+      "kind": "clamp",
+      "count": 1,
+      "rate": 0.0005,
+      "basis": "ours",
+      "expected": 0.0005
+    },
+    {
+      "kind": "grip",
+      "count": 21,
+      "rate": 0.001,
+      "basis": "ours",
+      "expected": 0.021
+    },
+    {
+      "kind": "set_down",
+      "count": 19,
+      "rate": 0.001,
+      "basis": "ours",
+      "expected": 0.019
+    },
+    {
+      "kind": "bolt_run",
+      "count": 10,
+      "rate": 0.003,
+      "basis": "ours",
+      "expected": 0.03
+    },
+    {
+      "kind": "locate",
+      "count": 36,
+      "rate": 0.003,
+      "basis": "ours",
+      "expected": 0.108
+    },
+    {
+      "kind": "pin_set",
+      "count": 36,
+      "rate": 0.003,
+      "basis": "ours",
+      "expected": 0.108
+    },
+    {
+      "kind": "swage",
+      "count": 36,
+      "rate": 0.002,
+      "basis": "ours",
+      "expected": 0.072
+    },
+    {
+      "kind": "tool_change",
+      "count": 4,
+      "rate": 0.001,
+      "basis": "ours",
+      "expected": 0.004
+    },
+    {
+      "kind": "unclamp",
+      "count": 1,
+      "rate": 0.0005,
+      "basis": "ours",
+      "expected": 0.0005
+    },
+    {
+      "kind": "bay_out",
+      "count": 1,
+      "rate": 0.001,
+      "basis": "ours",
+      "expected": 0.001
+    },
+    {
+      "kind": "arm_move",
+      "count": 165,
+      "rate": 0.0001,
+      "basis": "ours",
+      "expected": 0.0165
+    },
+    {
+      "kind": "hand_over",
+      "count": 0,
+      "rate": 0.005,
+      "basis": "ours",
+      "expected": 0.0
+    }
+  ]
+}
