@@ -91,7 +91,14 @@
 // ports (run 011's five on the container), run 011's rule, kept for its
 // record: every item whose `does` mentions "tube" or "bay".
 //
-// The bay at a work point (AtWorkPoint), with Leg::kWork: at rail_take k and
+// The bay at a work point (AtWorkPoint). What follows is said for the plain
+// order of modules, 0, 1, ..., 8. With a layout's order (src/layout.h,
+// WorkOrder) "modules 0 .. j-1" means the first j modules of that order,
+// "module m-1 beside it" means each neighbour already set, "module m+1
+// already on" means the next module of the order, and at the holes the
+// second Built has both neighbours too (a module arm that runs ahead may
+// set them while the holes are worked); for the plain order this is the
+// same. With Leg::kWork: at rail_take k and
 // rail_set k rails 0 .. k-1; at strap_bolt k all rails if the order is
 // all_rails_then_all_bolts, otherwise rails 0 .. k; at module_take j, for a
 // take the bay uses (j < 9), all rails and modules 0 .. j-1, and for the

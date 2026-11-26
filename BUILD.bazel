@@ -1869,7 +1869,10 @@ LAYOUT_ENV = {
 
 cc_library(
     name = "layout",
-    srcs = ["src/layout.cc"],
+    srcs = [
+        "src/layout.cc",
+        "src/layout_lookup.cc",
+    ],
     hdrs = [
         "src/arm_catalog.h",
         "src/layout.h",

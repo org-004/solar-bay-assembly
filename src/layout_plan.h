@@ -89,10 +89,40 @@
 // time: a step of phase modules of an arm that is neither a take nor a set
 // (its tool change, the take of its pin magazine) starts only when what
 // that arm's next hole step waits for has happened, so that the arm does
-// not stand over the lane before its module is set. Release follows the last step of the module phase and bay_out starts when release
-// has ended and every arm stands at its wait pose with its first tool. An
-// arm whose next step may not start yet waits where it is, and the wait is a
-// segment with its reason. At every instant, sampled every sample_s, every
+// not stand over the lane before its module is set. Release follows the
+// last step of the module phase and bay_out starts when release has ended
+// and every arm stands at its wait pose with its first tool. An arm whose
+// next step may not start yet waits where it is, and the wait is a segment
+// with its reason. An arm waits only at its wait pose, where a retreat of
+// its own has just ended, or at the tool-change pose where it has just
+// changed its tool (the verifier holds all three).
+//
+// The order of work (the layout's optional field "order", src/layout.h
+// WorkOrder, run 018). What is said above is the order without it; each
+// member changes one rule, and the verifier (src/layout_replay.cc) holds
+// the same:
+//   modules        the modules are set in this order: the k-th module taken
+//                  is pallet module k (the nearest left), and it is set as
+//                  bay module modules[k]; its holes follow its set as
+//                  above. The bay's steps (src/layout_check.h, BaySteps),
+//                  and so each arm's order, follow it; what is built at
+//                  each work point follows it (src/layout_scene.h).
+//   modules_start  "after_all_bolts": the first module is taken only when
+//                  every strap bolt is driven (as above);
+//                  "after_their_rails": the take of module m starts only
+//                  when the strap bolts of rails m and m+1, the two it lies
+//                  on, are driven, so that modules start while the other
+//                  rails are still being bolted. The phase "rails" still
+//                  ends with the last bolt and "modules" is counted from
+//                  there, so with overlap the rails' phase holds the first
+//                  sets.
+//   pin_tools      "just_in_time" as above; "early": the rule of just in
+//                  time is not applied, so a pin arm changes to its pin
+//                  tool and takes its magazine as soon as its bolts are
+//                  driven, and then waits for its first module where the
+//                  magazine take's retreat left it (or, if another arm is in
+//                  its way, at the tool-change pose).
+// Which pin arm works which hole is the layout's `work` list, as before. At every instant, sampled every sample_s, every
 // arm with its carriage, the tool on its flange, its waiting tools and what
 // it holds is at least clearance_m from every other arm with the same, and
 // from the bay, the pallets and the stocks as they are at that instant;
