@@ -174,6 +174,9 @@ struct TwoFlatRacksState {
   double gap_hi_m = 0.050;     //   from gap_lo_m to gap_hi_m.
   double misalign_m = 0.025;   // Rack "b" along Y, either way, at the nominal gap.
   std::string note;            // What the layout asks of the bases, in words.
+  // Not in the file: how far rack "b" and what stands on it are moved from
+  // their places at the nominal gap (MovedRackB sets it; zero as read).
+  Vec3 b_shift{};
 };
 
 // The margins the checks and the planner keep for this layout. Never below
@@ -483,6 +486,30 @@ bool OnFlatRacks(const Layout& layout);
 // with offset 0, every rail and module and the holder's own grips and angle
 // pin, when it has none.
 std::vector<Stage> StagesOf(const Layout& layout);
+
+// The rails and the modules of a stage, sorted ("all" gives every one).
+std::vector<int> StageRails(const Stage& stage);
+std::vector<int> StageModules(const Stage& stage);
+
+// The layout as it stands at a stage: the tube moved by the stage's
+// tube_offset_m along +Y, the holder's grips and angle pin the stage's.
+// Everything else, the bay's division of work included, is the layout's.
+Layout AtStage(const Layout& layout, const Stage& stage);
+
+// The layout with rack "b" set down (dx, dy) from its nominal place (a gap
+// of gap_m + dx; dy along the racks): rack "b" and everything that stands on
+// it move with it (each arm's base and track beam, the holder and with it the
+// tube if the holder is on "b", the stocks and items that travel on "b").
+// Rack "a", what stands on it, and the units outside the bases (pallets,
+// stocks and items that do not travel, the ports) stay: they are set down
+// relative to the cell by their own means. Adds (dx, dy) to
+// two_flat_racks.b_shift. Only for base "two_flat_racks".
+Layout MovedRackB(const Layout& layout, double dx, double dy);
+
+// Points as a work entry writes them ("all", "0-3,7"), checked against
+// count; throws std::runtime_error naming `path` on a fault.
+std::vector<int> ParsePointList(const std::string& text, int count,
+                                const std::string& path);
 
 // Small lookups. Each returns nullptr when there is none.
 const ArmUse* FindArm(const Layout& layout, const std::string& name);
