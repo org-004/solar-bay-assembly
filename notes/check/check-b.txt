@@ -1,0 +1,29 @@
+check-b: ADR 0001-0021 and docs/adr/README.md. Counts are approximate (statements checked / wrong).
+0001: ~14 / 0.   0002: ~25 / 0.   0003: ~28 / 0.
+0004: ~22 / 1. Said "README.md:4-6" for the quotation "hand-written in C++ against MuJoCo". True: the words are on lines 6-7 (sed -n 4,7p README.md). Changed to README.md:6-7.
+0005: ~22 / 1. Quoted "is what makes the score of a run a fair measure of what each way of sensing costs" as one piece. True: src/pick_place.h:24-25 has "(src/score.h)" inside it (sed -n 22,25p). Quotation narrowed to "a fair measure of what each way of sensing costs".
+0006: ~22 / 0.   0007: ~12 / 0.   0008: ~22 / 0.
+0009: ~20 / 0.   0010: ~14 / 0.   0011: ~14 / 0.
+0012: ~16 / 1. Said the time model came out low "on six moves". True: docs/layout.md:684 "Over the seven moves ... 1.731 to 3.488" (also the brief says seven). Changed to seven.
+0013: ~16 / 0.
+0014: ~30 / 0 (29 flags counted in .bazelrc:45; W lines of baseline.txt; place counts in counts-warnings.md match).
+0015: ~25 / 0 found wrong; 3 could not be checked (below).
+0016: ~14 / 1 (form). Migration said "None." R10 wants "None: the code already follows this." Changed.
+0017: ~16 / 0 (99 src, 41 tests, 5 departures, group table matches deps.json).
+0018: ~16 / 1. Said "110 rules". True: grep -cE '^    name = ' BUILD.bazel prints 109. Changed to 109. (2,133 lines, 29 sections, 0 visibility, 44 labels, 463 includes all confirmed.)
+0019: ~10 / 0 (42 headers, 31 cell, 7/2/1/1 nested).
+0020: ~8 / 0.
+0021: ~12 / 1. Said "committing 59 outputs". True: docs/architecture/behavior.md:76 "a capture holds 58 program files". Changed to 58. bazel query in clone2 prints "Empty results" as stated.
+README.md: first table matches all 21 records (number, exact title, status, date, file); second table's headings all exist (layout.md, flat-rack-cell.md, bay-hardware.md, ompl-comparison.md, gate.md, ompl-integration.md). 0 wrong.
+Form (R10): all 21 have the parts in order, Status line matches the regexp, none over 80 lines (0014 and 0015 are exactly 80), measure.sh --check prints ok after the changes.
+Totals: ~330 checked, 5 wrong, 5 corrected.
+
+Could not check (no command, or the notes do not show it):
+- 0015: "502 s at three jobs (wall_s of tidy.sh)": notes/counts-tidy.md shows 378.2 and 344.1 s (the lead must take 502 from a run it has, or change the figure).
+- 0015: "the same 13 counts and 128 places under 18.1.3 (Ubuntu)": counts-tidy.md says 18.1.3 "not run (skipped by the coordinator)". 13 counts and 128 places under 18.1.8 are right (baseline.txt).
+- 0014: all 98 units parse with the x86-64 cross compiler; object files same bytes and no test rerun (no build allowed).
+- 0014: "Five opened are exact-zero guards" lines checked: all five exist as quoted.
+- 0010/0009: statement that the five layouts "had to be loaded in the new form when the flat rack came" (history, not checkable without a diff read).
+- 0001: AGENTS.md "Rules" says a departing change comes with a new record (not found at AGENTS.md:75-; check that AGENTS.md carries the line the lead is adding).
+- [S..] citations: ids all exist in research.md; sentences checked only by the entry titles, not the entry text.
+Elsewhere: nothing needs a fix outside docs/adr except the 502 s / 18.1.3 figures above (their source is in notes/tidy runs).

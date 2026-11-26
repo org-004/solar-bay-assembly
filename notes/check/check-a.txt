@@ -1,0 +1,11 @@
+check-a findings
+principles.md: ~95 statements checked (counts, lines, Now figures, groups, file lists), 2 wrong:
+ - 3 lines over 88 columns (P2/P7/P9 Now lines): rewrapped.
+ (all figures of the Now lines match measure.sh; rrt.cc:442/451, camera_cycle_test.cc:979, bay_model_test.cc:97, layout.md:667 verified; P2 bazel query prints nothing in clone2.)
+README.md (docs/architecture): ~45 checked, 1 wrong: "the ten labels" of a backlog item; backlog has eleven (grep -o '^\*\*[A-Za-z ]*\.\*\*' backlog.md | sort | uniq -c). Changed to "eleven".
+behavior.md: ~80 checked (counts 8 layouts, 2 plans, 42 programs.txt lines -> 58 files, 42 tests, 27 cc_binary, 16/11 split, 24 untested, 19 images, 8 gifs, times 182.2/189.3 s, memory, ~35 line numbers), 1 wrong: "tests.txt (42 lines, of which 4 expand...)": the 4 expansions belong to programs.txt. Reworded.
+dependencies.md: ~70 checked (versions, MODULE.bazel lines, hashes, BUILD lines, lock 28/554/4, mujoco 13 packages), 1 wrong: kuka_kr210_r2700_2 named on "3 lines" of BUILD.bazel; grep -c gives 5. Changed to 5.
+AGENTS.md/README.md added lines: ~12 checked (tidy ~9 min = 502 s, capture ~3 min = 182 s, warnings ~2 min = 126 s, paths exist), 0 wrong.
+Totals: ~300 checked, 6 wrong, 6 corrected.
+Could not check: bazel mod graph failure text; Boost licence/include counts and "75 times" (need output_base externals); licences read; machine specs (6 cores, 7.4 GB); S-ids not examined; clang-tidy-18 apt name; bazel build --nobuild line; 4a lines not spot-checked (print_depth 158, print_pallet 111, print_check 275/412, run_cell 782-786, pick_place 1892 context).
+After edits measure.sh --check prints ok; principles.md 393 lines, 11 headings.

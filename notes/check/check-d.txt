@@ -1,0 +1,56 @@
+check-d: backlog.md B21-B40, "Left as it is", "Needs the owner"
+WRONG, CORRECTED:
+1. B21 Change: said LayoutPath is at "line 51". sed -n 52p tests/layout_model_test.cc
+   shows the definition (line 51 is blank); changed to "line 52".
+2. B28 Done when: said "P9.held 63 (one higher: a new entry of Checks)". measure.py
+   m_held skips every entry starting with "-" (the exclusion is removed, nothing
+   enabled is added; bugprone-* already covers it; WarningsAsErrors exclusions are not
+   counted either), so P9.held stays 61. Changed to "P9.held unchanged (61: only
+   exclusions change, which it does not count)".
+3. Needs the owner, rrt.cc: said src/rrt.cc:516 (path shortening clock). sed -n 517p
+   src/rrt.cc is the SecondsSince(began) > max_seconds test (516 is size()<=2 break).
+   Changed to :517.
+4. Needs the owner, last entry (mj_geomDistance clearance): FALSE, removed (6 lines).
+   grep -n capsule models/*.xml: only models/suction_scene.xml:57 (a rig post, not
+   an arm). CollisionChecker::Create callers (grep): src/pick_place.cc:764,
+   src/print_plan.cc:292 (Cell::Load(argv[1])), src/check_placement.cc:691, and tests
+   with MODEL_PATH=models/cell.xml (KUKA, mesh only). No src/layout*.cc nor
+   plan_layout.cc touches collision.h/CollisionChecker; the UR10e only comes through
+   LoadLayoutModel (layout_scene.cc:91), which turns capsules into cylinders and uses
+   its own LeastDistance. So no caller hands src/collision.cc a Menagerie model.
+   Nothing else in the document refers to the entry (grep Menagerie/clearance through).
+CHECKED OK (no change): B21 line 718/1135 getenv, StringChecker 3 (1 each, motion_planner
+ frozen); B22 container.h:160-168, flat_rack.h:130-136, CallAndMessage 2, .clang-tidy
+ entry; B23 12 = layout_check 8 + portable_random 4, lines 359/705/865/2106/2158, 80/85;
+ B24 nine lines, 23 member-init = 12 frozen + 2 viewer + 9, to 14; B25 not opened beyond
+ form; B26 flp30 11 = 7 frozen + layout_plan.cc 1 + 3, lines 86/87/273/825, loop bounds
+ (14, 25, 6000); B27 lines 40/127/241, W conversion 61-8-9-1=43 consistent; B28 64 frozen
+ + 5 here (src/joint_move.cc 1, layout_plan.cc 2, print_profile.cc 2), 810 tests, lines
+ 55/687/690/80/81; B29 P7.geom_distance 3 -> 2 (check_placement, cycle_check frozen),
+ P7 17->16, P4.mujoco 69 (after B3's 68; I briefly changed it and restored it),
+ P4.mujoco_files 71, lines 526/575/586, layout_model.cc:717-725, layout_scene.cc is in
+ target layout_check; B30 lines 62/63/74/78 vs container 52/53/94/98, P7 15, namespaces
+ cell::flat_rack / cell::container; B31 5 non-frozen of 10, 12 literals on the lines
+ named, P7.pi 5, P7 10; B32 MODULE.bazel:124, ompl.BUILD.bazel:110, P4 25; B33 lines
+ 30-153, 184-264, 265, Fmt 2048, P11 stays 7; B34 P11.cc 4 / P11 6, 1462-210-310=942;
+ B35 189-518, Fmt 1024 at 193-202, 1812-330+copy ~1495; B36 835-1644, 1646-1731,
+ 1734-1810, ToVector 30-35, P11.cc 3 / P11 5; B37 35-274, 169-274, Fmt 4096, 2610; B38
+ 275-1039 (765), ~1605; B39 1053-1554, ~1103; B40 1555-1948 + 2441-2513 = 467, P11.cc 2,
+ P11 4 = 3 frozen + bay_hardware.h. No Touches file frozen; Touches cover the Change in
+ B21-B40. Form: ten labels in order, State open (read).
+ Left as it is: P1.frozen 4 and the four files, P5.frozen 7 (1+1+3+1+1 pairs), P3.frozen
+ 5, P7.frozen 9 (2+2+5), P11.frozen 3 and sizes, eleven "item": "left" departures,
+ frozen counts Wshadow 2, Wcomment 2, Wparentheses 1, err34-c 43 (17 outside frozen, the
+ six files named), member-init 12, flp30 7, integer-division 3, misplaced-widening 2,
+ memcmp 1, DeadStores 1, StringChecker 1, unchecked-optional 64 (src frozen), loops
+ suction_test.cc:302 and check_placement.cc:180, bay_hardware.h:502, viewer.cc 96 lines,
+ 8 targets, 976. Needs the owner: rrt.h:240, ompl_search.cc:417, motion_planner.cc:343/372,
+ rrt_test.cc:373, layout_plan.cc:825, Fmt buffers 4096/4096/2048/1024 at the lines named.
+COULD NOT CHECK:
+ - W -Wconversion 43 in frozen files: the by-file note counts raw lines (540 in frozen),
+   not the baseline's unit; only the arithmetic 61-8-9-1 agrees.
+ - P2.frozen 2 (needs bazel); P2 lines after B8/B9.
+ - B28: whether `*path` at layout_plan.cc:687 is still flagged after binding `chosen`
+   (687 is the very place flagged, its argument *path); needs a tidy run. Lead: look.
+ - B25 Change details (special members) and the exact lines of B33-B40 helper names
+   beyond those listed; the P4.mujoco 69 depends on B3 landing first (B29 After lacks B3).

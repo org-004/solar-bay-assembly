@@ -1,0 +1,51 @@
+check-c: docs/architecture/backlog.md, opening and B1 to B20.
+Checked about 170 statements (paths, file:line, measure.sh --list lines, W and T counts against
+the notes and out/counts post-*.json, BUILD.bazel names and sections, frozen files, the chain of
+figures B1..B20, Net targets and capture ids, After order, form). 13 wrong, 13 corrected.
+
+Chain of figures verified from today's measure.sh: B1 P5 12, unused_project 8, unused_outside 2,
+P4.eigen 77, nlohmann 3, P1.listed 16; B2 P5 9, project 5, listed 13; B3 P5 8, missing 0,
+mujoco 68, listed 12; B5 P1 4, listed 11; B6 P6 13; B7 P6 11; B8 P2 4 (P2 6, untested 24 from
+a bazel query in clone2), untested 22, googletest 43; B9 P2 3, unrun 10, frozen 1; B10 P8 1;
+B11 P8 0; B12 held 62 (m_held counts -Werror= in .bazelrc, not exclusions); B19, B20 held
+unchanged (exclusions not counted). W: shadow 8 -> 2 (6 outside frozen), parentheses 4 -> 1,
+comment 3 -> 2, null-dereference 2, missing-field 11, conversion 61 -> 53 -> 44 (8 and 9
+places outside frozen files, from post-A1.json). T: branch-clone 3, macro-parentheses 2. All right.
+
+WRONG, with correction made:
+Opening. Said nothing of line numbers moving; B5 (adds about 40 lines to collision.cc), B7 (ik_test,
+  path_timing_test) and others edit files that later items also cite by line. Added one sentence
+  saying the quoted text finds the place when earlier items moved the lines.
+B1 Evidence. Said grep '#define' in the four files finds only include guards. True: also
+  NEED_COMMITTED at tests/plan_replay_test.cc:470 (grep -n '#define' tests/plan_replay_test.cc);
+  it names no header. Reworded.
+B2 Evidence. src/layout_replay.cc DataPtr lines "887, 1637, 1651"; true 1637, 1651
+  (grep -n DataPtr src/layout_replay.cc). Fixed.
+B2 Change and Touches (and B8 Change, Touches). Said viewer_lib is in BUILD.bazel section `cell`.
+  True: viewer_lib is at line 656, after `# END cell` (650) and before `# BEGIN pick_place`
+  (680), in no section. Fixed in B2 and B8.
+B4 Where. "lines 666 and 667"; the sentence is lines 667 and 668 (grep -n 'The command is' docs/layout.md). Fixed.
+B8 Evidence. "src/viewer_lib.cc 200 to 300" and a list without --azimuth, --elevation,
+  --no-overlay; true 214 to 326 (ParseViewerArgs at 214, ViewerArgsUsage at 327). Fixed.
+B9 Evidence/Change. render time cut "check_placement.cc:634 to :637"; the statement ends at :638. Fixed.
+B11 Evidence. Quoted command lacked the smoke target docs/ompl-integration.md:1572 adds
+  (`//:ompl_smoke`, which no longer exists, so naming it would fail P10). Reworded in words.
+B11 Done when. "ci.sh prints `== 0: ok`"; ci.sh prints `ci.sh: ok` and "== step N: ..." headers. Fixed.
+B19 Evidence. path_timing.cc "432 to 441" and plan_layout.cc "298 to 307"; true 438 to 444 and
+  303 to 308 (sed -n). Fixed.
+B20 Change. Said to write all three uses of c as (c) including `const Committed& (c) = ...` at
+  line 471; clang-tidy flags only the two at line 472 (out/counts/tidy18_8 raw), the declaration
+  needs nothing. Reduced to line 472 only.
+
+Not wrong, but note for the lead:
+- B12/B13: lines 1695, 414, etc. are today's; after B5/B7 the lines may move (covered by the new
+  opening sentence). B13 does not list B7 in After although B7 edits tests/ik_test.cc; harmless.
+- B14 touches tests/plan_replay_test.cc after B10 (After lists it). Good.
+- No item touches a frozen file (Touches checked against P1.frozen_files); every file a Change
+  edits is in Touches.
+
+Could not check: that the replacement code of B5, B6, B7, B12, B13, B17, B18, B19 compiles or
+leaves the output the same (no builds allowed); that the new test of B8/B10 passes; that deps.py
+prints ok after each item; that the warning is gone after B13's ik_test change (item says stop if
+not); P2 figures were taken from my own bazel query in clone2 (same BUILD.bazel as repo), not
+from measure.sh, since clone2's tools are an older version.
