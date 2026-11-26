@@ -1,0 +1,159 @@
+R36: the ten findings most likely to be real defects (base 940a01b)
+
+Sources: notes/counts-warnings.md, notes/counts-tidy.md, notes/counts-tidy-by-file.txt,
+out/counts/gcc14/raw-A1/ (GCC 14.2 raw output), out/counts/tidy18_8/P1.places.json
+(clang-tidy 18.1.8); every place opened in the code. The sanitizers (R34, asan and
+ubsan) reported nothing: 39 of 41 test targets passed clean, two timed out.
+
+Fewer than ten are real defects. 1 to 6 can go wrong in a run as the repository is used;
+7 to 10 are latent (right today, wrong once copied, called or extended). None is a value
+used before it is set, a narrowing that loses a figure, a comparison that cannot be true
+or a use after a move.
+
+1. src/run_cell.cc:490 (and 59 more places in 17 files: src/plan_layout.cc 269-295,
+   src/print_profile.cc 39-42, src/run_gate.cc 66-72, src/print_plan.cc 179-201, ...)
+   Tool: clang-tidy cert-err34-c.
+   Message: "'atol' used to convert a string to an integer value, but function will not
+   report conversion errors; consider using 'strtol' instead" (atoi/atof/sscanf alike).
+   In a run: run_cell --seed 3x runs seed 3, --seed abc runs seed 0, with no message;
+   plan_layout <name> --first-step abc plans from step 0, --last-step 4x to step 4;
+   print_profile --distance 1,5 takes 1; a number past INT_MAX is undefined behavior.
+   Cure changes output: yes (malformed input then prints the usage and exits 1).
+   Held by: backlog.md "Needs the owner" (43 of the 60 places are frozen).
+
+2. tests/arm_follower_test.cc:718 (also tests/layout_model_test.cc:1135;
+   tests/motion_planner_test.cc:852, frozen)
+   Tool: clang-tidy clang-analyzer-cplusplus.StringChecker.
+   Message: "The parameter must not be null".
+   In a run: std::string built from std::getenv("MODEL_PATH") (or "LAYOUT_DIR"); when
+   the binary is run by hand without the variable, undefined behavior (crash with no
+   message). Bazel sets the variables, so bazel test is not affected.
+   Cure changes output: no.
+   Held by: B21 (two places); the frozen one under "Left as it is".
+
+3. tests/rrt_test.cc:373
+   Tool: tools/architecture/measure.sh line P6.clock (not a compiler or clang-tidy
+   finding); AGENTS.md "The same on every platform".
+   Code: EXPECT_LT(seconds, 2.0) on steady_clock around Plan() in
+   PlanTest.EnclosedGoalRunsOutOfIterationsPromptly.
+   In a run: about 3 ms here; fails on a machine or an instrumented build (asan, ubsan)
+   on a loaded CI runner some hundreds of times slower: a flaky rrt_test.
+   Cure changes output: it removes a test's bound (the test already asserts the count,
+   report.iterations).
+   Held by: "Needs the owner".
+
+4. src/layout_plan.cc:825
+   Tool: clang-tidy cert-flp30-c (also clang-analyzer-security.FloatLoopCounter).
+   Message: "loop induction expression should not have floating-point type".
+   Code: for (double t = s; t < horizon; t += f_.sample_s) times.push_back(t); then end
+   and horizon are pushed too.
+   In a run: plan_layout <name>; the k-th sample is s + k*sample_s plus k roundings, so
+   whether a sample falls just before horizon depends on rounding, and two nearly equal
+   instants can both be checked. Errors of parts in 10^13, same on every IEEE platform.
+   Cure changes output: possibly (other instants at which two arms are checked, so
+   possibly a plan and plans/*.json).
+   Held by: "Needs the owner".
+
+5. tests/suction_test.cc:302, :303 (frozen); also src/check_placement.cc:180 (frozen)
+   Tool: clang-tidy cert-flp30-c; clang-analyzer-security.FloatLoopCounter.
+   Message: "Variable 'a' with floating point type 'double' should not be used as a
+   loop counter".
+   In a run: for (double a = -kHalfLength; a <= kHalfLength; a += 0.01) may stop one
+   step short of the module's far edge, so LowestOverRails can miss the lowest corner
+   by up to 10 mm (suction_test). check_placement.cc:180 (print_check --study) may skip
+   the top of the view pyramid.
+   Cure changes output: possibly a test's computed figure; the study's table.
+   Held by: "Left as it is" (frozen).
+
+6. src/arm_catalog.h:116, inlined into tests/layout_model_test.cc:570
+   Tool: GCC -Wnull-dereference (GCC 14.2 and 13.3).
+   Message: "potential null pointer dereference".
+   In a run: FindArmModel returns nullptr for an unknown key and the test dereferences
+   it unchecked (also lines 300, 446, 557); src/layout_model.cc:702 has the same pattern
+   unflagged. A layout read by LoadLayout cannot reach it (src/layout.cc:453 refuses an
+   unknown model); a Layout built in memory with a typo crashes layout_model_test
+   instead of failing a check.
+   Cure changes output: no.
+   Held by: B13.
+
+7. src/layout_model.cc:684 (VfsGuard); also src/layout_plan.cc:579 (Report)
+   Tool: clang-tidy cppcoreguidelines-special-member-functions.
+   Message: "class 'VfsGuard' defines a non-default destructor but does not define a
+   copy constructor, a copy assignment operator, a move constructor or a move
+   assignment operator".
+   In a run: nothing today. The guard calls mj_deleteVFS in its destructor and is
+   copyable: a copy would delete the VFS twice (a double free in LoadLayoutModel, so in
+   check_layout, plan_layout and every layout test). A copy of Report prints its
+   PLAN_DEBUG line twice.
+   Cure changes output: no.
+   Held by: B25.
+
+8. src/layout_plan.cc:972
+   Tool: clang-tidy bugprone-branch-clone.
+   Message: "conditional operator with identical true and false expressions".
+   Code: e.config = s0.kind == "move" ? s0.path.front() : s0.path.front();
+   In a run: plan_layout with a partial bay (Partial()); both arms give the start of
+   the first segment, which the comment above asks for, so the value is right and the
+   condition is dead. Had back() been meant for one kind, the arm would start at the
+   end of its first segment, against that comment.
+   Cure changes output: no (simplified to s0.path.front()).
+   Held by: B19.
+
+9. tests/ik_test.cc:273
+   Tool: clang-tidy cert-flp30-c.
+   Message: "loop induction expression should not have floating-point type".
+   In a run: for (double q3 = -0.3; q3 <= 0.3; q3 += 1e-4) may or may not try 0.3, the
+   end of the search for the stretched arm in ik_test; the maximum sought is near 0, so
+   the result does not move today.
+   Cure changes output: no program output; the test's samples change in the last bits,
+   its bounds do not.
+   Held by: B26.
+
+10. tests/depth_camera_test.cc:61 (frozen)
+    Tool: clang-tidy bugprone-suspicious-memory-comparison (alias cert-exp42-c,
+    cert-flp37-c).
+    Message: "comparing object representation of type 'float' which does not have a
+    unique object representation; consider comparing the values manually".
+    In a run: memcmp of two depth images counts -0.0 and 0.0 as different and NaNs with
+    the same bits as equal. The test means "the same bytes" (repeatability), so it is
+    right; wrong only if SameReading is reused to compare values.
+    Cure changes output: no.
+    Held by: "Left as it is" (frozen).
+
+Judged false positives (opened and read)
+
+- src/container.h:163, src/flat_rack.h:133 (clang-analyzer-core.CallAndMessage, "2nd
+  function call argument is an uninitialized value"): ends[end] with end 0 or 1 in a
+  loop over two values; the analyzer loses the count. Rewritten anyway in B22.
+- tests/ik_test.cc:414 (-Wnull-dereference): VectorXd f = q of a six-element vector;
+  GCC assumes an empty q with a null data pointer. Handled in B13.
+- -Wconversion, all 61 (not sign): mjtSize, size_t, long counts into int or double,
+  32-bit generator outputs held in unsigned long; every value far below 2^31 or 2^53.
+  None converts a double into an int or a float.
+- cppcoreguidelines-pro-type-member-init, the 11 places outside frozen files: each
+  written before it is read (src/layout_plan.cc:853 by StateAt, src/ik.cc:58 by the
+  loop over six columns, src/viewer_lib.cc:40 by mjv_default* at 398-413,
+  src/layout_check.cc:113 and :1642 by loops, the tests' arrays by loops).
+- cppcoreguidelines-init-variables (12): src/layout_check.cc:359 set by eval on the next
+  line; :705, :865, :2106, :2158 set by Checker::Margin (line 475 writes 1e9 first);
+  src/portable_random.h:80, :85 set in the loop.
+- bugprone-integer-division (src/cell.cc:105, tests/rectangle_fit_test.cc:500, :501):
+  an integer row index, meant.
+- bugprone-misplaced-widening-cast (src/print_plan.cc:441,
+  tests/motion_planner_test.cc:163): int64_t to long long, both 64-bit.
+- clang-analyzer-deadcode.DeadStores (src/run_cell.cc:179): a default "-" that every
+  case overwrites.
+- -Wmissing-field-initializers (11): aggregate initializers that leave trailing members
+  at their defaults, as meant.
+- -Wparentheses / -Wdangling-else (4): if (x) EXPECT_EQ(...); GoogleTest guards its own
+  else.
+- -Wshadow (8): an inner name (lambda parameter, local) that each inner use means.
+- -Wcomment (3): a // line ending in a backslash, followed by another comment line.
+- bugprone-branch-clone at src/path_timing.cc:438 and src/plan_layout.cc:303: two
+  branches of a chain with the same body (kInfinity, return Usage()), meant.
+- cppcoreguidelines-special-member-functions at src/layout_scene.h:242,
+  src/motion_planner.cc:60, src/ompl_search.h:228: copying already deleted, so moving
+  is too; only declarations missing.
+- cert-flp30-c at src/check_placement.cc:746, :747, :774 (guarded by + 1e-9),
+  tests/layout_plan_test.cc:86, :87 (steps of 10.0 from whole numbers, exact),
+  tests/conveyor_test.cc:467 (simulation time steps; any count serves).

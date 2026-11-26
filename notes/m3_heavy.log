@@ -1,0 +1,5 @@
+cap_notests EXIT 0 MONO 182.2s mem_before_MiB 4202 mem_max_MiB 5745
+cap_tests EXIT 0 MONO 189.3s mem_before_MiB 4436 mem_max_MiB 5438
+asan EXIT 3 MONO 695.0s mem_before_MiB 3045 mem_max_MiB 7444
+ubsan EXIT 3 MONO 739.3s mem_before_MiB 3250 mem_max_MiB 7444
+DONE
