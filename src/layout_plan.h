@@ -240,6 +240,7 @@ struct BayEvent {
   std::string kind;        // "tube_in", "clamp", "release", "bay_out".
   int step = 0;
   double t0 = 0.0, t1 = 0.0;
+  int bay = 0;             // Which of the plan's bays (src/layout_bays.h).
 };
 
 // When a step of the bay starts (its move, or its approach or work where it
@@ -249,12 +250,14 @@ struct StepTime {
   std::string what;
   std::string arm;
   double start = 0.0, end = 0.0;
+  int bay = 0;
 };
 
 struct PhaseTime {
   std::string name;        // "tube in", "clamp", "rails", "modules", "end".
   double planned_s = 0.0;
   double model_s = 0.0;
+  int bay = 0;             // One set of phases for each bay.
 };
 
 struct Plan {
@@ -262,10 +265,11 @@ struct Plan {
   std::string layout_sha256;   // Of the layout's file as it was planned.
   PlanFigures figures;
   std::vector<ArmPlan> arms;   // In the layout's order.
-  std::vector<BayEvent> events;
-  std::vector<StepTime> steps; // Every step of the bay, in the steps' order.
+  std::vector<BayEvent> events;  // Bay by bay.
+  std::vector<StepTime> steps; // Every step of each bay, in the steps' order.
   std::vector<PhaseTime> phases;
-  double bay_planned_s = 0.0;
+  int bays = 1;                // Bays planned back to back (src/layout_bays.h).
+  double bay_planned_s = 0.0;  // Bay 0, from its tube_in to its bay_out.
   double bay_model_s = 0.0;
   bool complete = false;       // Every move found and the schedule exists.
 };
@@ -331,6 +335,8 @@ struct PlanOptions {
   // The RRT iteration budgets, in turn; empty: PlanFigures' own. The
   // budgets used go into the plan's figures.
   std::vector<int> budgets;
+  // Bays planned back to back (src/layout_bays.h); a part is one bay.
+  int bays = 1;
 };
 
 // PlanResult and PlanLayout are declared at the end, after VerifyReport.

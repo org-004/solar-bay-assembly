@@ -40,7 +40,7 @@
       "frozen": false,
       "namespaces": ["cell", "cell::layout"],
       "files": ["src/arm_catalog.h", "src/layout.*", "src/layout_lookup.*", "src/layout_racks.*", "src/layout_check.*", "src/layout_stages.*", "src/layout_model.*", "src/layout_plan.*",
-                "src/layout_replay.cc", "src/layout_plan_file.cc", "src/layout_rows.*", "src/layout_scene.*", "src/scorecard.*",
+                "src/layout_replay.cc", "src/layout_plan_file.cc", "src/layout_bays.*", "src/layout_rows.*", "src/layout_scene.*", "src/scorecard.*",
                 "src/physics_record.*",
                 "tests/layout_*_test.cc", "tests/plan_replay_test.cc",
                 "tests/scorecard_test.cc", "tests/score_layout_test.cc", "tests/versions_test.cc",

@@ -148,30 +148,34 @@ Segment SegmentFrom(const json& j) {
 }  // namespace
 
 std::string PlanToJson(const Plan& plan) {
+  // A plan of one bay is written as it was before plans had bays.
+  const bool bays = plan.bays > 1;
+  auto bay = [&](int b) { return bays ? ",\"bay\":" + std::to_string(b) : std::string(); };
   std::string s = "{\n";
   s += "\"layout\": " + Q(plan.layout) + ",\n";
   s += "\"layout_sha256\": " + Q(plan.layout_sha256) + ",\n";
   s += "\"complete\": " + B(plan.complete) + ",\n";
   s += "\"bay_planned_s\": " + F6(plan.bay_planned_s) + ",\n";
   s += "\"bay_model_s\": " + F6(plan.bay_model_s) + ",\n";
+  if (bays) s += "\"bays\": " + std::to_string(plan.bays) + ",\n";
   s += "\"figures\": " + FiguresText(plan.figures) + ",\n";
   std::vector<std::string> lines;
   for (const BayEvent& e : plan.events) {
     lines.push_back("{\"kind\":" + Q(e.kind) + ",\"step\":" + std::to_string(e.step) +
-                    ",\"t0\":" + F6(e.t0) + ",\"t1\":" + F6(e.t1) + "}");
+                    ",\"t0\":" + F6(e.t0) + ",\"t1\":" + F6(e.t1) + bay(e.bay) + "}");
   }
   s += "\"events\": " + Lines(lines) + ",\n";
   lines.clear();
   for (const StepTime& t : plan.steps) {
     lines.push_back("{\"number\":" + std::to_string(t.number) + ",\"what\":" +
                     Q(t.what) + ",\"arm\":" + Q(t.arm) + ",\"start\":" +
-                    F6(t.start) + ",\"end\":" + F6(t.end) + "}");
+                    F6(t.start) + ",\"end\":" + F6(t.end) + bay(t.bay) + "}");
   }
   s += "\"steps\": " + Lines(lines) + ",\n";
   lines.clear();
   for (const PhaseTime& p : plan.phases) {
     lines.push_back("{\"name\":" + Q(p.name) + ",\"planned_s\":" + F6(p.planned_s) +
-                    ",\"model_s\":" + F6(p.model_s) + "}");
+                    ",\"model_s\":" + F6(p.model_s) + bay(p.bay) + "}");
   }
   s += "\"phases\": " + Lines(lines) + ",\n";
   lines.clear();
@@ -194,6 +198,9 @@ std::optional<Plan> PlanFromJson(const std::string& text, std::string* error) {
     p.complete = Get<bool>(j, "complete");
     p.bay_planned_s = Get<double>(j, "bay_planned_s");
     p.bay_model_s = Get<double>(j, "bay_model_s");
+    // A plan without bays is one bay, bay 0.
+    p.bays = j.contains("bays") ? Get<int>(j, "bays") : 1;
+    auto bay = [](const json& e) { return e.contains("bay") ? Get<int>(e, "bay") : 0; };
     const json& f = j.at("figures");
     p.figures.clearance_m = Get<double>(f, "clearance_m");
     p.figures.joint_margin_deg = Get<double>(f, "joint_margin_deg");
@@ -216,6 +223,7 @@ std::optional<Plan> PlanFromJson(const std::string& text, std::string* error) {
       b.step = Get<int>(e, "step");
       b.t0 = Get<double>(e, "t0");
       b.t1 = Get<double>(e, "t1");
+      b.bay = bay(e);
       p.events.push_back(b);
     }
     for (const json& e : j.at("steps")) {
@@ -225,6 +233,7 @@ std::optional<Plan> PlanFromJson(const std::string& text, std::string* error) {
       t.arm = Get<std::string>(e, "arm");
       t.start = Get<double>(e, "start");
       t.end = Get<double>(e, "end");
+      t.bay = bay(e);
       p.steps.push_back(t);
     }
     for (const json& e : j.at("phases")) {
@@ -232,6 +241,7 @@ std::optional<Plan> PlanFromJson(const std::string& text, std::string* error) {
       t.name = Get<std::string>(e, "name");
       t.planned_s = Get<double>(e, "planned_s");
       t.model_s = Get<double>(e, "model_s");
+      t.bay = bay(e);
       p.phases.push_back(t);
     }
     for (const json& a : j.at("arms")) {

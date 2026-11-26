@@ -16,6 +16,7 @@
 #include <tuple>
 #include <utility>
 
+#include "src/layout_bays.h"
 #include "src/path_timing.h"
 #include "src/rrt.h"
 
@@ -212,23 +213,6 @@ struct PlanPlayer::Cache {
 
 namespace {
 
-// A point at `u` (0..1) of a polyline of offsets, at constant speed.
-Eigen::Vector3d AlongWay(const std::vector<Vec3>& path, double u) {
-  if (path.empty()) return Eigen::Vector3d::Zero();
-  auto at = [&](size_t i) { return Eigen::Vector3d(path[i][0], path[i][1], path[i][2]); };
-  double total = 0.0;
-  for (size_t i = 1; i < path.size(); ++i) total += (at(i) - at(i - 1)).norm();
-  u = std::clamp(u, 0.0, 1.0);
-  if (total <= 0.0) return at(path.size() - 1);
-  double left = u * total;
-  for (size_t i = 1; i < path.size(); ++i) {
-    const double piece = (at(i) - at(i - 1)).norm();
-    if (left <= piece && piece > 0.0) return at(i - 1) + (at(i) - at(i - 1)) * (left / piece);
-    left -= piece;
-  }
-  return at(path.size() - 1);
-}
-
 Config ConfigOn(const Segment& segment, const ArmMotion& motion,
                 const PlanFigures& f, double t, const Trajectory* trajectory) {
   if (segment.path.empty()) return {};
@@ -333,12 +317,12 @@ WorldAt PlanPlayer::At(double t) const {
   const Layout& L = scene_.layout();
   if (c.tube_in != nullptr && t >= c.tube_in->t0 && t < c.tube_in->t1) {
     const double span = c.tube_in->t1 - c.tube_in->t0;
-    w.way_offset = AlongWay(L.tube_in.path, span > 0.0 ? (t - c.tube_in->t0) / span : 1.0);
+    w.way_offset = WayOffsetAt(L.tube_in.path, span > 0.0 ? (t - c.tube_in->t0) / span : 1.0);
   } else if (c.bay_out != nullptr && t >= c.bay_out->t0) {
     // The bay stays where its way ends once it is out.
     w.event = "bay_out";
     const double span = c.bay_out->t1 - c.bay_out->t0;
-    w.way_offset = AlongWay(L.bay_out.path, span > 0.0 ? (t - c.bay_out->t0) / span : 1.0);
+    w.way_offset = WayOffsetAt(L.bay_out.path, span > 0.0 ? (t - c.bay_out->t0) / span : 1.0);
   }
   return w;
 }
