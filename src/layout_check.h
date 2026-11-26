@@ -312,15 +312,15 @@
 // Figure, for the best box, the lesser of two margins, limit 0: along Y the
 // piece's ends inside the box (grip) or the overlap plus clearance_m,
 // negative when apart (angle pin); across the radius plus clearance_m less
-// the distance. Ways: "tube in" at the first
-// stage's place, then for each move "stage <a> to <b>": the tube with the
-// rails and modules of a and the stages before, swept along +Y by the
-// difference of the offsets against what is there along a way with both
-// ways' carriers left out, every pair at clearance_m but the holder's geoms
-// within clearance_m of the tube at either end, which are near by design
-// against the tube (it slides in them, let go): counted only below zero;
-// then "bay out" from the last stage's place. Time: each stage by the model
-// with its own rails and modules as units (tube in, clamp at the first;
+// the distance. Ways: "tube in" at the first stage's place, "stage <s>: tube
+// at rest" at every stage, each move "stage <a> to <b>", then "bay out" from
+// the last stage's place. The units are measured, every box at clearance_m,
+// but the holder's geoms near the tube at either end and the boxes of a
+// way's carriers (a transfer: both ways') within clearance_m of the tube in
+// its place or at an end of the path, near it by design, counted only below
+// zero, against the tube alone; at rest, only the jaws and head of the unit
+// that pins the angle at the stage (src/layout_stage_rows.h). Time: each
+// stage by the model with its own rails and modules as units (tube in, clamp at the first;
 // release, bay out at the last; the arms back to wait at the end of each),
 // rows "stage <name>: bay", "stage <name>: busy <arm>"; then "bay", their
 // sum plus staging.transfer_s per move, passing when each stage's does, and
@@ -330,20 +330,20 @@
 // phases summed by name with a sixth, "transfer".
 //
 // The gap (base "two_flat_racks"). The rows above are the cell at the
-// nominal gap. Reach, clearance, approach and ways are made again at every
-// stage on MovedRackB of the layout for eight variants: the gap at gap_lo_m
-// and at gap_hi_m; rack "b" moved by +misalign_m and -misalign_m along Y at
+// nominal gap. Reach, clearance, ways, port and approach are made again at
+// every stage on MovedRackB of the layout for eight variants: the gap at
+// gap_lo_m and at gap_hi_m; rack "b" moved by +misalign_m and -misalign_m along Y at
 // the nominal gap; and the four corners, each end of the gap with each
 // misalignment. One row each, items "gap <lo> mm", "gap <hi> mm",
 // "misaligned +<m> mm", "misaligned -<m> mm", "gap <lo> mm, misaligned +<m>
 // mm" and so on: figure the least of the variant's clearance, approach and
 // ways rows held to clearance_m, unit m, limit clearance_m; it passes when
-// every rerun row passes. The detail names that row and how many rows fail,
-// then against the same rows at the nominal gap: how many newly fail (and
-// the worst of them, distances first, furthest below the limit, nominal ->
-// variant figure) and newly pass, and the largest drop of a distance's and
-// of a joint margin's figure (row, nominal -> variant). Errors of these runs
-// are added to CheckReport::error.
+// every rerun row passes, the port rows too (rack b in a zone). The detail
+// names that row and how many rows fail, then against the same rows at the
+// nominal gap: how many newly fail (and the worst of them, distances first,
+// furthest below the limit, nominal -> variant figure) and newly pass, and the
+// largest drop of a distance's and of a joint margin's figure (row, nominal
+// -> variant). Errors of these runs are added to CheckReport::error.
 
 #ifndef SRC_LAYOUT_CHECK_H_
 #define SRC_LAYOUT_CHECK_H_

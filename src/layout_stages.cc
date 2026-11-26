@@ -210,7 +210,7 @@ std::vector<CheckRow> StagedRows(const Layout& layout,
 // The kinds a gap variant reruns.
 const std::vector<std::string>& GapKinds() {
   static const std::vector<std::string> kinds = {"reach", "clearance", "ways",
-                                                 "approach"};
+                                                 "port", "approach"};
   return kinds;
 }
 
@@ -607,8 +607,8 @@ CheckReport CheckLayout(const Layout& layout, const ModelPaths& paths,
         const bool is_once =
             std::find(once.begin(), once.end(), k) != once.end();
         // Made once at the first stage; the ports also at the last, for
-        // the bay's way out.
-        if (variant > 0 || !is_once || s == 0 || (k == "port" && s == n - 1)) {
+        // the bay's way out (so in a gap variant, which reruns the ports).
+        if (!is_once || s == 0 || (k == "port" && s == n - 1)) {
           r.options.checks.push_back(k);
         }
       }

@@ -1983,13 +1983,17 @@ cc_library(
         "src/layout_check.cc",
         "src/layout_rows.cc",
         "src/layout_scene.cc",
+        "src/layout_stage_rows.cc",
         "src/layout_stages.cc",
+        "src/layout_sweep.cc",
     ],
     hdrs = [
         "src/layout_check.h",
         "src/layout_rows.h",
         "src/layout_scene.h",
+        "src/layout_stage_rows.h",
         "src/layout_stages.h",
+        "src/layout_sweep.h",
     ],
     deps = [
         ":bay_hardware",
@@ -2037,6 +2041,22 @@ cc_test(
         "@googletest//:gtest_main",
         "@mujoco",
         ":mj_handles",
+    ],
+)
+# The ways rows with the infeed and outfeed units measured, the tube at rest,
+# and the port rows of the gap variants (src/layout_stage_rows.h).
+#   bazel test --config=opt //:layout_stage_rows_test
+cc_test(
+    name = "layout_stage_rows_test",
+    size = "medium",
+    srcs = ["tests/layout_stage_rows_test.cc"],
+    data = LAYOUT_FILES + LAYOUT_MODEL_FILES,
+    env = LAYOUT_ENV,
+    deps = [
+        ":layout",
+        ":layout_check",
+        ":layout_model",
+        "@googletest//:gtest_main",
     ],
 )
 # What moves and what is there: the capsule defect worked round (R15), the
@@ -2354,6 +2374,7 @@ cc_library(
     srcs = ["src/scorecard.cc"],
     hdrs = ["src/scorecard.h"],
     deps = [
+        ":flat_rack",
         ":layout",
         ":layout_check",
         ":layout_model",
