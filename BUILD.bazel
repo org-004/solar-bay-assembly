@@ -1755,13 +1755,11 @@ cc_test(
 # END bay
 
 # BEGIN container
-# The shipping container the cell is built into, in its working state, and
-# a scene with a finished bay passing out through one of its open sides
-# (docs/bay-hardware.md, "The container").
+# The shipping container of run 011's layouts, in its working state, and a
+# scene of it alone (docs/bay-hardware.md, "The container").
 CONTAINER_SCENE = "models/container_scene.xml"
 
 CONTAINER_SCENE_FILES = MODELS_COMMON + [
-    "models/bay.xml",
     "models/container.xml",
     CONTAINER_SCENE,
 ]
@@ -1774,8 +1772,8 @@ cc_library(
     deps = ["@eigen"],
 )
 
-# The model against the header, the members inside the transport envelope,
-# and the bay through the side opening.
+# The model against the header and the members inside the transport
+# envelope. The bay is not part of it.
 #   bazel test //:container_test --test_output=all
 cc_test(
     name = "container_test",
@@ -1784,7 +1782,6 @@ cc_test(
     data = CONTAINER_SCENE_FILES,
     env = {"MODEL_PATH": "$(rootpath %s)" % CONTAINER_SCENE},
     deps = [
-        ":bay_hardware",
         ":container",
         ":mj_handles",
         "@eigen",
@@ -1793,7 +1790,7 @@ cc_test(
     ],
 )
 
-# Draws the container with the bay in a window.
+# Draws the container in a window.
 #   bazel run //:viewer_container
 cc_binary(
     name = "viewer_container",

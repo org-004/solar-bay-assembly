@@ -21,10 +21,9 @@
 // everything must be inside it when the container travels. The inside
 // envelope is the space a layout may count on between the posts, above the
 // floor and under the top side rails, which stays clear when the sides are
-// closed for transport. A finished bay is wider than the inside envelope
-// and narrower than the outside: with the sides open it can stand within
-// the container's footprint, its modules' ends in the planes of the open
-// sides, and it leaves through one of them.
+// closed for transport. Both envelopes bind the stowed cell only: where a
+// bay is built, and whether it overhangs the base or stands beside it, is a
+// layout's choice and nothing here limits it.
 //
 // The frame: the origin is on the ground under the middle of the container,
 // +Y along the container toward the rear (door) end, +Z up, +X across.

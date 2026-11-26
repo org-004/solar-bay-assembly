@@ -1,21 +1,14 @@
 <!--
-  The container in its working state with one finished bay passing out
-  through an open side, for tests/container_test.cc and for looking at.
+  The container in its working state, alone, for tests/container_test.cc
+  and for looking at.
 
     bazel run //:viewer_container
 
-  The container stands at the world's origin. The bay's tube lies along the
-  container at the height bay.xml gives it, exactly in the plane of the
-  container's -X side: half of every module is still inside and half is
-  out. That is how a bay leaves, since a module is 2.382 m long and the
-  container 2.330 m wide inside. Between the corner posts the bay has
-  0.607 m to spare at each end.
-
-  Where the bay stands here says nothing about a layout: no conveyor, no
-  support and no arm is drawn, and the bay hangs where its file puts it.
+  The container stands at the world's origin. No bay is in this scene: the
+  container's envelopes bind the stowed cell only, and where a bay is built
+  is a layout's choice (bazel run //:viewer_bay draws the bay).
 -->
 <mujoco model="container scene">
   <include file="common.xml"/>
   <include file="container.xml"/>
-  <include file="bay.xml"/>
 </mujoco>

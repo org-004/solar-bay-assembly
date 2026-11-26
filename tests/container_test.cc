@@ -1,10 +1,10 @@
 // Checks the container: the model has every member and both envelopes that
 // src/container.h lists, each a box of the header's size at the header's
 // place; the members lie inside the transport envelope and reach it; none
-// of them stands in the inside envelope or in the two side openings; the
-// header's derived figures are the ones docs/bay-hardware.md states; and in
-// the scene a finished bay passes through the -X side opening without
-// touching a member, with the clearance at each end the document gives.
+// of them stands in the inside envelope or in the two side openings; and
+// the header's derived figures are the ones docs/bay-hardware.md states.
+// The bay is not part of this test: the envelopes bind the stowed cell
+// only, and where a bay is built or how it leaves is a layout's choice.
 //
 //   bazel test //:container_test --test_output=all
 //
@@ -22,7 +22,6 @@
 #include <gtest/gtest.h>
 #include <mujoco/mujoco.h>
 
-#include "src/bay_hardware.h"
 #include "src/container.h"
 #include "src/mj_handles.h"
 
@@ -88,8 +87,8 @@ class ContainerTest : public ::testing::Test {
   }
 
   // The extent of a geom in the container's frame. Right for boxes and for
-  // cylinders whose axes lie along the frame's, which is all these models
-  // have; the test of the bay checks that for its own geoms.
+  // cylinders whose axes lie along the frame's, which is all this model
+  // has.
   Extent GeomExtent(int geom) const {
     const mjModel* m = model_.get();
     const Eigen::Vector3d centre = InContainer(data_->geom_xpos + 3 * geom);
@@ -240,62 +239,8 @@ TEST_F(ContainerTest, HeaderGivesTheDocumentsFigures) {
   EXPECT_NEAR(container::kTareMass, 6600.0, 1e-6);
   EXPECT_NEAR(container::kTransportGrossMass, 23800.0, 1e-6);
   EXPECT_NEAR(container::kCellMassBudget, 17200.0, 1e-6);
-  // A bay is wider than the inside envelope and narrower than the outside,
-  // so it stands in the planes of the open sides; and it is shorter than
-  // the side opening it leaves through.
-  EXPECT_GT(cell::bay::kBayWidth, container::kInsideWidth);
-  EXPECT_LT(cell::bay::kBayWidth, container::kWidth);
   EXPECT_NEAR(container::kFittingSpacingLength, 11.985, 1e-6);
   EXPECT_NEAR(container::kFittingSpacingWidth, 2.259, 1e-6);
-  EXPECT_LT(cell::bay::kBayLength, container::kSideOpeningLength);
-  EXPECT_NEAR((container::kSideOpeningLength - cell::bay::kBayLength) / 2.0,
-              0.607, 1e-6);
-}
-
-TEST_F(ContainerTest, BayPassesThroughTheSideOpening) {
-  const mjModel* m = model_.get();
-  ASSERT_GE(mj_name2id(m, mjOBJ_BODY, "bay_frame"), 0) << "the scene has no bay";
-  // The bay's geoms, in the container's frame.
-  std::vector<Extent> bay;
-  Extent hull{Eigen::Vector3d::Constant(1e9), Eigen::Vector3d::Constant(-1e9)};
-  for (int geom = 0; geom < m->ngeom; ++geom) {
-    if (!IsUnder(m->geom_bodyid[geom], "bay_frame")) continue;
-    bay.push_back(GeomExtent(geom));
-    hull.min = hull.min.cwiseMin(bay.back().min);
-    hull.max = hull.max.cwiseMax(bay.back().max);
-  }
-  ASSERT_FALSE(bay.empty());
-  // It crosses the plane of the -X side, part inside and part outside.
-  const double side = -container::kWidth / 2.0;
-  EXPECT_LT(hull.min[0], side);
-  EXPECT_GT(hull.max[0], side);
-  // It fits the opening: between the posts and between floor and top rail.
-  const double end_clearance =
-      std::min(hull.min[1] + container::kSideOpeningLength / 2.0,
-               container::kSideOpeningLength / 2.0 - hull.max[1]);
-  EXPECT_NEAR(end_clearance,
-              (container::kSideOpeningLength - cell::bay::kBayLength) / 2.0,
-              1e-6);
-  EXPECT_GT(hull.min[2], container::kFloorHeight);
-  EXPECT_LT(hull.max[2], container::kTopRailUnderside);
-  // And no geom of the bay overlaps a member of the container.
-  double closest = -1e9;
-  for (const Box& member : container::Members()) {
-    const int geom = mj_name2id(m, mjOBJ_GEOM, member.name.c_str());
-    ASSERT_GE(geom, 0);
-    const Extent extent = GeomExtent(geom);
-    for (const Extent& part : bay) {
-      const double overlap = Overlap(extent, part);
-      closest = std::max(closest, overlap);
-      EXPECT_LE(overlap, 0.0) << member.name << " overlaps the bay";
-    }
-  }
-  std::printf("bay geoms: %zu, bay spans x %.3f to %.3f, y %.3f to %.3f, "
-              "z %.3f to %.3f m in the container's frame\n",
-              bay.size(), hull.min[0], hull.max[0], hull.min[1], hull.max[1],
-              hull.min[2], hull.max[2]);
-  std::printf("clearance to the posts at each end: %.4f m; nearest member "
-              "is %.4f m from the bay\n", end_clearance, -closest);
 }
 
 }  // namespace

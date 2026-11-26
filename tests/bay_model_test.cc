@@ -6,7 +6,7 @@
 //     loads, with the bodies and the sites the options promise, and the
 //     tube's sites stay whatever is on it;
 //   - the default place of the bay's frame is where the container's -X side
-//     is, as models/container_scene.xml says;
+//     is (a record of run 011; a layout places its own bay);
 //   - the pieces: a module and a rail under names of their own load, with
 //     geoms named after the body and without sites.
 //
