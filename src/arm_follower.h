@@ -18,7 +18,15 @@
 // Through several poses: MoveThrough stops at each; MoveAlong goes through
 // them in one motion, rounding the corners within a set distance of the
 // straight lines between them (src/path_timing.h). Follow runs a
-// Trajectory planned elsewhere.
+// Trajectory planned elsewhere, or a TimedPath: any motion given as a
+// function of time, such as a layout's committed plan played by
+// src/layout_plan.h (src/physics_run.h runs one so).
+//
+// An arm on a carrier. An arm whose base rides on something that moves (a
+// track) feels the carrier's acceleration through the coupling of the mass
+// matrix. SetCarrier gives the planned accelerations of the carrier's
+// degrees of freedom; the model feedforward then includes them, as it
+// includes the arm's own. The carrier's own drive is not the follower's.
 //
 // Planned and measured. The follower keeps its own idea of where the arm
 // should be: the plan. Moves start from the plan, not from the measured
@@ -41,7 +49,9 @@
 #ifndef SRC_ARM_FOLLOWER_H_
 #define SRC_ARM_FOLLOWER_H_
 
+#include <functional>
 #include <string>
+#include <utility>
 #include <variant>
 #include <vector>
 
@@ -105,6 +115,19 @@ struct FollowerSettings {
   bool model_feedforward = true;
 };
 
+// A motion of the six joints given as a function of time: At(t), t from
+// the motion's start in [0, duration], gives the planned angles, speeds and
+// accelerations (jerk may be left empty). It must be continuous in angle;
+// the follower checks only its start and that its angles stay in range at
+// the instants it is played.
+struct TimedPath {
+  double seconds = 0.0;  // The duration.
+  std::function<JointSample(double)> at;
+
+  double duration() const { return seconds; }
+  JointSample At(double t) const { return at(t); }
+};
+
 class ArmFollower {
  public:
   // Done() needs every joint within this of the goal and slower than
@@ -163,6 +186,20 @@ class ArmFollower {
   bool Follow(const Trajectory& trajectory, const mjData& data,
               std::string* reason = nullptr);
 
+  // Runs `path` from data.time. Refused, as MoveTo is, if a move is still
+  // running, if the duration is not positive and finite or there is no
+  // function, and if path.At(0) is not where the arm is commanded to be
+  // (Goal(), to within 1e-9 rad) or its end is outside a joint's range.
+  bool Follow(const TimedPath& path, const mjData& data,
+              std::string* reason = nullptr);
+
+  // The planned accelerations, now, of the degrees of freedom that carry
+  // the arm (dof address in qvel, acceleration), for the model feedforward
+  // of the next Update. Empty, the default, for an arm on a fixed base.
+  void SetCarrier(std::vector<std::pair<int, double>> accelerations) {
+    carrier_ = std::move(accelerations);
+  }
+
   // Drops any plan and holds the measured angles from now on. Meant for an
   // arm at rest. On a moving arm it is an emergency stop: the command stops
   // dead and the motors brake at full torque.
@@ -206,7 +243,7 @@ class ArmFollower {
   // joint move (MoveTo, MoveThrough) or a whole trajectory (MoveAlong,
   // Follow).
   struct Leg {
-    std::variant<JointMove, Trajectory> move;
+    std::variant<JointMove, Trajectory, TimedPath> move;
     double start_time;
 
     double duration() const;
@@ -229,6 +266,7 @@ class ArmFollower {
   Eigen::VectorXd held_;   // valid once adopted_
   std::vector<Leg> legs_;  // the plan, in time order; empty if none
   Eigen::VectorXd commanded_;
+  std::vector<std::pair<int, double>> carrier_;
 
   // model.nv long, for the model feedforward; kept to avoid allocating
   // every tick.

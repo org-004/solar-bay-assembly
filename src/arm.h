@@ -13,6 +13,7 @@
 
 #include <array>
 #include <optional>
+#include <string>
 
 #include <Eigen/Core>
 #include <Eigen/Geometry>
@@ -59,6 +60,18 @@ struct Arm {
 // Finds the arm in a model. Returns nothing if a joint, a motor, the tool or
 // its tip is missing, or a motor is not a position servo on its own joint.
 std::optional<Arm> FindArm(const mjModel& model);
+
+// The names by which FindArm finds the arm: its joints are
+// prefix + "arm_joint_<k>", its motors prefix + "arm_motor_<k>", and the tool
+// and its tip are named in full. The defaults are the stand-in cell's. A
+// layout's model attaches the arm with the prefix "<arm>_" and names its
+// tool body "<arm>_tool_mount" (src/layout_model.h).
+struct ArmNames {
+  std::string prefix;
+  std::string tool_body = "tool";
+  std::string tip_site = "tool_tip";
+};
+std::optional<Arm> FindArm(const mjModel& model, const ArmNames& names);
 
 // The arm's joint angles and speeds now.
 Eigen::VectorXd JointAngles(const Arm& arm, const mjData& data);

@@ -19,6 +19,7 @@
 #include "src/layout.h"
 #include "src/layout_model.h"
 #include "src/layout_plan.h"
+#include "src/physics_record.h"
 
 namespace cell::layout {
 namespace {
@@ -39,6 +40,9 @@ struct Inputs {
   Plan plan;
   std::vector<Rate> rates;
   std::string layout_sha, plan_sha, rates_sha;
+  // physics/<name>.json when the layout has one (none is committed yet).
+  std::optional<PhysicsRecord> physics;
+  std::string physics_sha;
 };
 
 std::optional<Inputs> Read(const std::string& name) {
@@ -60,6 +64,14 @@ std::optional<Inputs> Read(const std::string& name) {
   in.layout_sha = Sha256OfFile(layout_path);
   in.plan_sha = Sha256OfFile(plan_path);
   in.rates_sha = Sha256OfFile(rates_path);
+  const std::string physics_path =
+      Dir("PHYSICS_DIR", "physics") + "/" + name + ".json";
+  const std::string physics_text = ReadFile(physics_path);
+  if (!physics_text.empty()) {
+    in.physics = PhysicsRecordFromJson(physics_text, &error);
+    EXPECT_TRUE(in.physics.has_value()) << physics_path << ": " << error;
+    in.physics_sha = Sha256OfFile(physics_path);
+  }
   return in;
 }
 
@@ -67,10 +79,12 @@ std::optional<Scorecard> ComputeUncached(const std::string& name) {
   const std::optional<Inputs> in = Read(name);
   if (!in) return std::nullopt;
   std::string error;
-  const auto card = ComputeScorecard(
+  auto card = ComputeScorecard(
       in->layout, in->plan, in->rates, ModelPaths::FromEnvironment(),
-      in->layout_sha, in->plan_sha, in->rates_sha, &error);
+      in->layout_sha, in->plan_sha, in->rates_sha,
+      in->physics ? &*in->physics : nullptr, &error);
   EXPECT_TRUE(card.has_value()) << name << ": " << error;
+  if (card) card->physics_sha256 = in->physics_sha;
   return card;
 }
 

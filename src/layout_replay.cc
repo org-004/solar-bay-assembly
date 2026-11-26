@@ -10,6 +10,7 @@
 #include <cstdio>
 #include <cstring>
 #include <fstream>
+#include <functional>
 #include <map>
 #include <set>
 #include <stdexcept>
@@ -708,9 +709,11 @@ class Measurer {
     for (const auto& m : H.module_geoms) way_geoms_.insert(m.begin(), m.end());
   }
 
-  std::vector<Closest> Measure(const WorldAt& w, mjData* d, std::int64_t* queries) {
+  std::vector<Closest> Measure(const WorldAt& w, mjData* d, std::int64_t* queries,
+                               const std::function<void(mjData*)>& adjust = {}) {
     player_.SetPoses(w, d);
     mj_kinematics(&scene_.model(), d);
+    if (adjust) adjust(d);
     const int n = scene_.ArmCount();
     std::vector<Closest> out;
     const Built built = player_.BuiltAt(w);
@@ -824,10 +827,11 @@ class Measurer {
 std::vector<Closest> InstantDistances(const LayoutScene& scene,
                                       const CheckReport& report,
                                       const PlanPlayer& player,
-                                      const WorldAt& w, mjData* d) {
+                                      const WorldAt& w, mjData* d,
+                                      const std::function<void(mjData*)>& adjust) {
   Measurer m(scene, report, player);
   std::int64_t queries = 0;
-  return m.Measure(w, d, &queries);
+  return m.Measure(w, d, &queries, adjust);
 }
 
 // ----------------------------------------------------------------- verify

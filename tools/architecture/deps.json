@@ -41,8 +41,10 @@
       "namespaces": ["cell", "cell::layout"],
       "files": ["src/arm_catalog.h", "src/layout.*", "src/layout_lookup.*", "src/layout_check.*", "src/layout_model.*", "src/layout_plan.*",
                 "src/layout_replay.cc", "src/layout_rows.*", "src/layout_scene.*", "src/scorecard.*",
+                "src/physics_record.*",
                 "tests/layout_*_test.cc", "tests/plan_replay_test.cc",
-                "tests/scorecard_test.cc", "tests/score_layout_test.cc", "tests/versions_test.cc"],
+                "tests/scorecard_test.cc", "tests/score_layout_test.cc", "tests/versions_test.cc",
+                "tests/physics_record_test.cc"],
       "may_include": ["base", "planning", "hardware"],
       "outside": ["eigen", "mujoco", "nlohmann_json"]
     },
@@ -102,6 +104,15 @@
                 "src/print_cell.cc", "src/print_check.cc", "src/print_depth.cc", "src/print_pallet.cc",
                 "src/print_perception.cc", "src/print_plan.cc", "src/print_plane_fit.cc", "src/print_points.cc"],
       "may_include": ["base", "planning", "perception", "arm", "standin", "viewer"],
+      "outside": ["eigen", "mujoco"]
+    },
+    {
+      "name": "physics",
+      "what": "A layout's committed plan run in physics: the module arm on its servos (the arm's follower) carrying a module with the stand-in cell's suction weld, measured as the checker measures, and its program (ADR 0024).",
+      "frozen": false,
+      "namespaces": ["cell", "cell::layout"],
+      "files": ["src/physics_run.*", "src/run_physics.cc", "tests/physics_run_test.cc"],
+      "may_include": ["base", "planning", "hardware", "layout", "arm", "standin"],
       "outside": ["eigen", "mujoco"]
     },
     {
@@ -176,7 +187,8 @@
       {"files": ["src/cell.cc", "src/cell.h", "src/conveyor.cc", "src/conveyor.h", "src/pallet.cc", "src/pallet.h"], "why": "The scene generator: they place and randomize the bodies and define the True... accessors."},
       {"files": ["src/suction.cc", "src/suction.h"], "why": "The simulated suction cup: it grips the module the physics puts under it, which is the simulation's part, not control's."},
       {"files": ["src/check_rig.cc", "src/check_rig.h"], "why": "The check camera's rig: it sets the held module where an experiment wants it, a scene generator of its own."},
-      {"files": ["src/collision.cc", "src/layout_check.cc"], "why": "Poses read out of a private copy of the model that the planner or the checker poses itself; not the simulation's truth."}
+      {"files": ["src/collision.cc", "src/layout_check.cc"], "why": "Poses read out of a private copy of the model that the planner or the checker poses itself; not the simulation's truth."},
+      {"files": ["src/physics_run.cc"], "why": "The scorer of a run in physics (ADR 0024): it measures the carried module's true pose against the plan and on its rails, as src/score.cc does for the stand-in cell; its control reads joint angles only."}
     ]
   },
 

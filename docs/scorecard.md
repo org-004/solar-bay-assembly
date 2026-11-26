@@ -49,7 +49,7 @@ Ranks are the owner's: P0 first. Within a rank the measures are not ordered.
 |---|---|---|---|---|
 | P0 | `cycle_s` | lower | planned | s |
 | P0 | `failures_per_bay` | lower | modelled | 1 |
-| P0 | `physics_share` | higher | counted | 1 |
+| P0 | `physics_share` | higher | counted or measured | 1 |
 | P1 | `part_count` | lower | counted | 1 |
 | P1 | `arms` | lower | counted | 1 |
 | P1 | `driven_axes` | lower | counted | 1 |
@@ -68,9 +68,21 @@ count of operations of that kind in the plan times the rate of that kind in
 `scores/rates.json`. The rates are described below. The program also prints the share of
 the figure that rests on rates whose basis is `ours`.
 
-**`physics_share`** (P0, higher, counted). The share of `cycle_s` that a committed run in
-physics carried out. It is 0 for every flat rack layout, because the flat rack cell is
-kinematic and no committed, repeatable run in physics of its arms and parts exists.
+**`physics_share`** (P0, higher, counted or measured). The share of `cycle_s` that a
+committed run in physics carried out. A committed run is the file `physics/<layout>.json`,
+written by `//:run_physics`; it holds, for each step the run covered, what the run measured
+(see `src/physics_record.h`). A step counts as carried out in physics when two things hold:
+its least clearance in physics, between the moving arm with its tool and part and everything
+else, is at least the layout's `clearance_m` (0.015 m for the flat rack layouts), and the
+module the run carried ends within the gate on its rails: at most 3 mm from its place in the
+rails' plane and at most 0.15 degrees of yaw, measured from the rails as they lie. The
+figure is the sum of the planned seconds of the steps that count divided by `cycle_s`. It is
+`measured` when a record is used. A layout without a record has 0, `counted`, as before. A
+record that does not agree with the committed plan (another plan sha256, a step the plan
+does not have or with other times, a stored flag the rule does not give) counts nothing: the
+figure is 0 and the basis says what does not agree. The scorecard file then holds the
+sha256 of the record (`physics_sha256`), so that a changed record makes the committed card
+stale.
 
 **`part_count`** (P1, lower, counted). The pieces of equipment of the cell, by the rule
 below.

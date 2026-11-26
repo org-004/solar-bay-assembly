@@ -86,7 +86,7 @@ when it fails after the result it names is changed by hand; try that before rely
 on it.
 
 **Now.** `P2 6`: the three viewers' files, `src/viewer_lib.h` and `.cc`, and
-`src/run_gate.cc`. `P2.untested 25` (the programs' mains, `src/score_layout.cc` among them since spec 017), `P2.unrun 11`.
+`src/run_gate.cc`. `P2.untested 26` (the programs' mains, `src/score_layout.cc` among them since spec 017 and `src/run_physics.cc` since spec 019), `P2.unrun 11`.
 
 **Target.** `P2` is 0 but for the programs that need a display; `P2.untested` falls as
 tests are written. Never worse meanwhile.
@@ -127,7 +127,7 @@ there for the new cell's control code: any rise fails `measure.sh --check`.
 
 **Exceptions.** The files of `deps.json`, `truth`, `allowed`: the scene generator
 (`src/cell.*`, `src/pallet.*`, `src/conveyor.*`, `src/suction.*`, `src/check_rig.*`),
-the scorer (`src/score.*`), the tests, and `src/collision.cc` and
+the scorer (`src/score.*`), the scorer of a plan run in physics (`src/physics_run.cc`, ADR 0024), the tests, and `src/collision.cc` and
 `src/layout_check.cc`, which read poses out of a private copy of the model that the
 planner or the checker poses itself.
 
@@ -157,8 +157,8 @@ counts fetches without a version, commit or hash, `P4.group` the includes of a l
 from a group that may not, one line per library counts the targets that list it, and
 `P4.mujoco_files` the files that include MuJoCo.
 
-**Now.** `P4 26`, `P4.unpinned 0`, `P4.group 0`; `@eigen` 78 targets, `@mujoco` 67,
-`@googletest` 45, `@nlohmann_json` 5 (`//:scorecard`, ADR 0023), `@ompl` 1, `@glfw` 1; `P4.mujoco_files 70`.
+**Now.** `P4 26`, `P4.unpinned 0`, `P4.group 0`; `@eigen` 79 targets, `@mujoco` 68,
+`@googletest` 47, `@nlohmann_json` 6 (`//:scorecard`, ADR 0023; `//:physics_record`, spec 019), `@ompl` 1, `@glfw` 1; `P4.mujoco_files 71` (`//:physics_run`, ADR 0024).
 
 **Target.** `P4` does not grow without a decision record; `P4.unpinned` and `P4.group`
 stay 0; the lines per library do not grow.
