@@ -13,7 +13,9 @@
 // rack "a" or "b", and a rack on a pallet-side thing that stands outside (a
 // stock outside, an item that does not travel); on any other base, any
 // "rack" at all; a staging with no stage, two stages of one name, a rail or a
-// module in no stage or in two, a grip of a stretch that does not exist.
+// module in no stage or in two, a module set at a stage before one of its
+// rails, a grip of a stretch that does not exist, and an angle_pin_by that
+// is not "holder" or an item of the layout.
 
 #ifndef SRC_LAYOUT_RACKS_H_
 #define SRC_LAYOUT_RACKS_H_

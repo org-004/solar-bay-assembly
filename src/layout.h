@@ -96,7 +96,8 @@
 // or the outfeed holds the rest of the tube ("held_by", in words). Every
 // rail and every module is in exactly one stage. A strap bolt goes with its
 // rail, a hole with its module, a take with the part it takes, an arm's pin
-// magazine with its first hole. Between two stages the units move the tube
+// magazine with its first hole. A module's two rails (m and m + 1) are set
+// at its stage or an earlier one. Between two stages the units move the tube
 // and what is built on it by the difference of their offsets
 // (staging.transfer_s each time).
 //
@@ -225,6 +226,10 @@ struct Stage {
   std::string modules;         // The modules set at this stage: "0-2", or "".
   std::vector<Grip> grips;     // The holder's grips at this stage.
   int angle_pin_hold = 0;      // The stretch whose rivet holes fix the angle.
+  // What puts its pin in those holes at this stage: "holder", or
+  // "item:<name>", an item of the layout (an infeed or outfeed unit, which
+  // need not travel); the stretch must lie at that thing's boxes.
+  std::string angle_pin_by = "holder";
   std::string held_by;         // What else holds the tube, in words.
   std::string note;
 };

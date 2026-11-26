@@ -91,7 +91,7 @@ Staging ReadStaging(const Json& j, const std::string& path, const Layout& l) {
     const Json& o = stages[i];
     Known(o, p,
           {"name", "tube_offset_m", "rails", "modules", "grips",
-           "angle_pin_hold", "held_by", "note"});
+           "angle_pin_hold", "angle_pin_by", "held_by", "note"});
     Stage st;
     st.name = Str(o.at("name"), p + ".name");
     if (!names.insert(st.name).second) {
@@ -114,6 +114,21 @@ Staging ReadStaging(const Json& j, const std::string& path, const Layout& l) {
       st.grips.push_back(grip);
     }
     st.angle_pin_hold = Int(o.at("angle_pin_hold"), p + ".angle_pin_hold");
+    st.angle_pin_by = Str(o.at("angle_pin_by"), p + ".angle_pin_by");
+    if (st.angle_pin_by != "holder") {
+      const std::string prefix = "item:";
+      const std::string name = st.angle_pin_by.rfind(prefix, 0) == 0
+                                   ? st.angle_pin_by.substr(prefix.size())
+                                   : "";
+      const bool found = std::any_of(
+          l.items.begin(), l.items.end(),
+          [&](const Item& it) { return !name.empty() && it.name == name; });
+      if (!found) {
+        Fail(p + ".angle_pin_by",
+             "is \"holder\" or \"item:<name>\" of an item of the layout, not \"" +
+                 st.angle_pin_by + "\"");
+      }
+    }
     st.held_by = Str(o.at("held_by"), p + ".held_by");
     st.note = Str(o.at("note"), p + ".note");
     auto claim = [&](const std::string& text, int count, std::vector<int>* own,
@@ -137,6 +152,15 @@ Staging ReadStaging(const Json& j, const std::string& path, const Layout& l) {
   for (int n = 0; n < modules; ++n) {
     if (module_stage[n] < 0) {
       Fail(sp, "module " + std::to_string(n) + " is in no stage");
+    }
+    // Module n lies on rails n and n + 1: both are set by its stage.
+    for (int r : {n, n + 1}) {
+      if (r < rails && rail_stage[r] > module_stage[n]) {
+        Fail(Index(sp, module_stage[n]) + ".modules",
+             "module " + std::to_string(n) + " is set before its rail " +
+                 std::to_string(r) + " (stage " +
+                 s.stages[rail_stage[r]].name + ")");
+      }
     }
   }
   return s;

@@ -1502,6 +1502,7 @@
           }
         ],
         "angle_pin_hold": 0,
+        "angle_pin_by": "holder",
         "held_by": "The infeed unit holds the rest of the tube beyond the +Y end.",
         "note": "The plain end is on rack a under the end unit."
       },
@@ -1525,6 +1526,7 @@
           }
         ],
         "angle_pin_hold": 0,
+        "angle_pin_by": "holder",
         "held_by": "The infeed unit holds the rest of the tube beyond the +Y end; the outfeed unit holds the built part beyond the -Y end.",
         "note": "The plain end has left the rack toward -Y."
       },
@@ -1548,6 +1550,7 @@
           }
         ],
         "angle_pin_hold": 0,
+        "angle_pin_by": "holder",
         "held_by": "The outfeed unit holds the built part beyond the -Y end; the infeed unit lets go of the neck.",
         "note": "The last section."
       }
