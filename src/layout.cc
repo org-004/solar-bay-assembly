@@ -18,6 +18,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <set>
@@ -637,13 +638,13 @@ Layout ReadLayout(const Json& j) {
   const bool flat_rack = l.base == "flat_rack";
   if (l.base == "container") {
     Fields(j, path,
-           {"name", "title", "summary", "chosen", "small_arms_stand", "base",
+           {"name", "title", "summary", "small_arms_stand", "base",
             "container", "tube", "holder", "arms", "pallets", "stocks",
             "strap_bolts_from", "tube_in", "bay_out", "work", "rail_order",
             "items"});
   } else if (flat_rack) {
     Fields(j, path,
-           {"name", "title", "summary", "chosen", "small_arms_stand", "base",
+           {"name", "title", "summary", "small_arms_stand", "base",
             "flat_rack", "margins", "ports", "approaches", "tube", "holder",
             "arms", "pallets", "stocks", "strap_bolts_from", "tube_in",
             "bay_out", "work", "rail_order", "items"});
@@ -654,7 +655,6 @@ Layout ReadLayout(const Json& j) {
   l.name = String(FIELD(j, path, "name"));
   l.title = String(FIELD(j, path, "title"));
   l.summary = String(FIELD(j, path, "summary"));
-  l.chosen = Bool(FIELD(j, path, "chosen"));
   l.small_arms_stand = String(FIELD(j, path, "small_arms_stand"));
   if (l.small_arms_stand != "below" && l.small_arms_stand != "beside" &&
       l.small_arms_stand != "above") {
@@ -845,6 +845,37 @@ std::vector<std::string> ListLayouts(const std::string& directory) {
   }
   std::sort(names.begin(), names.end());
   return names;
+}
+
+std::string VersionsPath() {
+  const char* path = std::getenv("VERSIONS_JSON");
+  return path != nullptr && path[0] != '\0' ? path : "versions/versions.json";
+}
+
+std::optional<std::string> ChosenLayout(const std::string& versions_path,
+                                        std::string* error) {
+  auto fail = [&](const std::string& message) -> std::optional<std::string> {
+    if (error != nullptr) *error = versions_path + ": " + message;
+    return std::nullopt;
+  };
+  std::ifstream in(versions_path);
+  if (!in) return fail("cannot open the file");
+  std::stringstream text;
+  text << in.rdbuf();
+  try {
+    const Json j = Json::parse(text.str());
+    std::optional<std::string> chosen;
+    for (const Json& v : j.at("versions")) {
+      if (!v.contains("status") || v.at("status") != "chosen") continue;
+      if (!v.contains("layout")) continue;
+      const std::string path = v.at("layout").at("path").get<std::string>();
+      chosen = std::filesystem::path(path).stem().string();
+    }
+    if (!chosen) return fail("no version with status \"chosen\" records a layout");
+    return chosen;
+  } catch (const Json::exception& e) {
+    return fail(e.what());
+  }
 }
 
 const ArmUse* FindArm(const Layout& layout, const std::string& name) {

@@ -387,7 +387,7 @@
       "competed_with": "v09",
       "layout": {
         "path": "layouts/flat_rack_1_pin_arm.json",
-        "sha256": "6d1c7b4476efeb1c22a8789e02c2b83e7bb5c812ef00a239ea56302fe0a5e4f5"
+        "sha256": "721a58264a401510a422a47497ccdaf85bd28f953d2b4b9a5dac4d521040f9e9"
       },
       "figures": [
         {
@@ -425,6 +425,14 @@
           "known": "counted",
           "source": "docs/flat-rack-cell.md at 940a01b, How many pin arms (R12), Rows passed (all); `bazel run --config=opt //:check_layout -- flat_rack_1_pin_arm --summary`"
         }
+      ],
+      "rehashed": [
+        {
+          "date": "2026-11-26",
+          "commit": "this",
+          "why": "The chosen flag left the layout files for versions/versions.json (the newest version with status chosen), so that a later layout can be chosen without changing a registered file. The only change to the layout file is the removed line \"chosen\".",
+          "layout_sha256_was": "6d1c7b4476efeb1c22a8789e02c2b83e7bb5c812ef00a239ea56302fe0a5e4f5"
+        }
       ]
     },
     {
@@ -440,13 +448,22 @@
       "competed_with": "v09",
       "layout": {
         "path": "layouts/flat_rack_2_pin_arms.json",
-        "sha256": "d6186f393828cac23e669c5a368e81455f83525c52a9bab16aa6b1d5a237deca"
+        "sha256": "1e5820e11de748ea185e39e14be1188d98c4b0a2b93aec72d45d8f7b7d59e3d7"
       },
       "plan": {
         "path": "plans/flat_rack_2_pin_arms.json",
-        "sha256": "9008bbae403eb6aa2c0cc2e4c80e6ce5162bf7aac93a585fcd93924e3da56278"
+        "sha256": "7912d0b34551c9423b9739a7a9f1d8aae7c48d06ab89355912905eaffd85cd4d"
       },
-      "scores": "scores/flat_rack_2_pin_arms.json"
+      "scores": "scores/flat_rack_2_pin_arms.json",
+      "rehashed": [
+        {
+          "date": "2026-11-26",
+          "commit": "this",
+          "why": "The chosen flag left the layout files for versions/versions.json (the newest version with status chosen), so that a later layout can be chosen without changing a registered file. The only change to the layout file is the removed line \"chosen\"; its plan was made again and is the same but for the layout's sha256, and its scorecard is unchanged but for the two hashes.",
+          "layout_sha256_was": "d6186f393828cac23e669c5a368e81455f83525c52a9bab16aa6b1d5a237deca",
+          "plan_sha256_was": "9008bbae403eb6aa2c0cc2e4c80e6ce5162bf7aac93a585fcd93924e3da56278"
+        }
+      ]
     },
     {
       "id": "v09",
@@ -460,13 +477,22 @@
       "recording": "docs/evolution/v09.gif",
       "layout": {
         "path": "layouts/flat_rack_3_pin_arms.json",
-        "sha256": "41247743a71c0f9f9595eb77e6f3737e67cfa6929988e0f19b5cc03b4813abf6"
+        "sha256": "6027f48aac486319ce8eea85d976e3690397cdf80fa170a89ea40b64acda0ca2"
       },
       "plan": {
         "path": "plans/flat_rack_3_pin_arms.json",
-        "sha256": "9fa5e7cb73837e7a2a9a03b6117cf6d9f9e9062425deb3cbd3b8fb14eddf697d"
+        "sha256": "8eea83cea75fa3f9ece5b66f82074611464493bf581f9d6ec00433963b0b23ef"
       },
-      "scores": "scores/flat_rack_3_pin_arms.json"
+      "scores": "scores/flat_rack_3_pin_arms.json",
+      "rehashed": [
+        {
+          "date": "2026-11-26",
+          "commit": "this",
+          "why": "The chosen flag left the layout files for versions/versions.json (the newest version with status chosen), so that a later layout can be chosen without changing a registered file. The only change to the layout file is the removed line \"chosen\"; its plan was made again and is the same but for the layout's sha256, and its scorecard is unchanged but for the two hashes.",
+          "layout_sha256_was": "41247743a71c0f9f9595eb77e6f3737e67cfa6929988e0f19b5cc03b4813abf6",
+          "plan_sha256_was": "9fa5e7cb73837e7a2a9a03b6117cf6d9f9e9062425deb3cbd3b8fb14eddf697d"
+        }
+      ]
     }
   ]
 }

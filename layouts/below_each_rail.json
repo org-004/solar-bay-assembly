@@ -2,7 +2,6 @@
  "name": "below_each_rail",
  "title": "As below, but each rail is bolted before the next is set",
  "summary": "The layout 'below' with one change in how the rails go on: the small arm sets a rail, changes to the nutrunner, drives that rail's strap bolt and changes back, ten times, in place of setting all ten rails and then driving all ten bolts. Every rail is clamped before the next is touched, at the price of twenty tool changes.",
- "chosen": false,
  "small_arms_stand": "below",
  "base": "container",
  "container": {

@@ -42,7 +42,8 @@ layouts/*.json`), because every figure of a layout is in it.
 
 **Check.** `bazel run --config=opt //:check_layout -- --list` prints one line for each
 file under `layouts/`, eight today, with the name, `chosen` for `flat_rack_3_pin_arms`,
-the title and the container. The captures of `tools/architecture/programs.txt` run
+the title and the container. Which one is chosen is read from `versions/versions.json`
+(the newest version with status `chosen`, since run 018), not from the layout file. The captures of `tools/architecture/programs.txt` run
 `check_layout` for every name the list prints (P2, ADR 0021), so a layout that no longer
 loads or checks differently is seen by `tools/architecture/behavior.sh compare`.
 `layout_check_test`, `layout_scene_test` and `layout_rows_test` hold the checks

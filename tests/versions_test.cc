@@ -1,12 +1,15 @@
 // versions/versions.json: a registered version does not change (its layout
 // and plan files keep the recorded sha256), the chosen layout is the layout of
-// the newest chosen version, ids run v01, v02, ..., and every recording
+// the newest chosen version (it is read there, src/layout.h ChosenLayout, and
+// no layout file says it), a direction has at most one chosen version, ids
+// run v01, v02, ..., and every recording
 // exists within its size (R10, R11).
 
 #include <algorithm>
 #include <cstdio>
 #include <cstdlib>
 #include <filesystem>
+#include <map>
 #include <optional>
 #include <set>
 #include <string>
@@ -62,32 +65,38 @@ TEST(Versions, ARegisteredVersionDoesNotChange) {
 
 TEST(Versions, TheChosenLayoutIsTheNewestChosenVersions) {
   const std::string dir = Env("LAYOUT_DIR", "layouts");
-  std::string chosen;
-  for (const std::string& name : ListLayouts(dir)) {
-    std::string error;
-    const std::optional<Layout> layout =
-        LoadLayout(dir + "/" + name + ".json", &error);
-    ASSERT_TRUE(layout.has_value()) << error;
-    if (layout->chosen) chosen = name;
-  }
   const std::vector<Version> versions = Versions();
   const Version* newest = nullptr;
+  std::map<std::string, int> chosen_in;
   for (const Version& v : versions) {
-    if (v.status == "chosen") newest = &v;
+    if (v.status != "chosen") continue;
+    ++chosen_in[v.direction];
+    if (v.layout.has_value()) newest = &v;
   }
-  ASSERT_NE(newest, nullptr) << "no version has status chosen";
-  ASSERT_TRUE(newest->layout.has_value())
-      << newest->id << " is chosen and records no layout";
+  for (const auto& [direction, count] : chosen_in) {
+    EXPECT_EQ(count, 1) << direction << " has " << count
+                        << " versions with status chosen; a chosen version "
+                           "supersedes the direction's previous one";
+  }
+  ASSERT_NE(newest, nullptr) << "no version with status chosen records a layout";
   const std::string path = newest->layout->path;
   const std::string stem =
       path.substr(path.rfind('/') + 1, path.rfind('.') - path.rfind('/') - 1);
-  EXPECT_EQ(stem, chosen)
-      << "the layout with chosen: true is " << chosen
-      << " but the newest version with status chosen, " << newest->id
-      << ", records " << path
-      << ". A registered version does not change: a change to the chosen "
-         "layout or its plan adds a new layout file and a new version with "
-         "tools/evolution/add.sh.";
+  std::string error;
+  const std::optional<std::string> chosen =
+      ChosenLayout(Env("VERSIONS_JSON", "versions/versions.json"), &error);
+  ASSERT_TRUE(chosen.has_value()) << error;
+  EXPECT_EQ(*chosen, stem) << newest->id << " records " << path;
+  // The chosen layout is a layout that loads; LoadLayout refuses a file that
+  // still has a "chosen" field, so every layout loading means none says it.
+  for (const std::string& name : ListLayouts(dir)) {
+    const std::optional<Layout> layout =
+        LoadLayout(dir + "/" + name + ".json", &error);
+    EXPECT_TRUE(layout.has_value()) << error;
+  }
+  const std::vector<std::string> names = ListLayouts(dir);
+  EXPECT_NE(std::find(names.begin(), names.end(), *chosen), names.end())
+      << "the chosen layout " << *chosen << " is not in " << dir;
 }
 
 TEST(Versions, IdsStatusesAndDirections) {

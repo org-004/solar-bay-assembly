@@ -14,6 +14,12 @@ Usage:
         --recording PATH [--recording-source PATH --recorded-at HASH --shows TEXT]
                                   append a version for layouts/NAME.json, its plan
                                   and its scorecard to versions/versions.json
+  pages.py rehash ID --why W [--commit HASH|this]
+                                  record the sha256 that the layout and plan files
+                                  version ID records have now, keeping the old ones and the reason
+                                  in its "rehashed" list; for a change that leaves the
+                                  version what it was (the chosen flag leaving the
+                                  layout files), never for a change of the cell
 
 The README's results go between the lines
   <!-- BEGIN results: written by tools/evolution/pages.py; do not edit -->
@@ -586,12 +592,38 @@ def do_add(args, root):
     print("added %s (%s) to versions/versions.json" % (nid, direction))
 
 
+def do_rehash(args, root):
+    path = os.path.join(root, "versions", "versions.json")
+    data = load_json(path)
+    v = next((v for v in data["versions"] if v["id"] == args.id), None)
+    if v is None:
+        raise Error("no version %s" % args.id)
+    keys = [key for key in ("layout", "plan") if v.get(key)]
+    if not keys:
+        raise Error("%s records no layout or plan file" % args.id)
+    entry = {"date": git_date(root, args.commit), "commit": args.commit, "why": args.why}
+    changed = False
+    for key in keys:
+        now = sha256_of(os.path.join(root, v[key]["path"]))
+        if now is None:
+            raise Error("%s of %s does not exist" % (v[key]["path"], args.id))
+        entry[key + "_sha256_was"] = v[key]["sha256"]
+        changed = changed or now != v[key]["sha256"]
+        v[key]["sha256"] = now
+    if not changed:
+        raise Error("the files of %s have the sha256 it records; nothing to rehash" % args.id)
+    v.setdefault("rehashed", []).append(entry)
+    with open(path, "w", encoding="utf-8", newline="\n") as f:
+        f.write(json.dumps(data, indent=2, ensure_ascii=False) + "\n")
+    print("rehashed %s in versions/versions.json" % args.id)
+
+
 # ---------------------------------------------------------------- main
 
 def main(argv):
     p = argparse.ArgumentParser(description="pages from the version registry", add_help=True)
-    p.add_argument("command", nargs="?", help="write, check, caption or add")
-    p.add_argument("id", nargs="?", help="version id (caption)")
+    p.add_argument("command", nargs="?", help="write, check, caption, add or rehash")
+    p.add_argument("id", nargs="?", help="version id (caption, rehash)")
     p.add_argument("--check", action="store_true")
     p.add_argument("--root", default=repo_root())
     p.add_argument("--layout")
@@ -617,6 +649,11 @@ def main(argv):
             if args.recording_source and not (args.recorded_at and args.shows):
                 raise Error("--recording-source needs --recorded-at and --shows")
             do_add(args, root)
+            return 0
+        if cmd == "rehash":
+            if not args.id or not args.why:
+                raise Error("rehash needs a version id and --why")
+            do_rehash(args, root)
             return 0
         reg = Registry(root)
         if cmd == "caption":

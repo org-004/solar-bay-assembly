@@ -9,7 +9,9 @@
 //
 // --list: one line per layout under LAYOUT_DIR, tab-separated: its name,
 // "chosen" for the chosen one or "-", its title and its base ("container" or
-// "flat_rack"); exits 1 if more than one is chosen.
+// "flat_rack"). The chosen layout is the one versions/versions.json names
+// (VERSIONS_JSON; src/layout.h, ChosenLayout); exits 1 when that file names
+// none or a layout that is not under LAYOUT_DIR.
 // <name>: the rows as CSV (check,item,arm,tool,figure,unit,limit,result,
 // detail), then the bay's time, the time model and the margins used as #
 // lines; exits 0 only when every row passes. --checks a,b,c: makes and
@@ -22,6 +24,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <map>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -86,7 +89,10 @@ void PrintTable(const std::vector<std::vector<std::string>>& rows,
 int List() {
   const std::string dir = LayoutDir();
   const std::vector<std::string> names = cell::layout::ListLayouts(dir);
-  int chosen = 0;
+  std::string why;
+  const std::optional<std::string> chosen =
+      cell::layout::ChosenLayout(cell::layout::VersionsPath(), &why);
+  bool listed = false;
   for (const std::string& name : names) {
     std::string error;
     const auto layout =
@@ -95,13 +101,18 @@ int List() {
       std::printf("%s\t?\t(does not load: %s)\n", name.c_str(), error.c_str());
       continue;
     }
-    chosen += layout->chosen ? 1 : 0;
-    std::printf("%s\t%s\t%s\t%s\n", name.c_str(),
-                layout->chosen ? "chosen" : "-", layout->title.c_str(),
-                layout->base.c_str());
+    const bool is_chosen = chosen && *chosen == name;
+    listed = listed || is_chosen;
+    std::printf("%s\t%s\t%s\t%s\n", name.c_str(), is_chosen ? "chosen" : "-",
+                layout->title.c_str(), layout->base.c_str());
   }
-  if (chosen > 1) {
-    std::fprintf(stderr, "%d layouts are marked chosen; one may be\n", chosen);
+  if (!chosen) {
+    std::fprintf(stderr, "no layout is chosen: %s\n", why.c_str());
+    return 1;
+  }
+  if (!listed) {
+    std::fprintf(stderr, "the chosen layout %s is not a layout that loads in %s\n",
+                 chosen->c_str(), dir.c_str());
     return 1;
   }
   return 0;

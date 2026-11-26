@@ -258,14 +258,24 @@ version has:
 - `recording`, the file under `docs/evolution/`, and `recording_source`, which holds the
   path of the source of the recording and the commit it was recorded at (`added_at`);
 - `competed_with` for a candidate: the version it was weighed against;
+- `rehashed`, only where a version's files changed without changing the version: one entry
+  per change with `date`, `commit`, `why` and the `layout_sha256_was` (and
+  `plan_sha256_was`, where it records a plan) it replaced, written by `pages.py rehash`;
 - either `layout`, `plan` (each with `path` and `sha256`) and `scores` (the path of
   `scores/<name>.json`), or `figures`, each with `name`, `value`, `unit`, `known` and
   `source`, for a version that has no layout file or plan of its own.
 
+The chosen layout is the layout of the newest version whose status is `chosen`: that is
+the one place it is kept, read by `ChosenLayout` (`src/layout.h`) for `check_layout --list`,
+`plan_replay_test`, `layout_check_test`, `layout_model_test` and `versions_test`, and by
+`pages.py` for the pages. A layout file has no `chosen` field (the loader refuses one), so
+choosing a later layout changes no registered file: `add.sh` with `--status chosen`
+supersedes the direction's chosen version.
+
 A registered version does not change. `//:versions_test` fails when the sha256 of a
-recorded layout or plan changes, and when the layout with `chosen: true` is not the newest
-chosen version. A change to the chosen layout or its plan is therefore a new layout file
-and a new version, added with
+recorded layout or plan changes, when a direction has more than one chosen version, and
+when the chosen layout is not a layout that loads. A change to the chosen layout or its
+plan is therefore a new layout file and a new version, added with
 
 `tools/evolution/add.sh NAME "TITLE" "CHANGED" "WHY" [--status chosen|candidate] [--commit HASH|this] [--competed-with vNN]`
 
@@ -285,13 +295,15 @@ The directions:
 - [`docs/directions/stand-in-cell.md`](directions/stand-in-cell.md)
 - [`docs/directions/two-20ft-flat-racks.md`](directions/two-20ft-flat-racks.md)
 
-### Changing the chosen layout: what the tests do not yet allow
+### Changing the chosen layout
 
-`chosen: true` is a field of the layout file, and `tests/layout_model_test.cc` wants
-exactly one layout to have it. Choosing a new layout therefore means editing the file of
-the old one, which changes its sha256. `//:versions_test` then fails for the old version,
-and the old plan no longer verifies against its layout (`VerifyPlan` checks the plan's
-`layout_sha256` against the file), so the old scorecard's clearance gate fails. Until a
-spec decides how (for example, that the planner and the registry hash a layout without
-its `chosen` field, or that `chosen` moves to `versions/versions.json`), the first change of
-the chosen layout has to settle it.
+Until run 018, `chosen: true` was a field of the layout file, so choosing another layout
+would have changed the file, and so the sha256, of a registered version. Run 018 moved
+the flag to the registry (above). Taking the line out of the eight layout files changed
+the bytes of the three registered ones, `flat_rack_1_pin_arm` (v07, which records no
+plan), `flat_rack_2_pin_arms` (v08) and `flat_rack_3_pin_arms` (v09). The two plans were made again (planning repeats itself, so
+they came out the same but for `layout_sha256`), the two scorecards written again (the same
+but for the two hashes), and their new hashes recorded with
+`python3 tools/evolution/pages.py rehash vNN --why "..."`, which keeps the old ones and
+the reason under `rehashed`. `rehash` is for a change that leaves the version what it was.
+A change of the cell is a new layout file and a new version.

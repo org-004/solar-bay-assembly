@@ -14,6 +14,15 @@
 // missing or unknown field, a wrong type, an arm model that is not in
 // src/arm_catalog.h, or a name that is used twice, and says which.
 //
+// Which layout is chosen is not in a layout file. A registered version's
+// layout file may not change (versions/versions.json keeps its sha256), so a
+// flag there could never move to a later layout. The chosen layout is the
+// layout of the newest version in versions/versions.json whose status is
+// "chosen" (docs/scorecard.md); ChosenLayout reads it there, and
+// tools/evolution/add.sh, which registers a version, is what changes it. A
+// layout file that still has a "chosen" field is refused as having an
+// unknown field.
+//
 // The frame. One frame for everything: the container's, as
 // models/container.xml and src/container.h have it. The origin is on the
 // ground under the container's centre, +Y runs along the container toward
@@ -329,7 +338,6 @@ struct Layout {
   std::string name;            // The file's stem.
   std::string title;
   std::string summary;         // One paragraph.
-  bool chosen = false;
   std::string small_arms_stand;  // "below", "beside" or "above" the tube.
   std::string base;              // "container" or "flat_rack".
   ContainerState container;      // Only with base "container".
@@ -356,6 +364,17 @@ std::optional<Layout> LoadLayout(const std::string& path, std::string* error);
 
 // The names of the layouts in a directory (the files' stems), sorted.
 std::vector<std::string> ListLayouts(const std::string& directory);
+
+// The registry of versions: the environment's VERSIONS_JSON when it is set,
+// else "versions/versions.json".
+std::string VersionsPath();
+
+// The name of the chosen layout: the stem of the layout path of the last
+// version (the newest; the file lists them oldest first) whose status is
+// "chosen" and that records a layout. Returns nothing and sets *error when
+// the file cannot be read or parsed or no such version exists.
+std::optional<std::string> ChosenLayout(const std::string& versions_path,
+                                        std::string* error);
 
 // Small lookups. Each returns nullptr when there is none.
 const ArmUse* FindArm(const Layout& layout, const std::string& name);

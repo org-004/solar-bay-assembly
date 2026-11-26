@@ -2,7 +2,8 @@
 // file, the player, and the committed plan of the chosen layout, verified
 // without planning anything (R20). The committed plan's tests fail until
 // plans/<chosen>.json exists for a chosen layout on the flat rack: passing
-// only with a real plan is what they are for.
+// only with a real plan is what they are for. The chosen layout is the one
+// versions/versions.json names (src/layout.h, ChosenLayout).
 
 #include <cmath>
 #include <cstdio>
@@ -411,18 +412,18 @@ struct Committed {
 const Committed& TheCommitted() {
   static const Committed* c = [] {
     auto* c = new Committed;
-    std::vector<std::string> chosen;
-    for (const std::string& name : ListLayouts(LayoutDir())) {
-      std::string error;
-      std::optional<Layout> l = LoadLayout(LayoutDir() + "/" + name + ".json", &error);
-      if (l && l->chosen) chosen.push_back(name);
-      if (l && l->chosen) c->layout = *l;
-    }
-    if (chosen.size() != 1) {
-      c->error = "exactly one layout must be chosen; " + std::to_string(chosen.size()) +
-                 " are";
+    std::string why;
+    const std::optional<std::string> chosen = ChosenLayout(VersionsPath(), &why);
+    if (!chosen) {
+      c->error = "no layout is chosen: " + why;
       return c;
     }
+    std::optional<Layout> l = LoadLayout(LayoutDir() + "/" + *chosen + ".json", &why);
+    if (!l) {
+      c->error = "the chosen layout does not load: " + why;
+      return c;
+    }
+    c->layout = *l;
     if (c->layout.base != "flat_rack") {
       c->error = "the chosen layout, " + c->layout.name +
                  ", is not on the flat rack: no plan of it is replayed";

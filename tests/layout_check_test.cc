@@ -77,17 +77,14 @@ std::string Failures(const CheckReport& report) {
   return out;
 }
 
+// versions/versions.json names one chosen layout, and it is a layout here.
 TEST(LayoutCheck, OneLayoutIsChosen) {
-  int chosen = 0;
   const std::vector<std::string> names = ListLayouts(Dir());
   ASSERT_FALSE(names.empty());
-  for (const std::string& name : names) {
-    std::string error;
-    const auto layout = LoadLayout(Dir() + "/" + name + ".json", &error);
-    ASSERT_TRUE(layout.has_value()) << name << ": " << error;
-    chosen += layout->chosen ? 1 : 0;
-  }
-  EXPECT_EQ(chosen, 1);
+  std::string error;
+  const std::optional<std::string> chosen = ChosenLayout(VersionsPath(), &error);
+  ASSERT_TRUE(chosen.has_value()) << error;
+  EXPECT_NE(std::find(names.begin(), names.end(), *chosen), names.end()) << *chosen;
 }
 
 TEST(LayoutCheck, WorkPointsOfOneBay) {
@@ -193,17 +190,14 @@ TEST(LayoutCheck, ReferenceReport) {
   std::printf("reference failures:\n%s", Failures(report).c_str());
 }
 
-// The layout marked chosen passes every row (of the old kinds, if it stands
-// on the container).
+// The chosen layout (versions/versions.json) passes every row (of the old
+// kinds, if it stands on the container).
 TEST(LayoutCheck, ChosenLayoutPasses) {
-  std::optional<Layout> chosen;
-  for (const std::string& name : ListLayouts(Dir())) {
-    std::string error;
-    auto layout = LoadLayout(Dir() + "/" + name + ".json", &error);
-    ASSERT_TRUE(layout.has_value()) << name << ": " << error;
-    if (layout->chosen) chosen = layout;
-  }
-  ASSERT_TRUE(chosen.has_value());
+  std::string error;
+  const std::optional<std::string> name = ChosenLayout(VersionsPath(), &error);
+  ASSERT_TRUE(name.has_value()) << error;
+  const std::optional<Layout> chosen = LoadLayout(Dir() + "/" + *name + ".json", &error);
+  ASSERT_TRUE(chosen.has_value()) << *name << ": " << error;
   CheckOptions options;
   if (chosen->base == "container") options.checks = OldKinds();
   const CheckReport report = CheckLayout(*chosen, Paths(), options);

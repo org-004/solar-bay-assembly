@@ -1846,7 +1846,9 @@ cc_test(
 # A layout of the new cell as data (layouts/*.json, src/layout.h), the arms
 # it may use (src/arm_catalog.h), and the MuJoCo model made from a layout
 # (src/layout_model.h). docs/layout.md explains the layouts.
-LAYOUT_FILES = glob(["layouts/*.json"])
+# The registry of versions travels with the layouts: which layout is chosen
+# is read there (src/layout.h, ChosenLayout), not in a layout file.
+LAYOUT_FILES = glob(["layouts/*.json"]) + ["versions/versions.json"]
 PLAN_FILES = glob(["plans/*.json"], allow_empty = True)
 SCORE_FILES = glob(["scores/*.json"], allow_empty = True)
 EVOLUTION_FILES = glob(["docs/evolution/*"], allow_empty = True)
@@ -1864,6 +1866,7 @@ LAYOUT_MODEL_FILES = MODELS_COMMON + [
 LAYOUT_ENV = {
     "LAYOUT_DIR": "layouts",
     "MODELS_DIR": "models",
+    "VERSIONS_JSON": "versions/versions.json",
     "UR10E_XML": "$(rootpath %s)" % UR10E,
 }
 
@@ -2210,7 +2213,7 @@ cc_test(
     name = "versions_test",
     size = "small",
     srcs = ["tests/versions_test.cc"],
-    data = LAYOUT_FILES + PLAN_FILES + SCORE_FILES + EVOLUTION_FILES + ["versions/versions.json"],
+    data = LAYOUT_FILES + PLAN_FILES + SCORE_FILES + EVOLUTION_FILES,
     env = {
         "LAYOUT_DIR": "layouts",
         "VERSIONS_JSON": "versions/versions.json",

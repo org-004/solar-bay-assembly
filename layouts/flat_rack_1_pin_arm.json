@@ -2,7 +2,6 @@
   "name": "flat_rack_1_pin_arm",
   "title": "On the flat rack: one KR 210 sets rails and modules from straight opposite, one UR10e does the bolts and the pins below the bay",
   "summary": "The cell on a 40 ft flat rack with no posts and no roof. One KUKA KR 210 R2700-2 on a floor track sets the ten rails and the nine modules with one combined gripper, standing straight opposite each module. One UR10e on the floor line under the bay's inner half drives the strap bolts and locates, pins and swages. The pallet and the rail rack stand at ports outside the +X side, the cart for tubes and bays outside the -X side, the pin magazines' feeder outside the +Y end.",
-  "chosen": false,
   "small_arms_stand": "below",
   "base": "flat_rack",
   "flat_rack": {

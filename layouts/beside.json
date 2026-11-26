@@ -2,7 +2,6 @@
  "name": "beside",
  "title": "Small arm beside the tube: upright on a raised beam at the tube's height",
  "summary": "The UR10e (small_arm) stands upright, base_rpy 0, on a track whose beam runs along Y beside the tube on its +X side, under the overhang of the modules: beam 0.20 wide by 0.10 deep, centred at x = -0.45 (0.50 to 0.70 m from the tube axis at x = -1.05), top at z = 0.95, carried by five 0.12 m square posts (y = -5.2, -2.6, 0, 2.6, 5.2) from the floor at z = 0.45 to 0.85. The arm base is 1.00 above the ground, 0.40 below the tube axis, 0.52 below the modules undersides, so it works from the side: rails set from above, strap bolts along -X, pins located, pinned and swaged from below with the tool pointing up, the arm reaching in sideways under the modules. The track runs y = -5.3 to 5.4, stocks, stops, wait and stow poses as in below.json. The module arm, its track (x 0.25 to 1.15), the pallet, the holder, the tube and the ways are unchanged. Nothing is fixed to the container but the posts standing on its floor.",
- "chosen": false,
  "small_arms_stand": "beside",
  "base": "container",
  "container": {

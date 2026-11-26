@@ -6,7 +6,9 @@
 // flat rack's margins, work divided among arms, ports, approaches). A layout
 // moved onto the flat rack as a file loads and builds with the flat rack's
 // base, two pallet places and a port's sites, and a layout with three arms of
-// one model builds. For the layout marked "chosen" the model compiles in
+// one model builds. The chosen layout is the one versions/versions.json
+// names (src/layout.h, ChosenLayout), and a layout file may not say it is
+// chosen. For the reference layout the model compiles in
 // the states that matter, agrees with the file, and nothing in it overlaps:
 // every pair of geoms of two different things is further apart than zero by
 // mj_geomDistance, except the pairs that touch by design (TouchesByDesign
@@ -63,15 +65,17 @@ std::string ReadText(const std::string& path) {
 TEST(Layouts, EveryFileLoads) {
   const std::vector<std::string> names = ListLayouts(LayoutDir());
   ASSERT_FALSE(names.empty()) << "no layouts in " << LayoutDir();
-  int chosen = 0;
   for (const std::string& name : names) {
     std::string error;
     std::optional<Layout> layout = LoadLayout(LayoutPath(name), &error);
     ASSERT_TRUE(layout.has_value()) << error;
     EXPECT_EQ(layout->name, name);
-    chosen += layout->chosen ? 1 : 0;
   }
-  EXPECT_EQ(chosen, 1) << "exactly one layout is marked chosen";
+  std::string error;
+  const std::optional<std::string> chosen = ChosenLayout(VersionsPath(), &error);
+  ASSERT_TRUE(chosen.has_value()) << error;
+  EXPECT_NE(std::find(names.begin(), names.end(), *chosen), names.end())
+      << "the chosen layout " << *chosen << " is not in " << LayoutDir();
 }
 
 // Writes `j` as <tmp>/<case>/below.json and loads it.
@@ -96,6 +100,14 @@ TEST(Layouts, BrokenCopiesAreRefused) {
     j["arms"][0]["colour"] = "orange";
     const std::string e = LoadBroken(j, "below", "unknown_field");
     EXPECT_NE(e.find("arms[0].colour"), std::string::npos) << e;
+    EXPECT_NE(e.find("unknown field"), std::string::npos) << e;
+  }
+  {
+    // Which layout is chosen lives in versions/versions.json, not here.
+    nlohmann::json j = good;
+    j["chosen"] = true;
+    const std::string e = LoadBroken(j, "below", "chosen_field");
+    EXPECT_NE(e.find("chosen"), std::string::npos) << e;
     EXPECT_NE(e.find("unknown field"), std::string::npos) << e;
   }
   {

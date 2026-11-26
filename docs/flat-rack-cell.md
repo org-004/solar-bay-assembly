@@ -160,7 +160,9 @@ time model, the tightest pose clearance is the same in all three, and the planne
 arms', 644.28 s. The two-arm layout is within 10% of it (700.08 / 644.28 = 1.087), but
 its least clearance over the schedule, 0.0179 m, is not larger than 0.0181 m; the
 one-arm layout is 1.408 times as long. So `flat_rack_3_pin_arms` is the one layout
-marked `chosen` by `--list`.
+marked `chosen` by `--list`. (Since run 018 which layout is chosen is read from
+`versions/versions.json`, the newest version with status `chosen`, not from a field of the
+layout file; `docs/scorecard.md`, "Versions and pages".)
 
 ## The ports
 

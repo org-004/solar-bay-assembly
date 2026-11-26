@@ -1,7 +1,7 @@
 {
   "layout": "flat_rack_3_pin_arms",
-  "layout_sha256": "41247743a71c0f9f9595eb77e6f3737e67cfa6929988e0f19b5cc03b4813abf6",
-  "plan_sha256": "9fa5e7cb73837e7a2a9a03b6117cf6d9f9e9062425deb3cbd3b8fb14eddf697d",
+  "layout_sha256": "6027f48aac486319ce8eea85d976e3690397cdf80fa170a89ea40b64acda0ca2",
+  "plan_sha256": "8eea83cea75fa3f9ece5b66f82074611464493bf581f9d6ec00433963b0b23ef",
   "rates_sha256": "92ab60e5a186cfa526dc292ba67cf3583391499d692475f143aaa1287ab63614",
   "measures": [
     {

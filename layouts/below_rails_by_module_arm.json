@@ -2,7 +2,6 @@
  "name": "below_rails_by_module_arm",
  "title": "As below, but the module arm sets the rails and the small arm bolts them one rail behind",
  "summary": "The layout 'below' with the rails put on by the big arm. Its gripper carries a clamp for a rail between its suction cups, so it needs no tool change. It takes each rail from a rack that stands outside the +X side beside the pallet and sets it down from one pitch along the tube, while the small arm, which starts with the nutrunner, drives the strap bolts one rail behind and then goes on to the pins as in 'below'.",
- "chosen": false,
  "small_arms_stand": "below",
  "base": "container",
  "container": {

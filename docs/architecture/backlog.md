@@ -301,7 +301,7 @@ differ.
 **Evidence.** `measure.sh --list P8` prints `plans/flat_rack_2_pin_arms.json`;
 `deps.json`, `generated`: "nothing: plan_replay_test reads only the chosen layout's
 plan" (`TheCommitted()`, `tests/plan_replay_test.cc:411`, takes the layout with
-`"chosen": true` only).
+`"chosen": true` only; since run 018 the layout `versions/versions.json` names as chosen).
 **Change.** Add one case, `TEST(OtherPlans, FlatRack2PinArmsPassesTheVerifier)`, at
 the end of the section "the committed plan": it loads
 `layouts/flat_rack_2_pin_arms.json` with `LoadLayout`, reads
