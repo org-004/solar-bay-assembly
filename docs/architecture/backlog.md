@@ -594,7 +594,7 @@ const std::string path = env;`. At `layout_model_test.cc:1135` use the file's
 
 **Principles.** P9
 **Decisions.** ADR 0015
-**Where.** `src/container.h:160` to `:170`, `src/flat_rack.h:130` to `:136`.
+**Where.** `src/container.h:160` to `:170`, `src/flat_rack.h:109` to `:115`.
 **Evidence.** `T clang-analyzer-core.CallAndMessage 2` ("2nd function call argument is
 an uninitialized value"): `ends[end]` with a counter `end` beside a loop over
 `{-1.0, 1.0}`; the analyzer loses that `end` is 0 or 1. A false positive, but the loop

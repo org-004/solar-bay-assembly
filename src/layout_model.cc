@@ -9,7 +9,8 @@
 //   <body name="<arm>_carriage" ...><attach model="<arm>_model"
 //       body="<root_body>" prefix="<arm>_"/></body>
 // The file <arm>.arm.xml is made at run time, one for each arm of the layout,
-// from the arm's model file (ArmPartXml below): models/arm.xml for the KUKA,
+// from the arm's model file (ArmPartXml below): models/arm.xml,
+// kr10_r1100_2.xml or kr20_r1810_2.xml for a KUKA (each "the KUKA" below),
 // Menagerie's ur10e.xml for the UR10e. In it:
 //   - the KUKA's <include file="tool.xml"/> (the stand-in cell's suction
 //     tool, under arm_flange) is replaced by this layout's tools, and the
@@ -68,6 +69,7 @@
 
 #include "src/arm_catalog.h"
 #include "src/bay_model.h"
+#include "src/flat_rack.h"
 
 namespace cell::layout {
 namespace {
@@ -344,7 +346,7 @@ std::string ToolMountContents(const Layout& layout, const ArmUse& arm,
       // layouts on the container are run 011's record (docs/layout.md) and
       // keep the held rail as run 011 drew and checked it, strap closed.
       body = bay::RailBodyXml("held_rail", {0.0, 0.0, -bay::kRailTopHeight},
-                              -1, /*strap_open=*/layout.base == "flat_rack");
+                              -1, /*strap_open=*/OnFlatRacks(layout));
     }
     ReplaceAll(&body, "class=\"bay_", "class=\"" + cls + "bay_");
     t += body;
@@ -369,15 +371,28 @@ bool ArmPartXml(const Layout& layout, const ArmUse& arm, const ArmModel& model,
   ReplaceAll(&bay_defaults, "class=\"bay_", "class=\"" + cls + "bay_");
   defaults += bay_defaults;
   const std::string mount = ToolMountContents(layout, arm, setup, cls);
-  if (model.source == "kuka") {
-    const std::string file = paths.models_dir + "/arm.xml";
+  // The KUKA arms: each has its own model file and, beside it, its own
+  // directory of meshes (BUILD.bazel).
+  struct KukaFiles { const char *source, *file, *meshes; };
+  static const KukaFiles kKuka[] = {
+      {"kuka", "arm.xml", "kuka_kr210_r2700_2"},
+      {"kuka_kr10_r1100_2", "kr10_r1100_2.xml", "kuka_kr10_r1100_2"},
+      {"kuka_kr20_r1810_2", "kr20_r1810_2.xml", "kuka_kr20_r1810_2"},
+  };
+  const KukaFiles* kuka = nullptr;
+  for (const KukaFiles& k : kKuka) {
+    if (model.source == k.source) kuka = &k;
+  }
+  if (kuka != nullptr) {
+    const std::string file = paths.models_dir + "/" + kuka->file;
     if (!ReadFile(file, text)) return fail("cannot read " + file);
     if (!ReplaceOnce(text, "<include file=\"tool.xml\"/>",
                      "<body name=\"tool_mount\">\n" + mount + "</body>")) {
       return fail(file + " has no <include file=\"tool.xml\"/> at the flange");
     }
-    ReplaceAll(text, "file=\"kuka_kr210_r2700_2/",
-               "file=\"" + Absolute(paths.models_dir) + "/kuka_kr210_r2700_2/");
+    const std::string meshes = kuka->meshes;
+    ReplaceAll(text, "file=\"" + meshes + "/",
+               "file=\"" + Absolute(paths.models_dir) + "/" + meshes + "/");
     if (!ReplaceOnce(text, "<mujoco>",
                      "<mujoco model=\"" + arm.name +
                          "\">\n  <compiler angle=\"radian\" autolimits=\"true\"/>\n" +
@@ -428,11 +443,32 @@ std::string TopName(const Layout& layout) { return "layout_" + layout.name + ".x
 bool OnFlatRack(const Layout& layout) { return layout.base == "flat_rack"; }
 
 // The base's part file and its body.
+// Two racks have no part file: TwoRacksXml draws both.
+bool OnTwoRacks(const Layout& layout) { return layout.base == "two_flat_racks"; }
 std::string BaseFile(const Layout& layout) {
   return OnFlatRack(layout) ? "flat_rack.xml" : "container.xml";
 }
 std::string BaseBody(const Layout& layout) {
+  if (OnTwoRacks(layout)) return "two_flat_racks_frame";
   return OnFlatRack(layout) ? "flat_rack_frame" : "container_frame";
+}
+
+// The body of both 20 ft flat racks, each at its place with rack "b" moved
+// by the layout's b_shift: one body whose geoms are both racks' members.
+std::string TwoRacksXml(const Layout& layout) {
+  const Vec3& shift = layout.two_flat_racks.b_shift;
+  const double gap = layout.two_flat_racks.gap_m;
+  std::string t = "    <body name=\"two_flat_racks_frame\">\n";
+  for (bool b : {false, true}) {
+    for (const flat_rack::Box& m :
+         flat_rack::twenty::Members(b, gap, shift[0], shift[1])) {
+      const bool deck = m.name.find("deck") != std::string::npos;
+      t += "      <geom name=\"" + m.name + "\" type=\"box\" pos=\"" +
+           V3(m.centre) + "\" size=\"" + V3(m.half_size) + "\" rgba=\"" +
+           (deck ? "0.55 0.45 0.3 1" : "0.2 0.35 0.55 1") + "\"/>\n";
+    }
+  }
+  return t + "    </body>\n";
 }
 
 // The prefix of pallet place p's names: "pallet" for the first,
@@ -504,7 +540,7 @@ std::string BuildLayoutXml(const Layout& layout, const LayoutState& state,
   std::string t;
   t += "<mujoco model=\"layout " + layout.name + "\">\n";
   t += "  <include file=\"common.xml\"/>\n";
-  t += "  <include file=\"" + BaseFile(layout) + "\"/>\n";
+  if (!OnTwoRacks(layout)) t += "  <include file=\"" + BaseFile(layout) + "\"/>\n";
   t += "  <statistic center=\"0 0 1.5\" extent=\"8\"/>\n";
   t += LayoutDefaults("");
   t += BayDefaults();
@@ -520,6 +556,7 @@ std::string BuildLayoutXml(const Layout& layout, const LayoutState& state,
   }
   t += "  </asset>\n";
   t += "  <worldbody>\n";
+  if (OnTwoRacks(layout)) t += TwoRacksXml(layout);
 
   // The holder.
   if (!inside_only || layout.holder.travels_inside) {
@@ -762,7 +799,9 @@ ModelPtr LoadLayoutModel(const Layout& layout, const LayoutState& state,
     return mj_addBufferVFS(&vfs, name.c_str(), text.data(),
                            static_cast<int>(text.size())) == 0;
   };
-  for (const std::string& file : {std::string("common.xml"), BaseFile(layout)}) {
+  std::vector<std::string> part_files = {"common.xml"};
+  if (!OnTwoRacks(layout)) part_files.push_back(BaseFile(layout));
+  for (const std::string& file : part_files) {
     std::string text;
     const std::string path = paths.models_dir + "/" + file;
     if (!ReadFile(path, &text)) return fail("cannot read " + path);

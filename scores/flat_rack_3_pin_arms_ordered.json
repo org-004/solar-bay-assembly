@@ -104,7 +104,7 @@
       "unit": "rows",
       "holds": "<=",
       "pass": true,
-      "basis": "rows of check_layout that do not pass, of 951"
+      "basis": "rows of check_layout that do not pass, of 948"
     },
     {
       "name": "least_clearance_m",

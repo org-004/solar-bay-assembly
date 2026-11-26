@@ -62,11 +62,17 @@ menagerie_model(
     target_name = "ur10e",
 )
 
-# The arm of the cell: KUKA KR 210 R2700-2. Only its meshes and the vendor's
-# license are downloaded; the model itself is models/arm.xml, converted by
-# hand from the vendor's URDF at this same commit. Paths below
-# kuka_quantec_support/meshes/kr210_r2700_2/ land at visual/... and
-# collision/... in @kuka_kr210_r2700_2. To self-host, copy the files elsewhere
+# The arm of the cell: KUKA KR 210 R2700-2, and two smaller KUKA arms a layout
+# may use in its place (src/arm_catalog.h): KR 10 R1100-2 (KR AGILUS) and
+# KR 20 R1810-2 (KR CYBERTECH). Only their meshes and the vendor's license are
+# downloaded; the models are models/arm.xml, models/kr10_r1100_2.xml and
+# models/kr20_r1810_2.xml, converted by hand from the vendor's URDF at this
+# same commit. One repository holds all three, so that the outside
+# dependencies do not grow. Paths below kuka_quantec_support/meshes/kr210_r2700_2/
+# land at visual/... and collision/... in @kuka_kr210_r2700_2; the other
+# arms' files are outside that prefix and keep their whole path (only their
+# collision meshes are taken: the KR 10's visual link_4.stl is broken and the
+# KR 20's visual meshes are Collada). To self-host, copy the files elsewhere
 # and set base_url.
 kuka_description = use_repo_rule("//bazel:kuka.bzl", "kuka_description")
 
@@ -89,6 +95,20 @@ kuka_description(
         "kuka_quantec_support/meshes/kr210_r2700_2/visual/link_4.stl": "e6a5d73b9139b8599d4fe1b62d4a29fa2961bef21644af1a4e6b03d79781fb3a",
         "kuka_quantec_support/meshes/kr210_r2700_2/visual/link_5.stl": "1a5211c018eb1562a8790330d12d2dd692ab6511ee8d210958bbd9c6b162aa69",
         "kuka_quantec_support/meshes/kr210_r2700_2/visual/link_6.stl": "47704d8b30bef58e8af8c9077fb001fc898a954c8aa49b881146c30d13fd2c5e",
+        "kuka_agilus_support/meshes/kr10_r1100_2/collision/base_link.stl": "7f3f6ce53f33f859ee352b0792f9d92fe2497d9c2ba1b75b119226d2ab8180cf",
+        "kuka_agilus_support/meshes/kr10_r1100_2/collision/link_1.stl": "da54e2cc500560200526e8c3ed2bdaa71d308b8beb3228f4451cf2d11c6645b3",
+        "kuka_agilus_support/meshes/kr10_r1100_2/collision/link_2.stl": "056eba3493009395a446e0d5bdc3c1d804f0d8c07986d76d92703a3d579a896e",
+        "kuka_agilus_support/meshes/kr10_r1100_2/collision/link_3.stl": "c39f3b9e0cd1527aaf53e06a2105f8a5b8740fc9ea664ae4d400ed1b5f25456e",
+        "kuka_agilus_support/meshes/kr10_r1100_2/collision/link_4.stl": "8af81a1cad01286a40935daecf461f5b2ecf8200abd713d8771e8662d544a1ad",
+        "kuka_agilus_support/meshes/kr10_r1100_2/collision/link_5.stl": "fc3ace4f40fa149342d359596a32f4993d48aafd35c6879b77a5bd172807e849",
+        "kuka_agilus_support/meshes/kr10_r1100_2/collision/link_6.stl": "89c0fe470f1ed10ad41ed59b88896cf4c868e9a523a89e5420b94aa7d2e0c9a3",
+        "kuka_cybertech_support/meshes/kr20_r1810_2/collision/base_link.stl": "1bc1831afbbd39e65a904addf6a62cfcafaa4cd79a791ddeddefc42765a0c509",
+        "kuka_cybertech_support/meshes/kr20_r1810_2/collision/link_1.stl": "2d0d8a1d057974a2617ca61293d80bd268ef15f58f4f28a02d9690ae4131b3f5",
+        "kuka_cybertech_support/meshes/kr20_r1810_2/collision/link_2.stl": "4ab2669bfb02c5e7b1c0d98529216fc8720ac96cb965534937e95205b5aa1b46",
+        "kuka_cybertech_support/meshes/kr20_r1810_2/collision/link_3.stl": "c2b5402f45238546addc97f9758304056e03517c111ffa440de248a1e4439efe",
+        "kuka_cybertech_support/meshes/kr20_r1810_2/collision/link_4.stl": "31193ebb90a21a94abd5b032ce0c7bf576e383db1da107a58c45c67fdecde4de",
+        "kuka_cybertech_support/meshes/kr20_r1810_2/collision/link_5.stl": "358b5b2863c731e453c92536563cd43f36cb62d9da39d13ffff53c148e11e099",
+        "kuka_cybertech_support/meshes/kr20_r1810_2/collision/link_6.stl": "5a5cd29a59bf8cc90494987d8b2150e90ec2a888c61c10c077a99c308a286eb5",
     },
     strip_prefix = "kuka_quantec_support/meshes/kr210_r2700_2",
     target_name = "kr210_r2700_2",

@@ -136,7 +136,9 @@ Each header opens with a long comment that explains the piece (240 of the 1,173 
 | Locating a module before pinning: the nose, its capture range, a physics test | `docs/bay-hardware.md` ("Locating a module before pinning"), `src/bay_hardware.h`, `//:print_bay -- --capture`, `tests/locate_physics_test.cc` |
 | The new cell's layouts, as data (designed, not yet running; beside the cell, not in it) | `docs/layout.md`, `layouts/*.json`, `src/layout.h`, `src/arm_catalog.h` |
 | The flat rack cell's design: the chosen layout, ports, approaches, planned bay, margins | `docs/flat-rack-cell.md`, `layouts/flat_rack_*.json` |
-| Checks on a layout: transport, hold, reach, clearance, load, ways, time, and allowed, port, approach (new kinds; run 011's five layouts fail port and approach) | `src/layout_check.h`, `bazel run --config=opt //:check_layout -- --list`, `-- <name>`, `-- <name> --checks <kinds,...>`, `tests/layout_check_test.cc` |
+| The two 20 ft flat racks cell, as checked (not yet planned): layouts, staging, margins, gap | `docs/two-flat-racks-cell.md`, `layouts/two_flat_racks_*.json` |
+| Two racks and stages of a layout: the reader of the racks, the rack each thing stands on and the tube's stages; the checks at every stage and at the ends of the racks' tolerance (gap rows) | `src/layout_racks.h`, `src/layout_stages.h` |
+| Checks on a layout: transport, hold, reach, clearance, load, ways, time, and allowed, port, approach (new kinds; run 011's five layouts fail port and approach), and gap (two racks only) | `src/layout_check.h`, `bazel run --config=opt //:check_layout -- --list`, `-- <name>`, `-- <name> --checks <kinds,...>`, `tests/layout_check_test.cc` |
 | Rows without poses: allowed, port, the flat rack's transport | `src/layout_rows.h` |
 | What moves and what is there at a step, pairs by design, the one distance function | `src/layout_scene.h` |
 | Planned motion of a bay: every move planned, the arms scheduled on one clock, verified | `src/layout_plan.h`, `bazel run --config=opt //:plan_layout -- <name> [--summary\|--margins\|--out PATH]`, `plans/*.json`, `tests/plan_replay_test.cc`, `tests/layout_plan_test.cc` |

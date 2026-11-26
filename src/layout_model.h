@@ -3,7 +3,9 @@
 // BuildLayoutXml writes the model of a layout in a given state: the
 // layout's base (models/container.xml, body "container_frame", for base
 // "container"; models/flat_rack.xml, body "flat_rack_frame", for base
-// "flat_rack"), the bay as far as it is built (src/bay_model.h, placed where
+// "flat_rack"; body "two_flat_racks_frame" for base "two_flat_racks", both 20 ft
+// racks of src/flat_rack.h drawn into the model itself, rack "b" at its place
+// moved by two_flat_racks.b_shift, with no part file), the bay as far as it is built (src/bay_model.h, placed where
 // the layout's "tube" says), the holder's boxes, every arm from its public
 // description with its track, its tools and what it holds as simple shapes
 // (on the flat rack a rail an arm holds has its strap hanging open, the rails
@@ -79,8 +81,8 @@
 // the model leaves MuJoCo's defaults from models/common.xml.
 //
 // The model needs files beside the layout: models/common.xml,
-// models/container.xml or models/flat_rack.xml, the KUKA's meshes as models/arm.xml names them, and
-// MuJoCo Menagerie's ur10e.xml with its assets. ModelPaths says where they
+// models/container.xml or models/flat_rack.xml, the KUKA arms' model files with
+// their meshes as each names them, and MuJoCo Menagerie's ur10e.xml with its assets. ModelPaths says where they
 // are; FromEnvironment reads MODELS_DIR and UR10E_XML, which the Bazel
 // targets set.
 

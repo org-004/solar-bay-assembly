@@ -22,14 +22,12 @@
   +Z is up, +X across. The body stands at the world's origin. Every member
   is a box that collides, and every name starts with "flat_rack_".
 
-  Three sites give the envelopes; a site's size is half the envelope's
+  Two sites give the envelopes; a site's size is half the envelope's
   size, as for a box. flat_rack_transport_envelope is the outside of a 40 ft
   high-cube container, 12.192 x 2.438 x 2.896 m from the ground, the base
   included: everything must be inside it when the flat rack travels.
   flat_rack_cell_envelope is the part of it above the deck, where the stowed
-  cell may be. flat_rack_closed_inside_envelope is what a container that
-  closes would give the cell, the closed container's inside envelope of
-  11.830 x 2.330 x 2.240 m standing on this deck; nothing is held to it.
+  cell may be.
   Sites collide with nothing and are in group 4, which a viewer does not
   draw unless asked: drawn, the envelopes look like walls and a roof, and
   the flat rack has none.
@@ -64,7 +62,6 @@
       <geom name="flat_rack_deck" class="flat_rack_floor" pos="0 0 0.548" size="1.069 5.915 0.1"/>
       <site name="flat_rack_transport_envelope" class="flat_rack_envelope" pos="0 0 1.448" size="1.219 6.096 1.448"/>
       <site name="flat_rack_cell_envelope" class="flat_rack_envelope" pos="0 0 1.772" size="1.219 6.096 1.124" rgba="0.1 0.8 0.3 0.08"/>
-      <site name="flat_rack_closed_inside_envelope" class="flat_rack_envelope" pos="0 0 1.768" size="1.165 5.915 1.12" rgba="0.8 0.1 0.6 0.08"/>
     </body>
   </worldbody>
 </mujoco>

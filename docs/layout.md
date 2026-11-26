@@ -326,6 +326,81 @@ catalogue's name still says KR QUANTEC. The UR10e's licence file does not print 
 name "BSD-3-Clause"; it is identified from its text. Only each repository's `LICENSE`
 was read, not every mesh file.
 
+### Smaller KUKA arms
+
+The owner wants every arm in the cell to be a KUKA. The pin and bolt arms are UR10e
+today, so `src/arm_catalog.h` now also holds two smaller KUKA arms, to replace them in a
+later layout. Nothing in a layout uses them yet. Three KUKA arms and the UR10e were
+compared:
+
+| Figure | KUKA KR 10 R1100-2 | KUKA KR 16 R1610-2 | KUKA KR 20 R1810-2 | UR10e (today) | Basis |
+|---|---|---|---|---|---|
+| Family | KR AGILUS-2 | KR CYBERTECH-2 | KR CYBERTECH-2 | | published |
+| Rated payload | 5 kg (11.1 kg maximum, at reduced load centres) | 16 kg (20 kg maximum) | 20 kg (23.9 kg maximum) | 12.5 kg | published |
+| Payload centre of the rated payload (Lz, Lxy) | 260 mm, 180 mm | about 155 to 175 mm, about 120 mm | 155 mm, 120 mm | none stated | read from the diagram by eye |
+| Reach | 1,101 mm | 1,612 mm | 1,813 mm | 1,300 mm | published |
+| Mass | approx. 55 kg | approx. 255 kg as printed | approx. 255 kg | 33.3 kg | published |
+| Axis 1 range | +/-170 degrees | +/-185 degrees | +/-185 degrees | +/-360 degrees | published |
+| Source | 0000-290-003 V17.1 (03.12.2019) [L11] | 0000-321-015 V6.1 (18.04.2019) [L13] | 0000-321-012 V13.1 (10.04.2020) [L12] | [L2] | |
+
+Added: the KR 10 R1100-2 and the KR 20 R1810-2, as `kr10_r1100_2` and `kr20_r1810_2`.
+The KR 10 is the one close to the UR10e's size (reach 1.10 m against 1.30 m, 55 kg
+against 33 kg). Its rated payload is 5 kg, less than the pin tool with its magazine (8.5 kg),
+so it suits the bolts (the nutrunner is 3 kg) and not the pins. The KR 20 has the longer reach
+(1.81 m) and a rated payload of 20 kg, more than twice the pin tool's 8.5 kg, so it is
+the one that suits the pins. The KR 16 R1610-2 was compared and not added: it has the same
+family, mass and axis ranges as the KR 20 and a payload of 16 kg, so it would be a
+second arm of the same kind with less margin and 0.2 m less reach. Its sheet prints
+the same mass as the KR 20's, approx. 255 kg.
+
+How they are built is the KR 210's way. The files are added to the same
+`kuka_kr210_r2700_2` call in `MODULE.bazel` (the outside dependencies of
+`docs/architecture/baseline.txt` do not grow), at the same pinned commit,
+`d2fa4377b77b7370cdcf6e52b430fc514a0eef19` of `kroshu/kuka_robot_descriptions`, Apache
+License 2.0 [L3]. The models are `models/kr10_r1100_2.xml` and `models/kr20_r1810_2.xml`,
+converted by hand from `kuka_agilus_support` and `kuka_cybertech_support`; each opens
+with what was copied and what is ours. Three things differ from `models/arm.xml`.
+Only the vendor's collision meshes are used, for contact and for drawing: the KR 20's
+visual meshes are Collada, which MuJoCo does not read, and the KR 10's visual `link_4.stl`
+has vertices up to 10.8 m from the link. There are no motors, damping or armature, because
+a layout only sets joint angles. And the KR 20's description has no usable inertia for
+its base, link 1, link 5 and link 6 (the wrist's mass is in link 4), so link 1 and the
+wrist links carry figures of ours, named in the file. The URDF's joint ranges equal the
+datasheets' on both arms, so the catalog takes them from the datasheets, as it does for
+the KR 210. `tests/layout_model_test.cc` (`SmallKukaArms`) checks that each model builds
+into a layout, that its flange follows a chain computed from the URDF's joint origins at
+three poses, and that the catalog's ranges are inside the model's.
+
+The load check was run on a scratch copy of `flat_rack_2_pin_arms` (not kept) with
+`pin_arm_a` and `pin_arm_b` set to each new arm in turn, with the same base positions
+and nothing else changed: `check_layout <name> --checks load,reach,clearance`.
+
+| Row | Original (UR10e) | KR 10 R1100-2 | KR 20 R1810-2 |
+|---|---|---|---|
+| load, nutrunner (3 kg), each arm | pass | pass (centre 0.077 m, rated to 0.260) | pass (rated to 0.155) |
+| load, pin tool (8.5 kg with the magazine), each arm | pass | fail, 8.5 kg against the rated 5 kg | pass (centre 0.090 m, rated to 0.155 and 0.120 across) |
+| reach rows failing (of 193) | 0 | 2: the two wait poses, joint 1 is 10 degrees outside its range (the wait pose is the UR10e's 180 degrees against a range of +/-170) | 84: 28 each of locate, pin and swage (20 of `pin_arm_a`, 8 of `pin_arm_b`), up to 32 mm short of their points |
+| clearance rows failing (of 280) | 0 | 2: the nutrunner arms, link 2 against a module frame (-0.076 m and -0.0003 m, against 0.015 m) | 116, of them 108 of the pin tool and 4 of the module arm; the worst is -0.206 m, the module arm's link 2 against `pin_arm_b`'s link 3 |
+
+The load rows pass for both tools on the KR 20 and not for the pin tool on the KR 10.
+The KR 10's diagram does carry 9 and 10 kg at load centres up to about Lxy 110 mm,
+the curves ending on the axis at Lz of about 130 and 110 mm; the pin tool's centre
+(0.090 m along the axis, nothing across) appears by eye to lie inside them, so the
+datasheet may allow the pin tool; the catalog holds one
+curve for each arm, the rated payload's, and the checker follows it. Whether the KR 10
+may carry the pin tool is for the owner, to be checked with KUKA.Load as the sheet
+says. The reach and clearance rows are information for the next step, not a result: the
+base positions, the wait poses and the stops of the layout were designed for the UR10e
+and were not changed. The KR 10's two reach rows are the wait pose, which was chosen for
+the UR10e's range; the KR 20's 84 are a shortfall at the pins with the arm where the
+UR10e stood, and whether a lower or closer base or other stops remove it is for the
+next step.
+Figures read by eye from the payload diagrams are good to about 10 mm; the KR 10's
+diagram labels its top tick 200 where the ticks put 175 mm, and the catalog uses 180
+mm. The KR 10's speeds are not in its datasheet (they are in the KR AGILUS-2
+specification, which could not be read, as the copy found is encrypted); they are as a
+reseller prints them [L14] and equal the URDF's velocity limits.
+
 ### Tools, load and what they rest on
 
 | Tool | What it does | Mass, length (flange to working point), envelope | Basis |
@@ -719,6 +794,47 @@ are timed but not checked; the held part is not checked against the arm's own li
 edges are checked every 0.01 m of weighted motion, so 0.010 m is not a strict guarantee
 between the checked points. Seven moves of 165 steps were planned; the others are not.
 
+## The form for two racks and for stages
+
+Since run 020 a layout may stand on two 20 ft flat racks and may work the tube in stages.
+The form is in the opening comment of `src/layout.h` ("Two racks", "Stages"); the cell
+that uses it, its results and its comparison are in
+[`docs/two-flat-racks-cell.md`](two-flat-racks-cell.md).
+
+- **Frame and base.** `"two_flat_racks"` stands in place of `"flat_rack"`. The origin is
+  on the ground under the middle of the pair at the nominal gap (25 mm), +Y along the
+  racks, +X across; rack "a" is on -X, rack "b" on +X, both centred on y = 0. The state
+  holds `gap_m`, `gap_lo_m` and `gap_hi_m` (0 to 50 mm) and `misalign_m` (25 mm).
+- **The rack field.** Every arm, the holder, and every stock and item that travels has
+  `rack`, "a" or "b". It is required on this base and refused on the others. A thing
+  stands on one rack only and travels on it; arms may reach across the gap.
+- **Staging.** `staging` (optional, on either flat-rack base) has `why`, `transfer_s` and
+  `stages`. A stage names the tube's offset along +Y (`tube_offset_m`), its rails and
+  modules, the holder's grips, the stretch that fixes the angle and what pins it
+  (`angle_pin_hold`, `angle_pin_by`: "holder" or "item:<name>"), and `held_by` in words.
+  The rules: every rail and every module is in exactly one stage; a strap bolt goes with
+  its rail, a hole with its module, a take with the part it takes; a module's two rails
+  are set at its stage or an earlier one. Without `staging` there is one stage as before.
+- **New rows.** Every row of the kinds that depend on the tube's place is made once for each
+  stage and its item starts with "stage <name>: " (for example `reach,stage 2:
+  module_set 3`). The `hold` rows are the grips, that they are not only the ends, the
+  angle pin's stretch, the moment and the angle, and, for each grip and the angle pin,
+  that a holder or unit box is at the piece (`stage 1: grip bay_hold_4 in the holder`).
+  The `ways` rows have the transfers between stages (`stage 1 to 2`) beside the tube in
+  and the bay out. The `transport` rows are made for each rack (`rack a mass`, `rack a
+  envelope`, `rack a above the deck`, the same for b) and `nothing spans the gap`. The
+  `time` rows give a figure for each stage and for the bay with the transfers.
+- **The `gap` kind.** Eight rows for two racks only: reach, clearance, approach and ways
+  again with rack "b" and what stands on it moved to the ends of the tolerance (gap 0 and
+  50 mm, rack b 25 mm either way, and the corners), each row the least figure of its
+  variant against the clearance margin, with what changed against the nominal gap in its
+  detail.
+- **`allowed`.** There is no limit on the number of arms, as long as the cell works and
+  the stowed cell keeps to the weight limit and the stow envelope. A row `maker <arm>`
+  is made for each arm (1 if KUKA, 0 if not). It has a limit of 1 on two racks only
+  (every arm is KUKA, the owner, 2026-11-26); on every other base it has no limit and
+  always passes, so the UR10e layouts above are not changed.
+
 ## Decisions
 
 Every decision the brief left open, with its reason.
@@ -860,6 +976,14 @@ those of `docs/bay-hardware.md`.
 [L9] JinkoSolar Handling, Storage and Unpacking Instructions guide (v3, 2023). JinkoSolar (copy on siblik.com). <https://www.siblik.com/fileadmin/mam/medias/docus/168/Handling-Storage-and-Unpacking-Instructions-guide-v1%20231020.pdf>. Read 2026-11-24. Taken: unpacking steps (modules lean against a support, long side to the support), forks from the short side.
 
 [L10] JKM610-635N-66HL4M-(V)-F2-EN datasheet (May 2024). JinkoSolar. <https://www.jinkosolar.com/uploads/JKM610-635N-66HL4M-(V)-F2-EN.pdf>. Read 2026-11-24. Taken: pallet dimensions 2396×1110×1251 mm for 31 modules of 35 mm.
+
+[L11] KR 10 R1100-2 data sheet, 0000-290-003 V17.1 (03.12.2019). KUKA Deutschland GmbH, copy hosted at hci.rwth-aachen.de. <https://hci.rwth-aachen.de/files/200311-KUKA-KR-10-R1100-2-Industrial-Robot-Specs-0000290003_EN.pdf>. Read 2026-11-26. Taken: maximum payload 11.1 kg, rated payload 5 kg, reach 1,101 mm, weight approx. 55 kg, motion ranges, the payload diagram. An older version, V10.1 (06.05.2019), gives a maximum of 10.9 kg and 56.5 kg.
+
+[L12] KR 20 R1810-2 data sheet, 0000-321-012 V13.1 (10.04.2020). KUKA Deutschland GmbH, copy hosted at quicktimeonline.com. <https://www.quicktimeonline.com/assets/images/pdf/KUKA/KR%2020%20R1810-2.pdf>. Read 2026-11-26. Taken: maximum payload 23.9 kg, rated payload 20 kg, reach 1,813 mm, weight approx. 255 kg, motion ranges, speeds with rated payload, the payload diagram.
+
+[L13] KR 16 R1610-2 data sheet, 0000-321-015 V6.1 (18.04.2019). KUKA Deutschland GmbH, copy hosted at robotbutikken.dk. <https://www.robotbutikken.dk/wp-content/uploads/KR_16_R1610-2-Datasheet.pdf>. Read 2026-11-26. Taken: maximum payload 20 kg, rated payload 16 kg, reach 1,612 mm, weight approx. 255 kg, motion ranges, the payload diagram (read by eye).
+
+[L14] KUKA AGILUS KR10 R1100-2 axis data, a reseller's page (eurobots.net). <https://www.eurobots.net/kuka-agilus-kr10-r1100-2-krc4-krc5-en.html>. Read 2026-11-26 (summary of the page). Taken: speeds with rated payload A1 to A6 300, 225, 330, 360, 360, 433 degrees/s, as the URDF's limits have them.
 
 What could not be found: KUKA's own copy of the KR 210 datasheet; the KL 4000's carriage
 height and mass per metre; a robot vacuum gripper's size, own mass and rated load for a

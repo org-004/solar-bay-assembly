@@ -12,6 +12,7 @@
 #include <optional>
 #include <set>
 #include <string>
+#include <tuple>
 #include <vector>
 
 #include <Eigen/Core>
@@ -25,6 +26,7 @@
 #include "src/layout.h"
 #include "src/layout_model.h"
 #include "src/layout_scene.h"
+#include "src/layout_stages.h"
 #include "src/mj_handles.h"
 
 namespace cell::layout {
@@ -524,10 +526,11 @@ int CountKind(const CheckReport& report, const std::string& check) {
 // Only the kinds asked for are made, and the report passes by them alone.
 TEST(LayoutCheck, ChecksChooseTheKinds) {
   const std::vector<std::string>& kinds = CheckKinds();
-  ASSERT_EQ(kinds.size(), 10u);
+  ASSERT_EQ(kinds.size(), 11u);
   EXPECT_EQ(kinds[0], "transport");
   EXPECT_EQ(kinds[6], "time");
   EXPECT_EQ(kinds[9], "approach");
+  EXPECT_EQ(kinds[10], "gap");
   const Layout layout = Reference();
   CheckOptions options;
   options.checks = {"load", "hold"};
@@ -1239,6 +1242,201 @@ TEST(LayoutCheck, PostureKeptAndPosesUnchanged) {
   for (const PostureChanges& p : report.postures) {
     EXPECT_FALSE(p.from.empty()) << p.arm;
     EXPECT_GT(p.largest_s, 0.0) << p.arm;
+  }
+}
+
+// A layout worked in stages, made in memory from a flat rack layout: each
+// stage the holder's own grips and angle pin, at its offset.
+Layout Staged(const Layout& base,
+              const std::vector<std::tuple<std::string, double, std::string,
+                                           std::string>>& stages) {
+  Layout l = base;
+  Staging staging;
+  staging.why = "test";
+  staging.transfer_s = 30.0;
+  for (const auto& [name, offset, rails, modules] : stages) {
+    Stage st;
+    st.name = name;
+    st.tube_offset_m = offset;
+    st.rails = rails;
+    st.modules = modules;
+    st.grips = base.holder.grips;
+    st.angle_pin_hold = base.holder.angle_pin_hold;
+    staging.stages.push_back(st);
+  }
+  l.staging = staging;
+  return l;
+}
+
+// One stage with everything at offset 0 is the unstaged bay: the same
+// figures, the stage's rows prefixed, the rows made once not.
+TEST(LayoutCheck, OneStageIsTheWholeBay) {
+  const Layout plain = FlatRackNamed("flat_rack_2_pin_arms");
+  const Layout staged = Staged(plain, {{"1", 0.0, "all", "all"}});
+  CheckOptions options;
+  options.checks = {"reach", "clearance"};
+  options.work_kinds = {"strap_bolt", "module_set"};
+  const CheckReport a = CheckLayout(plain, Paths(), options);
+  const CheckReport b = CheckLayout(staged, Paths(), options);
+  ASSERT_FALSE(a.rows.empty());
+  EXPECT_EQ(a.rows.size(), b.rows.size());
+  int prefixed = 0;
+  for (const CheckRow& r : a.rows) {
+    const CheckRow* s = FindRow(b, r.check, "stage 1: " + r.item);
+    if (s != nullptr) {
+      ++prefixed;
+    } else {
+      s = FindRow(b, r.check, r.item);
+    }
+    ASSERT_NE(s, nullptr) << r.check << " " << r.item;
+    EXPECT_DOUBLE_EQ(s->figure, r.figure) << r.check << " " << r.item;
+    EXPECT_EQ(s->pass, r.pass) << r.check << " " << r.item;
+  }
+  EXPECT_GT(prefixed, 19);
+  ASSERT_NE(FindRow(b, "reach", "wait pose module_arm"), nullptr);
+}
+
+// Two stages, the second with the tube moved by d along Y: its points are
+// solved there, and the first stage's modules are on at its points.
+TEST(LayoutCheck, SecondStageMovesTheTubeAndKeepsTheFirstStagesModules) {
+  constexpr double d = 0.2;
+  const Layout plain = FlatRackNamed("flat_rack_2_pin_arms");
+  const Layout staged =
+      Staged(plain, {{"1", 0.0, "0-4", "0-3"}, {"2", d, "5-9", "4-8"}});
+  CheckOptions options;
+  options.checks = {"hold", "reach"};
+  options.work_kinds = {"rail_set", "module_set"};
+  const CheckReport report = CheckLayout(staged, Paths(), options);
+  ASSERT_NE(FindRow(report, "reach", "stage 2: rail_set 7"), nullptr);
+  // The holder's saddles stay where the grips are at stage 1; at stage 2 the
+  // gripped pieces are d off them along Y.
+  const CheckRow* grip1 =
+      FindRow(report, "hold", "stage 1: grip bay_hold_2 in the holder");
+  const CheckRow* grip2 =
+      FindRow(report, "hold", "stage 2: grip bay_hold_2 in the holder");
+  ASSERT_NE(grip1, nullptr);
+  ASSERT_NE(grip2, nullptr);
+  EXPECT_TRUE(grip1->pass) << grip1->detail;
+  EXPECT_FALSE(grip2->pass);
+  EXPECT_NEAR(grip2->figure, grip1->figure - d, 1e-9);
+  // The angle pin's box must reach the end stretch along Y: moved d away
+  // from it, the overlap is d less.
+  const CheckRow* pin1 =
+      FindRow(report, "hold", "stage 1: angle pin bay_hold_0 at holder");
+  const CheckRow* pin2 =
+      FindRow(report, "hold", "stage 2: angle pin bay_hold_0 at holder");
+  ASSERT_NE(pin1, nullptr);
+  ASSERT_NE(pin2, nullptr);
+  EXPECT_NEAR(pin2->figure, pin1->figure - d, 1e-9) << pin2->detail;
+  EXPECT_DOUBLE_EQ(pin2->limit, 0.0);
+  ASSERT_NE(FindRow(report, "reach", "stage 1: module_set 3"), nullptr);
+  EXPECT_EQ(FindRow(report, "reach", "stage 1: rail_set 7"), nullptr);
+  const Layout second = StageLayout(staged, 1);
+  std::string error;
+  auto scene = LayoutScene::Load(second, Paths(), 5.0, &error);
+  ASSERT_NE(scene, nullptr) << error;
+  DataPtr data = scene->MakeData();
+  int checked = 0;
+  for (const SolvedPoint& p : report.points) {
+    const bool two = p.stage == "2";
+    EXPECT_EQ(two, StageOfPoint(staged, p.kind, p.index) == 1) << p.item;
+    if (!two || !p.work_reached) continue;
+    // The working point is at the plain point moved by d along Y.
+    const WorkPoint w = WorkPoints(plain, p.kind)[p.index];
+    const int ai = scene->ArmIndex(p.arm);
+    ArmPose pose;
+    for (int j = 0; j < 6; ++j) pose.q[j] = p.work_deg[j] * M_PI / 180.0;
+    pose.track = p.track;
+    scene->AllAtWait(data.get());
+    scene->SetPose(data.get(), ai, pose);
+    mj_kinematics(&scene->model(), data.get());
+    const int site = scene->arm(ai).h->work_site.at(p.tool);
+    const Eigen::Vector3d at(data->site_xpos[3 * site],
+                             data->site_xpos[3 * site + 1],
+                             data->site_xpos[3 * site + 2]);
+    EXPECT_LT((at - w.pos - Eigen::Vector3d(0.0, d, 0.0)).norm(), 1.5e-4)
+        << p.item;
+    ++checked;
+  }
+  EXPECT_GT(checked, 3);
+  // At stage 2 the modules of stage 1 are on; rails of stage 2 come in
+  // order; a module of stage 1 is not worked with one of stage 2 beside it.
+  const StageScope two = ScopeOfStage(staged, 1);
+  StepScene rail6 = scene->AtWorkPoint(WorkPoints(second, "rail_set")[6]);
+  BuiltInStage(two, PointCount(staged, "module_take"), &rail6);
+  ASSERT_EQ(rail6.built.size(), 1u);
+  EXPECT_EQ(rail6.built[0].rails, (std::vector<int>{0, 1, 2, 3, 4, 5}));
+  EXPECT_EQ(rail6.built[0].modules, (std::vector<int>{0, 1, 2, 3}));
+  EXPECT_EQ(rail6.built[0].on_pallets, PointCount(staged, "module_take") - 4);
+  StepScene set5 = scene->AtWorkPoint(WorkPoints(second, "module_set")[5]);
+  BuiltInStage(two, PointCount(staged, "module_take"), &set5);
+  EXPECT_EQ(set5.built[0].rails.size(), 10u);
+  EXPECT_EQ(set5.built[0].modules, (std::vector<int>{0, 1, 2, 3, 4}));
+  StepScene hole = scene->AtWorkPoint(WorkPoints(second, "locate")[4 * 3 + 2]);
+  BuiltInStage(ScopeOfStage(staged, 0), PointCount(staged, "module_take"),
+               &hole);
+  ASSERT_EQ(hole.built.size(), 2u);
+  EXPECT_EQ(hole.built[1].modules, (std::vector<int>{0, 1, 2, 3}));
+  EXPECT_EQ(hole.built[1].rails, (std::vector<int>{0, 1, 2, 3, 4}));
+}
+
+// On two racks: the gap rows, one per variant from the layout's figures,
+// each the least distance of its rerun rows; rack "b" moved by nothing is
+// the nominal cell.
+TEST(LayoutCheck, GapRowsOnTwoRacks) {
+  const Layout layout = FlatRackNamed("two_flat_racks_2_pin_arms");
+  ASSERT_EQ(layout.base, "two_flat_racks");
+  const TwoFlatRacksState& t = layout.two_flat_racks;
+  CheckOptions options;
+  options.checks = {"gap"};
+  options.work_kinds = {"rail_set"};
+  const CheckReport gap = CheckLayout(layout, Paths(), options);
+  auto mm = [](const char* format, double m) {
+    char b[64];
+    std::snprintf(b, sizeof(b), format, m * 1000.0);
+    return std::string(b);
+  };
+  std::vector<std::string> items = {
+      mm("gap %.0f mm", t.gap_lo_m), mm("gap %.0f mm", t.gap_hi_m),
+      mm("misaligned %+.0f mm", t.misalign_m),
+      mm("misaligned %+.0f mm", -t.misalign_m)};
+  for (double g : {t.gap_lo_m, t.gap_hi_m}) {
+    for (double m : {t.misalign_m, -t.misalign_m}) {
+      items.push_back(mm("gap %.0f mm", g) + ", " + mm("misaligned %+.0f mm", m));
+    }
+  }
+  ASSERT_EQ(gap.rows.size(), 8u);
+  for (size_t i = 0; i < items.size(); ++i) {
+    EXPECT_EQ(gap.rows[i].check, "gap");
+    EXPECT_EQ(gap.rows[i].item, items[i]);
+    EXPECT_EQ(gap.rows[i].unit, "m");
+    EXPECT_DOUBLE_EQ(gap.rows[i].limit, gap.clearance_m);
+    EXPECT_NE(gap.rows[i].detail.find("against the nominal gap"),
+              std::string::npos);
+  }
+  // The first variant by hand: the gap at its low end.
+  options.checks = {"reach", "clearance", "ways", "approach"};
+  const CheckReport low = CheckLayout(
+      MovedRackB(layout, t.gap_lo_m - t.gap_m, 0.0), Paths(), options);
+  double least = 1e9;
+  bool pass = true;
+  for (const CheckRow& r : low.rows) {
+    pass = pass && r.pass;
+    if (r.check != "reach" && r.unit == "m" && r.limit == low.clearance_m) {
+      least = std::min(least, r.figure);
+    }
+  }
+  EXPECT_DOUBLE_EQ(gap.rows[0].figure, least);
+  EXPECT_EQ(gap.rows[0].pass, pass);
+  // MovedRackB by nothing: the nominal figures.
+  options.checks = {"reach", "clearance", "ways"};
+  const CheckReport a = CheckLayout(layout, Paths(), options);
+  const CheckReport b = CheckLayout(MovedRackB(layout, 0.0, 0.0), Paths(), options);
+  ASSERT_EQ(a.rows.size(), b.rows.size());
+  ASSERT_FALSE(a.rows.empty());
+  for (size_t i = 0; i < a.rows.size(); ++i) {
+    EXPECT_EQ(a.rows[i].item, b.rows[i].item);
+    EXPECT_DOUBLE_EQ(a.rows[i].figure, b.rows[i].figure) << a.rows[i].item;
   }
 }
 
