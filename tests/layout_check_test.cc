@@ -1384,7 +1384,7 @@ TEST(LayoutCheck, SecondStageMovesTheTubeAndKeepsTheFirstStagesModules) {
 // each the least distance of its rerun rows; rack "b" moved by nothing is
 // the nominal cell.
 TEST(LayoutCheck, GapRowsOnTwoRacks) {
-  const Layout layout = FlatRackNamed("two_flat_racks_draft");
+  const Layout layout = FlatRackNamed("two_flat_racks_2_pin_arms");
   ASSERT_EQ(layout.base, "two_flat_racks");
   const TwoFlatRacksState& t = layout.two_flat_racks;
   CheckOptions options;

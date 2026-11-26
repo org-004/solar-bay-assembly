@@ -1513,9 +1513,9 @@ TEST(LayoutForm, FlatRackRefusesAPalletInsideAndAHolderLeftBehind) {
 
 // Base "two_flat_racks": both 20 ft racks are one base body, rack b is at
 // its place with the layout's shift, and the working and stowed states build.
-TEST(TwoRacks, TheDraftBuildsWithBothRacksAsTheBase) {
+TEST(TwoRacks, TheLayoutBuildsWithBothRacksAsTheBase) {
   std::string error;
-  std::optional<Layout> l = LoadLayout(LayoutPath("two_flat_racks_draft"), &error);
+  std::optional<Layout> l = LoadLayout(LayoutPath("two_flat_racks_2_pin_arms"), &error);
   ASSERT_TRUE(l.has_value()) << error;
   LayoutState stowed;
   stowed.stowed = true;
@@ -1544,7 +1544,7 @@ TEST(TwoRacks, TheDraftBuildsWithBothRacksAsTheBase) {
 
 TEST(TwoRacks, MovedRackBMovesRackBsBaseGeomsByTheShift) {
   std::string error;
-  std::optional<Layout> l = LoadLayout(LayoutPath("two_flat_racks_draft"), &error);
+  std::optional<Layout> l = LoadLayout(LayoutPath("two_flat_racks_2_pin_arms"), &error);
   ASSERT_TRUE(l.has_value()) << error;
   const Layout moved = MovedRackB(*l, 0.025, -0.025);
   EXPECT_NEAR(moved.two_flat_racks.b_shift[0], 0.025, 1e-12);
@@ -1575,44 +1575,44 @@ TEST(TwoRacks, MovedRackBMovesRackBsBaseGeomsByTheShift) {
 }
 
 // The loader refuses what the second direction forbids: small JSON variants of
-// the draft layout, written to a temporary directory.
+// the two-rack layout, written to a temporary directory.
 std::string LoadVariant(const nlohmann::json& j, const std::string& which) {
   const char* tmp = std::getenv("TEST_TMPDIR");
   const std::filesystem::path dir =
       std::filesystem::path(tmp != nullptr ? tmp : "/tmp") / ("racks_" + which);
   std::filesystem::create_directories(dir);
-  const std::string path = (dir / "two_flat_racks_draft.json").string();
+  const std::string path = (dir / "two_flat_racks_2_pin_arms.json").string();
   std::ofstream(path) << j.dump(1);
   std::string error;
   EXPECT_FALSE(LoadLayout(path, &error).has_value()) << which;
   return error;
 }
 
-nlohmann::json DraftJson() {
-  std::ifstream in(LayoutPath("two_flat_racks_draft"));
+nlohmann::json TwoRacksJson() {
+  std::ifstream in(LayoutPath("two_flat_racks_2_pin_arms"));
   return nlohmann::json::parse(in);
 }
 
 TEST(TwoRackLoader, RefusesWhatTheFormForbids) {
   {
-    nlohmann::json j = DraftJson();
+    nlohmann::json j = TwoRacksJson();
     j["arms"][1].erase("rack");
     EXPECT_NE(LoadVariant(j, "arm_no_rack").find("arms[1].rack"), std::string::npos);
   }
   {
-    nlohmann::json j = DraftJson();
+    nlohmann::json j = TwoRacksJson();
     j["holder"]["rack"] = "c";
     EXPECT_NE(LoadVariant(j, "rack_c").find("holder.rack"), std::string::npos);
   }
   {
-    nlohmann::json j = DraftJson();
+    nlohmann::json j = TwoRacksJson();
     j["two_flat_racks"]["gap_m"] = 0.06;  // Above gap_hi_m.
     const std::string e = LoadVariant(j, "gap");
     EXPECT_NE(e.find("two_flat_racks"), std::string::npos) << e;
     EXPECT_NE(e.find("tolerance"), std::string::npos) << e;
   }
   {
-    nlohmann::json j = DraftJson();
+    nlohmann::json j = TwoRacksJson();
     j["staging"]["stages"][1]["rails"] = "3-6";  // Rail 3 is also in stage 1.
     const std::string e = LoadVariant(j, "rail_twice");
     EXPECT_NE(e.find("rail 3"), std::string::npos) << e;
@@ -1621,14 +1621,14 @@ TEST(TwoRackLoader, RefusesWhatTheFormForbids) {
   {
     // Module 0 lies on rails 0 and 1; staged with rails 2-3 only it is before
     // its rail.
-    nlohmann::json j = DraftJson();
+    nlohmann::json j = TwoRacksJson();
     j["staging"]["stages"][0]["rails"] = "0";
     j["staging"]["stages"][1]["rails"] = "1-6";
     const std::string e = LoadVariant(j, "module_before_rail");
     EXPECT_NE(e.find("module"), std::string::npos) << e;
   }
   {
-    nlohmann::json j = DraftJson();
+    nlohmann::json j = TwoRacksJson();
     j["staging"]["stages"][0]["angle_pin_by"] = "item:nothing_of_that_name";
     EXPECT_NE(LoadVariant(j, "angle_pin_by").find("angle_pin_by"), std::string::npos);
   }

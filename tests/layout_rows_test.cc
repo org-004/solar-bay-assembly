@@ -390,15 +390,22 @@ TEST(FlatRackTransportRows, CarriageRunsOffTheBeamsEnd) {
 }
 
 // ------------------------------------------------------------ two racks
-Layout TwoRacks() { return Load("two_flat_racks_draft"); }
+Layout TwoRacks() { return Load("two_flat_racks_2_pin_arms"); }
 
-TEST(TwoRackRows, DraftPassesTransportAllowedAndPort) {
+TEST(TwoRackRows, TheLayoutPassesTransportAllowedAndPort) {
   const Layout l = TwoRacks();
   EXPECT_TRUE(Failures(FlatRackTransportRows(l, Paths())).empty())
       << Failures(FlatRackTransportRows(l, Paths()));
   EXPECT_TRUE(Failures(AllowedRows(l)).empty()) << Failures(AllowedRows(l));
-  EXPECT_TRUE(Failures(PortRows(l, Paths())).empty())
-      << Failures(PortRows(l, Paths()));
+  // As the checker makes them (src/layout_check.h, "Stages"): the port rows
+  // at the first stage, but the bay's way out from the last, where it leaves.
+  std::vector<CheckRow> ports = PortRows(l, Paths());
+  const std::vector<CheckRow> last =
+      PortRows(AtStage(l, l.staging->stages.back()), Paths());
+  for (CheckRow& r : ports) {
+    if (r.item == "way bay_out in a zone") r = *Find(last, r.item);
+  }
+  EXPECT_TRUE(Failures(ports).empty()) << Failures(ports);
 }
 
 TEST(TwoRackRows, PerRackRowsReplaceTheFortyFootOnes) {
@@ -531,7 +538,7 @@ TEST(TwoRackRows, PortsLieOnThePairsOutline) {
   ExpectFails(PortRows(l, Paths()), "zone pin_magazines off the base");
 }
 
-TEST(TwoRackLoader, TheDraftLoadsAsTwoRacks) {
+TEST(TwoRackLoader, TheLayoutLoadsAsTwoRacks) {
   const Layout l = TwoRacks();
   EXPECT_EQ(l.base, "two_flat_racks");
   EXPECT_TRUE(OnFlatRacks(l));
