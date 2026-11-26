@@ -47,4 +47,5 @@ read truth and are not allowed. Today `tools/architecture/measure.sh | grep '^P3
 prints `P3 5 files that read the simulation's truth and are not allowed to (deps.json
 truth)`, all five in the stand-in cell's frozen files (`P3.frozen 5`).
 
-**Migration.** The backlog items that serve P3 in `docs/architecture/backlog.md`.
+**Migration.** None for a refactoring: the five files counted are the stand-in's and
+are left (`docs/architecture/backlog.md`, "Left as it is").

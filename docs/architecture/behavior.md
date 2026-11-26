@@ -20,7 +20,7 @@ the same commit. The third is not checked.
 | Committed files a program writes or a test compares | must stay | `models/` (`models/bay.xml` is what `//:gen_bay` prints), `layouts/`, `plans/`, `docs/img/` and the GIFs under `docs/`. You do not regenerate one to make a test pass. | `tests/bay_model_test.cc`, `tests/plan_replay_test.cc`; `gen_bay.default` and `plan_layout.@plan.*`; the pictures by nothing (section 6) |
 | Formats of the layout and plan files | must stay | Keys, units and meaning in `layouts/*.json` and `plans/*.json` (`docs/layout.md`). A reader of the old file keeps working. | `tests/layout_model_test.cc`, `tests/layout_plan_test.cc`, `tests/plan_replay_test.cc` |
 | Environment variables a program reads | must stay | `MODEL_PATH`, `LAYOUT_DIR`, `PLAN_DIR`, `MODELS_DIR`, `UR10E_XML`, `PLAN_DEBUG`, `PLAN_SKIP_VERIFY`, `BUILD_WORKING_DIRECTORY` and the others `grep -rhno 'getenv("[A-Z_0-9]*")' src tests` prints keep their names and meaning; `BUILD.bazel` sets some of them. | the programs' captures; the tests that set them |
-| Bazel labels named in `AGENTS.md`, `README.md`, `docs/`, `tools/` and CI | may change with every reference | Change the label and every place that names it in one commit (`grep -rn '//:old' .`). Two labels are also held: those of the test targets (`tests.txt`) and of the programs (`programs.txt`); renaming one makes `compare` differ, so that commit is reported, not shown `same`. | `grep`; `.github/workflows/ci.yml` |
+| Bazel labels named in `AGENTS.md`, `README.md`, `docs/`, `tools/` and CI | may change with every reference | Change the label and every place that names it in one commit (`grep -rn '//:<old>' .`). Two labels are also held: those of the test targets (`tests.txt`) and of the programs (`programs.txt`); renaming one makes `compare` differ, so that commit is reported, not shown `same`. | `grep`; `.github/workflows/ci.yml` |
 | Include paths | may change with every reference | Moving a header changes every `#include` of it and its `BUILD.bazel` entry in the same commit. | the build |
 | Namespaces, names of functions and types | may change with every reference | Rename with all callers in the same commit. Never in a frozen file, nor its include paths (ADR 0020, `P2.frozen`). | the build and the tests |
 | How long things take, how much memory they need | free, within reason | A change may make a program slower or leaner. A test's `size` in `BUILD.bazel` is not raised, and no timeout is added, to let a slower test pass. `AGENTS.md` forbids bounding wall-clock time in a test: bound a count. Memory is a hard limit on the machine (7,445 MiB) and a change that needs more is reported. | nothing |
@@ -32,9 +32,7 @@ stale one; a stale label in a document it does not, hence the `grep`.
 
 ## 2. How a change is shown not to have altered it
 
-On the same machine, in the same checkout (a second clone gives the same result, and a
-second machine does not: the planner's random draws differ by platform, `src/rrt.cc`
-line 442, and the wall-clock fields differ everywhere, P6):
+On the same machine, before and after the change:
 
     tools/architecture/behavior.sh capture <dir-before> --no-tests    # before the change
     tools/architecture/behavior.sh capture <dir-after> --no-tests     # after it
@@ -54,10 +52,9 @@ program is run as `bazel run` runs it, with its arguments from `BUILD.bazel`, bu
 started by the script `bazel run --script_path` writes, so that no Bazel message
 reaches the output. The wall-clock fields are replaced by `<wall>` (section 4).
 
-Both captures are made on the same machine, and the same checkout, for two reasons.
-The planner's draws come from `std::uniform_real_distribution` (`src/rrt.cc` 442),
-which differs between standard libraries, so a capture from CI is not the engineer's
-(P6).
+Both captures are made on one machine because the planner's draws come from
+`std::uniform_real_distribution` (`src/rrt.cc` 442), which differs between standard
+libraries: a capture from CI is not the engineer's (P6).
 
 `same` means: `compare` printed `same` and exited 0. Every program file is the same
 byte for byte, `tests.txt` is the same, and the results are the same when both sides
@@ -159,11 +156,9 @@ both flags, and `--phases` alone has no check. Do not add that pair without a cu
 
 ### 4b. Programs and flags not in the list
 
-`bazel query 'kind(cc_binary, //...)'` prints 27 targets. 16 are in section 3
-(`check_layout`, `gen_bay`, `plan_layout`, `print_bay`, `print_cell`, `print_check`,
-`print_depth`, `print_pallet`, `print_perception`, `print_plan`, `print_plane_fit`,
-`print_points`, `print_profile`, `print_rrt`, `run_cell`, `step_arm`). The 11 others
-are `tools/architecture/measure.sh --list P2.unrun`, and are here:
+`bazel query 'kind(cc_binary, //...)'` prints 27 targets. 16 are in section 3, one
+for each program named there. The 11 others are what
+`tools/architecture/measure.sh --list P2.unrun` prints, and are here:
 
 | Program | Why it is not captured | What stands in for it |
 |---|---|---|
@@ -187,13 +182,25 @@ machine's lock, with Python's `time.monotonic()`; the memory is the largest read
 once a second, of `memory.current` of the whole container, so it includes Bazel's
 server and the page cache and is more than the programs need.
 
-<MEASURED>
+| Capture | Wall time | Largest `memory.current` |
+|---|---|---|
+| `capture <dir> --no-tests`, warm build | 182.2 s | 5,745 MiB |
+| `capture <dir>`, warm build, every test result cached | 189.3 s | 5,438 MiB |
+
+The container already held 4,202 and 4,436 MiB before each capture started, so a
+capture added about 1,500 and 1,000 MiB to what was there. The time includes waiting
+for the lock, if another agent held it. In the capture with tests all 41 results (42
+test targets less the gate; `wc -l results.txt` prints 41, each a line such as
+`//:arm_test PASSED`) came from Bazel's cache because nothing had changed (the lead who ran it says so;
+`results.txt` does not record it). So 189 s is a lower bound: a capture after a change
+runs again every test whose inputs changed, up to the whole suite without the gate,
+which `AGENTS.md` puts at 417 s on three cores ("Where the time goes"). Nothing here
+was measured with `--gate`.
 
 ## 6. Outside the net
 
-The capture reaches a file only through a program in section 3, and a test only through
-its dependencies. This is what neither holds. Before you touch any of it, either write
-a test that pins what it does now (right or wrong) in a commit of its own that changes
+This is what neither a capture nor a test holds. Before you touch any of it, write a
+test that pins what it does now (right or wrong) in a commit of its own that changes
 nothing else, or leave it as it is.
 
 ### 6a. Files under `src/` on which no test target depends
@@ -241,9 +248,7 @@ The pictures under `docs/img/` (19 files), the GIFs under `docs/` (`bay_planned.
 `tools/plots/`) are held by no test and no capture. They need a display or the viewers
 and show what the code did on the day they were made. A refactoring leaves them as
 they are, and does not regenerate them to look the same; one that changes what they
-show is not a refactoring. If you touch the code that draws a picture, pin the data it
-draws with a test first (`tests/layout_model_test.cc`, `tests/bay_hardware_test.cc`
-check the models, not the drawing).
+show is not a refactoring.
 
 ### 6d. What a capture does not hold even for a captured program
 

@@ -47,14 +47,19 @@ the task says; if it says nothing, `git checkout -b refactor/b<n>`.
 4. **Capture after and compare:**
    `tools/architecture/behavior.sh capture "$HOME/capture-after"`, then
    `tools/architecture/behavior.sh compare "$HOME/capture-before" "$HOME/capture-after"`.
-   It must print `same`.
+   It must print `same`. The one exception: an item whose **Change** adds a test
+   target or a line of `tools/architecture/programs.txt` widens the net, so
+   `compare` names that target or that program's file as present on one side only,
+   and nothing else; the item says so, and its proof is two captures after the
+   change that compare `same`.
 5. **Run the tests `AGENTS.md` asks for before code lands:** everything but the
    gate, `bazel test --config=opt --config=agent //...`, and the gate as `AGENTS.md`,
    "Build and test", says when the commit is to land on `main`.
 6. **Measure after:** `tools/architecture/measure.sh > "$HOME/after.txt"` and
    `diff "$HOME/before.txt" "$HOME/after.txt"`. The lines that moved must be the ones
-   the item's **Done when** names, by the figures it names, and no other line may
-   have grown. For an item about a compiler flag run `tools/architecture/warnings.sh`
+   the item's **Done when** names, at the figures it names, and no other line may
+   have moved. Where **Done when** names a line that rises (a target that now lists
+   a library it already used), that rise is part of the item. For an item about a compiler flag run `tools/architecture/warnings.sh`
    (it prints `W <flag> <places in src/ and tests/> <places outside>`), for one about
    a `clang-tidy` check `tools/architecture/tidy.sh` (it prints `T <check> <places>`).
 7. **Put the record straight in the same commit.** In `backlog.md` set the item's

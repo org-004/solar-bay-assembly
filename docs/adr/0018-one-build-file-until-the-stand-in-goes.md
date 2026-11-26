@@ -51,7 +51,7 @@ agent at a time still edits each section.
 
 **Check.** P5 and P1 of `docs/architecture/principles.md`: `measure.sh --check` fails
 on an include against the direction or a `deps` entry that is not used.
-`grep -c visibility BUILD.bazel` prints 0 and `ls BUILD.bazel src/BUILD.bazel` shows
-only the first.
+`grep -c visibility BUILD.bazel` prints 0, and `git ls-files '*BUILD.bazel'` prints
+`BUILD.bazel` and the two files under `bazel/` that serve the repository rules.
 
 **Migration.** None: the code already follows this.

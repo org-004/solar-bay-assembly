@@ -803,8 +803,11 @@ def m_held(c):
         text = deps.read(c.root, ".clang-tidy")
         out += [".clang-tidy Checks %s" % e for e in clang_tidy_entries(text, "Checks")
                 if not e.startswith("-")]
+        # The exclusions of WarningsAsErrors are not counted: one goes when a
+        # check's count reaches zero, and that must not look like a loss.
         out += [".clang-tidy WarningsAsErrors %s" % e
-                for e in clang_tidy_entries(text, "WarningsAsErrors")]
+                for e in clang_tidy_entries(text, "WarningsAsErrors")
+                if not e.startswith("-")]
     return out
 
 

@@ -11,4 +11,4 @@
 # environment variables CLANG_TIDY (default clang-tidy-18) and BAZEL (Bazel's
 # command with its startup options) are passed on. Nothing is written into the
 # checkout.
-exec python3 "$(dirname "$0")/tidy.py" "$@"
+exec python3 -B "$(dirname "$0")/tidy.py" "$@"

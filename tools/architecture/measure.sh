@@ -26,4 +26,4 @@
 # POSIX shell and Python 3. Exit codes: 0 ok, 1 --check found something,
 # 2 usage error.
 here=$(dirname "$0")
-exec python3 -I "$here/measure.py" "$@"
+exec python3 -I -B "$here/measure.py" "$@"

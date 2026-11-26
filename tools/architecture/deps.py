@@ -37,8 +37,9 @@ target) and the rule broken, when:
       include it, and the pair is not a listed departure;
   (i) deps.json is malformed: a group without a boolean frozen or a list
       namespaces, a may_include that names no group, or a departure whose
-      item is neither B? nor B<n>. With --strict-items, "B?" is a problem
-      too (no backlog item yet).
+      item is not B<n> (the backlog item that removes it), "left" (the
+      backlog's "Left as it is" names it: it is in a frozen file) or "B?"
+      (no item yet). With --strict-items, "B?" is a problem too.
 
 BUILD.bazel is read with Python's ast module (Starlark is Python syntax):
 cc_library, cc_binary, cc_test and alias are understood, also when a list
@@ -751,8 +752,8 @@ def analyse(root=ROOT, rules=None, strict_items=False):
     for d in rules["departures"].get("list", []):
         listed.setdefault(d["kind"], set()).add(departure_key(d))
         item = d.get("item")
-        if not isinstance(item, str) or not re.match(r"^B(\?|[0-9]+)$", item):
-            r.problems.append("deps.json: the departure %s (%s) has item %r, which is not B? or B<n>"
+        if not isinstance(item, str) or not re.match(r"^(B(\?|[0-9]+)|left)$", item):
+            r.problems.append("deps.json: the departure %s (%s) has item %r, which is not B<n>, left or B?"
                               % (place(d["kind"], departure_key(d)), d["kind"], item))
         elif strict_items and item == "B?":
             r.problems.append("deps.json: the departure %s (%s) has item B?; name its backlog item "

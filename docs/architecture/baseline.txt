@@ -45,9 +45,9 @@ P8.unmatched 0 generated entries that match no tracked file, and plans and model
 P8.no_test 6 entries excused from a test (a rule of deps.json; may not grow)
 P9 0 places that silence a compiler's or analyzer's finding (deps.json silenced)
 P9.allowed 2 silencers excused (a rule of deps.json; may not grow)
-P9.held 74 -Werror= flags in .bazelrc plus enabled entries of Checks and WarningsAsErrors in .clang-tidy (a guard; may not fall)
+P9.held 61 -Werror= flags in .bazelrc plus enabled entries of Checks and WarningsAsErrors in .clang-tidy (a guard; may not fall)
 P9.frozen 0 of them in the stand-in cell's files, which a refactoring does not edit
-P10 15 backticked paths and Bazel labels, and relative links, in AGENTS.md, README.md and docs/**/*.md that do not exist
+P10 1 backticked paths and Bazel labels, and relative links, in AGENTS.md, README.md and docs/**/*.md that do not exist
 P10.left_out 1 documents left out of P10 (a rule of deps.json; may not grow)
 P11 7 files under src/ too long, and headers whose opening comment is too short
 P11.cc 5 .cc files under src/ over the line limit of deps.json size

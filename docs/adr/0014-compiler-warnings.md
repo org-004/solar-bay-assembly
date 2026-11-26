@@ -61,8 +61,8 @@ A flag whose count is 0 and that the front end decides moves to the default line
 - `-Wmaybe-uninitialized`, `-Warray-bounds` and the other optimizer warnings of
   `-Wall` stay warnings: their answer moves with the compiler's version and the
   optimization level [S34].
-- A blanket `-Werror`: it would stop on outside headers [S34]. Silencing in source:
-  it lowers a count and cures nothing.
+- A blanket `-Werror`: the optimizer's warnings would stop the build differently under
+  each compiler. Silencing in source: it lowers a count and cures nothing.
 
 **Consequences.** A missed return or enumerator fails the build. A flag enters only
 with a count; one that an outside header makes fire moves to `strict` by a new record.
