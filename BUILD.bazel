@@ -2043,6 +2043,22 @@ cc_test(
         ":mj_handles",
     ],
 )
+# The ways rows with the infeed and outfeed units measured, the tube at rest,
+# and the port rows of the gap variants (src/layout_stage_rows.h).
+#   bazel test --config=opt //:layout_stage_rows_test
+cc_test(
+    name = "layout_stage_rows_test",
+    size = "medium",
+    srcs = ["tests/layout_stage_rows_test.cc"],
+    data = LAYOUT_FILES + LAYOUT_MODEL_FILES,
+    env = LAYOUT_ENV,
+    deps = [
+        ":layout",
+        ":layout_check",
+        ":layout_model",
+        "@googletest//:gtest_main",
+    ],
+)
 # What moves and what is there: the capsule defect worked round (R15), the
 # other arms left out, the legs of a take and a set.
 #   bazel test --config=opt //:layout_scene_test
