@@ -1,0 +1,109 @@
+{
+  "about": "A rate is the probability that one operation of the kind fails so that the bay stops or needs a person; the rates compare layouts under the same assumptions and predict nothing, and each basis is either source (a document we opened) or ours (our own order-of-magnitude judgment).",
+  "kinds": [
+    {
+      "kind": "tube_in",
+      "what": "The transfer cart brings a bare tube in and lowers it into the holder's saddles.",
+      "rate": 0.001,
+      "basis": "ours",
+      "source": "",
+      "reasoning": "A cart move with a seating step into saddles is a simple fixed-path operation, but a mis-seat needs a person, so about one in a thousand."
+    },
+    {
+      "kind": "clamp",
+      "what": "The holder closes on the tube.",
+      "rate": 0.0005,
+      "basis": "ours",
+      "source": "",
+      "reasoning": "A pneumatic or electric clamp on a known tube is very repeatable, with sensor or jam faults rarer than a gripper pick."
+    },
+    {
+      "kind": "grip",
+      "what": "An arm's gripper takes a part from a rack, pallet or nest.",
+      "rate": 0.001,
+      "basis": "ours",
+      "source": "",
+      "reasoning": "A known part at a known place with a purpose-built gripper should rarely fail, and about one in a thousand is a judgment; Brightpick reports over 99.7 percent pick success for mixed unknown warehouse items, which is a harder task and not defined as stopping the line, so it was not used."
+    },
+    {
+      "kind": "set_down",
+      "what": "An arm sets a held part in its place and lets go.",
+      "rate": 0.001,
+      "basis": "ours",
+      "source": "",
+      "reasoning": "Placing a rail or a 32 kg module onto the tube or rails needs a tolerance fit and a release, so it is judged as hard as a grip."
+    },
+    {
+      "kind": "bolt_run",
+      "what": "A nutrunner runs one strap bolt to torque.",
+      "rate": 0.003,
+      "basis": "ours",
+      "source": "",
+      "reasoning": "Fastening NOK from cross-threading, a wrong seat or a torque fault is judged at a few in a thousand; a research-lab screw pick-and-fasten with a general tool failed 3 of 27 times in the Team O2AS World Robot Summit 2018 paper, which is a far less controlled task and was not used."
+    },
+    {
+      "kind": "locate",
+      "what": "The tapered nose pulls a module's hole into line by contact.",
+      "rate": 0.003,
+      "basis": "ours",
+      "source": "",
+      "reasoning": "Contact alignment depends on module and hole tolerance and can jam, so it is judged a few in a thousand."
+    },
+    {
+      "kind": "pin_set",
+      "what": "One lock pin is inserted into a hole.",
+      "rate": 0.003,
+      "basis": "ours",
+      "source": "",
+      "reasoning": "Peg-in-hole insertion with a tapered lead-in into a hole the locate step has just lined up works most of the time, and a stuck or missed pin is judged at a few in a thousand."
+    },
+    {
+      "kind": "swage",
+      "what": "One pin is swaged or collared.",
+      "rate": 0.002,
+      "basis": "ours",
+      "source": "",
+      "reasoning": "A swage tool on a seated pin is a well-controlled process, and tool or collar faults are judged at about two in a thousand."
+    },
+    {
+      "kind": "tool_change",
+      "what": "An automatic tool change on a robot flange.",
+      "rate": 0.001,
+      "basis": "ours",
+      "source": "",
+      "reasoning": "Vendor tool changers are rated for hundreds of thousands of cycles, but misalignment or air and signal faults still happen, so about one in a thousand."
+    },
+    {
+      "kind": "unclamp",
+      "what": "The holder releases the finished bay.",
+      "rate": 0.0005,
+      "basis": "ours",
+      "source": "",
+      "reasoning": "The same device as clamp, with a small added risk of sticking on the finished bay."
+    },
+    {
+      "kind": "bay_out",
+      "what": "The cart lifts the bay and takes it out.",
+      "rate": 0.001,
+      "basis": "ours",
+      "source": "",
+      "reasoning": "Same kind of cart operation as tube_in, with a heavier load."
+    },
+    {
+      "kind": "arm_move",
+      "what": "One planned, collision-free move of an arm between poses, as a protective stop or fault risk.",
+      "rate": 0.0001,
+      "basis": "ours",
+      "source": "",
+      "reasoning": "Maker MTBF claims of 40,000 to 100,000 hours (The Robot Report, 2019) cover hardware failure only and would give about 1e-7 per move at a few hundred moves per hour, so we set 1e-4, which is about 1.7 percent per bay at 170 moves, to allow for protective stops and faults that a person must clear."
+    },
+    {
+      "kind": "hand_over",
+      "what": "A part passed directly from one arm to another.",
+      "rate": 0.005,
+      "basis": "ours",
+      "source": "",
+      "reasoning": "Arm-to-arm transfer needs two arms to agree on a part at the same time, so it is judged riskier than a grip, and it is unused today."
+    }
+  ]
+}

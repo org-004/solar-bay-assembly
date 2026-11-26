@@ -36,12 +36,14 @@
     },
     {
       "name": "layout",
-      "what": "The new cell: a layout as data, its model, its checks, its scene and distances, and its planned and replayed motion.",
+      "what": "The new cell: a layout as data, its model, its checks, its scene and distances, its planned and replayed motion, and its scorecard.",
       "frozen": false,
       "namespaces": ["cell", "cell::layout"],
       "files": ["src/arm_catalog.h", "src/layout.*", "src/layout_check.*", "src/layout_model.*", "src/layout_plan.*",
-                "src/layout_replay.cc", "src/layout_rows.*", "src/layout_scene.*",
-                "tests/layout_*_test.cc", "tests/plan_replay_test.cc"],
+                "src/layout_replay.cc", "src/layout_rows.*", "src/layout_scene.*", "src/scorecard.*",
+                "tests/layout_*_test.cc", "tests/plan_replay_test.cc",
+                "tests/scorecard_test.cc", "tests/score_layout_test.cc", "tests/versions_test.cc",
+                "tests/directions_pages_test.cc"],
       "may_include": ["base", "planning", "hardware"],
       "outside": ["eigen", "mujoco", "nlohmann_json"]
     },
@@ -105,10 +107,11 @@
     },
     {
       "name": "layout_programs",
-      "what": "Programs with a main for the hardware and the new cell: gen_bay, print_bay, check_layout, plan_layout and the layout's viewer.",
+      "what": "Programs with a main for the hardware and the new cell: gen_bay, print_bay, check_layout, plan_layout, score_layout and the layout's viewer.",
       "frozen": false,
       "namespaces": ["cell"],
-      "files": ["src/gen_bay.cc", "src/print_bay.cc", "src/check_layout.cc", "src/plan_layout.cc", "src/view_layout.cc"],
+      "files": ["src/gen_bay.cc", "src/print_bay.cc", "src/check_layout.cc", "src/plan_layout.cc", "src/view_layout.cc",
+                "src/score_layout.cc"],
       "may_include": ["base", "planning", "hardware", "layout", "viewer"],
       "outside": ["eigen", "mujoco"]
     }

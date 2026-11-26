@@ -714,18 +714,13 @@ std::vector<CheckRow> FlatRackTransportRows(const Layout& layout,
   // Mass.
   double arms = 0.0, tracks = 0.0, tools = 0.0, holder = 0.0, items = 0.0,
          stocks = 0.0;
-  for (const ArmUse& a : layout.arms) {
-    const ArmModel* c = FindArmModel(a.model);
-    if (c != nullptr) arms += c->mass_kg;
-    if (a.track) tracks += a.track->mass_kg;
-    for (const Tool& t : a.tools) tools += t.mass_kg;
-  }
-  if (layout.holder.travels_inside) holder = layout.holder.mass_kg;
-  for (const Item& i : layout.items) {
-    if (i.travels_inside) items += i.mass_kg;
-  }
-  for (const Stock& st : layout.stocks) {
-    if (!st.outside) stocks += st.mass_kg;
+  for (const MassPart& part : TransportMassParts(layout)) {
+    if (part.component == "arms") arms += part.mass_kg;
+    if (part.component == "tracks") tracks += part.mass_kg;
+    if (part.component == "tools") tools += part.mass_kg;
+    if (part.component == "holder") holder = part.mass_kg;
+    if (part.component == "items inside") items += part.mass_kg;
+    if (part.component == "stocks inside") stocks += part.mass_kg;
   }
   const double total = arms + tracks + tools + holder + items + stocks;
   rows.push_back(Row(kind, "mass", "", total, "kg", flat_rack::kCellMassBudget,
@@ -761,6 +756,28 @@ std::vector<CheckRow> FlatRackTransportRows(const Layout& layout,
     }
   }
   return rows;
+}
+
+std::vector<MassPart> TransportMassParts(const Layout& layout) {
+  std::vector<MassPart> parts;
+  for (const ArmUse& a : layout.arms) {
+    const ArmModel* c = FindArmModel(a.model);
+    if (c != nullptr) parts.push_back({"arms", a.name, c->mass_kg});
+    if (a.track) parts.push_back({"tracks", a.name + " track", a.track->mass_kg});
+    for (const Tool& t : a.tools) {
+      parts.push_back({"tools", a.name + " " + t.name, t.mass_kg});
+    }
+  }
+  if (layout.holder.travels_inside) {
+    parts.push_back({"holder", "holder", layout.holder.mass_kg});
+  }
+  for (const Item& i : layout.items) {
+    if (i.travels_inside) parts.push_back({"items inside", i.name, i.mass_kg});
+  }
+  for (const Stock& st : layout.stocks) {
+    if (!st.outside) parts.push_back({"stocks inside", st.name, st.mass_kg});
+  }
+  return parts;
 }
 
 }  // namespace cell::layout

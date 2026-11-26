@@ -2131,3 +2131,34 @@ cc_test(
     ],
 )
 # END layout_plan
+
+# BEGIN scorecard
+# The scorecard of a layout: its measures, how each is known, and its gates
+# (src/scorecard.h, docs/scorecard.md).
+cc_library(
+    name = "scorecard",
+    srcs = ["src/scorecard.cc"],
+    hdrs = ["src/scorecard.h"],
+    deps = [
+        ":layout",
+        ":layout_check",
+        ":layout_model",
+        ":layout_plan",
+        "@nlohmann_json//:json",
+    ],
+)
+
+#   bazel run --config=opt //:score_layout -- flat_rack_3_pin_arms [--json]
+#   bazel run --config=opt //:score_layout -- flat_rack_3_pin_arms --write
+#   bazel run --config=opt //:score_layout -- --all
+cc_binary(
+    name = "score_layout",
+    srcs = ["src/score_layout.cc"],
+    data = LAYOUT_FILES + LAYOUT_MODEL_FILES + PLAN_FILES + glob(["scores/*.json"]),
+    env = LAYOUT_ENV | {
+        "PLAN_DIR": "plans",
+        "SCORES_DIR": "scores",
+    },
+    deps = [":scorecard"],
+)
+# END scorecard
