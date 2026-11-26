@@ -6,6 +6,7 @@
 #include <cmath>
 #include <cstdarg>
 #include <cstdio>
+#include <map>
 #include <memory>
 #include <set>
 #include <utility>
@@ -322,13 +323,43 @@ CycleFigures CycleFiguresOf(const Plan& plan) {
   return c;
 }
 
+// ------------------------------------------------------------ early steps
+
+bool TouchesTheBay(const std::string& kind) {
+  return kind != "rail_take" && kind != "module_take" && kind != "pins_take" &&
+         kind != "tool_change";
+}
+
+Nearest AgainstTheTubeComingIn(const LayoutScene& scene, mjData* d,
+                               const std::vector<MovingGeom>& moving, double u, double far) {
+  const std::vector<int>& tube = scene.handles().tube_geoms;
+  const Eigen::Vector3d off = WayOffsetAt(scene.layout().tube_in.path, u);
+  std::vector<Obstacle> obstacles;
+  for (int g : tube) {
+    obstacles.push_back({g, 0u, 0u});
+    for (int c = 0; c < 3; ++c) d->geom_xpos[3 * g + c] += off[c];
+  }
+  const Nearest n = scene.LeastDistance(d, moving, obstacles, far);
+  for (int g : tube) {
+    for (int c = 0; c < 3; ++c) d->geom_xpos[3 * g + c] -= off[c];
+  }
+  return n;
+}
+
 // ------------------------------------------------------------ checking
 
 std::vector<std::string> BetweenBays(const LayoutScene& scene, const Plan& plan,
-                                     int steps_per_bay, double tolerance_s,
+                                     const CheckReport& report, double tolerance_s,
                                      double tolerance_m) {
   std::vector<std::string> out;
   if (plan.bays <= 1) return out;
+  const int steps_per_bay = static_cast<int>(report.steps.size());
+  std::map<int, std::string> kind_of;  // A step of one bay, by number.
+  for (const BayStep& s : report.steps) kind_of[s.number] = s.kind;
+  auto touches = [&](int number) {
+    auto it = kind_of.find(StepOfBay(number, steps_per_bay));
+    return it == kind_of.end() || TouchesTheBay(it->second);
+  };
   auto event = [&](int bay, const char* kind) -> const BayEvent* {
     for (const BayEvent& e : plan.events) {
       if (e.bay == bay && e.kind == kind) return &e;
@@ -368,7 +399,7 @@ std::vector<std::string> BetweenBays(const LayoutScene& scene, const Plan& plan,
     for (const ArmPlan& a : plan.arms) {
       for (const Segment& g : a.segments) {
         if (g.kind == "wait" || BayOfStep(g.step, steps_per_bay) != b ||
-            g.t0 >= clamp->t1 - tolerance_s) {
+            g.t0 >= clamp->t1 - tolerance_s || !touches(g.step)) {
           continue;
         }
         out.push_back(Fmt("bay %d: arm %s starts its %s of step %d at %.3f s, before the "
@@ -386,7 +417,7 @@ std::vector<std::string> BetweenBays(const LayoutScene& scene, const Plan& plan,
 PlanResult PlanBays(const Layout& layout, const ModelPaths& paths,
                     const PlanOptions& options, const PlanOneBayFn& plan_bay) {
   const CheckReport report = CheckLayout(layout, paths);
-  if (!report.error.empty() || !report.pass) return plan_bay(0, report, 0.0);
+  if (!report.error.empty() || !report.pass) return plan_bay(0, report, BayClock{});
   std::string error;
   const std::unique_ptr<LayoutScene> scene =
       LayoutScene::Load(layout, paths, report.joint_margin_deg, &error);
@@ -403,13 +434,18 @@ PlanResult PlanBays(const Layout& layout, const ModelPaths& paths,
   for (int b = 0; b < std::max(1, options.bays); ++b) {
     // Where the bay's arms start on the joint clock, so that its schedule
     // is sampled at the instants the verifier samples.
-    double start = 0.0, shift = 0.0;
+    double start = 0.0;
+    BayClock clock;
     if (b > 0) {
       const PlanFigures& f = plans.front().figures;
       start = NextTubeStart(*scene, last_out, f.sample_s, f.clearance_m);
-      shift = ArmShift(start, clamp_end, last_out);
+      clock.shift = ArmShift(start, clamp_end, last_out);
+      clock.tube_start = start - clock.shift;
+      clock.early = options.early_steps;
+      clock.early_from = std::max(start, last_out.t1) - clock.shift;
     }
-    PlanResult r = plan_bay(b, report, shift);
+    const double shift = clock.shift;
+    PlanResult r = plan_bay(b, report, clock);
     for (MoveRow row : r.rows) {
       row.step = StepNumberInBay(row.step, b, n);
       out.rows.push_back(std::move(row));

@@ -400,14 +400,24 @@ class Measurer {
     std::vector<Closest> out;
     const Built built = player_.BuiltAt(w);
     const bool way = w.event == "tube_in" || w.event == "bay_out";
+    // Along a way an arm at its wait pose is the checker's ways rows' to
+    // hold, and the tube and the bay are left out; an arm that is not (an
+    // early step, R10) is measured against them where they are on the way.
+    bool along = false;
     for (int i = 0; i < n; ++i) {
       const ArmAt& a = w.arms[i];
       ArmCache& c = arms_[i];
+      const SceneArm& sa = scene_.arm(i);
+      bool at_wait = a.kind == "wait" && std::abs(a.config[6] - sa.wait_track) <= 1e-6;
+      for (int j = 0; j < 6; ++j) at_wait = at_wait && std::abs(a.config[j] - sa.wait[j]) <= 1e-6;
+      const bool against = way && !at_wait;
+      along = along || against;
       std::string key = std::to_string(a.segment) + "|" + a.tool + "|" + a.held + "|" +
                         std::to_string(a.step) + "|" + a.kind + "|" +
                         std::to_string(built.rails.size()) + "|" +
                         std::to_string(built.modules.size()) + "|" +
-                        std::to_string(built.on_pallets) + "|" + (way ? "w" : "");
+                        std::to_string(built.on_pallets) + "|" + (way ? "w" : "") +
+                        (against ? "a" : "");
       ObstacleOptions options;
       options.other_arms = false;
       for (int k = 0; k < n; ++k) {
@@ -419,7 +429,7 @@ class Measurer {
         c.key = key;
         c.moving = scene_.Moving(i, a.tool, a.held);
         c.obstacles = scene_.Obstacles(i, a.tool, built, PairsOf(a), options);
-        if (way) {
+        if (way && !against) {
           std::vector<Obstacle> kept;
           for (const Obstacle& o : c.obstacles) {
             if (!way_geoms_.count(o.geom)) kept.push_back(o);
@@ -430,6 +440,11 @@ class Measurer {
         for (Obstacle& o : c.plain) o.near = 0;
         c.as_obstacle.clear();
         for (const MovingGeom& g : c.moving) c.as_obstacle.push_back({g.geom, 0u, 0u});
+      }
+    }
+    if (along) {
+      for (int g : way_geoms_) {
+        for (int k = 0; k < 3; ++k) d->geom_xpos[3 * g + k] += w.way_offset[k];
       }
     }
     for (int i = 0; i < n; ++i) {
@@ -602,7 +617,7 @@ class Verifier {
     for (int i = 0; i < scene_.ArmCount(); ++i) CheckArm(i);
     StepsAndPhases();
     for (int b = 0; b < bays_; ++b) Order(b);
-    for (const std::string& f : BetweenBays(scene_, plan_, n_, o_.time_tolerance_s,
+    for (const std::string& f : BetweenBays(scene_, plan_, report_, o_.time_tolerance_s,
                                             o_.tolerance_m)) {
       Fault(f);
     }
@@ -843,6 +858,13 @@ class Verifier {
       const bool first = kind != "clamp";
       for (const Segment& s : segs) {
         if (s.path.empty() || s.t1 <= e.t0 + tol || s.t0 >= e.t1 - tol) continue;
+        // R10: in a later bay, before its clamp ends, an arm may do a step
+        // that touches neither the tube nor the bay, and wait after it.
+        const BayStep* own = Step(s.step);
+        if (e.bay > 0 && kind != "bay_out" && own != nullptr && BayOfStep(s.step, n_) == e.bay &&
+            (s.kind == "wait" || !TouchesTheBay(own->kind))) {
+          continue;
+        }
         const bool still = s.kind == "wait";
         const std::string off = Off(i, s.tool, s.path.front(), WaitPose(i));
         const bool tool_ok =

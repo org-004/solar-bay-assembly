@@ -1,7 +1,7 @@
 // Plans bays of a layout back to back (src/layout_plan.h, src/layout_bays.h)
 // and prints one row per move.
 //
-//   plan_layout <name> [--bays N] [--summary] [--out PATH] [--threads N]
+//   plan_layout <name> [--bays N] [--no-early-steps] [--summary] [--out PATH] [--threads N]
 //               [--first-step A --last-step B] [--pretty]
 //               [--budgets A,B,C] [--why STEP]... [--why all-failed]
 //   plan_layout <name> --margins [--pretty]
@@ -17,7 +17,9 @@
 // --summary prints `key: value` lines instead, with each bay's events and
 // the cycle's figures (CycleFiguresOf). --bays N plans N bays back to back
 // (default 3; 1 gives the plan of one bay as before; a part of the bay,
-// --first-step, is always one bay). --out PATH writes the plan as JSON
+// --first-step, is always one bay). --no-early-steps keeps every step of a
+// later bay after its clamp (without R10, src/layout_bays.h, TouchesTheBay).
+// --out PATH writes the plan as JSON
 // (PlanToJson). --budgets sets the RRT iteration budgets (default
 // the figures' 5000,40000,160000). --why STEP explains the moves that lead
 // to a step and plans nothing else; --why all-failed plans as usual and then
@@ -81,7 +83,7 @@ std::string Num(double v, int digits = 2) {
 
 int Usage() {
   std::fprintf(stderr,
-               "usage: plan_layout <name> [--bays N] [--summary] [--out PATH] "
+               "usage: plan_layout <name> [--bays N] [--no-early-steps] [--summary] [--out PATH] "
                "[--threads N] [--first-step A --last-step B] [--pretty] "
                "[--budgets A,B,C] [--why STEP|all-failed]... "
                "| plan_layout <name> --margins [--pretty]\n");
@@ -274,6 +276,8 @@ int main(int argc, char** argv) {
       if (!value(&v)) return Usage();
       options.threads = std::atoi(v.c_str());
       if (options.threads < 1) return Usage();
+    } else if (a == "--no-early-steps") {
+      options.early_steps = false;
     } else if (a == "--bays") {
       if (!value(&v)) return Usage();
       char* end = nullptr;

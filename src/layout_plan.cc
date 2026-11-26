@@ -193,13 +193,13 @@ namespace {
 class Planner {
  public:
   // Plans bay `bay` of several (src/layout_bays.h) with the checker's
-  // `report` when one is given; `shift` is where its arms' t = 0 lies on
-  // the joint clock.
+  // `report` when one is given, the bay lying on the joint clock as `clock`
+  // says.
   Planner(const Layout& layout, const ModelPaths& paths,
           const std::string& sha, const PlanOptions& options, int bay = 0,
-          const CheckReport* report = nullptr, double shift = 0.0)
+          const CheckReport* report = nullptr, const BayClock& clock = {})
       : layout_(layout), paths_(paths), sha_(sha), options_(options),
-        bay_(bay), given_(report), shift_(shift) {}
+        bay_(bay), given_(report), clock_(clock), shift_(clock.shift) {}
 
   PlanResult Run(bool plan = true, bool verify = true);
   std::vector<std::string> Why(const std::vector<int>& steps);
@@ -232,6 +232,7 @@ class Planner {
     double t = 0.0;
     Nearest nearest;
     bool standing = false;    // The other arm stands for good there.
+    bool tube = false;        // The tube coming in, not another arm.
     Config mine{}, theirs{};
     int other_segment = -1;
     std::string my_kind;
@@ -254,6 +255,7 @@ class Planner {
   const PlanOptions options_;
   const int bay_;
   const CheckReport* given_;
+  const BayClock clock_;
   const double shift_;
   PlanResult result_;
   CheckReport report_;
@@ -882,6 +884,16 @@ Planner::Conflict Planner::Check(int a, const Block& b, double s, mjData* d) {
     }
     mj_kinematics(&scene_->model(), d);
     const std::vector<MovingGeom>& set = ArmSet(a, tool, held);
+    // An early step (R10) against the tube on its way in.
+    const double u = (t - clock_.tube_start) / layout_.tube_in.time_s;
+    if (clock_.early && u >= 0.0 && u < 1.0) {
+      const double apart = f_.clearance_m + f_.plan_pad_m;
+      const Nearest nn = AgainstTheTubeComingIn(*scene_, d, set, u, apart);
+      if (nn.distance < apart) {
+        out = Conflict{true, a, t, nn, false, true, mine, mine, -1, kind};
+        return out;
+      }
+    }
     for (const Other& x : others) {
       ++schedule_queries_;
       const double apart = f_.clearance_m + f_.plan_pad_m;
@@ -993,13 +1005,14 @@ bool Planner::Schedule() {
     wseg.kind = "wait";
     wseg.step = clamp.step;
     wseg.t0 = 0.0;
-    wseg.t1 = clamp_end_;
+    // A later bay's early steps (R10) may start from early_from.
+    wseg.t1 = clock_.early ? std::clamp(clock_.early_from, 0.0, clamp_end_) : clamp_end_;
     wseg.tool = e.tool;
     wseg.held = e.held;
     wseg.path = {e.config};
     wseg.reason = "for the tube to come in and be clamped";
-    rows_[a].segments.push_back(wseg);
-    state_[a].free = clamp_end_;
+    if (wseg.t1 > 0.0) rows_[a].segments.push_back(wseg);
+    state_[a].free = wseg.t1;
   }
   // The precedences of each block.
   int first_take = -1;
@@ -1088,6 +1101,13 @@ bool Planner::Schedule() {
       const Block& b = blocks_[bi];
       double r = st.free;
       std::string reason;
+      // R10: only a step that touches neither the tube nor the bay starts
+      // before the clamp has ended.
+      if (r < clamp_end_ &&
+          (b.parking || TouchesTheBay(report_.steps[b.step_index].kind))) {
+        r = clamp_end_;
+        reason = "for the tube to come in and be clamped";
+      }
       bool can = b.after < 0 || blocks_[b.after].placed;
       for (const Need& need : needs_of(b)) {
         auto it = block_of_step_.find(need.step);
@@ -1154,7 +1174,7 @@ bool Planner::Schedule() {
           // Name the conflict that made it wait last.
           Conflict last = Check(c.arm, b, s - kShiftS, d.get());
           wait_reason = Fmt("for %s to pass: %s at %.2f s",
-                            scene_->arm(last.other).use->name.c_str(),
+                            last.tube ? "the tube" : scene_->arm(last.other).use->name.c_str(),
                             scene_->PairText(last.nearest).c_str(), last.t);
         }
         undo_[c.block] = {rows_[c.arm].segments.size(), state_[c.arm]};
@@ -1516,9 +1536,9 @@ PlanResult PlanLayout(const Layout& layout, const ModelPaths& paths,
   }
   const auto t0 = std::chrono::steady_clock::now();
   PlanResult r = PlanBays(layout, paths, options,
-                          [&](int bay, const CheckReport& report, double shift) {
+                          [&](int bay, const CheckReport& report, const BayClock& clock) {
                             Planner planner(layout, paths, layout_sha256,
-                                            options, bay, &report, shift);
+                                            options, bay, &report, clock);
                             return planner.Run(true, false);
                           });
   r.seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - t0)

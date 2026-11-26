@@ -529,6 +529,37 @@ TEST(Bays, AnArmOfTheNextBayBeforeItsClampEndsIsFound) {
   const VerifyReport r = VerifyPlan(c.layout, ModelPaths::FromEnvironment(), p, c.sha256,
                                     Quick(false));
   EXPECT_TRUE(AnyFault(r, {"bay 1: arm", "before the bay's clamp ends"})) << Faults(r);
+  // The first such step touches the bay: a set, never a take (R10).
+  for (const std::string& f : r.faults) {
+    if (f.find("before the bay's clamp ends") == std::string::npos) continue;
+    const size_t at = f.find(" of step ");
+    ASSERT_NE(at, std::string::npos) << f;
+    const long step = std::strtol(f.c_str() + at + 9, nullptr, 10);
+    for (const StepTime& t : p.steps) {
+      if (t.number == step) EXPECT_FALSE(Begins(t.what, "take ")) << f;
+    }
+  }
+}
+
+TEST(Bays, AnEarlyTakeBeforeTheClampVerifies) {
+  const Committed& c = TheCommitted();
+  ASSERT_TRUE(c.error.empty()) << c.error;
+  if (c.plan.bays < 2) GTEST_SKIP() << "the committed plan has one bay";
+  // R10: a later bay's first take of a rail may run while its tube comes in.
+  const BayEvent* clamp = nullptr;
+  for (const BayEvent& e : c.plan.events) {
+    if (e.bay == 1 && e.kind == "clamp") clamp = &e;
+  }
+  ASSERT_NE(clamp, nullptr);
+  const StepTime* take = nullptr;
+  for (const StepTime& t : c.plan.steps) {
+    if (t.bay == 1 && take == nullptr && Begins(t.what, "take rail ")) take = &t;
+  }
+  ASSERT_NE(take, nullptr);
+  if (take->start >= clamp->t1) GTEST_SKIP() << "the committed plan has no early take";
+  const VerifyReport r = VerifyPlan(c.layout, ModelPaths::FromEnvironment(), c.plan, c.sha256,
+                                    Quick(false));
+  EXPECT_TRUE(r.ok) << Faults(r);
 }
 
 TEST(Bays, ATakeAtTheFirstBaysPalletPointIsFound) {

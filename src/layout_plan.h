@@ -71,10 +71,11 @@
 // takes its magazines at bay 0's pins_take points. A move of bay b is
 // planned in bay 0's bay at that step with 9b fewer modules on the pallets.
 // The bay's own events (BayEvent): tube_in and clamp before any arm of the
-// bay moves, release and bay_out after the last. During tube_in and bay_out
-// every arm stands at its wait pose, so the `ways` rows of the checker,
-// which sweep the tube and the bay past the arms at their wait poses, hold
-// for the schedule as they are. Between bay b and bay b+1:
+// bay moves (but for R10's early steps, below), release and bay_out after
+// the last. During tube_in and bay_out every other arm stands at its wait
+// pose, so the `ways` rows of the checker, which sweep the tube and the bay
+// past the arms at their wait poses, hold for the schedule as they are.
+// Between bay b and bay b+1:
 //   - bay b+1's tube_in does not start before the holder is empty, when bay
 //     b has been lifted out of the saddles: the end of the first (lift) leg
 //     of the layout's bay_out.path;
@@ -86,10 +87,21 @@
 //     at least clearance_m apart at every sample: the arms stand at their
 //     wait poses, where the checker's ways rows hold, and the tube is held
 //     apart from the bay every sample_s;
-//   - an arm's steps of bay b+1 start neither before bay b+1's clamp has
-//     ended nor before bay b's bay_out has ended.
+//   - no arm starts a step of bay b+1 before bay b's bay_out has ended, and
+//     a step that touches the tube or the bay not before bay b+1's clamp
+//     has ended. R10: a step that touches neither (a take from a stock or
+//     the pallet, a magazine take, a tool change; src/layout_bays.h,
+//     TouchesTheBay) may start from bay b+1's tube_in on (not during bay
+//     b's bay_out), and its arm then waits where the rules above allow (a
+//     rail held where its take's retreat ended) for the clamp. While the
+//     tube comes in, the schedule holds such an arm clearance_m +
+//     plan_pad_m from the tube where it is on its way, at every sample, and
+//     the verifier measures it so (PlanOptions::early_steps, on by default;
+//     bay 0 starts every arm after its clamp, as before).
 // The verifier holds all four (src/layout_bays.h, BetweenBays, and its own
-// check of each bay's events); it checks each bay's events, order of work
+// check of each bay's events: an arm off its wait pose during a tube_in or
+// bay_out is measured against the tube or the bay where it is on its way;
+// at its wait pose the checker's ways rows hold it); it checks each bay's events, order of work
 // and phases on their own, and a later bay's moves and design pairs as bay
 // 0's at the same step, with the pallet counting on.
 //
@@ -375,6 +387,9 @@ struct PlanOptions {
   std::vector<int> budgets;
   // Bays planned back to back (src/layout_bays.h); a part is one bay.
   int bays = 1;
+  // R10: in bays after the first, steps that touch neither the tube nor the
+  // bay may start before the clamp has ended (src/layout_bays.h).
+  bool early_steps = true;
 };
 
 // PlanResult and PlanLayout are declared at the end, after VerifyReport.

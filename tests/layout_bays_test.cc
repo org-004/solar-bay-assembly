@@ -383,19 +383,47 @@ Plan TwoBays(const Layout& layout, double tube_start, double move_at) {
   return p;
 }
 
+// The checker's six steps of a bay of TwoBays; step 3 is of `third` kind.
+CheckReport SixSteps(const std::string& third) {
+  CheckReport r;
+  r.steps = {Step(1, "tube_in", -1), Step(2, "clamp", -1), Step(3, third, 0),
+             Step(4, "strap_bolt", 0), Step(5, "release", -1), Step(6, "bay_out", -1)};
+  r.steps[2].arm = "module_arm";
+  return r;
+}
+
+TEST(BetweenBays, ATakeMayStartBeforeTheClampEndsASetMayNot) {
+  const Layout layout = Load();
+  const Ways w = WaysOf(layout);
+  ASSERT_NE(w.scene, nullptr);
+  const double out_end = 100.0 + layout.bay_out.time_s;
+  const Plan p = TwoBays(layout, out_end, out_end + 1.0);
+  EXPECT_TRUE(BetweenBays(*w.scene, p, SixSteps("rail_take"), 1e-3, 1e-4).empty());
+  const std::vector<std::string> set = BetweenBays(*w.scene, p, SixSteps("rail_set"), 1e-3, 1e-4);
+  ASSERT_EQ(set.size(), 1u);
+  EXPECT_NE(set[0].find("before the bay's clamp ends"), std::string::npos) << set[0];
+  EXPECT_FALSE(TouchesTheBay("rail_take"));
+  EXPECT_FALSE(TouchesTheBay("module_take"));
+  EXPECT_FALSE(TouchesTheBay("pins_take"));
+  EXPECT_FALSE(TouchesTheBay("tool_change"));
+  for (const char* k : {"rail_set", "strap_bolt", "module_set", "locate", "pin", "swage"}) {
+    EXPECT_TRUE(TouchesTheBay(k)) << k;
+  }
+}
+
 TEST(BetweenBays, ASharedCartWaitsForTheBayToBeOut) {
   const Layout layout = Load();
   const Ways w = WaysOf(layout);
   ASSERT_NE(w.scene, nullptr);
   const double out_end = 100.0 + layout.bay_out.time_s;
   const double clamp_end = out_end + layout.tube_in.time_s + layout.holder.clamp_s;
-  EXPECT_TRUE(BetweenBays(*w.scene, TwoBays(layout, out_end, clamp_end), 6, 1e-3, 1e-4).empty());
+  EXPECT_TRUE(BetweenBays(*w.scene, TwoBays(layout, out_end, clamp_end), SixSteps("rail_set"), 1e-3, 1e-4).empty());
   const std::vector<std::string> early =
-      BetweenBays(*w.scene, TwoBays(layout, out_end - 10.0, clamp_end), 6, 1e-3, 1e-4);
+      BetweenBays(*w.scene, TwoBays(layout, out_end - 10.0, clamp_end), SixSteps("rail_set"), 1e-3, 1e-4);
   ASSERT_EQ(early.size(), 1u);
   EXPECT_NE(early[0].find("before bay 0's bay_out ends"), std::string::npos) << early[0];
   const std::vector<std::string> arm =
-      BetweenBays(*w.scene, TwoBays(layout, out_end, clamp_end - 1.0), 6, 1e-3, 1e-4);
+      BetweenBays(*w.scene, TwoBays(layout, out_end, clamp_end - 1.0), SixSteps("rail_set"), 1e-3, 1e-4);
   ASSERT_EQ(arm.size(), 1u);
   EXPECT_NE(arm[0].find("arm module_arm starts its move of step 9"), std::string::npos) << arm[0];
 }
@@ -408,12 +436,12 @@ TEST(BetweenBays, WithoutASharedZoneTheTubeMustPassTheBay) {
   const double empty = HolderEmptyAt(layout, out);
   // Before the holder is empty, and in the lane while the bay is in it.
   const std::vector<std::string> before = BetweenBays(
-      *w.scene, TwoBays(layout, empty - 0.5, 1000.0), 6, 1e-3, 1e-4);
+      *w.scene, TwoBays(layout, empty - 0.5, 1000.0), SixSteps("rail_set"), 1e-3, 1e-4);
   ASSERT_EQ(before.size(), 2u);
   EXPECT_NE(before[0].find("before the holder is empty"), std::string::npos) << before[0];
   EXPECT_NE(before[1].find("its tube coming in is"), std::string::npos) << before[1];
   // Once the bay is out there is nothing to pass.
-  EXPECT_TRUE(BetweenBays(*w.scene, TwoBays(layout, out.t1, 1000.0), 6, 1e-3, 1e-4).empty());
+  EXPECT_TRUE(BetweenBays(*w.scene, TwoBays(layout, out.t1, 1000.0), SixSteps("rail_set"), 1e-3, 1e-4).empty());
 }
 
 TEST(Player, EachBayStartsBareAndThePalletCountsOn) {

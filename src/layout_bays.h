@@ -21,6 +21,10 @@
 //     has ended; otherwise at the first instant, from the holder's being
 //     empty in steps of sample_s, from which the incoming tube and the
 //     outgoing bay stay clearance_m apart at every sample (TubePassesBay);
+//   - R10: in bay b > 0 a step that touches neither the tube nor the bay
+//     (TouchesTheBay) may start before the clamp ends, from the tube_in's
+//     start; its planner knows where the bay lies on the joint clock
+//     (BayClock) and holds it apart from the tube coming in;
 //   - JoinBays puts the bays' plans on one clock, labels their events, steps
 //     and phases with the bay, and keeps every arm's row without a gap;
 //   - CycleFiguresOf gives the cycle of the joint plan.
@@ -151,6 +155,30 @@ struct CycleFigures {
 };
 CycleFigures CycleFiguresOf(const Plan& plan);
 
+// ------------------------------------------------------------ early steps
+
+// R10: a step that touches neither the tube nor the bay (a take from a stock
+// or the pallet, a magazine take, a tool change) may start in bay b > 0
+// before the bay's clamp has ended: from its tube_in's start, and not before
+// bay b-1 is out, so that of the ways only the tube coming in moves while it
+// runs. Every other step starts when the clamp has ended. Bay 0 starts as
+// it always has, every arm after the clamp.
+bool TouchesTheBay(const std::string& kind);
+
+// Where a bay lies on the joint clock, for its planner (PlanBays). Times
+// but `shift` are on the bay's own clock, whose 0 is its arms' start.
+struct BayClock {
+  double shift = 0.0;       // The joint clock's time of the bay's own 0.
+  double tube_start = 0.0;  // Its tube_in's start (start - shift, at most 0).
+  bool early = false;       // Steps that do not touch the bay may start early,
+  double early_from = 0.0;  // from here.
+};
+
+// The least distance from `moving` (posed in d) to the tube at `u` (0 .. 1)
+// of its tube_in way, out to `far`; the tube's geoms are put back.
+Nearest AgainstTheTubeComingIn(const LayoutScene& scene, mjData* d,
+                               const std::vector<MovingGeom>& moving, double u, double far);
+
 // ------------------------------------------------------------ checking
 
 // R2 between the bays of a plan, for the verifier (src/layout_replay.cc),
@@ -158,21 +186,22 @@ CycleFigures CycleFiguresOf(const Plan& plan);
 // the holder is empty; where the ways share their zone, not before bay
 // b-1's bay_out ends; where they do not, TubePassesBay holds (at
 // clearance_m less tolerance_m); and no arm starts a segment of bay b's
-// steps but a wait before bay b's clamp ends. That every arm stands at its
+// steps but a wait before bay b's clamp ends, unless the step touches
+// neither the tube nor the bay (R10, TouchesTheBay). `report` is the
+// checker's, of one bay. That every arm stands at its
 // wait pose with its first tool during each tube_in and bay_out is the
 // verifier's own check of each bay's events.
 std::vector<std::string> BetweenBays(const LayoutScene& scene, const Plan& plan,
-                                     int steps_per_bay, double tolerance_s,
+                                     const CheckReport& report, double tolerance_s,
                                      double tolerance_m);
 
 // ------------------------------------------------------------ planning
 
 // Plans one bay of the layout (src/layout_plan.cc's planner, without the
-// verifier) with the checker's report; `shift` is where the bay's arms
-// start on the joint clock (JoinBays), so that the schedule can be sampled
-// at the joint clock's instants.
+// verifier) with the checker's report and where the bay lies on the joint
+// clock (BayClock).
 using PlanOneBayFn =
-    std::function<PlanResult(int bay, const CheckReport& report, double shift)>;
+    std::function<PlanResult(int bay, const CheckReport& report, const BayClock& clock)>;
 
 // Checks the layout once, plans options.bays bays one after another with
 // `plan_bay`, each knowing where it starts (NextTubeStart on the layout's
