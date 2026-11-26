@@ -89,8 +89,8 @@ MuJoCo's own code.
 | `models/` | The cell as MuJoCo model files: arm, tool, pallet, conveyor, camera |
 | `src/` | Programs and libraries |
 | `tests/` | Tests |
-| `tools/` | Scripts that make the README's plots and recordings |
-| `docs/` | The gate's description, pictures and recordings |
+| `tools/` | Scripts that make the README's plots and recordings, and under `tools/architecture/` the scripts that measure the design principles, capture behavior and run the checks |
+| `docs/` | The gate's description, pictures and recordings; the design principles and the backlog (`docs/architecture/`), the decision records (`docs/adr/`) |
 
 The world frame has its origin on the floor under the arm's base, +Z up, +X
 toward the pallet and the conveyor on the -X side. Lengths are metres, angles

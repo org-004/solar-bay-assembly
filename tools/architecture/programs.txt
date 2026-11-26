@@ -1,0 +1,99 @@
+# The programs that `behavior.sh capture` runs, one line each. A line is
+#
+#   id | target | arguments | cuts
+#
+# id         the name of the file in the capture. `@layout` stands for each name
+#            that `check_layout --list` prints at capture time (so a new layout
+#            is captured without editing this file), `@plan` for each committed
+#            plan, plans/<name>.json. A line that uses one gives a file for each.
+# target     the Bazel target, run as `bazel run` would with the arguments that
+#            BUILD.bazel gives it (the model's path), then these arguments.
+# arguments  `-` for none, else split like a shell would; fixed, so that the output is the same on
+#            every run. The seeds are explicit or the scene is --nominal.
+# cuts       what is replaced by <wall> before the output is written, because it
+#            is a wall-clock time (or computed from one), separated by ` ;; `, or
+#            `-` for none. col:NAME is a column of a CSV table, tab:NAME[#K] a
+#            column of an aligned table (--pretty), re:PATTERN the groups of a
+#            regular expression in a line, digest replaces an output too large to
+#            keep by its size and SHA-256. The full explanation is in
+#            behavior_lib.py. Each cut is only a time: docs/architecture/behavior.md
+#            (and notes) give the source line that shows it.
+#
+# Not here, and why (the longer account is docs/architecture/behavior.md):
+#   viewer, viewer_arm, viewer_bay, viewer_cell, viewer_container,
+#   viewer_conveyor, viewer_layout, viewer_pallet, viewer_suction, view_cell
+#     open a window and need a display.
+#   run_cell --planner ompl, print_plan --planner ompl
+#     OMPL's planners are seeded from the clock: two runs differ.
+#   print_rrt --sweep, --shorten-sweep, --nn
+#     minutes of timing tables; --stats stands in for them.
+#   run_gate with its default 8 trials of 30 modules
+#     minutes; //:gate_test (tag gate, in `capture --gate`) runs the same.
+#
+# print_bay
+print_bay.default | //:print_bay | - | -
+print_bay.summary | //:print_bay | --summary | -
+print_bay.capture | //:print_bay | --capture | -
+# print_cell: the two wall-clock sentences, src/print_cell.cc lines 102 and 119.
+print_cell.default | //:print_cell | - | re:settled \S+ s in (\S+) s wall ;; re:^\d+ steps \(\S+ s\) in (\S+) s wall: (\S+) steps/s, (\S+)x real time
+print_cell.seed_3_2s | //:print_cell | 3 2 | re:settled \S+ s in (\S+) s wall ;; re:^\d+ steps \(\S+ s\) in (\S+) s wall: (\S+) steps/s, (\S+)x real time
+# print_check: render_ms and fit_ms are times, src/print_check.cc lines 364 and
+# 365 (the row, CSV and table), 274 and 275 (what the summary adds up), 411 and
+# 412 (the summary on stderr). The --verbose line at 385 to 389 is not captured.
+print_check.csv | //:print_check | --trials 2 | col:render_ms ;; col:fit_ms ;; re:^(?:render|fit) ms +(\S+) +(\S+) +(\S+)$
+print_check.pretty | //:print_check | --trials 2 --pretty | tab:render ;; tab:fit ;; re:^(?:render|fit) ms +(\S+) +(\S+) +(\S+)$
+print_check.noise_calibrated | //:print_check | --trials 2 --first-seed 5 --noise --calibration 1,0.05 | col:render_ms ;; col:fit_ms ;; re:^(?:render|fit) ms +(\S+) +(\S+) +(\S+)$
+print_check.no_roof | //:print_check | --trials 2 --no-roof --position 3 --angle 0.5 | col:render_ms ;; col:fit_ms ;; re:^(?:render|fit) ms +(\S+) +(\S+) +(\S+)$
+# print_depth: "cast in N ms", src/print_depth.cc line 195.
+print_depth.nominal | //:print_depth | --nominal | re:cast in (\S+) ms
+print_depth.noise_last | //:print_depth | --seed 2 --noise --last | re:cast in (\S+) ms
+print_depth.points | //:print_depth | --nominal --points | digest ;; re:cast in (\S+) ms
+# print_pallet: "N steps in T s wall ...", src/print_pallet.cc line 116.
+print_pallet.default | //:print_pallet | - | re:^\d+ steps in (\S+) s wall: (\S+) steps/s, (\S+)x real time
+# print_perception: render_ms and fit_ms, src/print_perception.cc lines 307 and
+# 308 (the row, CSV and table; the render time is taken with the clock at 241 to
+# 246), 264 and 265 (what the summary adds up), 368 and 369 (the summary on
+# stderr). The --verbose line at 333 to 335 is not captured.
+print_perception.csv | //:print_perception | --trials 2 | col:render_ms ;; col:fit_ms ;; re:^(?:render|fit) ms +(\S+) +(\S+) +(\S+)$
+print_perception.pretty | //:print_perception | --trials 2 --pretty | tab:render ;; tab:fit ;; re:^(?:render|fit) ms +(\S+) +(\S+) +(\S+)$
+print_perception.noise_depths | //:print_perception | --trials 2 --first-seed 3 --noise --calibration-error 1,0.05 --depths 0,29 --no-creases --arm-home | col:render_ms ;; col:fit_ms ;; re:^(?:render|fit) ms +(\S+) +(\S+) +(\S+)$
+# print_plan: search_ms and shorten_ms, src/print_plan.cc line 440 (the row),
+# 446 to 448 (what the summary adds up), 467 to 471 (ms_median and ms_worst of
+# --summary), 478 to 481 (the "# planning ms" line).
+print_plan.pretty | //:print_plan | --pretty --seeds 5 | tab:search_ms ;; tab:shorten_ms ;; re:^# planning ms, median / worst: search (\S+) / (\S+), shorten (\S+) / (\S+), both (\S+) / (\S+)$
+print_plan.module_29_slot_9 | //:print_plan | --pretty --module 29 --slot 9 --seeds 3 | tab:search_ms ;; tab:shorten_ms ;; re:^# planning ms, median / worst: search (\S+) / (\S+), shorten (\S+) / (\S+), both (\S+) / (\S+)$
+print_plan.return | //:print_plan | --pretty --return --seeds 3 | tab:search_ms ;; tab:shorten_ms ;; re:^# planning ms, median / worst: search (\S+) / (\S+), shorten (\S+) / (\S+), both (\S+) / (\S+)$
+print_plan.csv_summary | //:print_plan | --seeds 5 --summary | col:ms_median ;; col:ms_worst ;; re:^# planning ms, median / worst: search (\S+) / (\S+), shorten (\S+) / (\S+), both (\S+) / (\S+)$
+# print_plane_fit, print_points, print_profile, print_rrt: no clock.
+print_plane_fit.csv | //:print_plane_fit | - | -
+print_plane_fit.pretty | //:print_plane_fit | --pretty | -
+print_points.default | //:print_points | - | digest
+print_points.seed_7 | //:print_points | 7 | digest
+print_profile.csv | //:print_profile | - | -
+print_profile.pretty | //:print_profile | --pretty | -
+print_rrt.circle | //:print_rrt | - | -
+print_rrt.gap_seed_2 | //:print_rrt | gap 2 | -
+# run_cell: finder_ms (src/run_cell.cc line 265; "ms" of --pretty, line 220),
+# plan_ms (line 278), check_finder_ms and replan_ms (lines 242 and 243) are
+# times, and so are the summary lines at 744, 761, 771 and 782 to 786 and the
+# last line on stderr (line 791). With --phases the lines of the looks end in
+# "(finder N ms)", src/pick_place.cc lines 1576 and 1892.
+run_cell.nominal_2_modules | //:run_cell | --nominal --modules 2 | col:finder_ms ;; col:plan_ms ;; col:check_finder_ms ;; col:replan_ms ;; re:planning \(wall\): mean (\S+) ms, worst (\S+) ms|finder (\S+) ms at most|rechecked with the measured grip: \d+ \(mean (\S+) ms, worst (\S+) ms\); replanned: \d+ \(mean (\S+) ms, worst (\S+) ms\)|in (\S+) s of wall time: (\S+)x real time
+run_cell.nominal_2_modules_pretty | //:run_cell | --nominal --modules 2 --pretty | tab:ms ;; re:planning \(wall\): mean (\S+) ms, worst (\S+) ms|finder (\S+) ms at most|rechecked with the measured grip: \d+ \(mean (\S+) ms, worst (\S+) ms\); replanned: \d+ \(mean (\S+) ms, worst (\S+) ms\)|in (\S+) s of wall time: (\S+)x real time
+run_cell.trials_2 | //:run_cell | --trials 2 | col:finder_ms ;; col:plan_ms ;; col:check_finder_ms ;; col:replan_ms ;; re:planning \(wall\): mean (\S+) ms, worst (\S+) ms|finder (\S+) ms at most|rechecked with the measured grip: \d+ \(mean (\S+) ms, worst (\S+) ms\); replanned: \d+ \(mean (\S+) ms, worst (\S+) ms\)|in (\S+) s of wall time: (\S+)x real time
+run_cell.phases | //:run_cell | --nominal --phases | re:\(finder (\S+) ms\) ;; col:finder_ms ;; col:plan_ms ;; col:check_finder_ms ;; col:replan_ms ;; re:planning \(wall\): mean (\S+) ms, worst (\S+) ms|finder (\S+) ms at most|rechecked with the measured grip: \d+ \(mean (\S+) ms, worst (\S+) ms\); replanned: \d+ \(mean (\S+) ms, worst (\S+) ms\)|in (\S+) s of wall time: (\S+)x real time
+run_cell.planned | //:run_cell | --nominal --carry planned | col:finder_ms ;; col:plan_ms ;; col:check_finder_ms ;; col:replan_ms ;; re:planning \(wall\): mean (\S+) ms, worst (\S+) ms|finder (\S+) ms at most|rechecked with the measured grip: \d+ \(mean (\S+) ms, worst (\S+) ms\); replanned: \d+ \(mean (\S+) ms, worst (\S+) ms\)|in (\S+) s of wall time: (\S+)x real time
+run_cell.check | //:run_cell | --nominal --check | col:finder_ms ;; col:plan_ms ;; col:check_finder_ms ;; col:replan_ms ;; re:planning \(wall\): mean (\S+) ms, worst (\S+) ms|finder (\S+) ms at most|rechecked with the measured grip: \d+ \(mean (\S+) ms, worst (\S+) ms\); replanned: \d+ \(mean (\S+) ms, worst (\S+) ms\)|in (\S+) s of wall time: (\S+)x real time
+# step_arm, gen_bay: no clock.
+step_arm.default | //:step_arm | - | -
+gen_bay.default | //:gen_bay | - | -
+# check_layout: for every layout. time_s is simulated time of the schedule.
+check_layout.list | //:check_layout | --list | -
+check_layout.@layout | //:check_layout | @layout | -
+check_layout.@layout.steps | //:check_layout | @layout --steps | -
+check_layout.flat_rack_3_pin_arms.checks | //:check_layout | flat_rack_3_pin_arms --checks port,approach | -
+# plan_layout: for each committed plan. --margins reads the plan; --summary
+# plans afresh, and its planning_s is the wall-clock time (src/plan_layout.cc
+# line 401).
+plan_layout.@plan.margins | //:plan_layout | @plan --margins | -
+plan_layout.@plan.summary | //:plan_layout | @plan --summary | re:^planning_s: (\S+)$

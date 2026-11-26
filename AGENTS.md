@@ -21,6 +21,17 @@ suites at once ran a machine out of memory.
 - At 4.4 GB of memory the full test needs `--jobs=3 --local_resources=cpu=3` or fewer;
   `plan_replay_test` (about 50 s) and `layout_check_test` (about 27 s) are among the
   slow ones.
+- Before code lands, the architecture checks (`docs/architecture/README.md`):
+  `tools/architecture/measure.sh --check` (2 s, no Bazel: the dependency rules, the
+  figures of `docs/architecture/baseline.txt`, the paths the documents name), and
+  `tools/architecture/tidy.sh` (`clang-tidy` 18 over `src/` and `tests/`, about 9
+  minutes at three jobs; `apt-get install clang-tidy-18`). `tools/architecture/ci.sh`
+  runs both, as CI does.
+- A refactoring also shows that it changed nothing: `tools/architecture/behavior.sh
+  capture <dir>` before and after (about 3 minutes with `--no-tests`), then
+  `tools/architecture/behavior.sh compare <before> <after>` prints `same`.
+- Warnings that are not yet errors are counted: `tools/architecture/warnings.sh
+  --check` (about 2 minutes) fails when a flag of `--config=strict` finds more places.
 
 Where the time goes (three cores, 2026-11-23): eight tests take 370 of the suite's 417
 seconds. `check_cycle_batch_test` 76 s, `planned_carry_test` 74, `motion_planner_test`
@@ -80,6 +91,10 @@ gate adds about 4 on four cores.
   it there.
 - **Commits.** `Area: what changed`, then bullets in plain, complete sentences. No
   attribution line.
+- **Decisions and the backlog.** A change that departs from an accepted record under
+  `docs/adr/` comes with a new record that supersedes it, in the same commit. A change
+  that settles an item of `docs/architecture/backlog.md` sets the item to `done` and
+  updates `docs/architecture/baseline.txt` in the same commit.
 
 ## Frames and units
 
@@ -122,3 +137,4 @@ Each header opens with a long comment that explains the piece (240 of the 1,173 
 | Playback of a committed plan (needs a display) | `bazel run --config=opt //:viewer_layout -- <name> --play`, `tools/video/play_gif.sh` |
 | A layout as a model, and its viewer (needs a display) | `src/layout_model.h`, `bazel run --config=opt //:viewer_layout -- <name> --state finished`, `tests/layout_model_test.cc` |
 | A picture of any model from the plain viewer | `src/viewer.cc`, `src/viewer_lib.h` (`ParseViewerArgs`), `tools/video/shot_viewer.sh` |
+| Design principles, decision records, the backlog of refactorings, and the checks that hold them | `docs/architecture/README.md` (start here), `docs/architecture/principles.md`, `docs/adr/`, `docs/architecture/backlog.md`, `tools/architecture/` |
