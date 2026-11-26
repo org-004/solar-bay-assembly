@@ -88,8 +88,11 @@ takes 644.28 s planned and 416.32 s by the time model
 **Physics.** The simulator is MuJoCo 4.0.0. The stand-in cell runs in physics with its
 cameras, and a gate runs eight whole pallets (240 modules) in it and fails if one is not
 placed within 3 mm and 0.15 degrees ([`docs/gate.md`](docs/gate.md)). The flat rack cell is
-kinematic and not yet run in physics: that is why `physics_share` is 0 and why the
-failures are modelled. One part of it has a physics test, the locating nose that pulls a
+kinematic but for one module: the module arm takes module 4 from the pallet, turns it flat
+and sets it on its rails in physics, on its servos and with its real payload, along the
+committed plan's own timing, within 0.2 mm of its place and never nearer anything than
+20.25 mm ([`docs/flat-rack-physics.md`](docs/flat-rack-physics.md), `//:run_physics`).
+Those 22.07 s are why `physics_share` is 0.039; the failures are still modelled. One part of it has a physics test, the locating nose that pulls a
 module's holes into line before pinning (`tests/locate_physics_test.cc`,
 [`docs/bay-hardware.md`](docs/bay-hardware.md)).
 

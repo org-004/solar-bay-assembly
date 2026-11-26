@@ -94,8 +94,12 @@ every arm of `src/arm_catalog.h`), each arm's track (one), each tool (one, becau
 tool of these layouts drives something), each grip of the holder (one) and the holder's end
 unit's angle pin (one).
 
-**`placement_mm`** (P1, lower, none). The placement error of a module. Nothing is held or
-sensed in the flat rack cell, so no error is measured. The stand-in cell has a figure
+**`placement_mm`** (P1, lower, none). The placement error of a module. Nothing is sensed
+in the flat rack cell, so no error is measured that the cell could know. Run 019's run in
+physics sets one module down 0.20 mm and 0.005 degrees from its place
+([`flat-rack-physics.md`](flat-rack-physics.md)), but that is the true pose in simulation
+without sensing, and by "What would make it measured" below this measure needs the
+modules held and sensed; it stays `none`. The stand-in cell has a figure
 (`docs/gate.md`), but it is another cell's and is not entered here.
 
 **`mass_in_transit_kg`** (P2, lower, counted). The mass the owner's definition counts, from

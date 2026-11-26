@@ -48,6 +48,10 @@ A filled circle is a cycle time that is planned, a square one that is measured, 
 
 ![v10  2026-11-26  Three pin arms on the flat rack, the bay shortened by the order of work; cycle 560.45 s per bay (planned), 4 arms](../evolution/v10.gif)
 
+This recording shows the module arm's take and set of one module of v10 in physics (`physics/flat_rack_3_pin_arms_ordered.json`, `//:run_physics`).
+
+![v10 in physics: the module arm takes and sets one module](../evolution/v10-physics.gif)
+
 2026-11-26, chosen, commit the commit that added v10: `git log --format=%h -S '"id": "v10"' -- versions/versions.json | tail -1`
 
 **What changed.** The same cell as v09, with no new part, arm or tool and no changed time, speed or margin: only the order of work changed. The modules are set in the order 0, 1, 4, 2, 5, 7, 6, 3, 8, so that the three pin arms' modules come in turn. A module is taken as soon as the strap bolts of its own two rails are driven, not after the last bolt. A pin arm changes to its pin tool and takes its magazine as soon as its bolts are done, not when its first module is set. The planned bay is 560.45 s, down from 644.28 s.

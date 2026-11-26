@@ -1931,6 +1931,7 @@ cc_binary(
         ":layout_model",
         ":layout_plan",
         ":mj_handles",
+        ":physics_run",
         ":viewer_lib",
         "@mujoco",
     ],

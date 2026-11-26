@@ -19,6 +19,20 @@
 //                --state, which they override)
 //   --at KIND:INDEX  the state with the arm at that work point, as
 //                cell::layout::StateAt of src/layout_check.h finds it
+//   --physics    runs one module's take and set of the plan in physics
+//                (src/physics_run.h) and shows the physics itself: the module
+//                arm on its servos, the module in its grip, the rails it is
+//                set on. The same checks and the same plan file as --play.
+//     --take K       the module_take index whose take and set are run (default
+//                    the hardest carry of the plan, as //:run_physics)
+//                The run is 1 s of hold, the plan's take and set step end to
+//                end, and 2 s of settling (about 25 s of simulated time); the
+//                viewer's clock is the physics clock, and the overlay shows
+//                the plan time. With --record each frame advances exactly
+//                speed / fps seconds of physics; the recording ends with the
+//                run. Backspace does nothing here. --speed is the viewer's
+//                own (physics seconds per viewer second), not --play's.
+//                tools/video/physics_gif.sh makes the GIF.
 //   --play       plays the committed plan of the layout (plans/<name>.json)
 //                from its first step to its last: every arm follows its
 //                planned moves at the schedule's times, a held part moves
@@ -42,7 +56,7 @@
 // the camera pose, --size, --record, --quit-at, --groups, ... --groups 3
 // shows the arms' collision geoms, --groups 4 the flange and work sites.
 //
-// Without --play the model is only looked at: nothing moves. The viewer's step hook
+// Without --play or --physics the model is only looked at: nothing moves. The viewer's step hook
 // advances the clock and recomputes positions (mj_forward) without stepping
 // the physics, so the arms hold the state's pose without motors and without
 // falling, and --quit-at still counts simulated time. Needs a display.
@@ -53,6 +67,8 @@
 #include <cstdlib>
 #include <fstream>
 #include <map>
+#include <memory>
+#include <optional>
 #include <set>
 #include <sstream>
 #include <string>
@@ -66,6 +82,7 @@
 #include "src/layout_plan.h"
 #include "src/layout_scene.h"
 #include "src/mj_handles.h"
+#include "src/physics_run.h"
 #include "src/viewer_lib.h"
 
 namespace {
@@ -90,16 +107,9 @@ bool Contains(const std::vector<int>& v, int x) {
   return std::find(v.begin(), v.end(), x) != v.end();
 }
 
-struct PlayOptions {
-  double speed = 1.0;
-  double from = 0.0;
-  double to = -1.0;
-};
-
-// Plays the committed plan of the layout in the viewer. Returns the exit code.
-int Play(const cell::layout::Layout& layout, const std::string& name,
-         const PlayOptions& play, const cell::ViewerOptions& options,
-         const cell::ViewerRun& run) {
+// The committed plan of the layout, which must be the one made for the
+// layout's file (its sha256). Prints the fault and returns nothing otherwise.
+std::optional<cell::layout::Plan> LoadCommittedPlan(const std::string& name) {
   using namespace cell::layout;
   const char* plan_dir = std::getenv("PLAN_DIR");
   const std::string plan_path =
@@ -111,7 +121,7 @@ int Play(const cell::layout::Layout& layout, const std::string& name,
   if (!in) {
     std::fprintf(stderr, "there is no plan for layout %s (%s is missing)\n",
                  name.c_str(), plan_path.c_str());
-    return 1;
+    return std::nullopt;
   }
   std::stringstream text;
   text << in.rdbuf();
@@ -119,15 +129,32 @@ int Play(const cell::layout::Layout& layout, const std::string& name,
   std::optional<Plan> plan = PlanFromJson(text.str(), &error);
   if (!plan) {
     std::fprintf(stderr, "%s: %s\n", plan_path.c_str(), error.c_str());
-    return 1;
+    return std::nullopt;
   }
   if (plan->layout_sha256 != Sha256OfFile(layout_path)) {
     std::fprintf(stderr,
                  "the plan %s was made for another version of %s: plan it again "
                  "with //:plan_layout\n",
                  plan_path.c_str(), layout_path.c_str());
-    return 1;
+    return std::nullopt;
   }
+  return plan;
+}
+
+struct PlayOptions {
+  double speed = 1.0;
+  double from = 0.0;
+  double to = -1.0;
+};
+
+// Plays the committed plan of the layout in the viewer. Returns the exit code.
+int Play(const cell::layout::Layout& layout, const std::string& name,
+         const PlayOptions& play, const cell::ViewerOptions& options,
+         const cell::ViewerRun& run) {
+  using namespace cell::layout;
+  std::optional<Plan> plan = LoadCommittedPlan(name);
+  if (!plan) return 1;
+  std::string error;
   const ModelPaths paths = ModelPaths::FromEnvironment();
   const CheckReport report = CheckLayout(layout, paths);
   if (!report.error.empty()) {
@@ -285,6 +312,46 @@ int Play(const cell::layout::Layout& layout, const std::string& name,
   return cell::RunViewer(model.get(), data.get(), hooks, title.c_str(), options);
 }
 
+// Runs one module's take and set of the committed plan in physics and shows
+// it. Returns the exit code.
+int Physics(const cell::layout::Layout& layout, const std::string& name, int take,
+            const cell::ViewerOptions& options, const cell::ViewerRun& run) {
+  using namespace cell::layout;
+  const std::optional<Plan> plan = LoadCommittedPlan(name);
+  if (!plan) return 1;
+  PhysicsOptions physics_options;
+  physics_options.take = take;
+  std::string error;
+  std::unique_ptr<PhysicsRun> physics = PhysicsRun::Create(
+      layout, *plan, ModelPaths::FromEnvironment(), physics_options, &error);
+  if (!physics) {
+    std::fprintf(stderr, "%s\n", error.c_str());
+    return 1;
+  }
+  cell::ViewerHooks hooks;
+  // The run cannot be put back at its start while the viewer holds its model.
+  hooks.reset = []() {};
+  hooks.step = [&]() { physics->Step(); };
+  const bool overlay = options.viewer_line;
+  hooks.status = [&]() {
+    std::string out;
+    if (!overlay) return out;
+    char line[100];
+    std::snprintf(line, sizeof(line), "physics, plan time %.2f s%s", physics->PlanTime(),
+                  physics->Ended() ? " (ended)" : "");
+    return std::string(line) + "\n";
+  };
+  // A recording ends with the run; a window stays open on its last state.
+  const bool recording = !options.record_path.empty();
+  hooks.quit = [&]() {
+    if (run.quit_at >= 0.0 && physics->data()->time >= run.quit_at) return true;
+    return recording && physics->Ended();
+  };
+  const std::string title = "layout " + name + " (physics)";
+  return cell::RunViewer(&physics->model(), physics->data(), hooks,
+                         title.c_str(), options);
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -294,13 +361,15 @@ int main(int argc, char** argv) {
                  "usage: %s <layout name> [--state bare|finished|stowed] "
                  "[--rails N] [--modules M] [--at KIND:INDEX]\n"
                  "       %s <layout name> --play [--speed N] [--from-time T] "
-                 "[--to-time T] [viewer options]\n%s",
-                 argv[0], argv[0], cell::ViewerArgsUsage());
+                 "[--to-time T] [viewer options]\n"
+                 "       %s <layout name> --physics [--take K] [viewer options]\n%s",
+                 argv[0], argv[0], argv[0], cell::ViewerArgsUsage());
   };
   // Take this program's options and the layout's name out; pass the rest on.
   std::string name, state_name = "finished", at;
   int rails = -1, modules = -1;
-  bool play = false;
+  bool play = false, physics = false;
+  int take = -1;
   PlayOptions play_options;
   std::string speed_text;
   std::vector<char*> rest = {argv[0]};
@@ -320,6 +389,10 @@ int main(int argc, char** argv) {
       if (!value(&v) || !ParseInt(v, &modules)) return usage(), 1;
     } else if (arg == "--play") {
       play = true;
+    } else if (arg == "--physics") {
+      physics = true;
+    } else if (arg == "--take") {
+      if (!value(&v) || !ParseInt(v, &take) || take < 0) return usage(), 1;
     } else if (arg == "--speed") {
       if (!value(&speed_text) || !ParseDouble(speed_text, &play_options.speed) ||
           play_options.speed <= 0.0) {
@@ -344,6 +417,10 @@ int main(int argc, char** argv) {
     }
   }
   if (name.empty()) return usage(), 1;
+  if (play && physics) {
+    std::fprintf(stderr, "--play and --physics do not go together\n");
+    return usage(), 1;
+  }
   if (!play && !speed_text.empty()) {
     rest.push_back(const_cast<char*>("--speed"));
     rest.push_back(const_cast<char*>(speed_text.c_str()));
@@ -364,6 +441,7 @@ int main(int argc, char** argv) {
     std::fprintf(stderr, "%s\n", error.c_str());
     return 1;
   }
+  if (physics) return Physics(*layout, name, take, options, run);
   if (play) return Play(*layout, name, play_options, options, run);
   const ModelPaths paths = ModelPaths::FromEnvironment();
 

@@ -19,8 +19,11 @@ converted.
 - **A new group `physics`** (`tools/architecture/deps.json`) holds `src/physics_run.*`,
   `src/run_physics.cc` and `tests/physics_run_test.cc`. It may include `base`,
   `planning`, `hardware`, `layout`, `arm` and `standin`, and the outside libraries
-  `eigen` and `mujoco`. This adds six pairs to P1.allowed (24 to 30) and two to
-  P4.allowed (22 to 24).
+  `eigen` and `mujoco`. This adds six pairs to P1.allowed and two to P4.allowed
+  (22 to 24).
+- **The layout's viewer may include `physics`.** `src/view_layout.cc`, in
+  `layout_programs`, gets `--physics` to show and record the run. This adds a seventh
+  pair, so P1.allowed goes from 24 to 31.
 - **Nothing in `layout` includes `physics`.** The record a run writes
   (`src/physics_record.h`, `physics/<layout>.json`) is in `layout`, because the
   scorecard reads it, and it includes only `layout_plan`.

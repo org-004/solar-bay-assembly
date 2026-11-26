@@ -52,7 +52,10 @@
 //   - the largest Cartesian error against the plan of the module's frame
 //     while it is held, and otherwise of the tool's working point: in mm and
 //     degrees. The plan's is the same frame in the checker's model at the
-//     planned configuration;
+//     planned configuration. A module is the same turned half round about
+//     its normal (its shape and its four holes are symmetric), and the plan
+//     takes some modules from the pallet that way round, so its error is
+//     the smaller of the two, as is the set-down's yaw below;
 //   - the least distance in physics between the module arm with its
 //     carriage, tool and held part and everything else (the bay as built,
 //     the base, the pallets, the stocks, the items and every other arm), as

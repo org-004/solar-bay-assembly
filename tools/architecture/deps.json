@@ -122,7 +122,7 @@
       "namespaces": ["cell"],
       "files": ["src/gen_bay.cc", "src/print_bay.cc", "src/check_layout.cc", "src/plan_layout.cc", "src/view_layout.cc",
                 "src/score_layout.cc"],
-      "may_include": ["base", "planning", "hardware", "layout", "viewer"],
+      "may_include": ["base", "planning", "hardware", "layout", "viewer", "physics"],
       "outside": ["eigen", "mujoco"]
     }
   ],

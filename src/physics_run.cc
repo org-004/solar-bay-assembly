@@ -65,6 +65,19 @@ std::pair<double, double> FrameError(const Frame& a, const Frame& b) {
   return {(a.p - b.p).norm() * 1e3, std::abs(turn.angle()) * kRadToDeg};
 }
 
+// The same for a module, whose shape and holes are the same turned half
+// round about its normal (src/bay_model.cc: every geom of side a has its
+// twin on side b, and the four holes lie symmetric about the centre): a
+// module held or set that way round is where the plan has it. The smaller
+// of the two errors.
+std::pair<double, double> ModuleError(const Frame& a, const Frame& b) {
+  Frame turned = a;
+  turned.r = a.r * Eigen::Matrix3d(Eigen::AngleAxisd(std::numbers::pi, Eigen::Vector3d::UnitZ()));
+  const std::pair<double, double> one = FrameError(a, b);
+  const std::pair<double, double> two = FrameError(turned, b);
+  return two.second < one.second ? two : one;
+}
+
 // Moves every geom of `geoms` by the motion that takes body frame `from`
 // to `to`, in the data's world poses (after kinematics).
 void MoveGeoms(mjData* d, const std::vector<int>& geoms, const Frame& from,
@@ -248,7 +261,8 @@ struct PhysicsRun::Impl {
       planned_frame = SiteFrame(*measure, scene_work_site);
       physics_frame = SiteFrame(*data, work_site);
     }
-    const auto [mm, deg] = FrameError(planned_frame, physics_frame);
+    const auto [mm, deg] = held ? ModuleError(planned_frame, physics_frame)
+                                : FrameError(planned_frame, physics_frame);
     f->frame_error_mm = mm;
     f->frame_error_deg = deg;
     f->frame_is_module = held;
@@ -659,7 +673,11 @@ PhysicsResult PhysicsRun::Finish() {
   out.set_down.along_mm = dp.y() * 1e3;
   out.set_down.height_mm = dp.z() * 1e3;
   out.set_down.offset_mm = std::hypot(dp.x(), dp.y()) * 1e3;
-  out.set_down.yaw_deg = std::atan2(dr(1, 0), dr(0, 0)) * kRadToDeg;
+  // Modulo a half turn, for the module's symmetry (ModuleError).
+  double yaw = std::atan2(dr(1, 0), dr(0, 0));
+  if (yaw > std::numbers::pi / 2.0) yaw -= std::numbers::pi;
+  if (yaw <= -std::numbers::pi / 2.0) yaw += std::numbers::pi;
+  out.set_down.yaw_deg = yaw * kRadToDeg;
 
   // The record.
   PhysicsRecord& rec = out.record;
