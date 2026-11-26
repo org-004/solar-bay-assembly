@@ -104,6 +104,23 @@ The plan files are about three times their size of one bay (`ls -l plans/`): 2,2
 are of one bay, and their burned-in captions show the one-bay figures (644.28 s and
 560.45 s per bay); the pages' text beside them gives the three-bay `cycle_s`.
 
+## The tightest margins of the three-bay plans
+
+From `bazel run --config=opt //:plan_layout -- <name> --margins` (the committed plan,
+verified over all three bays; the first row of each kind):
+
+| Layout | Least clearance (limit 0.015 m) | Where | Least arm to arm | Least joint margin (limit 5°) |
+|---|---|---|---|---|
+| `flat_rack_3_pin_arms_ordered` | 0.0180 m | `pin_arm_b`'s nutrunner socket to `holder_stand_6_saddle`, step 202 (bay 1), 720.10 s; bay 0's own is the same 0.0180 m (pin-tool nose to `bay_tube`, step 71) | 0.0187 m: the module arm's held module to `pin_arm_a`'s pin-tool nose, step 484 (bay 2), 1502.35 s | 8.65°, module arm joint 3, step 34 |
+| `flat_rack_3_pin_arms` | 0.0180 m | `pin_arm_b`'s nutrunner socket to `holder_stand_6_saddle`, step 375 (bay 2), 1422.30 s | | |
+| `flat_rack_2_pin_arms` | 0.0179 m | `pin_arm_a`'s nutrunner socket to `holder_stand_4_saddle`, step 27 (bay 0), 141.90 s | | |
+
+Three bays leave the least clearance where one bay had it (0.0180 m for v10 before and
+after): the tightest places are still the pin arms' tools at the holder's saddles and the
+tube, and what would widen them is unchanged. The tests that verify or play a whole
+three-bay plan are `//:plan_replay_committed_test` (split out of `//:plan_replay_test`
+for its time), `//:physics_record_test` and `//:scorecard_test`, all `medium`.
+
 ## Where the time between bays goes
 
 The picture shows the chosen layout's plan, one row per arm and one for the bay's events,
