@@ -66,6 +66,40 @@
 // "approaches"; a layout on the flat rack has those four and no "container".
 // LoadLayout refuses either kind of file with a field of the other.
 //
+// Two racks. "two_flat_racks" is the second direction: two 20 ft flat racks
+// of src/flat_rack.h (ISO 668's 6.058 x 2.438 m each) set down side by side,
+// long sides adjacent, structurally separate but one cell. A layout on them
+// has the fields of a layout on the flat rack, with "two_flat_racks" in
+// place of "flat_rack". The frame: the origin on the ground under the middle
+// of the pair as set down at the nominal gap, +Y along the racks, +X across;
+// rack "a" stands on -X, its long side at x = -gap_m / 2, rack "b" on +X, its
+// long side at x = +gap_m / 2, both centred on y = 0. Every arm, the holder,
+// and every stock and item that travels names the rack it stands on, "a" or
+// "b" (the field "rack", required on this base and refused on the others):
+// a thing stands on one rack only, and travels on it. Arms may reach across
+// the gap. The checker checks each rack on its own (its stow envelope, what
+// it carries) and the cell as one with rack "b" and everything on it moved to
+// the ends of the stated tolerance of where the racks are set down: the gap
+// from gap_lo_m to gap_hi_m, and rack "b" shifted along Y by up to
+// misalign_m either way. Ports lie on the outline of the pair's outer
+// rectangle.
+//
+// Stages. A torque tube longer than the base is worked in sections: the
+// infeed and the outfeed units move it through the cell, and the work is
+// done in stages. "staging" (optional, on either flat-rack base) lists them
+// in order; without it there is one stage, the whole bay with the tube at
+// "tube", as before. At stage s the tube lies at "tube" moved by
+// tube_offset_m along +Y (its plain end at plain_end_y + tube_offset_m); the
+// stage's rails are set and bolted and its modules taken, set, located,
+// pinned and swaged there, while the holder grips the stage's grips (the
+// stretches bay_hold_<hold> of the tube, which move with it) and the infeed
+// or the outfeed holds the rest of the tube ("held_by", in words). Every
+// rail and every module is in exactly one stage. A strap bolt goes with its
+// rail, a hole with its module, a take with the part it takes, an arm's pin
+// magazine with its first hole. Between two stages the units move the tube
+// and what is built on it by the difference of their offsets
+// (staging.transfer_s each time).
+//
 // Work divided among arms. "work" may hold several entries of one kind, each
 // naming an arm, a tool and the points of the kind that arm does: "points" is
 // "all" or a list of numbers and ranges such as "0-11,14,20-23", both ends
@@ -130,6 +164,18 @@ struct FlatRackState {
   std::string note;        // What the layout asks of the base, in words.
 };
 
+// The two racks while the cell works (base "two_flat_racks"): each the base
+// alone, and how they are set down. Rack "a" is the reference; the checker
+// moves rack "b" and what stands on it.
+struct TwoFlatRacksState {
+  std::string end_frames;      // "taken_off" or "dropped", both racks.
+  double gap_m = 0.025;        // Nominal gap between the long sides.
+  double gap_lo_m = 0.0;       // The tolerance of the gap as set down:
+  double gap_hi_m = 0.050;     //   from gap_lo_m to gap_hi_m.
+  double misalign_m = 0.025;   // Rack "b" along Y, either way, at the nominal gap.
+  std::string note;            // What the layout asks of the bases, in words.
+};
+
 // The margins the checks and the planner keep for this layout. Never below
 // 0.010 m and 5 degrees.
 struct Margins {
@@ -163,8 +209,28 @@ struct Holder {
   double mass_kg = 0.0;
   std::vector<Box> boxes;      // Its shape, in the layout's frame.
   bool travels_inside = true;
+  std::string rack;            // "a" or "b" on two_flat_racks, else "".
   std::string basis;           // "ours" or "published".
   std::string source;
+};
+
+// One stage of the work on a tube that is worked in sections (Staging).
+struct Stage {
+  std::string name;            // Unique in the layout: "1", "infeed end".
+  double tube_offset_m = 0.0;  // The tube's place: "tube" moved by this along +Y.
+  std::string rails;           // The rails set at this stage: "0-3".
+  std::string modules;         // The modules set at this stage: "0-2", or "".
+  std::vector<Grip> grips;     // The holder's grips at this stage.
+  int angle_pin_hold = 0;      // The stretch whose rivet holes fix the angle.
+  std::string held_by;         // What else holds the tube, in words.
+  std::string note;
+};
+
+struct Staging {
+  std::string why;             // Why these sections and stages.
+  double transfer_s = 0.0;     // Moving the tube from one stage to the next.
+  std::vector<Stage> stages;   // In order; at least one.
+  std::string basis;
 };
 
 struct Tool {
@@ -215,6 +281,7 @@ struct ArmUse {
   double stow_track = 0.0;
   std::string stow_tool;       // On the flange for transport; may be empty.
   double tool_change_s = 0.0;
+  std::string rack;            // "a" or "b" on two_flat_racks, else "".
 };
 
 // The pallet's own frame: its origin at pos, x along the modules' long side,
@@ -253,6 +320,7 @@ struct Stock {
   double mass_kg = 0.0;
   std::vector<Box> boxes;      // In the layout's frame.
   bool outside = true;
+  std::string rack;            // On two_flat_racks, for a stock not outside.
   std::string basis;
   std::string source;
 };
@@ -287,6 +355,7 @@ struct Item {
   bool travels_inside = false;
   double mass_kg = 0.0;
   std::vector<Box> boxes;      // In the layout's frame.
+  std::string rack;            // On two_flat_racks, for an item that travels.
   std::string basis;
   std::string source;
 };
@@ -361,10 +430,14 @@ struct Layout {
   std::string title;
   std::string summary;         // One paragraph.
   std::string small_arms_stand;  // "below", "beside" or "above" the tube.
-  std::string base;              // "container" or "flat_rack".
+  // "container", "flat_rack" or "two_flat_racks".
+  std::string base;
   ContainerState container;      // Only with base "container".
   FlatRackState flat_rack;       // Only with base "flat_rack".
-  Margins margins;               // In the file only with base "flat_rack".
+  TwoFlatRacksState two_flat_racks;  // Only with base "two_flat_racks".
+  // In the file only on a flat rack base ("flat_rack", "two_flat_racks"); so
+  // are ports, approaches, order and staging below.
+  Margins margins;
   TubePlace tube;
   Holder holder;
   std::vector<ArmUse> arms;
@@ -380,6 +453,8 @@ struct Layout {
   std::vector<Item> items;
   std::vector<Port> ports;            // Only with base "flat_rack".
   std::vector<Approach> approaches;   // Only with base "flat_rack"; one a kind.
+  // Optional on a flat rack base; without it one stage, the whole bay at "tube".
+  std::optional<Staging> staging;
 };
 
 // Reads layouts/<name>.json. Returns nothing and sets *error on any fault.
@@ -398,6 +473,16 @@ std::string VersionsPath();
 // the file cannot be read or parsed or no such version exists.
 std::optional<std::string> ChosenLayout(const std::string& versions_path,
                                         std::string* error);
+
+// Whether the layout stands on flat racks: base "flat_rack" or
+// "two_flat_racks". The rules of the flat rack (margins, ports, approaches,
+// order, staging, the transport rows of src/layout_rows.h) apply to both.
+bool OnFlatRacks(const Layout& layout);
+
+// The stages of the layout's work: its staging's, or one stage named "1"
+// with offset 0, every rail and module and the holder's own grips and angle
+// pin, when it has none.
+std::vector<Stage> StagesOf(const Layout& layout);
 
 // Small lookups. Each returns nullptr when there is none.
 const ArmUse* FindArm(const Layout& layout, const std::string& name);

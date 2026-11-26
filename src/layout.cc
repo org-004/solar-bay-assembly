@@ -888,6 +888,25 @@ std::vector<std::string> ListLayouts(const std::string& directory) {
   return names;
 }
 
+bool OnFlatRacks(const Layout& layout) {
+  return layout.base == "flat_rack" || layout.base == "two_flat_racks";
+}
+
+std::vector<Stage> StagesOf(const Layout& layout) {
+  if (layout.staging && !layout.staging->stages.empty()) {
+    return layout.staging->stages;
+  }
+  Stage one;
+  one.name = "1";
+  one.tube_offset_m = 0.0;
+  one.rails = "all";
+  one.modules = "all";
+  one.grips = layout.holder.grips;
+  one.angle_pin_hold = layout.holder.angle_pin_hold;
+  one.held_by = "the holder alone";
+  return {one};
+}
+
 const ArmUse* FindArm(const Layout& layout, const std::string& name) {
   for (const ArmUse& a : layout.arms) {
     if (a.name == name) return &a;
