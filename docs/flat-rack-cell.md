@@ -1,8 +1,10 @@
 # The cell on a flat rack, built as planned motion
 
 This is the design of the robot cell that builds bays (one round tube, ten rails, nine
-modules: `docs/bay-hardware.md`) on the base of a 40 ft flat rack. Its chosen layout is
-`flat_rack_3_pin_arms`: one KUKA KR 210 R2700-2 sets the rails and the modules, and
+modules: `docs/bay-hardware.md`) on the base of a 40 ft flat rack. Its layout here is
+`flat_rack_3_pin_arms` (chosen until run 018; since then the chosen layout is the same cell
+with a shorter order of work, `flat_rack_3_pin_arms_ordered`, in
+[`docs/flat-rack-order.md`](flat-rack-order.md)): one KUKA KR 210 R2700-2 sets the rails and the modules, and
 three Universal Robots UR10e below the bay drive the strap bolts and locate, pin and
 swage the modules. The cell is designed, not built, and kinematic: arms, tools, parts
 and envelopes are checked at poses and along planned motion, and nothing steps the
@@ -601,7 +603,10 @@ These sentences are the engineer's judgement, not results of a program.
    2, 0; with the schedule's three rules (parking, others at wait, just in time). A
    better order is visible but was not tried: pin arm C starts only when module 7 is set
    and ends last while the module arm waits 185.18 s; setting modules from the far end
-   first, or giving C its modules earlier, would shorten the bay.
+   first, or giving C its modules earlier, would shorten the bay. Run 018 did that:
+   [`docs/flat-rack-order.md`](flat-rack-order.md) gives the new order's tables, which
+   change bought how many seconds, and the bound. `flat_rack_3_pin_arms_ordered` (v10,
+   now the chosen layout) plans a bay of 560.45 s with nothing else changed.
 12. **Margins and envelopes changed under R25** (before, after):
     - `clearance_m` 0.010 to 0.015 m for the three flat rack layouts (0.020 would not
       pass: 0.0187 m); `joint_margin_deg` stays 5.
@@ -638,7 +643,8 @@ These sentences are the engineer's judgement, not results of a program.
 - Changing an empty pallet, refilling the rail rack and the lane; a second pallet place.
 - Cables, energy chains and cabinets (no envelope, no mass); people, guarding, access.
 - A second module arm or a smaller one; an order of work that starts modules before the
-  last bolt or sets them from both ends; R30.
+  last bolt or sets them from both ends; R30. (Run 018 starts modules before the last
+  bolt: [`docs/flat-rack-order.md`](flat-rack-order.md).)
 - Limits of the method that are not checks: moves planned one arm at a time with the
   others at wait and no evasive move; the schedule sampled every 0.05 s; trajectories
   blended up to 0.002 rad off the checked lines; timing figures ours; other paths on
