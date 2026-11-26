@@ -833,6 +833,11 @@ Planner::Conflict Planner::Check(int a, const Block& b, double s, mjData* d) {
   const ArmMotion& m = motions_[a];
   std::vector<double> times;
   for (double t = s; t < horizon; t += f_.sample_s) times.push_back(t);
+  // And the joint clock's instants k sample_s, which the verifier samples.
+  for (long k = static_cast<long>(std::ceil((s + shift_) / f_.sample_s));
+       static_cast<double>(k) * f_.sample_s - shift_ < horizon; ++k) {
+    times.push_back(static_cast<double>(k) * f_.sample_s - shift_);
+  }
   times.push_back(end);
   if (horizon > end) times.push_back(horizon);
   std::sort(times.begin(), times.end());

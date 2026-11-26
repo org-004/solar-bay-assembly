@@ -171,7 +171,10 @@
 // blocks; the first bay of the chosen layout never needs it, its later
 // bays do). No evasive move is made. The verifier needs no check of giving
 // way: it decides only the order in which blocks are placed, and what is
-// placed holds every rule above.
+// placed holds every rule above. A block is checked at instants sample_s
+// apart from its start and at the plan clock's k sample_s, the verifier's
+// instants (for a later bay, the instants its arms will have once joined:
+// PlanBays tells the planner where they start).
 //
 // Repeatable (R18). Every move has a seed drawn through
 // src/portable_random.h from PlanFigures::seed and the move's ordinal, and
