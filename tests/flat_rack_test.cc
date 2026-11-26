@@ -151,8 +151,8 @@ TEST_F(FlatRackTest, FootprintIsTheFortyFootOutside) {
 }
 
 TEST_F(FlatRackTest, DerivedFigures) {
-  EXPECT_NEAR(fr::kCellMassBudget, 23800.0 - 5900.0, kTol);
-  EXPECT_NEAR(fr::kCellMassBudget, 17900.0, kTol);
+  EXPECT_NEAR(fr::kTransitMassLimitKg, 30000.0 * 0.45359237, 1.0);
+  EXPECT_NEAR(fr::kTransitMassLimitKg, 13608.0, kTol);
   EXPECT_NEAR(fr::kStowedHeightOnChassis, 1.219 + 2.896, kTol);
   EXPECT_NEAR(fr::kStowedHeightOnChassis, 4.115, kTol);
 }

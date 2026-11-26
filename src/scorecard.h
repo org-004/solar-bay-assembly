@@ -127,6 +127,7 @@
 #include <string>
 #include <vector>
 
+#include "src/flat_rack.h"
 #include "src/layout.h"
 #include "src/layout_model.h"
 #include "src/layout_plan.h"
@@ -136,7 +137,7 @@
 namespace cell::layout {
 
 // The owner's limit for what one container carries, 30,000 lb.
-inline constexpr double kMassInTransitLimitKg = 13608.0;
+inline constexpr double kMassInTransitLimitKg = flat_rack::kTransitMassLimitKg;
 
 struct Measure {
   std::string name;              // "cycle_s"
