@@ -13,7 +13,7 @@ layout, and [`docs/scorecard.md`](docs/scorecard.md) defines each one.
 
 The cell 5 simulated seconds after the trial's start (`view_cell`, seed 3). Taken with
 `tools/video/shot.sh docs/img/cell_5s.png 1200x900 --seed 3 --no-overlay --view overview --quit-at 5`
-under Xvfb (`docs/` and the project's notes on pictures say how).
+on a display; Xvfb with Mesa's software renderer serves on a machine without one.
 
 ## Results
 
