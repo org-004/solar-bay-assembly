@@ -857,12 +857,9 @@ const OrderedPlan& TheOrdered() {
   return *o;
 }
 
-#define NEED_ORDERED(o)                \
-  const OrderedPlan& o = TheOrdered(); \
-  if (!o.error.empty()) FAIL() << o.error;
-
 TEST(Ordered, PassesTheVerifierWithoutTheSchedule) {
-  NEED_ORDERED(o);
+  const OrderedPlan& o = TheOrdered();
+  ASSERT_TRUE(o.error.empty()) << o.error;
   const VerifyReport r =
       VerifyPlan(o.layout, ModelPaths::FromEnvironment(), o.plan, o.sha256, Quick(false));
   EXPECT_TRUE(r.ok) << Faults(r);
@@ -870,7 +867,8 @@ TEST(Ordered, PassesTheVerifierWithoutTheSchedule) {
 }
 
 TEST(Ordered, ATakeBeforeItsRailsBoltsIsFound) {
-  NEED_ORDERED(o);
+  const OrderedPlan& o = TheOrdered();
+  ASSERT_TRUE(o.error.empty()) << o.error;
   // Module 8 first: its rails 8 and 9 are bolted after the first take starts.
   Layout l = o.layout;
   l.order.modules = {8, 1, 4, 2, 5, 7, 6, 3, 0};
@@ -879,7 +877,8 @@ TEST(Ordered, ATakeBeforeItsRailsBoltsIsFound) {
 }
 
 TEST(Ordered, TheFirstTakeBeforeTheLastBoltIsFoundWhenAllBoltsComeFirst) {
-  NEED_ORDERED(o);
+  const OrderedPlan& o = TheOrdered();
+  ASSERT_TRUE(o.error.empty()) << o.error;
   Layout l = o.layout;
   l.order.modules_start = "after_all_bolts";
   const VerifyReport r = VerifyPlan(l, ModelPaths::FromEnvironment(), o.plan, o.sha256, Quick(false));
@@ -887,7 +886,8 @@ TEST(Ordered, TheFirstTakeBeforeTheLastBoltIsFoundWhenAllBoltsComeFirst) {
 }
 
 TEST(Ordered, AWaitAtTheToolChangePose) {
-  NEED_ORDERED(o);
+  const OrderedPlan& o = TheOrdered();
+  ASSERT_TRUE(o.error.empty()) << o.error;
   // A wait of no length put right after a pin arm's first tool change.
   Plan p = o.plan;
   int arm = -1;
