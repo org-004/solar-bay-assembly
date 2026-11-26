@@ -66,11 +66,13 @@ existed, reads "Verdict: hand-written better"
 
 **The layout checker.** A layout of the cell is data (`layouts/<name>.json`), and
 `check_layout` checks it for transport, hold, reach, clearance, load, ways in and out, time,
-what is allowed, ports and approaches. The five layouts of the closed container are kept as
-a record ([`docs/layout.md`](docs/layout.md)); the chosen one stands on a 40 ft flat rack
-([`docs/flat-rack-cell.md`](docs/flat-rack-cell.md)).
-
-![A layout in the viewer](docs/img/layout_cell.png)
+what is allowed, ports and approaches. The chosen layout stands on a 40 ft flat rack
+([`docs/flat-rack-cell.md`](docs/flat-rack-cell.md)); the next section shows it at work. What
+travels is the stowed cell: the transport envelope and the weight limit bind the equipment,
+not the bay it builds. Five earlier layouts built the bay inside a container with open sides
+(run 011). They are history, kept as a record with their pictures in
+[`docs/layout.md`](docs/layout.md), and that the bay fits inside a container was never a
+requirement.
 
 **The planner and scheduler of a bay.** `plan_layout` plans every move of every arm for one
 bay of the chosen layout, `flat_rack_3_pin_arms`, free of collision, and schedules the four
