@@ -155,6 +155,7 @@
 
 #include <array>
 #include <cstdint>
+#include <functional>
 #include <map>
 #include <memory>
 #include <optional>
@@ -408,11 +409,15 @@ struct Closest {
 // are at the instant, and for every pair of arms, each arm with its
 // carriage, the tool on its flange, its waiting tools and what it holds.
 // Pairs that touch by design are not measured; pairs near by design at the
-// arm's work point are returned with by_design set.
-std::vector<Closest> InstantDistances(const LayoutScene& scene,
-                                      const CheckReport& report,
-                                      const PlanPlayer& player,
-                                      const WorldAt& w, mjData* d);
+// arm's work point are returned with by_design set. `adjust`, when given, is
+// called after the poses of `w` are set and their kinematics done, before
+// anything is measured: a run in physics (src/physics_run.h) moves the
+// geoms of a part to where the physics has it there, so that what it
+// measures is measured as the verifier measures.
+std::vector<Closest> InstantDistances(
+    const LayoutScene& scene, const CheckReport& report,
+    const PlanPlayer& player, const WorldAt& w, mjData* d,
+    const std::function<void(mjData*)>& adjust = {});
 
 struct VerifyOptions {
   bool edges = true;       // Every edge of every move, by R16's test.

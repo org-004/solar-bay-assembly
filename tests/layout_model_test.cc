@@ -1642,5 +1642,99 @@ TEST(TwoRackLoader, RefusesWhatTheFormForbids) {
   }
 }
 
+// The physics state (src/layout_model.h, Physics) adds the module arm's
+// seven servos, the two welds and the free module, and changes nothing else:
+// every geom and body of the plain state is there by name, of the same kind,
+// size, mass and world pose, and the plain state has no motor, no weld and
+// no free body, as before. Taken on the chosen flat rack layout with the bay
+// as run 019 runs it: rails on, two modules set, two taken from the pallet.
+TEST(Physics, AddsTheServosTheWeldsAndTheFreeModuleAndNothingElse) {
+  std::string error;
+  const std::optional<std::string> chosen = ChosenLayout(VersionsPath(), &error);
+  ASSERT_TRUE(chosen.has_value()) << error;
+  const std::optional<Layout> layout = LoadLayout(LayoutPath(*chosen), &error);
+  ASSERT_TRUE(layout.has_value()) << error;
+  LayoutState plain = Bay(10, 2);
+  plain.pallet_modules = layout->pallets[0].modules - 2;
+  LayoutState physics = plain;
+  physics.physics_arm = layout->arms[0].name;
+  physics.carried_take = 2;
+  const std::string plain_text =
+      BuildLayoutXml(*layout, plain, ModelPaths::FromEnvironment(), &error);
+  EXPECT_EQ(plain_text.find("<actuator"), std::string::npos);
+  EXPECT_EQ(plain_text.find("<equality"), std::string::npos);
+  EXPECT_EQ(plain_text.find("freejoint"), std::string::npos);
+  const Built a = Build(*layout, plain);
+  const Built b = Build(*layout, physics);
+  ASSERT_TRUE(a.model && b.model);
+  const mjModel* ma = a.model.get();
+  const mjModel* mb = b.model.get();
+  EXPECT_EQ(ma->nu, 0);
+  EXPECT_EQ(ma->neq, 0);
+  ASSERT_EQ(mb->nu, 7);
+  ASSERT_EQ(mb->neq, 2);
+  const std::string arm = layout->arms[0].name;
+  // models/arm.xml's gains, motor by motor, and the track's.
+  const double kp[6] = {5e6, 1e7, 5e6, 3e5, 3e5, 1e5};
+  for (int k = 0; k < 6; ++k) {
+    const std::string name = arm + "_arm_motor_" + std::to_string(k + 1);
+    const int id = mj_name2id(mb, mjOBJ_ACTUATOR, name.c_str());
+    ASSERT_GE(id, 0) << name;
+    EXPECT_EQ(mb->actuator_gainprm[mjNGAIN * id], kp[k]) << name;
+  }
+  const int track = mj_name2id(mb, mjOBJ_ACTUATOR, (arm + "_track_motor").c_str());
+  ASSERT_GE(track, 0);
+  EXPECT_EQ(mb->actuator_gainprm[mjNGAIN * track], kTrackKp);
+  EXPECT_EQ(mb->actuator_forcerange[2 * track + 1], kTrackForce);
+  EXPECT_GE(mj_name2id(mb, mjOBJ_EQUALITY, "pallet_hold"), 0);
+  EXPECT_GE(mj_name2id(mb, mjOBJ_EQUALITY, "suction"), 0);
+  // The free module stands where the plain state's pallet module 2 stands,
+  // with its mass.
+  const int free_body = mj_name2id(mb, mjOBJ_BODY, "carried_module");
+  const int pallet_body = mj_name2id(ma, mjOBJ_BODY, "pallet_module_2");
+  ASSERT_GE(free_body, 0);
+  ASSERT_GE(pallet_body, 0);
+  EXPECT_EQ(mb->body_jntnum[free_body], 1);
+  EXPECT_EQ(mb->jnt_type[mb->body_jntadr[free_body]], mjJNT_FREE);
+  EXPECT_NEAR(mb->body_mass[free_body], ma->body_mass[pallet_body], 1e-9);
+  EXPECT_LT((V(b.data->xpos + 3 * free_body) - V(a.data->xpos + 3 * pallet_body)).norm(), 1e-9);
+  EXPECT_LT((M(b.data->xmat + 9 * free_body) - M(a.data->xmat + 9 * pallet_body)).norm(), 1e-9);
+  // Everything else, by its body's name and its place among that body's
+  // geoms (the KUKA's meshes have no names of their own).
+  auto keys = [](const mjModel* m) {
+    std::map<std::string, int> out;
+    for (int g = 0; g < m->ngeom; ++g) {
+      const int body = m->geom_bodyid[g];
+      const char* n = mj_id2name(m, mjOBJ_BODY, body);
+      out[std::string(n != nullptr ? n : "?") + "#" +
+          std::to_string(g - m->body_geomadr[body])] = g;
+    }
+    return out;
+  };
+  const std::map<std::string, int> in_b = keys(mb);
+  int geoms = 0;
+  for (const auto& [key, g] : keys(ma)) {
+    const std::string name = GeomName(ma, g) + " " + key;
+    if (key.rfind("pallet_module_2#", 0) == 0) continue;
+    auto it = in_b.find(key);
+    ASSERT_NE(it, in_b.end()) << name;
+    const int h = it->second;
+    EXPECT_EQ(ma->geom_type[g], mb->geom_type[h]) << name;
+    for (int i = 0; i < 3; ++i) {
+      EXPECT_EQ(ma->geom_size[3 * g + i], mb->geom_size[3 * h + i]) << name;
+    }
+    EXPECT_LT((V(a.data->geom_xpos + 3 * g) - V(b.data->geom_xpos + 3 * h)).norm(), 1e-9) << name;
+    ++geoms;
+  }
+  EXPECT_EQ(geoms + 9, mb->ngeom);  // The module's nine geoms are the free one's.
+  for (int i = 1; i < ma->nbody; ++i) {
+    const char* n = mj_id2name(ma, mjOBJ_BODY, i);
+    if (n == nullptr || std::string(n).rfind("pallet_module_2", 0) == 0) continue;
+    const int j = mj_name2id(mb, mjOBJ_BODY, n);
+    ASSERT_GE(j, 0) << n;
+    EXPECT_EQ(ma->body_mass[i], mb->body_mass[j]) << n;
+  }
+}
+
 }  // namespace
 }  // namespace cell::layout

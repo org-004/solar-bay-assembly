@@ -101,3 +101,5 @@ plan_layout.@plan.summary | //:plan_layout | @plan --summary | re:^planning_s: (
 score_layout.@plan | //:score_layout | @plan | -
 score_layout.@plan.json | //:score_layout | @plan --json | -
 score_layout.all | //:score_layout | --all | -
+# run_physics: one module of the chosen plan in physics; fixed steps, no clock.
+run_physics.chosen | //:run_physics | - | -

@@ -52,6 +52,34 @@
 // datasheet's ranges of src/arm_catalog.h. An arm on a track has one more
 // joint, a slide along the track, before its six.
 //
+// Physics. A state whose physics_arm names an arm gives the model a run in
+// physics needs (src/physics_run.h), and changes nothing else; with
+// physics_arm empty, the default, the text is what it has always been, so
+// that every check, plan and scorecard figure stays as it is (the test of
+// the model holds both). With physics_arm set:
+//   - that arm keeps its model file's motors: for the KUKA the six position
+//     servos of models/arm.xml with their gains, damping ratio and torque
+//     limits, and the joints keep that file's armature and damping (the
+//     notes in models/arm.xml give the reasons). Only the KUKA can be the
+//     physics arm. Its links keep the vendor's masses and inertias
+//     (models/arm.xml copies them from KUKA's URDF); its tools' boxes carry
+//     the tool's mass_kg of the layout file, shared by volume, as always.
+//   - its track, if it has one, gets a position servo "<arm>_track_motor"
+//     (kTrackKp, kTrackKv, kTrackForce below; ours, argued there).
+//   - pallet module carried_take of the first pallet (an index in the order
+//     of taking, which must be one of the modules state.pallet_modules
+//     leaves there) is not part of its pallet but a free body
+//     "carried_module" at the same place, with the same nine geoms and so
+//     the module's 32.4 kg (src/bay_model.h). Two welds, after the stand-in
+//     cell's models/suction.xml: "pallet_hold", on, holds it where it
+//     stands until it is taken (a weld stands in for the pallet and its
+//     neighbours, which a run in physics of the arm does not test), and
+//     "suction", off, from the arm's tool body "<arm>_tool_mount" to it,
+//     for src/suction.h's Suction to switch on at the grip.
+//   - the keyframe "state" holds the free body's pose after the arms'.
+// What touches what, and the timestep, are the run's (src/physics_run.cc):
+// the model leaves MuJoCo's defaults from models/common.xml.
+//
 // The model needs files beside the layout: models/common.xml,
 // models/container.xml or models/flat_rack.xml, the KUKA arms' model files with
 // their meshes as each names them, and MuJoCo Menagerie's ur10e.xml with its assets. ModelPaths says where they
@@ -94,7 +122,28 @@ struct LayoutState {
   std::map<std::string, std::string> held;  // "module", "rail" or "".
   std::map<std::string, std::array<double, 6>> joints_deg;
   std::map<std::string, double> track;
+  // Physics (see above): the arm that keeps its motors, "" for none, and
+  // the module_take index of the first pallet's module that is free.
+  std::string physics_arm;
+  int carried_take = -1;
 };
+
+// The track servo of a physics arm (ours). The moving mass on the track is
+// about 1,950 kg: the carriage, half of the module arm's 1,600 kg track
+// (src/layout_model.cc puts half on the beam, half on the carriage), the
+// KUKA's links, 1,077 kg by the vendor's masses, its 36 kg gripper and a
+// 32.4 kg module. kTrackKp gives that mass a natural frequency of
+// sqrt(7.7e6 / 1950) = 62.8 rad/s, 10 Hz, the order of the arm's own axes,
+// and sag under a 1 kN disturbance of 0.13 mm; kTrackKv damps it
+// critically (2 sqrt(kp m) = 2.45e5 N s/m). At the 0.5 ms timestep of the
+// run, 62.8 rad/s x 0.0005 s = 0.03, far inside the stable range. The
+// force limit is twice what the planned accelerations of the track (at
+// most 1.5 m/s^2, the layout's figure) need for the whole moving mass,
+// 2 x 1950 x 1.5 = 5.85 kN, rounded up: a rack-and-pinion drive of that
+// size is ordinary for a gantry of this class.
+inline constexpr double kTrackKp = 7.7e6;     // N/m
+inline constexpr double kTrackKv = 2.45e5;    // N s/m
+inline constexpr double kTrackForce = 6000.0; // N
 
 // The model's text, or an empty string with *error set.
 std::string BuildLayoutXml(const Layout& layout, const LayoutState& state,

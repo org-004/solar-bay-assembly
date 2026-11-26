@@ -3,6 +3,7 @@
   "layout_sha256": "fd836ffa497b16e91c0ffdeef360b678367275f0e49a70dac36545cafb3e2963",
   "plan_sha256": "99f1797e5990eb9f3445b65beee65a01221d5290d1dd8a8546c0fbeb2b68c19c",
   "rates_sha256": "92ab60e5a186cfa526dc292ba67cf3583391499d692475f143aaa1287ab63614",
+  "physics_sha256": "f07da0edd319562f81b9d5b0a39f86c079d1efc57cacebd19bbf7985d5718192",
   "measures": [
     {
       "name": "cycle_s",
@@ -25,11 +26,11 @@
     {
       "name": "physics_share",
       "rank": "P0",
-      "value": 0.0,
+      "value": 0.039377,
       "unit": "1",
       "better": "higher",
-      "known": "counted",
-      "basis": "no committed, repeatable run in physics of this layout's arms and parts"
+      "known": "measured",
+      "basis": "physics/flat_rack_3_pin_arms_ordered.json: steps 63, 64 of module 4 carried out in physics, 22.068854 s of 560.452329 s counted"
     },
     {
       "name": "part_count",

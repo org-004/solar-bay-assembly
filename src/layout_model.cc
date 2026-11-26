@@ -9,10 +9,9 @@
 //   <body name="<arm>_carriage" ...><attach model="<arm>_model"
 //       body="<root_body>" prefix="<arm>_"/></body>
 // The file <arm>.arm.xml is made at run time, one for each arm of the layout,
-// from the arm's model file (ArmPartXml below): models/arm.xml for the KUKA
-// KR 210, models/kr10_r1100_2.xml and models/kr20_r1810_2.xml for the two
-// smaller KUKA arms (all three alike in what is done to them, and called "the
-// KUKA" below), Menagerie's ur10e.xml for the UR10e. In it:
+// from the arm's model file (ArmPartXml below): models/arm.xml,
+// kr10_r1100_2.xml or kr20_r1810_2.xml for a KUKA (each "the KUKA" below),
+// Menagerie's ur10e.xml for the UR10e. In it:
 //   - the KUKA's <include file="tool.xml"/> (the stand-in cell's suction
 //     tool, under arm_flange) is replaced by this layout's tools, and the
 //     part file gets the compiler settings it leaves to common.xml
@@ -358,7 +357,7 @@ std::string ToolMountContents(const Layout& layout, const ArmUse& arm,
 
 // The arm's part file: its model file as described at the top.
 bool ArmPartXml(const Layout& layout, const ArmUse& arm, const ArmModel& model,
-                const ArmSetup& setup, const ModelPaths& paths,
+                const ArmSetup& setup, const ModelPaths& paths, bool motors,
                 std::string* text, std::string* error) {
   auto fail = [&](const std::string& what) {
     if (error != nullptr) *error = "arm " + arm.name + ": " + what;
@@ -374,11 +373,7 @@ bool ArmPartXml(const Layout& layout, const ArmUse& arm, const ArmModel& model,
   const std::string mount = ToolMountContents(layout, arm, setup, cls);
   // The KUKA arms: each has its own model file and, beside it, its own
   // directory of meshes (BUILD.bazel).
-  struct KukaFiles {
-    const char* source;
-    const char* file;
-    const char* meshes;
-  };
+  struct KukaFiles { const char *source, *file, *meshes; };
   static const KukaFiles kKuka[] = {
       {"kuka", "arm.xml", "kuka_kr210_r2700_2"},
       {"kuka_kr10_r1100_2", "kr10_r1100_2.xml", "kuka_kr10_r1100_2"},
@@ -432,7 +427,12 @@ bool ArmPartXml(const Layout& layout, const ArmUse& arm, const ArmModel& model,
   } else {
     return fail("no way to build the model \"" + model.source + "\"");
   }
-  RemoveElement(text, "actuator");
+  // A physics arm keeps its motors (src/layout_model.h, Physics); only the
+  // KUKA's are a controller's to drive (models/arm.xml).
+  if (motors && model.source != "kuka") {
+    return fail("only the KUKA can be the physics arm");
+  }
+  if (!motors) RemoveElement(text, "actuator");
   RemoveElement(text, "keyframe");
   return true;
 }
@@ -517,6 +517,25 @@ std::string BuildLayoutXml(const Layout& layout, const LayoutState& state,
   if (pallet_modules < 0 || pallet_modules > first_modules) {
     return fail("pallet_modules out of 0.." + std::to_string(first_modules));
   }
+  const bool physics = !state.physics_arm.empty();
+  if (physics) {
+    if (state.stowed || state.everything) {
+      return fail("physics is for a working state, not stowed or everything");
+    }
+    bool found = false;
+    for (const ArmUse& arm : layout.arms) found = found || arm.name == state.physics_arm;
+    if (!found) return fail("no arm \"" + state.physics_arm + "\" for physics");
+    if (state.carried_take < first_modules - pallet_modules ||
+        state.carried_take >= first_modules) {
+      return fail("carried_take " + std::to_string(state.carried_take) +
+                  " is not on the first pallet");
+    }
+  }
+  // The carried module of a physics state: its body, written after the
+  // arms, and its pose for the keyframe.
+  std::string carried;
+  Eigen::Vector3d carried_pos = Eigen::Vector3d::Zero();
+  Eigen::Quaterniond carried_quat = Eigen::Quaterniond::Identity();
 
   std::string t;
   t += "<mujoco model=\"layout " + layout.name + "\">\n";
@@ -590,6 +609,27 @@ std::string BuildLayoutXml(const Layout& layout, const LayoutState& state,
            Num(p.base_height / 2.0) + "\" size=\"" + V3(deck) + "\"/>\n";
       for (int j = p.modules - left; j < p.modules; ++j) {
         const std::string name = prefix + "_module_" + std::to_string(j);
+        if (physics && pi == 0 && j == state.carried_take) {
+          // Free, at the place it would have on the pallet, in the world.
+          const Eigen::Matrix3d pallet = Rpy({0.0, 0.0, p.yaw_deg});
+          const Eigen::Vector3d at =
+              upright ? Eigen::Vector3d(0.0, (j - (p.modules - 1) / 2.0) * p.pitch,
+                                        p.base_height + bay::kModuleWidth / 2.0)
+                      : Eigen::Vector3d(0.0, 0.0,
+                                        p.base_height + (p.modules - 1 - j) * p.pitch +
+                                            bay::kModuleThickness / 2.0);
+          const Eigen::Matrix3d turn =
+              upright ? Eigen::Matrix3d(Eigen::AngleAxisd(kPi / 2.0, Eigen::Vector3d::UnitX()))
+                      : Eigen::Matrix3d::Identity();
+          carried_pos = Eigen::Vector3d(p.pos[0], p.pos[1], p.pos[2]) + pallet * at;
+          carried_quat = Eigen::Quaterniond(pallet * turn).normalized();
+          carried = bay::ModuleBodyXml(
+              "carried_module", {carried_pos.x(), carried_pos.y(), carried_pos.z()});
+          const size_t open = carried.find('>');
+          carried.insert(open + 1, "\n<freejoint name=\"carried_module_free\"/>");
+          carried.insert(open, " quat=\"" + Quat(carried_quat.toRotationMatrix()) + "\"");
+          continue;
+        }
         if (upright) {
           // Standing on its long edge: a quarter turn about x takes the
           // module's z (its glass's normal) to -y.
@@ -679,6 +719,9 @@ std::string BuildLayoutXml(const Layout& layout, const LayoutState& state,
     for (double deg : setup.joints_deg) qpos.push_back(deg * kPi / 180.0);
   }
 
+  // The free module of a physics state.
+  if (physics) t += carried;
+
   // The probe for the free spaces of the fastenings.
   if (state.everything) {
     auto cylinder = [&](const std::string& name, double radius, double z0, double z1) {
@@ -695,9 +738,34 @@ std::string BuildLayoutXml(const Layout& layout, const LayoutState& state,
     t += "    </body>\n";
   }
   t += "  </worldbody>\n";
+  if (physics) {
+    // The welds of src/layout_model.h, Physics, with models/suction.xml's
+    // settings (its notes give them: a held 30 kg module sags by microns).
+    const std::string weld =
+        "torquescale=\"1\" solref=\"0.005 1\" solimp=\"0.99 0.99 0.001 0.5 2\"";
+    t += "  <equality>\n";
+    t += "    <weld name=\"pallet_hold\" body1=\"carried_module\" " + weld + "/>\n";
+    t += "    <weld name=\"suction\" body1=\"" + state.physics_arm +
+         "_tool_mount\" body2=\"carried_module\" active=\"false\" " + weld + "/>\n";
+    t += "  </equality>\n";
+    for (const ArmUse& arm : layout.arms) {
+      if (arm.name != state.physics_arm || !arm.track) continue;
+      t += "  <actuator>\n    <position name=\"" + arm.name + "_track_motor\" joint=\"" +
+           arm.name + "_track\" inheritrange=\"1\" kp=\"" + Num(kTrackKp) + "\" kv=\"" +
+           Num(kTrackKv) + "\" forcerange=\"" + Num(-kTrackForce) + " " + Num(kTrackForce) +
+           "\"/>\n  </actuator>\n";
+    }
+  }
 
   // The state's poses, as the one keyframe (key 0, "state"), written with
   // every digit.
+  if (physics) {
+    for (int i = 0; i < 3; ++i) qpos.push_back(carried_pos[i]);
+    qpos.push_back(carried_quat.w());
+    qpos.push_back(carried_quat.x());
+    qpos.push_back(carried_quat.y());
+    qpos.push_back(carried_quat.z());
+  }
   if (!qpos.empty()) {
     t += "  <keyframe>\n    <key name=\"state\" qpos=\"";
     for (size_t i = 0; i < qpos.size(); ++i) {
@@ -743,8 +811,8 @@ ModelPtr LoadLayoutModel(const Layout& layout, const LayoutState& state,
     ArmSetup setup;
     if (!Setup(layout, arm, state, &setup, error)) return nullptr;
     std::string part;
-    if (!ArmPartXml(layout, arm, *FindArmModel(arm.model), setup, paths, &part,
-                    error)) {
+    if (!ArmPartXml(layout, arm, *FindArmModel(arm.model), setup, paths,
+                    arm.name == state.physics_arm, &part, error)) {
       return nullptr;
     }
     if (!add(ArmPartName(arm), part)) return fail("cannot add " + ArmPartName(arm));

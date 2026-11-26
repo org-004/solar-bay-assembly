@@ -1876,6 +1876,7 @@ cc_test(
 LAYOUT_FILES = glob(["layouts/*.json"]) + ["versions/versions.json"]
 PLAN_FILES = glob(["plans/*.json"], allow_empty = True)
 SCORE_FILES = glob(["scores/*.json"], allow_empty = True)
+PHYSICS_FILES = glob(["physics/*.json"], allow_empty = True)
 EVOLUTION_FILES = glob(["docs/evolution/*"], allow_empty = True)
 
 # What a layout's model is built from at run time: the container, the
@@ -1966,6 +1967,7 @@ cc_binary(
         ":layout_model",
         ":layout_plan",
         ":mj_handles",
+        ":physics_run",
         ":viewer_lib",
         "@mujoco",
     ],
@@ -2175,6 +2177,106 @@ cc_test(
 )
 # END layout_plan
 
+# BEGIN physics_run
+# One module's cycle of a layout's committed plan, run in physics: the
+# module arm on its servos along the plan's own timing, the grip and the
+# release, and the figures (src/physics_run.h).
+cc_library(
+    name = "physics_run",
+    srcs = ["src/physics_run.cc"],
+    hdrs = ["src/physics_run.h"],
+    deps = [
+        ":arm",
+        ":arm_follower",
+        ":bay_hardware",
+        ":layout",
+        ":layout_check",
+        ":layout_model",
+        ":layout_plan",
+        ":mj_handles",
+        ":physics_record",
+        ":suction",
+        "@eigen",
+        "@mujoco",
+    ],
+)
+
+# Runs it and prints the figures, or writes physics/<name>.json.
+#   bazel run --config=opt //:run_physics
+#   bazel run --config=opt //:run_physics -- flat_rack_3_pin_arms_ordered --write
+cc_binary(
+    name = "run_physics",
+    srcs = ["src/run_physics.cc"],
+    data = LAYOUT_FILES + LAYOUT_MODEL_FILES + PLAN_FILES,
+    env = LAYOUT_ENV | {"PLAN_DIR": "plans"},
+    deps = [
+        ":layout",
+        ":layout_model",
+        ":layout_plan",
+        ":physics_record",
+        ":physics_run",
+    ],
+)
+
+# The run again, against the committed record (R8 of run 019).
+#   bazel test --config=opt //:physics_run_test --test_output=all
+cc_test(
+    name = "physics_run_test",
+    size = "medium",
+    srcs = ["tests/physics_run_test.cc"],
+    data = LAYOUT_FILES + LAYOUT_MODEL_FILES + PLAN_FILES + PHYSICS_FILES,
+    env = LAYOUT_ENV | {
+        "PLAN_DIR": "plans",
+        "PHYSICS_DIR": "physics",
+    },
+    deps = [
+        ":layout",
+        ":layout_model",
+        ":layout_plan",
+        ":physics_record",
+        ":physics_run",
+        "@googletest//:gtest_main",
+    ],
+)
+# END physics_run
+
+# BEGIN physics_record
+# The committed record of a run in physics, physics/<layout>.json, and the
+# rule by which its steps count (src/physics_record.h).
+cc_library(
+    name = "physics_record",
+    srcs = ["src/physics_record.cc"],
+    hdrs = ["src/physics_record.h"],
+    deps = [
+        ":layout_plan",
+        "@nlohmann_json//:json",
+    ],
+)
+
+# The record's text, the rule, what is checked against a plan, the card's
+# physics_share with and without a record, and every committed record.
+#   bazel test --config=opt //:physics_record_test
+cc_test(
+    name = "physics_record_test",
+    size = "medium",
+    srcs = ["tests/physics_record_test.cc"],
+    data = LAYOUT_FILES + LAYOUT_MODEL_FILES + PLAN_FILES + SCORE_FILES + PHYSICS_FILES,
+    env = LAYOUT_ENV | {
+        "PLAN_DIR": "plans",
+        "SCORES_DIR": "scores",
+        "PHYSICS_DIR": "physics",
+    },
+    deps = [
+        ":layout",
+        ":layout_model",
+        ":layout_plan",
+        ":physics_record",
+        ":scorecard",
+        "@googletest//:gtest_main",
+    ],
+)
+# END physics_record
+
 # BEGIN scorecard
 # The scorecard of a layout: its measures, how each is known, and its gates
 # (src/scorecard.h, docs/scorecard.md).
@@ -2187,6 +2289,7 @@ cc_library(
         ":layout_check",
         ":layout_model",
         ":layout_plan",
+        ":physics_record",
         "@nlohmann_json//:json",
     ],
 )
@@ -2197,10 +2300,11 @@ cc_library(
 cc_binary(
     name = "score_layout",
     srcs = ["src/score_layout.cc"],
-    data = LAYOUT_FILES + LAYOUT_MODEL_FILES + PLAN_FILES + SCORE_FILES,
+    data = LAYOUT_FILES + LAYOUT_MODEL_FILES + PLAN_FILES + SCORE_FILES + PHYSICS_FILES,
     env = LAYOUT_ENV | {
         "PLAN_DIR": "plans",
         "SCORES_DIR": "scores",
+        "PHYSICS_DIR": "physics",
     },
     deps = [":scorecard"],
 )
@@ -2213,15 +2317,17 @@ cc_test(
     name = "scorecard_test",
     size = "medium",
     srcs = ["tests/scorecard_test.cc"],
-    data = LAYOUT_FILES + LAYOUT_MODEL_FILES + PLAN_FILES + SCORE_FILES,
+    data = LAYOUT_FILES + LAYOUT_MODEL_FILES + PLAN_FILES + SCORE_FILES + PHYSICS_FILES,
     env = LAYOUT_ENV | {
         "PLAN_DIR": "plans",
         "SCORES_DIR": "scores",
+        "PHYSICS_DIR": "physics",
     },
     deps = [
         ":layout",
         ":layout_model",
         ":layout_plan",
+        ":physics_record",
         ":scorecard",
         "@googletest//:gtest_main",
     ],
@@ -2233,10 +2339,11 @@ cc_test(
     name = "score_layout_test",
     size = "small",
     srcs = ["tests/score_layout_test.cc"],
-    data = LAYOUT_FILES + LAYOUT_MODEL_FILES + PLAN_FILES + SCORE_FILES,
+    data = LAYOUT_FILES + LAYOUT_MODEL_FILES + PLAN_FILES + SCORE_FILES + PHYSICS_FILES,
     env = LAYOUT_ENV | {
         "PLAN_DIR": "plans",
         "SCORES_DIR": "scores",
+        "PHYSICS_DIR": "physics",
     },
     deps = [
         ":scorecard",

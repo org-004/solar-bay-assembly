@@ -38,9 +38,11 @@ namespace {
 using cell::Arm;
 using cell::ArmFollower;
 using cell::JointLimits;
+using cell::JointSample;
 using cell::JointMove;
 using cell::MoveOptions;
 using cell::ProfileShape;
+using cell::TimedPath;
 using Eigen::Isometry3d;
 using Eigen::Vector3d;
 using Eigen::VectorXd;
@@ -557,6 +559,48 @@ TEST_F(ArmFollowerTest, SuccessiveMovesJoinWithoutAJump) {
   }
   std::printf("largest command change per tick, mrad:%s\n",
               Format(watch.command_step, 1e3).c_str());
+}
+
+// A TimedPath: a motion given as a function of time (src/physics_run.h
+// plays a layout's plan so). The arm swings joints 1 and 4 by 0.3 rad on a
+// smooth bump of 2 s and follows it within a milliradian; a path that does
+// not start at the commanded pose, or has no length, is refused.
+TEST_F(ArmFollowerTest, FollowsATimedPath) {
+  ArmFollower follower(arm_);
+  const double seconds = 2.0;
+  TimedPath path;
+  path.seconds = seconds;
+  path.at = [seconds](double t) {
+    // s(u) = (1 - cos(2 pi u)) / 2: at rest at both ends.
+    const double w = 2.0 * kPi / seconds;
+    const double s = 0.5 * (1.0 - std::cos(w * t));
+    const double ds = 0.5 * w * std::sin(w * t);
+    const double dds = 0.5 * w * w * std::cos(w * t);
+    const VectorXd dir{{0.3, 0, 0, 0.3, 0, 0}};
+    JointSample out;
+    out.position = kHome + dir * s;
+    out.velocity = dir * ds;
+    out.acceleration = dir * dds;
+    out.jerk = VectorXd::Zero(kJoints);
+    return out;
+  };
+  std::string why;
+  TimedPath empty;
+  EXPECT_FALSE(follower.Follow(empty, *data_, &why));
+  TimedPath elsewhere = path;
+  elsewhere.at = [&path](double t) {
+    JointSample s = path.At(t);
+    s.position[2] += 0.01;
+    return s;
+  };
+  EXPECT_FALSE(follower.Follow(elsewhere, *data_, &why));
+  EXPECT_NE(why.find("starts"), std::string::npos) << why;
+  ASSERT_TRUE(follower.Follow(path, *data_, &why)) << why;
+  EXPECT_NEAR(follower.TimeLeft(*data_), seconds, 1e-12);
+  Watch watch = RunPast(follower, 0.5);
+  EXPECT_LT(watch.tracking.maxCoeff(), 1e-3);
+  EXPECT_TRUE(follower.Done(*data_));
+  EXPECT_LT((JointAngles(arm_, *data_) - kHome).cwiseAbs().maxCoeff(), 1e-3);
 }
 
 TEST_F(ArmFollowerTest, MoveToWhileMovingIsRefusedAndTheMoveCarriesOn) {
