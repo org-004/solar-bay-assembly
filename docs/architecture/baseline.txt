@@ -16,7 +16,7 @@ P4 26 outside dependencies in MODULE.bazel (bazel_dep, fetches, use_repo names, 
 P4.unpinned 0 of them not pinned by a version, a commit, an integrity or a sha256
 P4.mujoco 68 targets that list @mujoco directly (may not grow)
 P4.eigen 79 targets that list @eigen directly (may not grow)
-P4.googletest 50 targets that list @googletest directly (may not grow)
+P4.googletest 51 targets that list @googletest directly (may not grow)
 P4.nlohmann_json 6 targets that list @nlohmann_json directly (may not grow)
 P4.ompl 1 targets that list @ompl directly (may not grow)
 P4.glfw 1 targets that list @glfw directly (may not grow)
