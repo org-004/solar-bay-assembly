@@ -1,0 +1,472 @@
+{
+  "about": "The versions of the cell, oldest first. Written by tools/evolution/add.sh and by hand for the history; read by //:scorecard_test, //:versions_test and tools/evolution/pages.py. docs/scorecard.md explains every field.",
+  "directions": [
+    {
+      "id": "stand-in-cell",
+      "title": "A stand-in cell: one KUKA arm picking modules in physics",
+      "description": "One KUKA KR 210 arm with a suction tool picks solar modules from a tilted pallet and sets them on a torque tube that a conveyor steps along, all in MuJoCo physics. Perception, motion planning and control are written in C++ for it. A depth camera finds the front module, a planned carry takes it to the other side, and a second camera checks how the module sits on the tool and corrects the placement. A gate in the tests runs whole pallets with randomized offsets and fails if a module lands out of tolerance. Its figures are measured in simulation runs.",
+      "limits": "It is another cell: ten slots of a square tube, not the real parts of a bay. The simulation is kinder than a real cell: the grip never slips, the module is rigid, and the motor and camera noise figures are estimates."
+    },
+    {
+      "id": "one-40ft-flat-rack",
+      "title": "One 40 ft base: the cell on the real parts",
+      "description": "The cell is rebuilt on the real parts of a tracker bay, a round torque tube, rails, modules and their fastenings, on one 40 ft base. In run 011 the base is a container with both long sides open; it later becomes a flat rack. The work is kinematic: layouts are written as data and checked by a program for transport, reach, clearance, load, the ways in and out, and time. The figures are planned or come from a time model, and no controller or cycle runs in physics yet.",
+      "limits": "The base may carry 13,608 kg in transit (30,000 lb), and the arms, tracks, tools and bay have to fit within it. Times come from a time model, not from a run in physics."
+    },
+    {
+      "id": "two-20ft-flat-racks",
+      "title": "Two 20 ft flat racks side by side",
+      "description": "Two 20 ft flat racks stand side by side on their long sides, about 25 mm apart. Each has its own transport limit of 13,608 kg (30,000 lb) and is structurally separate, but the two work as one cell and arms may reach across the gap. The torque tube is worked in sections, because a tube of 30 ft or more does not fit whole. Units at the infeed and the outfeed stage the tube.",
+      "limits": "Each rack carries at most 13,608 kg (30,000 lb) in transit, so the mass of the cell has to be split between them. No version of this direction exists yet."
+    }
+  ],
+  "versions": [
+    {
+      "id": "v01",
+      "date": "2026-11-19",
+      "commit": "83970cc",
+      "title": "A blind pick and place",
+      "direction": "stand-in-cell",
+      "status": "superseded",
+      "changed": "The first cell: a KUKA KR 210 arm with a suction tool, a tilted pallet of 30 modules, a conveyor with a torque tube, and one depth camera. The cycle runs from a script that assumes the pallet is exactly where the drawing says.",
+      "why": "To have a whole cycle running in physics, scored by placement error and cycle time, before any perception was added.",
+      "recording": "docs/evolution/v01.gif",
+      "recording_source": {
+        "path": "docs/blind_vs_camera.gif",
+        "added_at": "52f5818",
+        "shows": "The same offset pallet without and with the camera; blind, the tool meets the glass 9 mm early and the cycle stops."
+      },
+      "figures": [
+        {
+          "name": "arms",
+          "value": 1,
+          "unit": "arms",
+          "known": "counted",
+          "source": "README.md at 83970cc, Status, The cell: a KUKA KR 210 R2700-2 with a suction tool"
+        },
+        {
+          "name": "cycle_s",
+          "value": 25,
+          "unit": "s per module",
+          "known": "measured",
+          "source": "README.md at 83970cc, Status, The cycle: \"a cycle takes about 25 simulated seconds\"; `bazel run //:run_cell -- --pretty --nominal --modules 2`"
+        },
+        {
+          "name": "placement_mm",
+          "value": 0.1,
+          "unit": "mm",
+          "known": "measured",
+          "source": "README.md at 83970cc, Status: with the pallet exactly where the script assumes, a module lands within 0.1 mm of its slot, for all 30 modules; `bazel run //:run_cell -- --pretty --nominal --modules 2`"
+        },
+        {
+          "name": "placed_at_5mm_0.3deg",
+          "value": 8,
+          "unit": "of 10 trials",
+          "known": "measured",
+          "source": "README.md at 83970cc, Status: with the pallet set down 5 mm and 0.3 degrees off, 8 of 10 trials placed; run_cell flags `--trials`, `--xy`, `--yaw`"
+        },
+        {
+          "name": "placed_at_30mm_3deg",
+          "value": 0,
+          "unit": "of 10 trials",
+          "known": "measured",
+          "source": "README.md at 83970cc, Status: with the pallet up to 30 mm and 3 degrees off, none of 10 trials placed a module; run_cell flags `--trials`, `--xy`, `--yaw`"
+        }
+      ]
+    },
+    {
+      "id": "v02",
+      "date": "2026-11-20",
+      "commit": "a2f4e85",
+      "title": "Picks from the camera's pose",
+      "direction": "stand-in-cell",
+      "status": "superseded",
+      "changed": "One depth picture per pick gives the front module's pose, and the pick is built from it. The module finder fits the glass plane and the module's outline in the picture, with a noise model on the depth image.",
+      "why": "The blind script failed on every pallet set down 30 mm and 3 degrees off, so the pick had to follow where the module really is.",
+      "recording": "docs/evolution/v02.gif",
+      "recording_source": {
+        "path": "docs/pick.gif",
+        "added_at": "52f5818",
+        "shows": "The pick on a pallet set down 2.9 degrees and 32 mm off: approach, touch, grip, lift along the glass, pull back, clear."
+      },
+      "figures": [
+        {
+          "name": "arms",
+          "value": 1,
+          "unit": "arms",
+          "known": "counted",
+          "source": "README.md at a2f4e85, Status, The cell: a KUKA KR 210 R2700-2 with a suction tool"
+        },
+        {
+          "name": "cycle_s",
+          "value": 25.9,
+          "unit": "s per module",
+          "known": "measured",
+          "source": "README.md at a2f4e85, Status: a whole pallet of 30 placed onto three tubes, 25.9 s a cycle on average (the README also says about 25 s); the README gives no command for the pallet run"
+        },
+        {
+          "name": "placement_mm",
+          "value": 0.6,
+          "unit": "mm",
+          "known": "measured",
+          "source": "README.md at a2f4e85, Status: over 20 pallets, worst 0.13 mm along the tube and 0.60 mm across it; `bazel run --config=opt //:run_cell -- --pretty --trials 20`"
+        },
+        {
+          "name": "placement_deg",
+          "value": 0.012,
+          "unit": "deg",
+          "known": "measured",
+          "source": "README.md at a2f4e85, Status: over 20 pallets, worst 0.012 degrees; `bazel run --config=opt //:run_cell -- --pretty --trials 20`"
+        },
+        {
+          "name": "input_tolerance",
+          "value": 30,
+          "unit": "mm (and 3 deg)",
+          "known": "measured",
+          "source": "README.md at a2f4e85, Status: pallets set down up to 30 mm and 3 degrees off, with noisy pictures; `bazel run --config=opt //:run_cell -- --pretty --trials 20`"
+        },
+        {
+          "name": "modules_placed",
+          "value": 20,
+          "unit": "of 20",
+          "known": "measured",
+          "source": "README.md at a2f4e85, Status: 20 of 20 modules placed; `bazel run --config=opt //:run_cell -- --pretty --trials 20`"
+        }
+      ]
+    },
+    {
+      "id": "v03",
+      "date": "2026-11-20",
+      "commit": "69b9087",
+      "title": "The check after pickup corrects the placement",
+      "direction": "stand-in-cell",
+      "status": "superseded",
+      "changed": "With `--check` the planned carry passes over a second depth camera looking up. The arm holds still, the camera finds the module's underside, and the set-down is corrected so that the module, not the tool, lands on the slot. The carry is planned and the cycle can use it with `--carry planned`.",
+      "why": "A camera calibration that is off is frozen in at the grip and goes straight into the placement, and the script cannot see that error.",
+      "recording": "docs/evolution/v03.gif",
+      "recording_source": {
+        "path": "docs/check.gif",
+        "added_at": "52f5818",
+        "shows": "The second module held over the check camera, then set down beside the first."
+      },
+      "figures": [
+        {
+          "name": "arms",
+          "value": 1,
+          "unit": "arms",
+          "known": "counted",
+          "source": "README.md at 69b9087, Status, The cell: a KUKA KR 210 R2700-2 with a suction tool"
+        },
+        {
+          "name": "cycle_s",
+          "value": 23.9,
+          "unit": "s per module",
+          "known": "measured",
+          "source": "README.md at 69b9087, Planning: over a whole pallet a cycle takes 23.9 s with the planned carry, against 25.9 s hand-chosen; `bazel run --config=opt //:run_cell -- --pretty --trials 20 --carry planned`. This is without the check"
+        },
+        {
+          "name": "check_cost_s",
+          "value": 0.6,
+          "unit": "s per module",
+          "known": "measured",
+          "source": "Commit message of 69b9087 (the README at that commit does not yet say the cycle uses the check): the check costs 0.6 s a cycle more; `--check`"
+        },
+        {
+          "name": "placement_mm",
+          "value": 0.28,
+          "unit": "mm",
+          "known": "measured",
+          "source": "Commit message of 69b9087: pallet camera's calibration off by 1 mm and 0.05 degrees, 20 pallets, worst placement 0.28 mm with the check; `--check --calibration 1,0.05`"
+        },
+        {
+          "name": "placement_mm_without_check",
+          "value": 4.0,
+          "unit": "mm",
+          "known": "measured",
+          "source": "Commit message of 69b9087: the same 20 pallets, worst placement 4.00 mm without the check; README.md at 69b9087, Status, gives 2.7 mm along and 4.0 mm across: `bazel run --config=opt //:run_cell -- --pretty --trials 20 --calibration 1,0.05`"
+        },
+        {
+          "name": "input_tolerance",
+          "value": 30,
+          "unit": "mm (and 3 deg)",
+          "known": "measured",
+          "source": "README.md at 69b9087, Status: pallets set down up to 30 mm and 3 degrees off, 20 of 20 modules placed; `bazel run --config=opt //:run_cell -- --pretty --trials 20`"
+        }
+      ]
+    },
+    {
+      "id": "v04",
+      "date": "2026-11-20",
+      "commit": "dd03149",
+      "title": "Whole pallets in tolerance: the gate",
+      "direction": "stand-in-cell",
+      "status": "superseded",
+      "changed": "A test, the gate, runs eight whole pallets of 30 modules with the planned carry and the check, with noisy pictures and both cameras' calibrations off by 1 mm and 0.05 degrees. It fails if any module is not placed or lands more than 3 mm or 0.15 degrees from its slot, and it saves every failure with the command that reruns it.",
+      "why": "Single trials had shown the cycle worked, but nothing stopped a later change from breaking it, so whole pallets in tolerance became a condition of the tests.",
+      "recording": "docs/evolution/v04.gif",
+      "recording_source": {
+        "path": "docs/cycle.gif",
+        "added_at": "dd03149",
+        "shows": "One cycle at twice real speed: the camera finds the front module, the arm grips it and lifts it off the stack, carries it over the check camera and sets it on the rails, with the pallet 26 mm and 1.25 degrees off (README.md at dd03149)."
+      },
+      "figures": [
+        {
+          "name": "arms",
+          "value": 1,
+          "unit": "arms",
+          "known": "counted",
+          "source": "README.md at dd03149, Status, The cell: a KUKA KR 210 R2700-2 with a suction tool"
+        },
+        {
+          "name": "modules_in_tolerance",
+          "value": 240,
+          "unit": "of 240",
+          "known": "measured",
+          "source": "README.md at dd03149, The gate: all 240 in tolerance; docs/gate.md at dd03149 (measured at 69b9087 plus this stage): `bazel test --config=opt //:gate_test`"
+        },
+        {
+          "name": "placement_mm",
+          "value": 1.95,
+          "unit": "mm",
+          "known": "measured",
+          "source": "README.md at dd03149, The gate: worst 1.95 mm; docs/gate.md at dd03149, worst position in the rails' plane (seed 4, module 6); `bazel test --config=opt //:gate_test`"
+        },
+        {
+          "name": "placement_deg",
+          "value": 0.059,
+          "unit": "deg",
+          "known": "measured",
+          "source": "README.md at dd03149, The gate: worst 0.059 degrees; `bazel test --config=opt //:gate_test`"
+        },
+        {
+          "name": "gate_tolerance_mm",
+          "value": 3,
+          "unit": "mm (and 0.15 deg)",
+          "known": "assumed",
+          "source": "docs/gate.md at dd03149, The tolerance: an assumption chosen by the project owner, not a tracker maker's figure"
+        },
+        {
+          "name": "cycle_s",
+          "value": 23.9,
+          "unit": "s per module",
+          "known": "measured",
+          "source": "README.md at dd03149, Planning: a cycle 23.9 s with the planned carry, without the check (the check costs 0.6 s more per README at 69b9087 commit message); `bazel run --config=opt //:run_cell -- --pretty --trials 20 --carry planned`"
+        }
+      ]
+    },
+    {
+      "id": "v05",
+      "date": "2026-11-24",
+      "commit": "1213319",
+      "title": "The real parts of a bay and the container, as models",
+      "direction": "one-40ft-flat-rack",
+      "status": "superseded",
+      "changed": "The real parts of one bay of a single-axis tracker, after Nextracker's NX Horizon, are written down in docs/bay-hardware.md and built as models: a round torque tube with 11 rails, 10 modules and 51 fastening points. A 40 ft container with both long sides open is modelled with the figures that decide whether a bay fits and passes out. The cell itself does not change and still uses its old square tube.",
+      "why": "The stand-in cell used a square tube and ten slots, so the next step needed the real parts of a bay and a container to work in, with each figure marked published, derived or ours.",
+      "recording": "docs/evolution/v05.png",
+      "recording_source": {
+        "path": "docs/img/container.png",
+        "added_at": "1213319",
+        "shows": "The 40 ft container in its working state with a bay passing out through one open side."
+      },
+      "figures": [
+        {
+          "name": "modules_per_bay",
+          "value": 10,
+          "unit": "modules",
+          "known": "assumed",
+          "source": "docs/bay-hardware.md at 1213319, The bay (marked ours): 10 modules, the largest whose bay is no longer than 11.8 m"
+        },
+        {
+          "name": "bay_mass_kg",
+          "value": 455.3,
+          "unit": "kg",
+          "known": "derived",
+          "source": "docs/bay-hardware.md at 1213319, The bay (derived: tube 105.42 + 11 rails x 2.35 + 10 modules x 32.4): `bazel run --config=opt //:print_bay -- --summary`"
+        },
+        {
+          "name": "bay_length_mm",
+          "value": 11760,
+          "unit": "mm",
+          "known": "derived",
+          "source": "docs/bay-hardware.md at 1213319, The bay: tube as shipped, 11,760 mm (derived)"
+        },
+        {
+          "name": "fastenings",
+          "value": 51,
+          "unit": "points",
+          "known": "counted",
+          "source": "docs/bay-hardware.md at 1213319, The bay: 11 rail to tube plus 40 module to rail, named sites in models/bay.xml; `bazel run --config=opt //:print_bay -- --summary`"
+        },
+        {
+          "name": "container_gross_kg",
+          "value": 23800,
+          "unit": "kg",
+          "known": "assumed",
+          "source": "docs/bay-hardware.md at 1213319, The container this project assumes: gross mass for transport 23,800 kg, tare 6,600 kg (both marked ours)"
+        },
+        {
+          "name": "mass_left_for_cell_kg",
+          "value": 17200,
+          "unit": "kg",
+          "known": "derived",
+          "source": "docs/bay-hardware.md at 1213319, The container this project assumes: 23,800 - 6,600 (derived)"
+        }
+      ]
+    },
+    {
+      "id": "v06",
+      "date": "2026-11-25",
+      "commit": "68a1199",
+      "title": "A bay of nine modules and a checked layout in a 40 ft container",
+      "direction": "one-40ft-flat-rack",
+      "status": "superseded",
+      "changed": "A bay becomes nine modules and ten rails, so the section is 10.616 m long with 46 fastenings. A layout is one JSON file, and a program checks it for transport, reach, clearance, load, the ways in and out, and time. Five layouts are compared in docs/layout.md and below_rails_by_module_arm is chosen: a KUKA KR 210 on a track sets rails and modules, and a UR10e on a floor track bolts, locates and pins.",
+      "why": "The container could not take a bay of ten modules with room to work, and the cell needed a layout whose reach, clearance and load were checked before anything was built.",
+      "recording": "docs/evolution/v06.png",
+      "recording_source": {
+        "path": "docs/img/layout_cell.png",
+        "added_at": "68a1199",
+        "shows": "The chosen layout with a finished bay on the tube, both arms waiting inside the container."
+      },
+      "figures": [
+        {
+          "name": "cycle_s",
+          "value": 628.5,
+          "unit": "s per bay",
+          "known": "modelled",
+          "source": "docs/layout.md at 68a1199, comparison table, Time for a bay, below_rails_by_module_arm, from the time model whose process times are marked ours; `bazel run --config=opt //:check_layout -- below_rails_by_module_arm`"
+        },
+        {
+          "name": "arms",
+          "value": 2,
+          "unit": "arms",
+          "known": "counted",
+          "source": "docs/layout.md at 68a1199, comparison table, Arms: one KUKA KR 210 R2700-2 and one UR10e, both on floor tracks"
+        },
+        {
+          "name": "bay_mass_kg",
+          "value": 410.3,
+          "unit": "kg",
+          "known": "derived",
+          "source": "docs/bay-hardware.md at 68a1199, The bay: tube 95.16 + 10 rails x 2.35 + 9 modules x 32.4 (derived); `bazel run --config=opt //:print_bay -- --summary`"
+        },
+        {
+          "name": "mass_in_transit_kg",
+          "value": 3227.3,
+          "unit": "kg",
+          "known": "counted",
+          "source": "docs/layout.md at 68a1199, comparison table, Mass that travels inside, of 17,200 kg: arms 1110, tracks 1850, tools 47.0, holder 220; `bazel run --config=opt //:check_layout -- below_rails_by_module_arm`. No stocks travelled inside at that commit, so the whole row is mass in transit by the owner's definition"
+        },
+        {
+          "name": "reach_rows_passed",
+          "value": 186,
+          "unit": "of 186",
+          "known": "counted",
+          "source": "docs/layout.md at 68a1199, comparison table, reach; kinematic check, not a physics run: `bazel run --config=opt //:check_layout -- below_rails_by_module_arm --summary`"
+        },
+        {
+          "name": "clearance_rows_passed",
+          "value": 270,
+          "unit": "of 270",
+          "known": "counted",
+          "source": "docs/layout.md at 68a1199, comparison table, clearance, tightest 0.0003 m; `bazel run --config=opt //:check_layout -- below_rails_by_module_arm --summary`"
+        }
+      ]
+    },
+    {
+      "id": "v07",
+      "date": "2026-11-25",
+      "commit": "940a01b",
+      "title": "One pin arm on the flat rack",
+      "direction": "one-40ft-flat-rack",
+      "status": "candidate",
+      "changed": "The cell moves onto the base of a 40 ft flat rack with one KUKA KR 210 for rails and modules and a single UR10e that bolts, locates, pins and swages every hole. The bay was planned whole, but its plan was not committed.",
+      "why": "The fewest arms that can build a bay, compared with two and three pin arms to see how much each extra arm buys in cycle time.",
+      "recording": "docs/evolution/v07.png",
+      "competed_with": "v09",
+      "layout": {
+        "path": "layouts/flat_rack_1_pin_arm.json",
+        "sha256": "6d1c7b4476efeb1c22a8789e02c2b83e7bb5c812ef00a239ea56302fe0a5e4f5"
+      },
+      "figures": [
+        {
+          "name": "cycle_s",
+          "value": 907.34,
+          "unit": "s per bay",
+          "known": "planned",
+          "source": "docs/flat-rack-cell.md at 940a01b, How many pin arms (R12), Bay planned (derived; its plan is not committed, so no scorecard)"
+        },
+        {
+          "name": "bay_model_s",
+          "value": 633.13,
+          "unit": "s per bay",
+          "known": "modelled",
+          "source": "docs/flat-rack-cell.md at 940a01b, How many pin arms (R12), Bay by the time model"
+        },
+        {
+          "name": "arms",
+          "value": 2,
+          "unit": "arms",
+          "known": "counted",
+          "source": "docs/flat-rack-cell.md at 940a01b, How many pin arms (R12), Arms"
+        },
+        {
+          "name": "least_clearance_m",
+          "value": 0.0179,
+          "unit": "m",
+          "known": "planned",
+          "source": "docs/flat-rack-cell.md at 940a01b, How many pin arms (R12), Least clearance over the schedule"
+        },
+        {
+          "name": "check_rows_passed",
+          "value": 911,
+          "unit": "of 911",
+          "known": "counted",
+          "source": "docs/flat-rack-cell.md at 940a01b, How many pin arms (R12), Rows passed (all); `bazel run --config=opt //:check_layout -- flat_rack_1_pin_arm --summary`"
+        }
+      ]
+    },
+    {
+      "id": "v08",
+      "date": "2026-11-25",
+      "commit": "940a01b",
+      "title": "Two pin arms on the flat rack",
+      "direction": "one-40ft-flat-rack",
+      "status": "candidate",
+      "changed": "The same flat rack cell with two UR10e pin arms below the bay, which share the modules 0-4 and 5-8. Its bay was planned whole and the plan is committed.",
+      "why": "The middle of three pin-arm counts compared for the flat rack: within 10 percent of three arms' planned bay, but its least clearance over the schedule, 0.0179 m, is not larger than three arms' 0.0181 m, so it was not chosen.",
+      "recording": "docs/evolution/v08.gif",
+      "competed_with": "v09",
+      "layout": {
+        "path": "layouts/flat_rack_2_pin_arms.json",
+        "sha256": "d6186f393828cac23e669c5a368e81455f83525c52a9bab16aa6b1d5a237deca"
+      },
+      "plan": {
+        "path": "plans/flat_rack_2_pin_arms.json",
+        "sha256": "9008bbae403eb6aa2c0cc2e4c80e6ce5162bf7aac93a585fcd93924e3da56278"
+      },
+      "scores": "scores/flat_rack_2_pin_arms.json"
+    },
+    {
+      "id": "v09",
+      "date": "2026-11-25",
+      "commit": "940a01b",
+      "title": "Three pin arms on the flat rack: a whole bay planned",
+      "direction": "one-40ft-flat-rack",
+      "status": "chosen",
+      "changed": "The cell stands on the base of a 40 ft flat rack: one KUKA KR 210 on a track sets the ten rails and nine modules, and three UR10e on tracks below the bay drive the strap bolts and locate, pin and swage the modules. Every move of every arm for one bay is planned free of collision, the four arms are scheduled on one clock, and the plan is verified and committed.",
+      "why": "The owner allowed the first cell to stand on a flat rack with up to three pin arms. Of one, two and three pin arms, three gave the shortest planned bay, 644.28 s against 700.08 s and 907.34 s, with the same tightest clearance at a pose.",
+      "recording": "docs/evolution/v09.gif",
+      "layout": {
+        "path": "layouts/flat_rack_3_pin_arms.json",
+        "sha256": "41247743a71c0f9f9595eb77e6f3737e67cfa6929988e0f19b5cc03b4813abf6"
+      },
+      "plan": {
+        "path": "plans/flat_rack_3_pin_arms.json",
+        "sha256": "9fa5e7cb73837e7a2a9a03b6117cf6d9f9e9062425deb3cbd3b8fb14eddf697d"
+      },
+      "scores": "scores/flat_rack_3_pin_arms.json"
+    }
+  ]
+}

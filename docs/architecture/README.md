@@ -18,7 +18,7 @@ breaking behavior". Read `AGENTS.md` first; its rules apply to everything below.
 
 The scripts are in `tools/architecture/`: `measure.sh` (the figures, in two seconds,
 no Bazel), `behavior.sh` (capture and compare), `warnings.sh` and `tidy.sh` (the
-guardrails' counts), `ci.sh` (what CI runs), and `deps.json`, the rules as data.
+guardrails' counts), `ci.sh` (what CI runs: the first and the last, then `tools/evolution/pages.py check`), and `deps.json`, the rules as data.
 
 ## The procedure for one item
 
@@ -126,7 +126,7 @@ commit (`AGENTS.md`, "Rules").
 | Compiler flags that are errors | every build | nothing extra | one of the `-Werror=` flags of `.bazelrc` fires (ADR 0014) |
 | Compiler flags that are counted | `tools/architecture/warnings.sh --check` | about 2 minutes | a flag of `--config=strict` finds more places than its `W` line |
 | Static analysis | `tools/architecture/tidy.sh` | about 9 minutes at three jobs; needs `clang-tidy-18` | a check under `WarningsAsErrors` fires, or a check finds more places than its `T` line (ADR 0015) |
-| Both of the first and the last, as CI runs them | `tools/architecture/ci.sh` | about 10 minutes | either fails |
+| The first, the last and the pages, as CI runs them | `tools/architecture/ci.sh` | about 10 minutes | any of the three fails; the third is `python3 tools/evolution/pages.py check`: a direction page or the README's results differs from what the program writes (ADR 0023) |
 | Behavior | `tools/architecture/behavior.sh capture`, `compare` | `behavior.md` | a program prints other bytes, or a test's result changes |
 
 A finding is cured in the code, never silenced (P9). A count that reaches 0 moves

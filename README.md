@@ -1,83 +1,122 @@
 # solar-bay-assembly
 
-A simulated factory cell that is to take in bolts, rails, torque tubes and solar
-modules and put out an assembled bay. What exists today is one step of that: a
-6-axis KUKA arm with a suction tool moves solar modules from a pallet onto the
-rails of a torque tube. Perception, motion planning and control are
-hand-written in C++ against MuJoCo.
+A simulated robot cell that is to take in bolts, rails, torque tubes and solar modules and
+put out an assembled bay of nine modules, as simple as it can be and transportable on a
+flat rack by truck. The owner steers it by ranked measures: cycle time and expected
+failures per bay first, then part count and placement error, then mass in transit and the
+error of the infed parts that the cell tolerates. `score_layout` prints them for every
+layout, and [`docs/scorecard.md`](docs/scorecard.md) defines each one.
 
-![One cycle in the simulated cell, at twice real speed](docs/cycle.gif)
+## Results
 
-One cycle at twice real speed: the camera finds the front module, the arm
-grips it and lifts it off the stack, holds it over the check camera on the
-floor, and sets it on the rails. The pallet here was set down 26 mm and
-1.25 degrees off, and the pallet camera's calibration is off by 1 mm and
-0.05 degrees.
+<!-- BEGIN results: written by tools/evolution/pages.py; do not edit -->
 
-![Ten modules fill a tube](docs/pallet.gif)
+### A stand-in cell: one KUKA arm picking modules in physics
 
-Ten modules fill a tube, at 7.5 times real speed. The tube steps along after
-each one.
+![v04  2026-11-20  Whole pallets in tolerance: the gate; cycle 23.90 s per module (measured), 1 arm](docs/evolution/v04.gif)
 
-## Task
+| Version | Cycle time | Failures per bay | Arms | Part count | Placement error | Mass in transit | Gates |
+|---|---|---|---|---|---|---|---|
+| v04 | 23.90 s per module (measured) | none | 1 | none | 1.95 mm (measured) | none | none |
 
-1. **Pick.** Modules stand on edge on the pallet, side by side, with their
-   weight on their frames. The pallet is tilted slightly so they lean back.
-   The arm finds the front module from a depth image and grips its face. The
-   pallet's pose is uncertain and the front face moves back after every pick.
-2. **Transfer.** The arm carries the module to the other side of itself,
-   turning it from near-vertical to flat, along a path that keeps the arm and
-   the module clear of the stack, the pallet and the conveyor.
-3. **Place.** The arm sets the module flat on rails already mounted on a
-   torque tube and releases it.
-4. **Index.** The torque tube lies on a conveyor, which moves it along so the
-   next module goes down in the same spot.
+[A stand-in cell: one KUKA arm picking modules in physics: progress and versions](docs/directions/stand-in-cell.md)
 
-The result is a placement error and a cycle time over randomized trials.
+### One 40 ft base: the cell on the real parts
 
-## Building
+![v09  2026-11-25  Three pin arms on the flat rack: a whole bay planned; cycle 644.28 s per bay (planned), 4 arms](docs/evolution/v09.gif)
 
-The build tool is Bazel, run through Bazelisk, which fetches the version named
-in `.bazelversion`. Dependencies are fetched on the first build, which compiles
-MuJoCo from source and takes several minutes.
+| Version | Cycle time | Failures per bay | Arms | Part count | Placement error | Mass in transit | Gates |
+|---|---|---|---|---|---|---|---|
+| v09 | 644.28 s per bay (planned) | 0.385 | 4 | 39 | none | 3426.3 kg | all 3 pass |
+
+[One 40 ft base: the cell on the real parts: progress and versions](docs/directions/one-40ft-flat-rack.md)
+
+### Two 20 ft flat racks side by side
+
+No version yet.
+
+[Two 20 ft flat racks side by side: progress and versions](docs/directions/two-20ft-flat-racks.md)
+
+<!-- END results -->
+
+## The technology
+
+**Perception.** The stand-in cell finds a module from a depth image. A depth camera 4 m up
+casts one ray per pixel, with an optional noise model; the finder turns the image into 3D
+points, fits the plane of the front glass and then the module's outline
+(`src/plane_fit.h`, `src/rectangle_fit.h`, `src/module_finder.h`). Over 100 pictures of
+pallets set down up to 30 mm and 3 degrees off, the found pose was never more than 0.8 mm
+or 0.03 degrees from the true one. A second camera on the floor, the check camera, looks
+up at the held module and corrects the set-down for any error frozen in at the grip.
+Pictures and the figures are in [`docs/stand-in-cell.md`](docs/stand-in-cell.md).
+
+![The pallet camera's depth image and the glass points](docs/img/pallet_depth.png)
+
+![The pick, close up](docs/pick.gif)
+
+**Motion planning.** Planning is RRT-Connect with path shortening, written here
+(`src/rrt.h`, `src/motion_planner.h`), over a collision test that counts the carried module
+as part of the arm, and a timing step that follows a path of waypoints without stopping at
+each (`src/path_timing.h`). OMPL's RRT-Connect is behind a switch (`--planner ompl`); the
+hand-written search is the default. The comparison, by a rule fixed before the numbers
+existed, reads "Verdict: hand-written better"
+([`docs/ompl-comparison.md`](docs/ompl-comparison.md)).
+
+![Planned carry against the hand-chosen one](docs/img/carry.png)
+
+**The layout checker.** A layout of the cell is data (`layouts/<name>.json`), and
+`check_layout` checks it for transport, hold, reach, clearance, load, ways in and out, time,
+what is allowed, ports and approaches. The five layouts of the closed container are kept as
+a record ([`docs/layout.md`](docs/layout.md)); the chosen one stands on a 40 ft flat rack
+([`docs/flat-rack-cell.md`](docs/flat-rack-cell.md)).
+
+![A layout in the viewer](docs/img/layout_cell.png)
+
+**The planner and scheduler of a bay.** `plan_layout` plans every move of every arm for one
+bay of the chosen layout, `flat_rack_3_pin_arms`, free of collision, and schedules the four
+arms on one clock. A verifier checks the schedule, and the plan is committed (`plans/`),
+replayed and checked by a test, and played back in the viewer. A bay takes 644.28 s planned
+and 416.32 s by the time model ([`docs/flat-rack-cell.md`](docs/flat-rack-cell.md)).
+
+![The whole bay as planned motion, 16 times real time](docs/bay_planned.gif)
+
+**Physics.** The simulator is MuJoCo 4.0.0. The stand-in cell runs in physics with its
+cameras, and a gate runs eight whole pallets (240 modules) in it and fails if one is not
+placed within 3 mm and 0.15 degrees ([`docs/gate.md`](docs/gate.md)). The flat rack cell is
+kinematic and not yet run in physics: that is why `physics_share` is 0 and why the
+failures are modelled. One part of it has a physics test, the locating nose that pulls a
+module's holes into line before pinning (`tests/locate_physics_test.cc`,
+[`docs/bay-hardware.md`](docs/bay-hardware.md)).
+
+## Building and running
+
+The build tool is Bazel, run through Bazelisk, which fetches the version named in
+`.bazelversion`. Dependencies are fetched on the first build, which compiles MuJoCo from
+source and takes several minutes. Always `--config=opt` (`AGENTS.md` says why):
 
 ```
-bazel test //...             # build everything and run the tests
-bazel run //:run_cell -- --pretty --nominal --modules 2
-                             # pick and place two modules, print the scores
-bazel run //:view_cell -- --nominal
-                             # the same in a window; needs a display
-bazel run //:viewer_cell     # the cell at rest in a window
+bazel test --config=opt //...
 ```
 
-`run_cell` takes `--seed N`, `--trials T`, `--modules M`, `--nominal` (pallet
-exactly where the script assumes), `--xy MM` and `--yaw DEG` (how far off the
-pallet may be set down), `--phases` (time and result of every step) and
-`--pretty` (aligned table; CSV without it).
-
-In a viewer window: left drag rotates, right drag moves, scroll zooms, Space
-pauses, S steps while paused, `[` and `]` change camera, Backspace starts
-again, Escape quits.
-
-Smaller programs, each for one part:
+The programs, each run as `bazel run --config=opt //:<program> -- <arguments>`:
 
 ```
-bazel run //:print_profile     # a trapezoid and an S-curve as CSV
-bazel run //:print_plane_fit   # plane-fit error over made-up pallet views
-bazel run //:print_points      # one made-up pallet view as CSV
-bazel run //:print_cell        # what is in the cell, contacts, speed
-bazel run //:print_depth       # one depth image from the cell's camera
-bazel run //:print_perception  # found module pose against the true one
-bazel run //:print_plan        # planned carries: time, length, clearance
-bazel run //:print_rrt         # the planner on a 2D toy world, as CSV
-bazel run //:print_pallet      # how still the untouched stack stands
-bazel run //:viewer_arm        # also _pallet, _conveyor, _suction
+bazel run --config=opt //:score_layout -- flat_rack_3_pin_arms   # a layout's scorecard; -- --all for every layout
+bazel run --config=opt //:check_layout -- --list                 # the checks of a layout (-- <name>)
+bazel run --config=opt //:plan_layout -- flat_rack_3_pin_arms --summary
+                                                                 # the planned bay, phase by phase
+bazel run --config=opt //:viewer_layout -- flat_rack_3_pin_arms --play
+                                                                 # the committed plan in a window; needs a display
+bazel run --config=opt //:run_cell -- --pretty --nominal --modules 2
+                                                                 # the stand-in cell: pick and place, print the scores
+bazel run --config=opt //:view_cell -- --nominal                 # the same in a window; needs a display
+bazel run --config=opt //:print_perception -- --pretty           # also print_profile, print_plane_fit, print_points,
+                                                                 # print_cell, print_depth, print_plan, print_check, print_rrt,
+                                                                 # print_pallet, print_bay
 ```
 
-Add `-- --pretty` to `print_profile`, `print_plane_fit`, `print_perception`
-and `print_plan` for an aligned table. For speed
-measurements build optimized with `--config=opt`; plain `-c opt` fails inside
-MuJoCo's own code.
+The stand-in cell's options and the other programs are in
+[`docs/stand-in-cell.md`](docs/stand-in-cell.md).
 
 ## Layout
 
@@ -86,234 +125,24 @@ MuJoCo's own code.
 | `MODULE.bazel` | External dependencies |
 | `BUILD.bazel` | Build targets |
 | `bazel/` | Build rules written for this repository |
-| `models/` | The cell as MuJoCo model files: arm, tool, pallet, conveyor, camera |
+| `models/` | The cells as MuJoCo model files: arm, tool, pallet, conveyor, camera, the bay's parts, the container and the flat rack |
 | `src/` | Programs and libraries |
 | `tests/` | Tests |
-| `tools/` | Scripts that make the README's plots and recordings, and under `tools/architecture/` the scripts that measure the design principles, capture behavior and run the checks |
-| `docs/` | The gate's description, pictures and recordings; the design principles and the backlog (`docs/architecture/`), the decision records (`docs/adr/`) |
+| `layouts/` | The layouts of the new cell, as data, one file each |
+| `plans/` | The committed motion plan of a layout's bay, one file each |
+| `scores/` | The committed scorecard of each layout with a plan, and `rates.json`, the rates of failure by kind of operation |
+| `versions/` | `versions.json`, the registry of versions of the cell |
+| `tools/` | Scripts that make the plots and recordings, under `tools/architecture/` the scripts that measure the design principles, capture behavior and run the checks, and under `tools/evolution/` the scripts that add a version and write the pages |
+| `docs/` | The scorecard, the stand-in cell, the designs, the gate's description, pictures and recordings; the pages of the research directions (`docs/directions/`); the design principles and the backlog (`docs/architecture/`), the decision records (`docs/adr/`) |
 
 The world frame has its origin on the floor under the arm's base, +Z up, +X
 toward the pallet and the conveyor on the -X side. Lengths are metres, angles
 radians.
 
-## Status
+## Where the rest went
 
-![The cell at rest](docs/img/cell.png)
-
-
-The cell exists and the cycle picks each module from where the camera sees
-it, and can carry it to the other side along a planned path.
-
-**The bay's real parts and the container** exist as models beside the cell,
-which still uses its old square tube: a round torque tube with its rails,
-modules and 46 named fastening points (`models/bay.xml`,
-`src/bay_hardware.h`), and a 40 ft container with its long sides open
-(`models/container.xml`, `src/container.h`). Every figure and its source
-is in `docs/bay-hardware.md`.
-
-**The new cell is designed and not yet running.** The cell that will build
-bays from the real parts (rails fastened to the tube, modules located and
-pinned to the rails) exists as layouts written as data (`layouts/`), each
-checked by a program for transport, reach, clearance, load, the ways in and
-out, time, what is allowed, ports and approaches
-(`bazel run --config=opt //:check_layout -- --list`). It has no
-controllers, no cameras and no gate: it is kinematic.
-
-**On the flat rack, a whole bay is planned motion.** The chosen layout,
-`flat_rack_3_pin_arms`, stands on the base of a 40 ft flat rack: one KUKA
-KR 210 sets the rails and modules, three UR10e below the bay drive the bolts
-and locate, pin and swage the modules. Every move of every arm for one bay is
-planned free of collision and the four arms are scheduled on one clock
-(`bazel run --config=opt //:plan_layout -- flat_rack_3_pin_arms --summary`);
-the plan is committed (`plans/`), replayed and checked by a test, and played
-back in the viewer (`//:viewer_layout -- flat_rack_3_pin_arms --play`). A bay
-takes 644.28 s planned and 416.32 s by the time model.
-[`docs/flat-rack-cell.md`](docs/flat-rack-cell.md) holds the design, the
-ports, the margins and three recordings.
-
-![The whole bay as planned motion, 16 times real time](docs/bay_planned.gif)
-
-**On the closed container (run 011)** five layouts remain as a record; the
-one chosen then, `below_rails_by_module_arm`, takes 628.5 s for a bay by the
-time model and was never planned whole.
-[`docs/layout.md`](docs/layout.md) holds that design, the comparison of the
-layouts and the reasons for the choice then.
-
-**The cell** (`models/cell.xml`). A KUKA KR 210 R2700-2, converted from the
-vendor's robot description, with a suction tool. A pallet tilted 10 degrees
-holding 30 modules standing on edge, the front face 1.95 m from the arm. A
-conveyor carrying a torque tube with rails for 10 modules, which moves one
-step after each placement and is swapped for an empty one when full. A depth
-camera 4 m up, looking down at the stack. Suction is a weld switched on at
-the moment of gripping, which holds the module at whatever pose it had.
-Left alone for 10 simulated seconds, the stack moves less than 0.01 mm.
-
-![A tube with ten modules placed](docs/img/tube_full.png)
-
-**The cycle** (`src/pick_place.h`). The arm goes to the front module, touches
-the glass, grips, lifts along the glass, pulls back, turns the module flat,
-swings it to the other side, turns it across the tube, sets it on the rails
-and lets go; the conveyor then steps. Tool poses become joint angles by
-inverse kinematics (`src/ik.h`), and the motors follow S-curve joint moves
-(`src/arm_follower.h`) at 90% of KUKA's speed limits. A cycle takes about 25
-simulated seconds.
-
-Without a camera the script assumes the pallet is exactly where the drawing
-says. With the pallet there, a module lands within 0.1 mm of its slot, for
-all 30 modules of a pallet. With the pallet set down up to 30 mm and
-3 degrees off, none of 20 trials placed a module: the cups meet the glass
-early, or the glass is out of the grip's 10 mm reach.
-
-With the camera, one depth picture per pick gives the front module's pose and
-the pick is built from that. The picture for the next pick is taken while the
-conveyor steps, so it adds 0.3 s to a cycle. Over 20 pallets set down up to
-30 mm and 3 degrees off, with noisy pictures, 20 of 20 modules were placed,
-at worst 0.13 mm along the tube, 0.60 mm across it and 0.012 degrees off.
-A whole pallet of 30 was placed onto three tubes within 0.23 mm, 0.62 mm and
-0.016 degrees, 25.9 s a cycle on average. With the camera's calibration
-off by 1 mm and 0.05 degrees, 20 of 20 were still placed, but up to 2.7 mm
-along and 4.0 mm across from the slot: the script cannot see that error.
-`bazel run --config=opt //:run_cell -- --pretty --trials 20` prints the
-table; add `--calibration 1,0.05` or `--blind` for the other two.
-
-![The pick, close up](docs/pick.gif)
-
-The pick on a pallet set down 2.9 degrees and 32 mm off: approach, touch,
-grip, lift along the glass, pull back, clear.
-
-![The same pallet without and with the camera](docs/blind_vs_camera.gif)
-
-The same pallet without and with the camera. Blind, the tool meets the
-glass 9 mm early and the cycle stops.
-
-**Finding the module** (`src/module_finder.h`). The camera's depth image is
-made by casting one ray per pixel (`src/depth_camera.h`), with an optional
-noise model: depth noise that grows with distance, and dropped or blurred
-pixels at depth edges. The finder turns the image into 3D points, crops to
-where the stack can be, fits the plane of the front glass, flattens its
-points onto that plane and fits the module's outline (`src/rectangle_fit.h`).
-Over 100 pictures of pallets set down up to 30 mm and 3 degrees off, at four
-stack depths and with the noise on, the found pose was never more than 0.8 mm
-or 0.03 degrees from the true one, and it refuses when the arm is in the
-way or the pallet is empty. A camera calibration that is off passes straight
-into the answer: about 4.4 mm per milliradian of tilt.
-
-![The pallet camera's depth image and the glass points](docs/img/pallet_depth.png)
-
-Left, the pallet camera's depth image with noise, the front glass marked.
-Right, the 48,803 points on the glass flattened onto their plane, with the
-box that holds them; the scatter off the plane is 2.2 mm rms.
-
-**Planning** (`src/motion_planner.h`). A collision test with the carried
-module counted as part of the arm (`src/collision.h`), RRT-Connect with path
-shortening (`src/rrt.h`), and timing that follows a path of waypoints without
-stopping at each (`src/path_timing.h`). With `--carry planned` the cycle
-replaces its three hand-chosen carry moves with one planned move. The
-planner's picture of the cell is built from what the cell knows: the stack
-where the camera saw it, the tube where the conveyor's encoder says, and each
-module already moved where the script put it. The path is planned while the
-arm lifts the module off the stack, in about 0.3 s of computing against 5.7 s
-of motion, so it costs no cycle time; if no path is found the cycle stops and
-says why. Over a whole pallet the planned carry takes 5.8 s on average
-against 7.8 s hand-chosen (a cycle 23.9 s against 25.9 s), places the same
-30 of 30 within the same error, and plans every path at least 45 mm clear of
-everything. The hand-chosen carry is still the default.
-`bazel run --config=opt //:run_cell -- --pretty --trials 20 --carry planned`.
-The search for the path can be switched from the hand-written RRT-Connect to
-OMPL's with `--planner ompl` on `run_cell` and `print_plan`
-(`MotionPlanOptions::search` in code); the hand-written one is the default.
-
-![Planned carry against the hand-chosen one](docs/img/carry.png)
-
-The planner's carry from 50 different random seeds against the hand-chosen
-one: shorter and quicker, and closer to things, because it plans to a 45 mm
-margin. "Length of motion" is the planner's own measure, the distance moved
-by the farthest point of arm and module summed over the joints.
-
-**Check after pickup** (`src/held_module_finder.h`). The first picture cannot
-know where the module ends up sitting on the tool: any error in it, above
-all the pallet camera's calibration, is frozen in at the grip and goes
-straight into the placement. With `--check` the planned carry passes over a
-second depth camera on the floor, looking up. The arm holds still for 0.2 s,
-the camera finds the module's underside, and the set-down is corrected so
-that the module, not the tool, lands on the slot. Over 20 pallets:
-
-| Pallet camera | Check | Worst placement, along / across the tube |
-|---|---|---|
-| exact | off | 0.13 mm / 0.60 mm |
-| exact | on | 0.09 mm / 0.21 mm |
-| off by 1 mm and 0.05 degrees | off | 2.68 mm / 4.00 mm |
-| off by 1 mm and 0.05 degrees | on | 0.10 mm / 0.28 mm |
-| the same, and the check camera off by as much | on | 1.74 mm / 1.39 mm |
-
-The check costs 0.6 s a cycle. It removes the pallet camera's error and not
-its own: what remains is the check camera's calibration. If the check camera
-does not see a module where one should be, it looks once more and then the
-cycle stops, saying whether the vacuum still holds a module (a camera fault)
-or not (a failed pick).
-`bazel run --config=opt //:run_cell -- --pretty --trials 20 --check --calibration 1,0.05`.
-
-![Where modules land, with and without the check](docs/img/placement.png)
-
-![The check and the set-down](docs/check.gif)
-
-The second module held over the check camera, then set down beside the
-first.
-
-![The arm holding a module over the check camera](docs/img/check_pose.png)
-
-![The check camera's depth image](docs/img/check_depth.png)
-
-What the check camera sees in its test rig, with the outline the finder
-found. This module was gripped 10 mm and 1.5 degrees off on purpose; the
-measured offset is within 0.1 mm of the true one.
-
-**The gate** (`tests/gate_test.cc`, [docs/gate.md](docs/gate.md)). Part of
-`bazel test --config=opt //...`, and so of CI. Eight whole pallets, 240
-modules, each pallet set down up to 30 mm and 3 degrees off, with noisy
-pictures and both cameras' calibrations off by 1 mm and 0.05 degrees. It
-fails if any module is not placed, or lands more than 3 mm or 0.15 degrees
-from its slot. That tolerance is an assumption, not a tracker maker's
-figure. On this tree all 240 are in tolerance, at worst 1.95 mm and
-0.059 degrees, in about four minutes. A change that skips the correction
-after the check turns it red. Every failure is saved with the command that
-reruns it, and a rerun gives the same numbers bit for bit.
-`bazel run --config=opt //:run_gate -- --trials 40` runs a larger batch;
-30 pallets run that way, 900 modules, were all in tolerance, at worst
-2.14 mm and 0.063 degrees.
-
-![The gate's 240 placements against the tolerance](docs/img/gate.png)
-
-Each pallet's modules land together, off by that pallet's share of the check
-camera's calibration error.
-
-**Built before the cell.** `src/profile.h` and `src/joint_move.h` time moves
-within velocity, acceleration and jerk limits. `src/plane_fit.h` finds the
-plane most of a cloud of 3D points lies on, by RANSAC; on made-up clouds with
-2 mm of noise it recovers a module face's distance within 0.5 mm and its lean
-within 0.05 degrees.
-
-![Trapezoid and S-curve profiles for one move](docs/img/profile.png)
-
-**Where the simulation is kinder than a real cell.** The motors' rotor
-inertia and gearbox friction are estimates; KUKA publishes neither. A welded
-grip never slips. The module is rigid. The follower's model of the arm is
-the simulator's own.
-
-The depth noise numbers are an assumption, not a camera's datasheet, and
-glass is harder for a real depth camera than for this one.
-
-**The planner against OMPL.** The hand-written planner was compared with OMPL
-2.0.2 through that switch, on four moves and over whole pallets, by a rule
-fixed before the numbers existed (`docs/ompl-comparison.md`). The result is
-"Verdict: hand-written better". Given the same problem and the same seeds,
-OMPL's RRT-Connect (`--planner ompl`) returns the paths the hand-written
-search returns on the three carries, 150 of 150 plans, and over three pallets
-places the same 90 of 90 modules. It failed the rule on the bare arm's return,
-where the hand-written search tries the straight line first and needs 664
-collision queries against OMPL's median of 2,735 (5.80 ms against 24.19 ms).
-The one OMPL planner that passed on every move, BIT*, gave a median trajectory
-of 6.037 s against 5.734 s on one carry, 5.3% longer where the rule allows 5%,
-in a row that does not repeat from run to run. The document gives the tables,
-what was made equal between the two and what was not, and the facts for
-deciding whether OMPL should become the default; it does not decide that.
+The stand-in cell's task, its programs and options, and its status with every figure as it
+was at commit 940a01b are in [`docs/stand-in-cell.md`](docs/stand-in-cell.md). That
+includes the bay's real parts and the container, the new cell on the flat rack and the
+closed container, the cycle, the gate, the check camera and the comparison of the planner
+with OMPL.

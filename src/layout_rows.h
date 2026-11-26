@@ -56,6 +56,10 @@
 //              the deck, and the length between a flat rack's end frames;
 //              the row's detail names every geom that stands outside.
 //
+// The parts of the mass row are TransportMassParts below, so that the
+// scorecard (src/scorecard.h) reads them from here and does not add them up
+// a second time.
+//
 // src/layout_rows.cc says exactly what each row measures.
 
 #ifndef SRC_LAYOUT_ROWS_H_
@@ -81,6 +85,27 @@ std::vector<CheckRow> PortRows(const Layout& layout, const ModelPaths& paths);
 // without a limit included. Builds the stowed model itself.
 std::vector<CheckRow> FlatRackTransportRows(const Layout& layout,
                                             const ModelPaths& paths);
+
+// One thing that the transport row's mass adds up. `component` is the word
+// of the row's detail it is summed under: "arms" (an arm by its catalogue
+// mass, src/arm_catalog.h), "tracks" (an arm's track, beam and carriage),
+// "tools" (each tool an arm has), "holder" (when it travels inside), "items
+// inside" (each item that travels inside) or "stocks inside" (each stock
+// that is not outside, by its mass_kg). `name` says which one: the arm's
+// name, "<arm> track", "<arm> <tool>", "holder", or the item's or stock's
+// name.
+struct MassPart {
+  std::string component;
+  std::string name;
+  double mass_kg = 0.0;
+};
+
+// The parts of the transport row's mass, in the order the row adds them:
+// for each arm in the layout's order its arm, its track and its tools; then
+// the holder, the items and the stocks. A part whose rule leaves it out (an
+// arm model not in the catalogue, an item that does not travel, a stock
+// outside) is not in the list. Needs no model.
+std::vector<MassPart> TransportMassParts(const Layout& layout);
 
 }  // namespace cell::layout
 
