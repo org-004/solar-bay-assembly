@@ -161,8 +161,14 @@ std::string PlanToJson(const Plan& plan) {
   s += "\"figures\": " + FiguresText(plan.figures) + ",\n";
   std::vector<std::string> lines;
   for (const BayEvent& e : plan.events) {
+    // A transfer's stages (staged work only, so other plans read as before).
+    const std::string stages =
+        e.kind == "transfer" ? ",\"from_stage\":" + std::to_string(e.from_stage) +
+                                   ",\"to_stage\":" + std::to_string(e.to_stage)
+                             : std::string();
     lines.push_back("{\"kind\":" + Q(e.kind) + ",\"step\":" + std::to_string(e.step) +
-                    ",\"t0\":" + F6(e.t0) + ",\"t1\":" + F6(e.t1) + bay(e.bay) + "}");
+                    ",\"t0\":" + F6(e.t0) + ",\"t1\":" + F6(e.t1) + bay(e.bay) + stages +
+                    "}");
   }
   s += "\"events\": " + Lines(lines) + ",\n";
   lines.clear();
@@ -224,6 +230,8 @@ std::optional<Plan> PlanFromJson(const std::string& text, std::string* error) {
       b.t0 = Get<double>(e, "t0");
       b.t1 = Get<double>(e, "t1");
       b.bay = bay(e);
+      if (e.contains("from_stage")) b.from_stage = Get<int>(e, "from_stage");
+      if (e.contains("to_stage")) b.to_stage = Get<int>(e, "to_stage");
       p.events.push_back(b);
     }
     for (const json& e : j.at("steps")) {

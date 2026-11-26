@@ -2108,11 +2108,13 @@ cc_library(
         "src/layout_bays.cc",
         "src/layout_plan.cc",
         "src/layout_plan_file.cc",
+        "src/layout_plan_stages.cc",
         "src/layout_replay.cc",
     ],
     hdrs = [
         "src/layout_bays.h",
         "src/layout_plan.h",
+        "src/layout_plan_stages.h",
     ],
     deps = [
         ":bay_hardware",

@@ -17,6 +17,7 @@
 #include <utility>
 
 #include "src/layout_bays.h"
+#include "src/layout_plan_stages.h"
 #include "src/path_timing.h"
 #include "src/rrt.h"
 
@@ -343,6 +344,9 @@ WorldAt PlanPlayer::At(double t) const {
     w.event = "bay_out";
     w.way_offset = WayOffsetAt(L.bay_out.path, WayFraction(out->t0, out->t1 - out->t0, t));
   }
+  const StagePlace place = StagePlaceAt(L, plan_.events, w.bay, t);
+  w.stage = place.stage;
+  w.stage_offset = place.offset;
   return w;
 }
 
@@ -399,7 +403,7 @@ class Measurer {
     const int n = scene_.ArmCount();
     std::vector<Closest> out;
     const Built built = player_.BuiltAt(w);
-    const bool way = w.event == "tube_in" || w.event == "bay_out";
+    const bool way = w.event == "tube_in" || w.event == "bay_out" || w.event == "transfer";
     // Along a way an arm at its wait pose is the checker's ways rows' to
     // hold, and the tube and the bay are left out; an arm that is not (an
     // early step, R10) is measured against them where they are on the way.
@@ -442,9 +446,12 @@ class Measurer {
         for (const MovingGeom& g : c.moving) c.as_obstacle.push_back({g.geom, 0u, 0u});
       }
     }
-    if (along) {
+    // The tube and the bay at their stage's place, and on their way.
+    const Eigen::Vector3d shift =
+        w.stage_offset + (along ? w.way_offset : Eigen::Vector3d::Zero().eval());
+    if (shift != Eigen::Vector3d::Zero()) {
       for (int g : way_geoms_) {
-        for (int k = 0; k < 3; ++k) d->geom_xpos[3 * g + k] += w.way_offset[k];
+        for (int k = 0; k < 3; ++k) d->geom_xpos[3 * g + k] += shift[k];
       }
     }
     for (int i = 0; i < n; ++i) {
@@ -582,11 +589,11 @@ struct PoseRef {
 class Verifier {
  public:
   Verifier(const Layout& layout, const Plan& plan, const CheckReport& report,
-           const LayoutScene& scene, const PlanPlayer& player, const VerifyOptions& options,
-           VerifyReport* r)
-      : L_(layout), plan_(plan), report_(report), scene_(scene), player_(player), o_(options),
-        r_(r),
-        f_(plan.figures), data_(scene.MakeData()),
+           const std::vector<std::unique_ptr<LayoutScene>>& scenes, const PlanPlayer& player,
+           const VerifyOptions& options, VerifyReport* r)
+      : L_(layout), plan_(plan), report_(report), scenes_(scenes), scene_(*scenes.front()),
+        player_(player), o_(options), r_(r),
+        f_(plan.figures), data_(scene_.MakeData()),
         n_(static_cast<int>(report.steps.size())), bays_(std::max(1, plan.bays)),
         all_(StepsOfBays(report, bays_)), events_(bays_) {
     for (const StepInBay& s : all_) steps_[s.step.number] = &s.step;
@@ -621,6 +628,7 @@ class Verifier {
                                             o_.tolerance_m)) {
       Fault(f);
     }
+    for (const std::string& f : StagedFaults(scene_, report_, plan_, o_)) Fault(f);
   }
 
   double bay_end() const { return bay_end_; }
@@ -966,12 +974,16 @@ class Verifier {
         }
       }
     }
-    const MoveWorld world(scene_, arm, s.tool, s.held, s.built,
-                          f_.clearance_m - o_.tolerance_m);
-    mjData* d = data_.get();
+    // In the scene of the step's stage, as the planner.
+    const size_t k = Step(s.step) != nullptr ? StageIndexOf(L_, *Step(s.step)) : 0;
+    const LayoutScene& sc = *scenes_[k];
+    if (k > 0 && stage_data_.size() <= k) stage_data_.resize(scenes_.size());
+    if (k > 0 && !stage_data_[k]) stage_data_[k] = sc.MakeData();
+    const MoveWorld world(sc, arm, s.tool, s.held, s.built, f_.clearance_m - o_.tolerance_m);
+    mjData* d = k > 0 ? stage_data_[k].get() : data_.get();
     // As the planner: the other arms stand at their wait poses, whatever
     // this data was used for before.
-    scene_.AllAtWait(d);
+    sc.AllAtWait(d);
     std::int64_t queries = 0;
     const IsFree is_free = [&](const Eigen::VectorXd& v) {
       return world.Free(d, ToConfig(v));
@@ -979,7 +991,7 @@ class Verifier {
     ++queries;
     if (!is_free(ToVector(s.path.front()))) {
       const Nearest n = world.Least(d, s.path.front(), kSceneFar);
-      Fault(where + Fmt(": its first waypoint is not free: %s at %.4f m", scene_.PairText(n).c_str(),
+      Fault(where + Fmt(": its first waypoint is not free: %s at %.4f m", sc.PairText(n).c_str(),
                         n.distance));
       r_->queries += queries;
       return;
@@ -1067,6 +1079,9 @@ class Verifier {
         const Work* lead = FindWork(L_, "rail_set");
         if (lead != nullptr && lead->arm == name) park = false;
       }
+      // Staged work: an arm parks after its magazine take.
+      park = park || (L_.staging && found > 0 && mine[found - 1]->kind == "pins_take" &&
+                      bay_of(found - 1) == bay_of(found));
       const bool last = found + 1 == mine.size() || bay_of(found + 1) != bay_of(found);
       StepSegments(i, *step, last, park, segs, grp.segs, motion, &tool, &held, &at);
     }
@@ -1266,13 +1281,15 @@ class Verifier {
                   t.end));
       }
     }
-    // The phases, five for each bay.
+    // The phases, five for each bay (six in staged work, with "transfer").
     last_strap_end_.assign(bays_, 0.0);
     last_modules_end_.assign(bays_, 0.0);
-    if (plan_.phases.size() != 5u * static_cast<size_t>(bays_)) {
-      Fault(bays_ > 1 ? Fmt("the plan has %zu phases, not five for each of %d bays",
-                            plan_.phases.size(), bays_)
-                      : Fmt("the plan has %zu phases, not five", plan_.phases.size()));
+    const size_t per = L_.staging ? 6u : 5u;
+    if (plan_.phases.size() != per * static_cast<size_t>(bays_)) {
+      Fault(bays_ > 1 ? Fmt("the plan has %zu phases, not %s for each of %d bays",
+                            plan_.phases.size(), per == 5u ? "five" : "six", bays_)
+                      : Fmt("the plan has %zu phases, not %s", plan_.phases.size(),
+                            per == 5u ? "five" : "six"));
     }
     for (int b = 0; b < bays_; ++b) {
       const BayEvent* clamp = Event(b, "clamp");
@@ -1294,16 +1311,22 @@ class Verifier {
         return e != nullptr ? e->t1 - e->t0 : 0.0;
       };
       const double end = bays_ > 1 && out != nullptr ? out->t1 : bay_end_;
-      const std::vector<std::pair<std::string, double>> want = {
+      std::vector<std::pair<std::string, double>> want = {
           {"tube in", event_span("tube_in")},
           {"clamp", event_span("clamp")},
           {"rails", rails_end - clamp_end},
           {"modules", modules_end - rails_end},
           {"end", end - modules_end}};
+      if (L_.staging) {
+        want.clear();
+        for (const PhaseTime& p : StagedPhases(L_, report_, b, times_, plan_.events, end)) {
+          want.emplace_back(p.name, p.planned_s);
+        }
+      }
       double sum = 0.0;
       for (size_t k = 0; k < want.size(); ++k) {
         sum += want[k].second;
-        const size_t at = 5u * static_cast<size_t>(b) + k;
+        const size_t at = per * static_cast<size_t>(b) + k;
         if (at >= plan_.phases.size()) continue;
         const PhaseTime& p = plan_.phases[at];
         if (p.name != want[k].first || std::abs(p.planned_s - want[k].second) > tol ||
@@ -1390,7 +1413,7 @@ class Verifier {
             }
           }
         }
-      } else if (s.kind == "module_take" && first_take) {
+      } else if (s.kind == "module_take" && first_take && !L_.staging) {  // Staged: StagedFaults.
         first_take = false;
         before(last_strap_end_[b], "the last strap bolt is driven");
       }
@@ -1404,7 +1427,9 @@ class Verifier {
   const Layout& L_;
   const Plan& plan_;
   const CheckReport& report_;
-  const LayoutScene& scene_;
+  const std::vector<std::unique_ptr<LayoutScene>>& scenes_;  // Each stage's.
+  const LayoutScene& scene_;                                  // The first's.
+  std::vector<DataPtr> stage_data_;                           // For the later stages'.
   const PlanPlayer& player_;
   const VerifyOptions& o_;
   VerifyReport* r_;
@@ -1512,6 +1537,16 @@ void Schedule(const LayoutScene& scene, const CheckReport& report, const Plan& p
 
 VerifyReport VerifyPlan(const Layout& layout, const ModelPaths& paths, const Plan& plan,
                         const std::string& layout_sha256, const VerifyOptions& options) {
+  if (layout_sha256 != plan.layout_sha256) {
+    return VerifyPlanWithReport(layout, paths, plan, layout_sha256, {}, options);
+  }
+  return VerifyPlanWithReport(layout, paths, plan, layout_sha256, CheckLayout(layout, paths),
+                              options);
+}
+
+VerifyReport VerifyPlanWithReport(const Layout& layout, const ModelPaths& paths,
+                                  const Plan& plan, const std::string& layout_sha256,
+                                  const CheckReport& report, const VerifyOptions& options) {
   VerifyReport r;
   if (layout_sha256 != plan.layout_sha256) {
     r.faults.push_back("the plan was made for another version of the layout: its file's "
@@ -1519,7 +1554,6 @@ VerifyReport VerifyPlan(const Layout& layout, const ModelPaths& paths, const Pla
     r.ok = false;
     return r;
   }
-  const CheckReport report = CheckLayout(layout, paths);
   if (!report.error.empty()) {
     r.faults.push_back("the checker cannot build the layout's model: " + report.error);
     return r;
@@ -1574,14 +1608,16 @@ VerifyReport VerifyPlan(const Layout& layout, const ModelPaths& paths, const Pla
     r.faults.push_back("the plan is of layout " + plan.layout + ", not " + layout.name);
   }
   std::string error;
-  const std::unique_ptr<LayoutScene> scene =
-      LayoutScene::Load(layout, paths, plan.figures.joint_margin_deg, &error);
-  if (scene == nullptr) {
+  // One scene for each stage (src/layout_plan_stages.h); the first's plays.
+  const std::vector<std::unique_ptr<LayoutScene>> scenes =
+      StageScenes(layout, paths, plan.figures.joint_margin_deg, &error);
+  if (scenes.empty()) {
     r.faults.push_back("the layout's scene cannot be loaded: " + error);
     return r;
   }
+  const LayoutScene* scene = scenes.front().get();
   const PlanPlayer player(*scene, report, plan);
-  Verifier v(layout, plan, report, *scene, player, options, &r);
+  Verifier v(layout, plan, report, scenes, player, options, &r);
   v.Run();
   if (options.schedule) Schedule(*scene, report, plan, options, v.bay_end(), &r);
   r.ok = r.faults.empty();
