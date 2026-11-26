@@ -136,7 +136,7 @@ struct PhysicsResult {
   SetDown set_down;
   double grip_offset_mm = 0.0;           // Tool tip to glass at the grip.
   PhysicsRecord record;                  // The record of these figures.
-  double cycle_s = 0.0;                  // The plan's bay_planned_s.
+  double one_bay_s = 0.0;                // The plan's bay_planned_s: bay 0.
 };
 
 class PhysicsRun {

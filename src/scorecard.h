@@ -9,11 +9,17 @@
 // counted operations, such as expected failures) or `none` (not known; the
 // basis says why). A figure that is not known is printed as not known.
 //
-//   P0  cycle_s             lower   planned   the plan's bay_planned_s
+//   P0  cycle_s             lower   planned   the average bay of the plan's
+//                                             three bays back to back (src/
+//                                             layout_bays.h): (end of bay 2's
+//                                             bay_out - start of bay 0's
+//                                             tube_in) / 3 (a plan of one
+//                                             bay: that bay)
 //   P0  failures_per_bay    lower   modelled  sum over kinds of operation of
-//                                             count in the plan x rate of
+//                                             count in one bay of the plan
+//                                             (bay 0's steps) x rate of
 //                                             scores/rates.json
-//   P0  physics_share       higher  measured  share of cycle_s carried out
+//   P0  physics_share       higher  measured  share of one_bay_s carried out
 //                                   counted   in physics by a committed run
 //                                             (physics/<name>.json, rule in
 //                                             src/physics_record.h): measured
@@ -30,6 +36,12 @@
 //                                             the transport row's parts
 //   P2  input_tolerance     higher  none      nothing is sensed
 //   P2  plan_s              lower   none      the plan file holds no time
+//
+// Beside cycle_s, as figures that are not ranked measures (Figure):
+// one_bay_s, bay 0 alone from the start of its tube_in to the end of its
+// bay_out (the figure cycle_s was before the plans held three bays; the
+// plan's bay_planned_s), and interval_s, from the end of bay 1's bay_out to
+// the end of bay 2's (none for a plan of one bay).
 //
 // The gates: every row of check_layout passes (figure: rows failed, limit
 // 0); the least clearance over the schedule, from VerifyPlan, is at least
@@ -83,7 +95,9 @@
 //                          (only when a physics record was given, see
 //                          ComputeScorecard), "measures": [{"name",
 //                          "rank", "value" (null when not known), "unit",
-//                          "better", "known", "basis"}], "gates": [{"name",
+//                          "better", "known", "basis"}], "figures":
+//                          [{"name", "value", "unit", "known", "basis"}],
+//                          "gates": [{"name",
 //                          "figure", "limit", "unit", "holds" ("<=" or ">="),
 //                          "pass", "basis"}], "part_count": [{"kind",
 //                          "count"}], "driven_axes": [{"kind", "count"}],
@@ -134,6 +148,16 @@ struct Measure {
   std::string basis;             // One phrase.
 };
 
+// A figure printed beside the measures that is not a ranked measure:
+// one_bay_s and interval_s, beside cycle_s.
+struct Figure {
+  std::string name;              // "one_bay_s"
+  std::optional<double> value;   // Empty when not known.
+  std::string unit;
+  std::string known;             // planned or none
+  std::string basis;
+};
+
 struct Gate {
   std::string name;              // "check_rows_failed", ...
   double figure = 0.0;
@@ -177,6 +201,7 @@ struct Scorecard {
   // file; the caller sets it.
   std::string physics_sha256;
   std::vector<Measure> measures;     // In the order of the table above.
+  std::vector<Figure> figures;       // one_bay_s, interval_s.
   std::vector<Gate> gates;           // In the order of the comment above.
   std::vector<Count> part_count;     // The breakdown of part_count.
   std::vector<Count> driven_axes;    // The breakdown of driven_axes.
@@ -201,8 +226,8 @@ std::optional<std::vector<Rate>> LoadRates(const std::string& path,
 // treats as an error.
 std::vector<std::string> OperationKinds(const StepTime& step);
 
-// The count of operations of each kind of `rates` in a plan, in the order of
-// `rates`. Returns nothing and sets *error when a step maps to no kind or to
+// The count of operations of each kind of `rates` in one bay of a plan
+// (bay 0's steps), in the order of `rates`. Returns nothing and sets *error when a step maps to no kind or to
 // a kind that rates.json does not hold; the error names the step.
 std::optional<std::vector<OperationCount>> CountOperations(
     const Plan& plan, const std::vector<Rate>& rates, std::string* error);
@@ -225,7 +250,7 @@ std::vector<MassLeftOut> MassLeftOutOfTransit(const Layout& layout);
 // (src/physics_record.h), or nullptr for none: physics_share is then 0. A
 // record whose plan_sha256 is not `plan_sha256`, or that CheckPhysicsRecord
 // finds faults in, counts nothing (0, and the basis says why); otherwise
-// physics_share is its CountedSeconds over the plan's bay_planned_s.
+// physics_share is its CountedSeconds over one_bay_s, bay 0's time.
 std::optional<Scorecard> ComputeScorecard(
     const Layout& layout, const Plan& plan, const std::vector<Rate>& rates,
     const ModelPaths& paths, const std::string& layout_sha256,
@@ -244,8 +269,9 @@ std::optional<Scorecard> ScorecardFromJson(const std::string& text,
 // what is left out) and the operations by kind.
 std::string ScorecardText(const Scorecard& card);
 
-// --all: one row per layout, one column per measure, the gates as one
-// column ("pass" or the names of the gates that fail).
+// --all: one row per layout, one column per measure (one_bay_s and
+// interval_s right after cycle_s), the gates as one column ("pass" or the
+// names of the gates that fail).
 std::string ScorecardsTable(const std::vector<Scorecard>& cards);
 
 // The program //:score_layout (src/score_layout.cc is its main): `args` are

@@ -452,7 +452,7 @@
       },
       "plan": {
         "path": "plans/flat_rack_2_pin_arms.json",
-        "sha256": "7912d0b34551c9423b9739a7a9f1d8aae7c48d06ab89355912905eaffd85cd4d"
+        "sha256": "cedac2ee29245049d7f0d671ace119c0fb34ce4fe0c6a6b9ad26553eaf478bc6"
       },
       "scores": "scores/flat_rack_2_pin_arms.json",
       "rehashed": [
@@ -462,6 +462,13 @@
           "why": "The chosen flag left the layout files for versions/versions.json (the newest version with status chosen), so that a later layout can be chosen without changing a registered file. The only change to the layout file is the removed line \"chosen\"; its plan was made again and is the same but for the layout's sha256, and its scorecard is unchanged but for the two hashes.",
           "layout_sha256_was": "d6186f393828cac23e669c5a368e81455f83525c52a9bab16aa6b1d5a237deca",
           "plan_sha256_was": "9008bbae403eb6aa2c0cc2e4c80e6ce5162bf7aac93a585fcd93924e3da56278"
+        },
+        {
+          "date": "2026-11-26",
+          "commit": "this",
+          "why": "The plan now holds three bays back to back, planned and verified (src/layout_bays.h); cycle_s is the three-bay average, (end of bay 2's bay_out - start of bay 0's tube_in) / 3, with one_bay_s and interval_s beside it. Bay 0 is unchanged: one_bay_s is the cycle_s this version had.",
+          "layout_sha256_was": "1e5820e11de748ea185e39e14be1188d98c4b0a2b93aec72d45d8f7b7d59e3d7",
+          "plan_sha256_was": "7912d0b34551c9423b9739a7a9f1d8aae7c48d06ab89355912905eaffd85cd4d"
         }
       ]
     },
@@ -481,7 +488,7 @@
       },
       "plan": {
         "path": "plans/flat_rack_3_pin_arms.json",
-        "sha256": "8eea83cea75fa3f9ece5b66f82074611464493bf581f9d6ec00433963b0b23ef"
+        "sha256": "808b1535d272391a2c0eef81967a7284eb2b14c8b77dd2f08d34c37ffb9f3c70"
       },
       "scores": "scores/flat_rack_3_pin_arms.json",
       "rehashed": [
@@ -491,6 +498,13 @@
           "why": "The chosen flag left the layout files for versions/versions.json (the newest version with status chosen), so that a later layout can be chosen without changing a registered file. The only change to the layout file is the removed line \"chosen\"; its plan was made again and is the same but for the layout's sha256, and its scorecard is unchanged but for the two hashes.",
           "layout_sha256_was": "41247743a71c0f9f9595eb77e6f3737e67cfa6929988e0f19b5cc03b4813abf6",
           "plan_sha256_was": "9fa5e7cb73837e7a2a9a03b6117cf6d9f9e9062425deb3cbd3b8fb14eddf697d"
+        },
+        {
+          "date": "2026-11-26",
+          "commit": "this",
+          "why": "The plan now holds three bays back to back, planned and verified (src/layout_bays.h); cycle_s is the three-bay average, (end of bay 2's bay_out - start of bay 0's tube_in) / 3, with one_bay_s and interval_s beside it. Bay 0 is unchanged: one_bay_s is the cycle_s this version had.",
+          "layout_sha256_was": "6027f48aac486319ce8eea85d976e3690397cdf80fa170a89ea40b64acda0ca2",
+          "plan_sha256_was": "8eea83cea75fa3f9ece5b66f82074611464493bf581f9d6ec00433963b0b23ef"
         }
       ]
     },
@@ -510,9 +524,18 @@
       },
       "plan": {
         "path": "plans/flat_rack_3_pin_arms_ordered.json",
-        "sha256": "99f1797e5990eb9f3445b65beee65a01221d5290d1dd8a8546c0fbeb2b68c19c"
+        "sha256": "63afb2c72751cd3d6fc8d5a8c196686edef98fa389561a98c910e5c573b1465a"
       },
-      "scores": "scores/flat_rack_3_pin_arms_ordered.json"
+      "scores": "scores/flat_rack_3_pin_arms_ordered.json",
+      "rehashed": [
+        {
+          "date": "2026-11-26",
+          "commit": "this",
+          "why": "The plan now holds three bays back to back, planned and verified (src/layout_bays.h); cycle_s is the three-bay average, (end of bay 2's bay_out - start of bay 0's tube_in) / 3, with one_bay_s and interval_s beside it. Bay 0 is unchanged: one_bay_s is the cycle_s this version had.",
+          "layout_sha256_was": "fd836ffa497b16e91c0ffdeef360b678367275f0e49a70dac36545cafb3e2963",
+          "plan_sha256_was": "99f1797e5990eb9f3445b65beee65a01221d5290d1dd8a8546c0fbeb2b68c19c"
+        }
+      ]
     }
   ]
 }

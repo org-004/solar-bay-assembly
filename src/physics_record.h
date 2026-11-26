@@ -24,7 +24,10 @@
 //      rails' plane at most gate_offset_mm and its yaw at most
 //      gate_yaw_deg.
 // physics_share is the sum of the planned seconds of the steps that count
-// over the plan's cycle_s (bay_planned_s). StepCounts applies the rule;
+// over one_bay_s, the time of bay 0 of the plan from tube in to bay out
+// (its bay_planned_s): the share of one bay carried out in physics, also
+// for a plan of three bays, whose cycle_s is their average. The record's
+// steps are bay 0's. StepCounts applies the rule;
 // the record's `counted` flags are what it gave when the record was
 // written, and the test checks that they still agree.
 //

@@ -68,7 +68,7 @@ the captures `check_layout.*` and `plan_layout.*`. Nothing to pin first.
 **Where.** `//:layout_plan`, `//:layout_scene_test`, `//:viewer_lib`.
 **Evidence.** `measure.sh --list P5` lists `//:layout_plan //:mj_handles`,
 `//:layout_scene_test //:mj_handles`, `//:viewer_lib //:mj_handles`.
-`src/layout_plan.cc` (lines 712, 1043, 1356), `src/layout_replay.cc` (1637, 1651)
+`src/layout_plan.cc` (lines 712, 1043, 1356), `src/layout_replay.cc` (1313, 1327)
 and `tests/layout_scene_test.cc` (91, 115, 164, 174) name `DataPtr` of
 `src/mj_handles.h` but reach it only through `src/layout_scene.h:136`.
 `src/viewer_lib.cc` and `.h` name nothing of it
@@ -501,7 +501,7 @@ nothing else.
 **Principles.** P9
 **Decisions.** ADR 0014
 **Where.** `src/ompl_search.cc:447`, `src/print_rrt.cc` (60, 235, 298),
-`src/layout_replay.cc:1659`, `tests/path_timing_test.cc` (676, 697).
+`src/layout_replay.cc:1335`, `tests/path_timing_test.cc` (676, 697).
 **Evidence.** `W -Wconversion` nine places here: a `size_t` index into OMPL's
 `unsigned int` (`getState(i)`), `size_t` and `long long` counts into `double`, the
 `long` counter `k` of `k * sample`, and generator outputs into `double` and
@@ -842,7 +842,7 @@ three, inside `namespace cell::flat_rack`, so that every user's name stays. Keep
 **Principles.** P7
 **Decisions.** ADR 0009
 **Where.** `src/bay_hardware.h` (233, 503, 712), `src/layout_model.cc:75`,
-`src/layout_plan.cc:32`, `src/layout_replay.cc:28`, `src/print_bay.cc` (77, 136, 203,
+`src/layout_plan.cc:32`, `src/layout_replay.cc:26`, `src/print_bay.cc` (77, 136, 203,
 212).
 **Evidence.** `measure.sh --list P7` prints these five under `(pi)`; the other five
 are frozen. Every literal is `3.14159265358979323846`, 21 digits, which rounds to the
@@ -971,7 +971,7 @@ include they need).
 (section `layout_plan`), `tools/architecture/deps.json`,
 `docs/architecture/baseline.txt`.
 **After.** B33
-**State.** open
+**State.** done
 
 ## B36 Move the plan's verifier into src/layout_verify.cc
 
@@ -1173,7 +1173,7 @@ By principle, with the figure `measure.sh` (or `warnings.sh`, `tidy.sh`) prints 
 - **The sample times of `src/layout_plan.cc:825`** (P9, `cert-flp30-c`): `t += sample_s`
   accumulates rounding; an integer counter changes the instants at which two arms are
   checked against each other, and possibly a plan and `plans/*.json`.
-- **The four `Fmt` buffers of the layout code**: 4096 bytes in `src/layout_check.cc:51`
+- **The five `Fmt` buffers of the layout code**: 4096 bytes in `src/layout_check.cc:51`
   and `src/layout_rows.cc:39`, 2048 in `src/layout_plan.cc:38`, 1024 in
-  `src/layout_replay.cc:194`; a longer message is cut without a word. One `Fmt` would
+  `src/layout_replay.cc:28` and `src/layout_plan_file.cc:22`; a longer message is cut without a word. One `Fmt` would
   change where messages are cut.

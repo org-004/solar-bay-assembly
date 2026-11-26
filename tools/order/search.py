@@ -80,7 +80,11 @@ def plan(directory, name, threads):
     env = dict(os.environ, LAYOUT_DIR=directory, MODELS_DIR="models",
                UR10E_XML="../+menagerie_model+menagerie_ur10e/ur10e.xml",
                VERSIONS_JSON="versions/versions.json")
-    p = subprocess.run([os.path.join(main, "plan_layout"), name, "--summary", "--threads", str(threads),
+    # Orders are compared by one bay's planned time (bay_planned_s), so one
+    # bay is planned (--bays 1), not plan_layout's default of three bays back
+    # to back, which takes three times as long.
+    p = subprocess.run([os.path.join(main, "plan_layout"), name, "--bays", "1", "--summary",
+                        "--threads", str(threads),
                         "--out", os.path.join(directory, name + ".plan.json")],
                        cwd=main, env=env, capture_output=True, text=True)
     row = {"name": name, "exit": p.returncode, "faults": 0}

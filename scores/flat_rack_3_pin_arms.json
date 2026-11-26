@@ -1,17 +1,17 @@
 {
   "layout": "flat_rack_3_pin_arms",
   "layout_sha256": "6027f48aac486319ce8eea85d976e3690397cdf80fa170a89ea40b64acda0ca2",
-  "plan_sha256": "8eea83cea75fa3f9ece5b66f82074611464493bf581f9d6ec00433963b0b23ef",
+  "plan_sha256": "808b1535d272391a2c0eef81967a7284eb2b14c8b77dd2f08d34c37ffb9f3c70",
   "rates_sha256": "92ab60e5a186cfa526dc292ba67cf3583391499d692475f143aaa1287ab63614",
   "measures": [
     {
       "name": "cycle_s",
       "rank": "P0",
-      "value": 644.284416,
+      "value": 622.314493,
       "unit": "s",
       "better": "lower",
       "known": "planned",
-      "basis": "the committed plan's bay_planned_s: kinematic, on assumed speeds and process times"
+      "basis": "the committed plan's 3 bays back to back: (end of bay 2's bay_out - start of bay 0's tube_in) / 3; kinematic, on assumed speeds and process times"
     },
     {
       "name": "failures_per_bay",
@@ -95,6 +95,22 @@
       "basis": "the committed plan does not hold the time plan_layout took"
     }
   ],
+  "figures": [
+    {
+      "name": "one_bay_s",
+      "value": 644.284416,
+      "unit": "s",
+      "known": "planned",
+      "basis": "bay 0 of the committed plan alone, from the start of its tube_in to the end of its bay_out"
+    },
+    {
+      "name": "interval_s",
+      "value": 604.289389,
+      "unit": "s",
+      "known": "planned",
+      "basis": "from the end of bay 1's bay_out to the end of bay 2's"
+    }
+  ],
   "gates": [
     {
       "name": "check_rows_failed",
@@ -107,7 +123,7 @@
     },
     {
       "name": "least_clearance_m",
-      "figure": 0.0181,
+      "figure": 0.018,
       "limit": 0.015,
       "unit": "m",
       "holds": ">=",

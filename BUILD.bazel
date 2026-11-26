@@ -2105,10 +2105,15 @@ cc_test(
 cc_library(
     name = "layout_plan",
     srcs = [
+        "src/layout_bays.cc",
         "src/layout_plan.cc",
+        "src/layout_plan_file.cc",
         "src/layout_replay.cc",
     ],
-    hdrs = ["src/layout_plan.h"],
+    hdrs = [
+        "src/layout_bays.h",
+        "src/layout_plan.h",
+    ],
     deps = [
         ":bay_hardware",
         ":joint_move",
@@ -2125,9 +2130,10 @@ cc_library(
     ],
 )
 
-# Plans one bay of a layout and prints one row per move.
+# Plans bays of a layout back to back (three unless --bays N says) and prints
+# one row per move.
 #   bazel run --config=opt //:plan_layout -- flat_rack_3_pin_arms [--summary]
-#   bazel run --config=opt //:plan_layout -- flat_rack_3_pin_arms --out /tmp/a.json
+#   bazel run --config=opt //:plan_layout -- flat_rack_3_pin_arms --bays 1 --out /tmp/a.json
 cc_binary(
     name = "plan_layout",
     srcs = ["src/plan_layout.cc"],
@@ -2158,7 +2164,8 @@ cc_test(
     ],
 )
 
-# Replays the committed plan of the chosen layout without planning anything.
+# The replay's pieces (motion, the plan file, the player) and the committed
+# plans' order of work, without planning anything.
 #   bazel test --config=opt //:plan_replay_test
 cc_test(
     name = "plan_replay_test",
@@ -2175,7 +2182,47 @@ cc_test(
         "@nlohmann_json//:json",
     ],
 )
+
+# The committed plan of the chosen layout verified whole, broken, tampered
+# with and, with several bays, doctored between them.
+#   bazel test --config=opt //:plan_replay_committed_test
+cc_test(
+    name = "plan_replay_committed_test",
+    size = "medium",
+    srcs = ["tests/plan_replay_committed_test.cc"],
+    data = LAYOUT_FILES + LAYOUT_MODEL_FILES + PLAN_FILES,
+    env = LAYOUT_ENV | {"PLAN_DIR": "plans"},
+    deps = [
+        ":layout",
+        ":layout_check",
+        ":layout_model",
+        ":layout_plan",
+        "@googletest//:gtest_main",
+    ],
+)
 # END layout_plan
+
+# BEGIN layout_bays
+# Bays planned back to back (src/layout_bays.h, in //:layout_plan): the
+# numbering, the takes, the bay as built, when the next tube comes in, the
+# joining of the bays' plans and the cycle's figures; no bay is planned.
+#   bazel test --config=opt //:layout_bays_test
+cc_test(
+    name = "layout_bays_test",
+    size = "small",
+    srcs = ["tests/layout_bays_test.cc"],
+    data = LAYOUT_FILES + LAYOUT_MODEL_FILES,
+    env = LAYOUT_ENV,
+    deps = [
+        ":layout",
+        ":layout_check",
+        ":layout_model",
+        ":layout_plan",
+        ":mj_handles",
+        "@googletest//:gtest_main",
+    ],
+)
+# END layout_bays
 
 # BEGIN physics_run
 # One module's cycle of a layout's committed plan, run in physics: the

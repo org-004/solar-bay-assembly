@@ -2,9 +2,9 @@
 // planned free of collision, all arms on one clock, and the test of both.
 //
 // PlanLayout takes a layout that passes the checker (src/layout_check.h),
-// plans every move of every arm for one bay in the order of the bay's steps,
-// times it, and schedules the arms so that they work at the same time
-// without meeting. The result is a Plan: for every arm a row of segments
+// plans every move of every arm for one bay (or several back to back, as
+// below) in the order of the bay's steps, times it, and schedules the arms
+// so that they work at the same time without meeting. The result is a Plan: for every arm a row of segments
 // that covers the bay's time without a gap. //:plan_layout prints it and
 // writes it as plans/<name>.json; VerifyPlan checks a plan without planning
 // anything, and //:plan_replay_test runs it on the committed plan of the
@@ -59,11 +59,51 @@
 // the bay from then on; at a tool change the other tool is on the flange
 // from then on.
 //
-// The bay's own events (BayEvent): tube_in and clamp before any arm moves,
-// release and bay_out after the last. During tube_in and bay_out every arm
-// stands at its wait pose, so the `ways` rows of the checker, which sweep
-// the tube and the bay past the arms at their wait poses, hold for the
-// schedule as they are.
+// Bays back to back (src/layout_bays.h; PlanOptions::bays, 1 by default,
+// 3 for //:plan_layout). Each bay is planned as one is, from t = 0, and the
+// plan holds them on one clock. With N steps in a bay (the checker's), step
+// n of bay b has the number n + bN in segments, events and steps; events,
+// steps and phases carry their `bay`. Bay b takes pallet points 9b .. 9b+8
+// (the checker solves all 36) in the layout's order of modules: one pallet
+// of 36, 27 used by three bays. The rails come from the stock's 40 at its
+// one pick pose, 10 a bay, 30 used, with no refill. The pin magazines are
+// refilled for each bay through the port item:pin_feeder, so every bay
+// takes its magazines at bay 0's pins_take points. A move of bay b is
+// planned in bay 0's bay at that step with 9b fewer modules on the pallets.
+// The bay's own events (BayEvent): tube_in and clamp before any arm of the
+// bay moves (but for R10's early steps, below), release and bay_out after
+// the last. During tube_in and bay_out every other arm stands at its wait
+// pose, so the `ways` rows of the checker, which sweep the tube and the bay
+// past the arms at their wait poses, hold for the schedule as they are.
+// Between bay b and bay b+1:
+//   - bay b+1's tube_in does not start before the holder is empty, when bay
+//     b has been lifted out of the saddles: the end of the first (lift) leg
+//     of the layout's bay_out.path;
+//   - where the ports of tubes_in and bays_out share their zone or unit
+//     (shares_zone_with names the other, or both hand over one item), bay
+//     b+1's tube_in starts no earlier than bay b's bay_out ends;
+//   - where they do not, the next tube may travel its tube_in path while
+//     the bay travels bay_out, provided the tube, the bay and every arm stay
+//     at least clearance_m apart at every sample: the arms stand at their
+//     wait poses, where the checker's ways rows hold, and the tube is held
+//     apart from the bay every sample_s;
+//   - no arm starts a step of bay b+1 before bay b's bay_out has ended, and
+//     a step that touches the tube or the bay not before bay b+1's clamp
+//     has ended. R10: a step that touches neither (a take from a stock or
+//     the pallet, a magazine take, a tool change; src/layout_bays.h,
+//     TouchesTheBay) may start from bay b+1's tube_in on (not during bay
+//     b's bay_out), and its arm then waits where the rules above allow (a
+//     rail held where its take's retreat ended) for the clamp. While the
+//     tube comes in, the schedule holds such an arm clearance_m +
+//     plan_pad_m from the tube where it is on its way, at every sample, and
+//     the verifier measures it so (PlanOptions::early_steps, on by default;
+//     bay 0 starts every arm after its clamp, as before).
+// The verifier holds all four (src/layout_bays.h, BetweenBays, and its own
+// check of each bay's events: an arm off its wait pose during a tube_in or
+// bay_out is measured against the tube or the bay where it is on its way;
+// at its wait pose the checker's ways rows hold it); it checks each bay's events, order of work
+// and phases on their own, and a later bay's moves and design pairs as bay
+// 0's at the same step, with the pallet counting on.
 //
 // The planning world of a move (R16): the moving set is the arm's links,
 // carriage, the tool on its flange and the part it holds (LayoutScene::
@@ -122,8 +162,8 @@
 //                  driven, and then waits for its first module where the
 //                  magazine take's retreat left it (or, if another arm is in
 //                  its way, at the tool-change pose).
-// Which pin arm works which hole is the layout's `work` list, as before. At every instant, sampled every sample_s, every
-// arm with its carriage, the tool on its flange, its waiting tools and what
+// Which pin arm works which hole is the layout's `work` list, as before.
+// At every instant, sampled every sample_s, every arm with its carriage, the tool on its flange, its waiting tools and what
 // it holds is at least clearance_m from every other arm with the same, and
 // from the bay, the pallets and the stocks as they are at that instant;
 // while an arm is on a leg or at work, the pairs that touch or are near by
@@ -136,7 +176,17 @@
 // arm is in its way. Ready blocks are tried in order of their earliest
 // start; one that meets an arm standing still for good, or that 2,000
 // delays of 0.25 s do not clear, gives way to the next, and the schedule
-// is blocked only when no ready block can start. No evasive move is made.
+// is blocked only when no ready block can start, unless one can be given
+// way: the first ready block that met an arm standing for good at the end
+// of that arm's last block has the schedule taken back to before that
+// block, which is placed again only after it (once for each pair of
+// blocks; the first bay of the chosen layout never needs it, its later
+// bays do). No evasive move is made. The verifier needs no check of giving
+// way: it decides only the order in which blocks are placed, and what is
+// placed holds every rule above. A block is checked at instants sample_s
+// apart from its start and at the plan clock's k sample_s, the verifier's
+// instants (for a later bay, the instants its arms will have once joined:
+// PlanBays tells the planner where they start).
 //
 // Repeatable (R18). Every move has a seed drawn through
 // src/portable_random.h from PlanFigures::seed and the move's ordinal, and
@@ -240,6 +290,7 @@ struct BayEvent {
   std::string kind;        // "tube_in", "clamp", "release", "bay_out".
   int step = 0;
   double t0 = 0.0, t1 = 0.0;
+  int bay = 0;             // Which of the plan's bays (src/layout_bays.h).
 };
 
 // When a step of the bay starts (its move, or its approach or work where it
@@ -249,12 +300,14 @@ struct StepTime {
   std::string what;
   std::string arm;
   double start = 0.0, end = 0.0;
+  int bay = 0;
 };
 
 struct PhaseTime {
   std::string name;        // "tube in", "clamp", "rails", "modules", "end".
   double planned_s = 0.0;
   double model_s = 0.0;
+  int bay = 0;             // One set of phases for each bay.
 };
 
 struct Plan {
@@ -262,10 +315,11 @@ struct Plan {
   std::string layout_sha256;   // Of the layout's file as it was planned.
   PlanFigures figures;
   std::vector<ArmPlan> arms;   // In the layout's order.
-  std::vector<BayEvent> events;
-  std::vector<StepTime> steps; // Every step of the bay, in the steps' order.
+  std::vector<BayEvent> events;  // Bay by bay.
+  std::vector<StepTime> steps; // Every step of each bay, in the steps' order.
   std::vector<PhaseTime> phases;
-  double bay_planned_s = 0.0;
+  int bays = 1;                // Bays planned back to back (src/layout_bays.h).
+  double bay_planned_s = 0.0;  // Bay 0, from its tube_in to its bay_out.
   double bay_model_s = 0.0;
   bool complete = false;       // Every move found and the schedule exists.
 };
@@ -331,18 +385,26 @@ struct PlanOptions {
   // The RRT iteration budgets, in turn; empty: PlanFigures' own. The
   // budgets used go into the plan's figures.
   std::vector<int> budgets;
+  // Bays planned back to back (src/layout_bays.h); a part is one bay.
+  int bays = 1;
+  // R10: in bays after the first, steps that touch neither the tube nor the
+  // bay may start before the clamp has ended (src/layout_bays.h).
+  bool early_steps = true;
 };
 
 // PlanResult and PlanLayout are declared at the end, after VerifyReport.
 
-// ----------------------------------------------------------------- replay
-// (src/layout_replay.cc)
+// ------------------------------------------------------------- plan file
+// (src/layout_plan_file.cc)
 
 // The plan as text, the same for the same plan on one machine, and back.
 std::string PlanToJson(const Plan& plan);
 std::optional<Plan> PlanFromJson(const std::string& text, std::string* error);
 // Lower-case hexadecimal SHA-256 of a file's bytes; empty if it cannot be read.
 std::string Sha256OfFile(const std::string& path);
+
+// ----------------------------------------------------------------- replay
+// (src/layout_replay.cc)
 
 // Where one arm is at an instant.
 struct ArmAt {
@@ -362,6 +424,10 @@ struct WorldAt {
   // place in the holder; zero when it lies in the holder.
   Eigen::Vector3d way_offset = Eigen::Vector3d::Zero();
   std::string event;           // "tube_in", "clamp", "release", "bay_out" or "".
+  // The bay in the holder or going out: the first whose bay_out has not
+  // ended (the last once all are out). What follows is that bay's; the
+  // pallet counts on over the bays.
+  int bay = 0;
   std::vector<int> rails;      // On the tube.
   std::vector<int> modules;    // On their rails.
   std::vector<int> pallet_taken;  // module_take points already taken (held or set).
@@ -371,10 +437,13 @@ struct WorldAt {
 // Plays a plan: where everything is at an instant.
 class PlanPlayer {
  public:
-  // The report is the checker's for the layout (its steps and points).
+  // The report is the checker's for the layout (its steps and points, of
+  // one bay); a plan of several bays is played with StepsOfBays.
   PlanPlayer(const LayoutScene& scene, const CheckReport& report,
              const Plan& plan);
   double duration() const;
+  // A step of the plan by its number in the plan, nullptr if none.
+  const BayStep* Step(int number) const;
   WorldAt At(double t) const;
   // Puts every arm's pose of `w` into the data (no kinematics).
   void SetPoses(const WorldAt& w, mjData* d) const;
@@ -482,8 +551,10 @@ struct PlanResult {
   VerifyReport verify;         // VerifyPlan's report on the plan, when run.
 };
 
-// Plans and schedules one bay. `layout_sha256` goes into the plan. The
-// figures' margins are the checker's for the layout.
+// Plans and schedules one bay, or options.bays back to back. `layout_sha256`
+// goes into the plan. The figures' margins are the checker's for the layout.
+// The plan is complete when every move is found, every bay is scheduled
+// and the verifier finds no fault.
 PlanResult PlanLayout(const Layout& layout, const ModelPaths& paths,
                       const std::string& layout_sha256,
                       const PlanOptions& options = {});

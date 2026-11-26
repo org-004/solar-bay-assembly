@@ -93,8 +93,9 @@ check_layout.@layout | //:check_layout | @layout | -
 check_layout.@layout.steps | //:check_layout | @layout --steps | -
 check_layout.flat_rack_3_pin_arms.checks | //:check_layout | flat_rack_3_pin_arms --checks port,approach | -
 # plan_layout: for each committed plan. --margins reads the plan; --summary
-# plans afresh, and its planning_s is the wall-clock time (src/plan_layout.cc
-# line 401).
+# plans afresh, three bays back to back as the committed plans hold them
+# (about 4 minutes each), and its planning_s is the wall-clock time
+# (src/plan_layout.cc line 427).
 plan_layout.@plan.margins | //:plan_layout | @plan --margins | -
 plan_layout.@plan.summary | //:plan_layout | @plan --summary | re:^planning_s: (\S+)$
 # score_layout: from the committed scorecards; no clock.

@@ -22,6 +22,7 @@
 #include <tuple>
 
 #include "src/bay_hardware.h"
+#include "src/layout_bays.h"
 #include "src/portable_random.h"
 #include "src/rrt.h"
 
@@ -48,6 +49,13 @@ Config ToConfig(const std::array<double, 6>& deg, double track) {
   Config c{};
   for (int j = 0; j < 6; ++j) c[j] = deg[j] * kDeg;
   c[6] = track;
+  return c;
+}
+
+Config WaitPose(const SceneArm& sa) {
+  Config c{};
+  for (int j = 0; j < 6; ++j) c[j] = sa.wait[j];
+  c[6] = sa.wait_track;
   return c;
 }
 
@@ -134,6 +142,7 @@ struct Block {
   std::vector<int> moves;  // Indices into the moves, in segment order.
   bool in_range = true;
   bool parking = false;  // The move to the wait pose before the step.
+  int after = -1;        // A block it gave way to, placed before it.
   // Placed.
   bool placed = false;
   double start = 0.0, end = 0.0, work_end = 0.0;
@@ -183,11 +192,16 @@ namespace {
 
 class Planner {
  public:
+  // Plans bay `bay` of several (src/layout_bays.h) with the checker's
+  // `report` when one is given, the bay lying on the joint clock as `clock`
+  // says.
   Planner(const Layout& layout, const ModelPaths& paths,
-          const std::string& sha, const PlanOptions& options)
-      : layout_(layout), paths_(paths), sha_(sha), options_(options) {}
+          const std::string& sha, const PlanOptions& options, int bay = 0,
+          const CheckReport* report = nullptr, const BayClock& clock = {})
+      : layout_(layout), paths_(paths), sha_(sha), options_(options),
+        bay_(bay), given_(report), clock_(clock), shift_(clock.shift) {}
 
-  PlanResult Run(bool plan = true);
+  PlanResult Run(bool plan = true, bool verify = true);
   std::vector<std::string> Why(const std::vector<int>& steps);
 
  private:
@@ -218,6 +232,7 @@ class Planner {
     double t = 0.0;
     Nearest nearest;
     bool standing = false;    // The other arm stands for good there.
+    bool tube = false;        // The tube coming in, not another arm.
     Config mine{}, theirs{};
     int other_segment = -1;
     std::string my_kind;
@@ -238,6 +253,10 @@ class Planner {
   const ModelPaths& paths_;
   const std::string sha_;
   const PlanOptions options_;
+  const int bay_;
+  const CheckReport* given_;
+  const BayClock clock_;
+  const double shift_;
   PlanResult result_;
   CheckReport report_;
   std::unique_ptr<LayoutScene> scene_;
@@ -255,6 +274,12 @@ class Planner {
   std::map<std::tuple<int, std::string, std::string>, std::vector<Obstacle>>
       obstacle_sets_;
   std::vector<BayEvent> events_;
+  // The blocks in the order they were placed, for each its arm's row
+  // length and state before it, and the pairs (block taken back, block it
+  // gave way to) so far.
+  std::vector<int> placed_order_;
+  std::map<int, std::pair<size_t, ArmState>> undo_;
+  std::set<std::pair<int, int>> yielded_;
   double clamp_end_ = 0.0;
   bool all_found_ = true;
   bool scheduled_ = false;
@@ -292,34 +317,30 @@ bool Planner::Assemble() {
     Config at{};
     std::string tool, held, label = "wait";
     const SolvedPoint* last_point = nullptr;  // Of its last working step.
+    const WorkPoint* last_wp = nullptr;       // Its bay 0's point.
     int last_block = -1;
     bool last_retreat = false;  // The last block ends with a retreat.
     std::string last_phase;     // Of its last step.
   };
   std::vector<Now> now(n);
   for (int a = 0; a < n; ++a) {
-    const SceneArm& sa = scene_->arm(a);
-    Config w{};
-    for (int j = 0; j < 6; ++j) w[j] = sa.wait[j];
-    w[6] = sa.wait_track;
-    now[a].at = w;
-    now[a].tool = sa.use->first_tool;
+    now[a].at = WaitPose(scene_->arm(a));
+    now[a].tool = scene_->arm(a).use->first_tool;
   }
   const int pallet_total = PointCount(layout_, "module_take");
+  const int per_bay = ModulesPerBay(report_);
   bool ok = true;
   // The bay after the arm's previous step, for a tool change or a return.
   auto bay_after = [&](int a, const std::string& phase) {
     Built b;
     b.on_pallets = pallet_total;
-    if (now[a].last_point != nullptr) {
-      const WorkPoint* wp =
-          work_point(now[a].last_point->kind, now[a].last_point->index);
-      if (wp != nullptr) b = Union(scene_->AtWorkPoint(*wp, Leg::kRetreat).built);
+    if (now[a].last_wp != nullptr) {
+      b = Union(scene_->AtWorkPoint(*now[a].last_wp, Leg::kRetreat).built);
     }
     const bool leader = std::find(leaders.begin(), leaders.end(),
                                   scene_->arm(a).use->name) != leaders.end();
     if (!leader) AddLeadersParts(phase, &b);
-    return b;
+    return BuiltInBay(b, bay_, per_bay);
   };
   auto add_move = [&](int a, Block& block, int block_index, const Config& to,
                       const std::string& to_label, const Built& built,
@@ -378,10 +399,7 @@ bool Planner::Assemble() {
       park.number = st.number;
       park.in_range = InRange(st.number);
       park.parking = true;
-      const SceneArm& sa = scene_->arm(a);
-      Config w{};
-      for (int j = 0; j < 6; ++j) w[j] = sa.wait[j];
-      w[6] = sa.wait_track;
+      const Config w = WaitPose(scene_->arm(a));
       if (!now[a].held.empty()) {
         Fault(Fmt("step %d (%s): %s still holds %s when it parks", st.number,
                   st.what.c_str(), st.arm.c_str(), now[a].held.c_str()));
@@ -436,9 +454,7 @@ bool Planner::Assemble() {
         target = ToConfig(tc->deg, now[a].at[6]);
         label = "tools";
       } else {
-        const SceneArm& sa = scene_->arm(a);
-        for (int j = 0; j < 6; ++j) target[j] = sa.wait[j];
-        target[6] = sa.wait_track;
+        target = WaitPose(scene_->arm(a));
         label = "wait";
       }
       if (!now[a].held.empty()) {
@@ -458,11 +474,8 @@ bool Planner::Assemble() {
           if (report_.steps[k].arm == st.arm) later = true;
         }
         if (!later) {
-          const SceneArm& sa = scene_->arm(a);
-          Config w{};
-          for (int j = 0; j < 6; ++j) w[j] = sa.wait[j];
-          w[6] = sa.wait_track;
-          add_move(a, block, bi, w, "wait", bay_after(a, st.phase), t);
+          add_move(a, block, bi, WaitPose(scene_->arm(a)), "wait",
+                   bay_after(a, st.phase), t);
         }
       }
       now[a].last_retreat = false;
@@ -472,14 +485,15 @@ bool Planner::Assemble() {
       block_of_step_[st.number] = bi;
       continue;
     }
-    // A working step.
-    const SolvedPoint* p = FindPoint(report_, st.kind, st.index);
+    // A working step: its poses at the bay's point, its bay as bay 0's.
+    const int point = PointIndexInBay(st, bay_, per_bay);
+    const SolvedPoint* p = FindPoint(report_, st.kind, point);
     const WorkPoint* wp = work_point(st.kind, st.index);
-    const Work* work = FindWork(layout_, st.kind, st.index);
+    const Work* work = FindWork(layout_, st.kind, point);
     if (p == nullptr || wp == nullptr || work == nullptr || !p->work_reached ||
         p->approach_leg_deg.empty() || p->retreat_leg_deg.empty()) {
       Fault(Fmt("step %d (%s): no work pose or legs for %s %d", st.number,
-                st.what.c_str(), st.kind.c_str(), st.index));
+                st.what.c_str(), st.kind.c_str(), point));
       ok = false;
       continue;
     }
@@ -538,8 +552,8 @@ bool Planner::Assemble() {
       }
       Built built = Union(scene_->AtWorkPoint(*wp, Leg::kApproach).built);
       if (!leader) AddLeadersParts(st.phase, &built);
-      add_move(a, block, bi, approach.front(), p->item + " approach", built,
-               t);
+      add_move(a, block, bi, approach.front(), p->item + " approach",
+               BuiltInBay(built, bay_, per_bay), t);
       push("approach", p->tool, p->held_approach, approach, ta);
     }
     push("work", p->tool, p->held_approach, {work_c}, work->process_s);
@@ -548,6 +562,7 @@ bool Planner::Assemble() {
     now[a].held = p->held_retreat;
     now[a].label = p->item + " retreat";
     now[a].last_point = p;
+    now[a].last_wp = wp;
     now[a].last_block = bi;
     now[a].last_retreat = block.segs.back().kind == "retreat";
     blocks_.push_back(block);
@@ -557,10 +572,7 @@ bool Planner::Assemble() {
   // Every arm ends at its wait pose with its first tool.
   for (int a = 0; a < n; ++a) {
     const SceneArm& sa = scene_->arm(a);
-    Config w{};
-    for (int j = 0; j < 6; ++j) w[j] = sa.wait[j];
-    w[6] = sa.wait_track;
-    if (!SameConfig(now[a].at, w) || now[a].tool != sa.use->first_tool) {
+    if (!SameConfig(now[a].at, WaitPose(sa)) || now[a].tool != sa.use->first_tool) {
       Fault(Fmt("%s does not end the bay at its wait pose with %s",
                 sa.use->name.c_str(), sa.use->first_tool.c_str()));
       ok = false;
@@ -823,6 +835,11 @@ Planner::Conflict Planner::Check(int a, const Block& b, double s, mjData* d) {
   const ArmMotion& m = motions_[a];
   std::vector<double> times;
   for (double t = s; t < horizon; t += f_.sample_s) times.push_back(t);
+  // And the joint clock's instants k sample_s, which the verifier samples.
+  for (long k = static_cast<long>(std::ceil((s + shift_) / f_.sample_s));
+       static_cast<double>(k) * f_.sample_s - shift_ < horizon; ++k) {
+    times.push_back(static_cast<double>(k) * f_.sample_s - shift_);
+  }
   times.push_back(end);
   if (horizon > end) times.push_back(horizon);
   std::sort(times.begin(), times.end());
@@ -867,6 +884,16 @@ Planner::Conflict Planner::Check(int a, const Block& b, double s, mjData* d) {
     }
     mj_kinematics(&scene_->model(), d);
     const std::vector<MovingGeom>& set = ArmSet(a, tool, held);
+    // An early step (R10) against the tube on its way in.
+    const double u = (t - clock_.tube_start) / layout_.tube_in.time_s;
+    if (clock_.early && u >= 0.0 && u < 1.0) {
+      const double apart = f_.clearance_m + f_.plan_pad_m;
+      const Nearest nn = AgainstTheTubeComingIn(*scene_, d, set, u, apart);
+      if (nn.distance < apart) {
+        out = Conflict{true, a, t, nn, false, true, mine, mine, -1, kind};
+        return out;
+      }
+    }
     for (const Other& x : others) {
       ++schedule_queries_;
       const double apart = f_.clearance_m + f_.plan_pad_m;
@@ -961,10 +988,7 @@ bool Planner::Schedule() {
   for (int a = 0; a < n; ++a) {
     rows_[a].name = scene_->arm(a).use->name;
     const SceneArm& sa = scene_->arm(a);
-    Config w{};
-    for (int j = 0; j < 6; ++j) w[j] = sa.wait[j];
-    w[6] = sa.wait_track;
-    ArmEnd e{w, sa.use->first_tool, ""};
+    ArmEnd e{WaitPose(sa), sa.use->first_tool, ""};
     if (Partial()) {
       for (int bi : arm_blocks_[a]) {
         if (!blocks_[bi].in_range) continue;
@@ -981,13 +1005,14 @@ bool Planner::Schedule() {
     wseg.kind = "wait";
     wseg.step = clamp.step;
     wseg.t0 = 0.0;
-    wseg.t1 = clamp_end_;
+    // A later bay's early steps (R10) may start from early_from.
+    wseg.t1 = clock_.early ? std::clamp(clock_.early_from, 0.0, clamp_end_) : clamp_end_;
     wseg.tool = e.tool;
     wseg.held = e.held;
     wseg.path = {e.config};
     wseg.reason = "for the tube to come in and be clamped";
-    rows_[a].segments.push_back(wseg);
-    state_[a].free = clamp_end_;
+    if (wseg.t1 > 0.0) rows_[a].segments.push_back(wseg);
+    state_[a].free = wseg.t1;
   }
   // The precedences of each block.
   int first_take = -1;
@@ -1076,7 +1101,14 @@ bool Planner::Schedule() {
       const Block& b = blocks_[bi];
       double r = st.free;
       std::string reason;
-      bool can = true;
+      // R10: only a step that touches neither the tube nor the bay starts
+      // before the clamp has ended.
+      if (r < clamp_end_ &&
+          (b.parking || TouchesTheBay(report_.steps[b.step_index].kind))) {
+        r = clamp_end_;
+        reason = "for the tube to come in and be clamped";
+      }
+      bool can = b.after < 0 || blocks_[b.after].placed;
       for (const Need& need : needs_of(b)) {
         auto it = block_of_step_.find(need.step);
         if (it == block_of_step_.end()) continue;
@@ -1118,6 +1150,7 @@ bool Planner::Schedule() {
     // placed is the schedule blocked, named by the first one's conflict.
     bool placed = false;
     std::string first_block;
+    int yield_to = -1, yield_arm = -1;
     for (const Candidate& c : ready) {
       Block& b = blocks_[c.block];
       double s = c.ready;
@@ -1141,9 +1174,11 @@ bool Planner::Schedule() {
           // Name the conflict that made it wait last.
           Conflict last = Check(c.arm, b, s - kShiftS, d.get());
           wait_reason = Fmt("for %s to pass: %s at %.2f s",
-                            scene_->arm(last.other).use->name.c_str(),
+                            last.tube ? "the tube" : scene_->arm(last.other).use->name.c_str(),
                             scene_->PairText(last.nearest).c_str(), last.t);
         }
+        undo_[c.block] = {rows_[c.arm].segments.size(), state_[c.arm]};
+        placed_order_.push_back(c.block);
         Place(c.arm, b, s, c.ready, c.reason, wait_reason);
         state_[c.arm].next++;
         placed = true;
@@ -1167,6 +1202,28 @@ bool Planner::Schedule() {
                     conflict.nearest.distance, conflict.t, other.c_str(),
                     ConfigText(conflict.theirs).c_str());
       if (first_block.empty()) first_block = text;
+      if (standing && yield_to < 0) {
+        yield_to = c.block;
+        yield_arm = conflict.other;
+      }
+    }
+    // Giving way: when nothing can be placed, the schedule is taken back to
+    // before the last block of the arm that stands in the first standing
+    // conflict's way, and that block is placed again only after the block
+    // it was in the way of (once for each pair of blocks).
+    if (!placed && yield_arm >= 0 && state_[yield_arm].next > 0) {
+      const int last = arm_blocks_[yield_arm][state_[yield_arm].next - 1];
+      if (yielded_.insert({last, yield_to}).second) {
+        for (int k = -1; k != last;) {
+          k = placed_order_.back();
+          placed_order_.pop_back();
+          rows_[blocks_[k].arm].segments.resize(undo_[k].first);
+          state_[blocks_[k].arm] = undo_[k].second;
+          blocks_[k].placed = false;
+        }
+        blocks_[last].after = yield_to;
+        continue;
+      }
     }
     if (!placed) {
       Fault("the schedule is blocked: " + first_block);
@@ -1281,7 +1338,7 @@ void Planner::FillPlan() {
   plan.complete = false;
 }
 
-PlanResult Planner::Run(bool plan) {
+PlanResult Planner::Run(bool plan, bool verify) {
   const auto t0 = std::chrono::steady_clock::now();
   auto done = [&]() {
     result_.seconds = std::chrono::duration<double>(
@@ -1289,7 +1346,7 @@ PlanResult Planner::Run(bool plan) {
                           .count();
     return result_;
   };
-  report_ = CheckLayout(layout_, paths_);
+  report_ = given_ != nullptr ? *given_ : CheckLayout(layout_, paths_);
   if (!report_.error.empty()) {
     Fault("the checker could not build the model: " + report_.error);
     return done();
@@ -1343,6 +1400,10 @@ PlanResult Planner::Run(bool plan) {
   if (Partial()) {
     Fault(Fmt("a part of the bay (steps %d to %d) is never complete",
               options_.first_step, options_.last_step));
+    return result_;
+  }
+  if (!verify) {
+    result_.plan.complete = true;
     return result_;
   }
   const char* skip = std::getenv("PLAN_SKIP_VERIFY");
@@ -1469,8 +1530,30 @@ std::vector<std::string> WhyMoves(const Layout& layout, const ModelPaths& paths,
 PlanResult PlanLayout(const Layout& layout, const ModelPaths& paths,
                       const std::string& layout_sha256,
                       const PlanOptions& options) {
-  Planner planner(layout, paths, layout_sha256, options);
-  return planner.Run();
+  if (options.bays <= 1 || options.first_step != 0 || options.last_step != 0) {
+    Planner planner(layout, paths, layout_sha256, options);
+    return planner.Run();
+  }
+  const auto t0 = std::chrono::steady_clock::now();
+  PlanResult r = PlanBays(layout, paths, options,
+                          [&](int bay, const CheckReport& report, const BayClock& clock) {
+                            Planner planner(layout, paths, layout_sha256,
+                                            options, bay, &report, clock);
+                            return planner.Run(true, false);
+                          });
+  r.seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - t0)
+                  .count();
+  if (!r.plan.complete) return r;
+  const char* skip = std::getenv("PLAN_SKIP_VERIFY");
+  if (skip != nullptr && std::string(skip) == "1") {
+    r.faults.push_back("not verified (PLAN_SKIP_VERIFY=1)");
+    r.plan.complete = false;
+    return r;
+  }
+  r.verify = VerifyPlan(layout, paths, r.plan, layout_sha256);
+  for (const std::string& v : r.verify.faults) r.faults.push_back("verify: " + v);
+  r.plan.complete = r.verify.ok && r.verify.faults.empty();
+  return r;
 }
 
 }  // namespace cell::layout

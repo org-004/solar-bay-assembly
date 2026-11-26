@@ -18,6 +18,7 @@
 #include <gtest/gtest.h>
 
 #include "src/layout.h"
+#include "src/layout_bays.h"
 #include "src/layout_model.h"
 #include "src/layout_plan.h"
 #include "src/scorecard.h"
@@ -240,8 +241,10 @@ TEST(PhysicsRecord, ThePhysicsShareOfTheScorecard) {
   const Measure* m = FindMeasure(*with, "physics_share");
   ASSERT_NE(m, nullptr);
   ASSERT_TRUE(m->value.has_value());
-  EXPECT_EQ(*m->value, Round6(CountedSeconds(record) / plan.bay_planned_s));
+  // The share of one bay (R5): over one_bay_s, not the three bays' cycle_s.
+  EXPECT_EQ(*m->value, Round6(CountedSeconds(record) / CycleFiguresOf(plan).one_bay_s));
   EXPECT_GT(*m->value, 0.0);
+  EXPECT_NE(m->basis.find("of one bay's"), std::string::npos) << m->basis;
   EXPECT_EQ(m->known, "measured");
   EXPECT_NE(m->basis.find(std::string("physics/") + kName + ".json"),
             std::string::npos)
@@ -306,7 +309,7 @@ TEST(PhysicsRecord, EveryCommittedRecordAgreesWithItsPlanAndItsCard) {
     const Measure* m = FindMeasure(*card, "physics_share");
     ASSERT_NE(m, nullptr);
     EXPECT_EQ(m->value,
-              Round6(CountedSeconds(*record) / plan.bay_planned_s))
+              Round6(CountedSeconds(*record) / CycleFiguresOf(plan).one_bay_s))
         << "scores/" << name << ".json";
     EXPECT_EQ(card->physics_sha256,
               Sha256OfFile(entry.path().string()));
@@ -332,6 +335,9 @@ TEST(PhysicsRecord, TheChosenLayoutHasARecordAndAShareAboveZero) {
   EXPECT_GT(*m->value, 0.0);
   EXPECT_EQ(m->known, "measured");
   EXPECT_NE(m->basis.find("physics/" + *name + ".json"), std::string::npos) << m->basis;
+  // One module's cycle in physics, 22.068854 s of v10's one bay of
+  // 560.452329 s: three bays in the plan do not change it.
+  if (*name == "flat_rack_3_pin_arms_ordered") EXPECT_EQ(*m->value, 0.039377);
 }
 
 }  // namespace

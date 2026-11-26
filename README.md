@@ -23,11 +23,11 @@ layout, and [`docs/scorecard.md`](docs/scorecard.md) defines each one.
 
 ### One 40 ft base: the cell on the real parts
 
-![v10  2026-11-26  Three pin arms on the flat rack, the bay shortened by the order of work; cycle 560.45 s per bay (planned), 4 arms](docs/evolution/v10.gif)
+![v10  2026-11-26  Three pin arms on the flat rack, the bay shortened by the order of work; cycle 554.55 s per bay (planned), 4 arms](docs/evolution/v10.gif)
 
-| Version | Cycle time | Failures per bay | Arms | Part count | Placement error | Mass in transit | Gates |
-|---|---|---|---|---|---|---|---|
-| v10 | 560.45 s per bay (planned) | 0.385 | 4 | 39 | none | 3426.3 kg | all 3 pass |
+| Version | Cycle time | One bay | Failures per bay | Arms | Part count | Placement error | Mass in transit | Gates |
+|---|---|---|---|---|---|---|---|---|
+| v10 | 554.55 s per bay (planned) | 560.45 s | 0.385 | 4 | 39 | none | 3426.3 kg | all 3 pass |
 
 [One 40 ft base: the cell on the real parts: progress and versions](docs/directions/one-40ft-flat-rack.md)
 
@@ -74,14 +74,18 @@ not the bay it builds. Five earlier layouts built the bay inside a container wit
 [`docs/layout.md`](docs/layout.md), and that the bay fits inside a container was never a
 requirement.
 
-**The planner and scheduler of a bay.** `plan_layout` plans every move of every arm for one
-bay of a layout free of collision, and schedules the four arms on one clock. A verifier
-checks the schedule, and the plan is committed (`plans/`), replayed and checked by a test,
-and played back in the viewer. With run 011's order of work (`flat_rack_3_pin_arms`) a bay
-takes 644.28 s planned and 416.32 s by the time model
+**The planner and scheduler of the bays.** `plan_layout` plans every move of every arm for
+three bays of a layout back to back, free of collision, and schedules the four arms on one
+clock. A verifier checks the schedule, and the plan is committed (`plans/`), replayed and
+checked by a test, and played back in the viewer. The scorecard's cycle time is the
+average bay of the three, and one bay is beside it
+([`docs/three-bays.md`](docs/three-bays.md)). With run 011's order of work
+(`flat_rack_3_pin_arms`) one bay takes 644.28 s planned and 416.32 s by the time model,
+and three bays average 622.31 s
 ([`docs/flat-rack-cell.md`](docs/flat-rack-cell.md)). With the order of the chosen layout,
-`flat_rack_3_pin_arms_ordered`, it takes 560.45 s
-([`docs/flat-rack-order.md`](docs/flat-rack-order.md); its recording is v10's, above).
+`flat_rack_3_pin_arms_ordered`, one bay takes 560.45 s and three average 554.55 s
+([`docs/flat-rack-order.md`](docs/flat-rack-order.md); its recording, of one bay, is v10's,
+above).
 
 ![The whole bay as planned with run 011's order, 16 times real time](docs/bay_planned.gif)
 
