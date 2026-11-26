@@ -20,7 +20,6 @@
 #include <string>
 #include <vector>
 
-#include <mujoco/mujoco.h>
 
 #include "src/layout.h"
 #include "src/layout_check.h"

@@ -118,6 +118,9 @@ CheckRow TubeAtRestRow(const LayoutScene& scene, mjData* d,
           raw != nullptr && std::string(raw).rfind(prefix, 0) == 0
               ? std::string(raw).substr(prefix.size())
               : std::string();
+      // Near by design only below zero (touching): the grips hold the tube
+      // from beside it, so a distance above zero is no reason to fail, but
+      // going into it is; and only these boxes, never the unit's bed.
       if (item.name == pinned_by &&
           (box.rfind("jaw", 0) == 0 || box == "head")) {
         s.by_design.insert(g);
