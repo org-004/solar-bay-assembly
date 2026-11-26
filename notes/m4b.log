@@ -1,0 +1,4 @@
+docker_ci EXIT 0 MONO 1241.7s
+cap_R26 EXIT 0 MONO 231.4s
+R26 compare EXIT 1
+DONE

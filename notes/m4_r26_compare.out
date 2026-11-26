@@ -1,0 +1,5 @@
+check_layout.flat_rack_3_pin_arms: line 1: a: exit: 0 | b: exit: 1
+check_layout.flat_rack_3_pin_arms.checks: line 1: a: exit: 0 | b: exit: 1
+check_layout.flat_rack_3_pin_arms.steps: line 1: a: exit: 0 | b: exit: 1
+plan_layout.flat_rack_3_pin_arms.margins: line 1: a: exit: 0 | b: exit: 1
+plan_layout.flat_rack_3_pin_arms.summary: line 1: a: exit: 0 | b: exit: 1

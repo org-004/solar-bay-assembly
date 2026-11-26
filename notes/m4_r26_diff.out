@@ -1,0 +1,7 @@
+diff --git a/layouts/flat_rack_3_pin_arms.json b/layouts/flat_rack_3_pin_arms.json
+index e62b1e9..22cfc57 100644
+--- a/layouts/flat_rack_3_pin_arms.json
++++ b/layouts/flat_rack_3_pin_arms.json
+@@ -13 +13 @@
+-    "clearance_m": 0.015,
++    "clearance_m": 0.065,

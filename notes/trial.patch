@@ -1,0 +1,131 @@
+diff --git a/BUILD.bazel b/BUILD.bazel
+index 29493d9..7d90adc 100644
+--- a/BUILD.bazel
++++ b/BUILD.bazel
+@@ -1689,7 +1689,6 @@ cc_test(
+         ":bay_model",
+         ":container",
+         ":mj_handles",
+-        "@eigen",
+         "@googletest//:gtest_main",
+         "@mujoco",
+     ],
+@@ -1882,7 +1881,6 @@ cc_library(
+     deps = [
+         ":bay_hardware",
+         ":bay_model",
+-        ":container",
+         ":layout",
+         ":mj_handles",
+         "@eigen",
+@@ -2025,7 +2023,6 @@ cc_test(
+     data = LAYOUT_FILES + LAYOUT_MODEL_FILES,
+     env = LAYOUT_ENV,
+     deps = [
+-        ":container",
+         ":flat_rack",
+         ":layout",
+         ":layout_check",
+@@ -2127,7 +2124,6 @@ cc_test(
+         ":layout_model",
+         ":layout_plan",
+         "@googletest//:gtest_main",
+-        "@nlohmann_json//:json",
+     ],
+ )
+ # END layout_plan
+diff --git a/docs/architecture/backlog.md b/docs/architecture/backlog.md
+index e296621..faf9179 100644
+--- a/docs/architecture/backlog.md
++++ b/docs/architecture/backlog.md
+@@ -55,7 +55,7 @@ the captures `check_layout.*` and `plan_layout.*`. Nothing to pin first.
+ `tools/architecture/deps.json`, `docs/architecture/baseline.txt`,
+ `docs/architecture/principles.md` (P5 **Now**).
+ **After.** None.
+-**State.** open
++**State.** done (P5 16 to 12, P5.unused_project 10 to 8, P5.unused_outside 4 to 2, P4.eigen 78 to 77, P4.nlohmann_json 4 to 3, P1.listed 20 to 16)
+ 
+ ## B2 Include src/mj_handles.h where DataPtr is named, and drop it from viewer_lib
+ 
+diff --git a/docs/architecture/baseline.txt b/docs/architecture/baseline.txt
+index 03a5562..de31583 100644
+--- a/docs/architecture/baseline.txt
++++ b/docs/architecture/baseline.txt
+@@ -2,7 +2,7 @@ P1 5 file-to-header pairs (a file and a project header it includes) against the
+ P1.cycles 0 header cycles
+ P1.namespace 0 files under src/ that open a namespace their group does not allow (deps.json namespaces), and #define lines with the word namespace
+ P1.allowed 24 pairs (group, group it may include) (a rule of deps.json; may not grow)
+-P1.listed 20 departures on the list of deps.json (a rule of deps.json; may not grow)
++P1.listed 16 departures on the list of deps.json (a rule of deps.json; may not grow)
+ P1.frozen_files 66 files in frozen groups (a rule of deps.json; may not grow)
+ P1.frozen 4 of them in the stand-in cell's files, which a refactoring does not edit
+ P2 6 files under src/ that no test and no captured program (programs.txt) depends on (bazel)
+@@ -15,17 +15,17 @@ P3.frozen 5 of them in the stand-in cell's files, which a refactoring does not e
+ P4 26 outside dependencies in MODULE.bazel (bazel_dep, fetches, use_repo names, overrides; may not grow)
+ P4.unpinned 0 of them not pinned by a version, a commit, an integrity or a sha256
+ P4.mujoco 67 targets that list @mujoco directly (may not grow)
+-P4.eigen 78 targets that list @eigen directly (may not grow)
++P4.eigen 77 targets that list @eigen directly (may not grow)
+ P4.googletest 42 targets that list @googletest directly (may not grow)
+-P4.nlohmann_json 4 targets that list @nlohmann_json directly (may not grow)
++P4.nlohmann_json 3 targets that list @nlohmann_json directly (may not grow)
+ P4.ompl 1 targets that list @ompl directly (may not grow)
+ P4.glfw 1 targets that list @glfw directly (may not grow)
+ P4.mujoco_files 70 files that include mujoco/ (may not grow)
+ P4.group 0 #include lines of an outside library from a group that may not include it, and files that reach one through project headers
+ P4.allowed 22 pairs (group, outside library) (a rule of deps.json; may not grow)
+-P5 16 unused and missing deps of targets, and files in the srcs and hdrs of no target or of several
+-P5.unused_project 10 targets' deps on project libraries none of whose headers the target includes
+-P5.unused_outside 4 targets' deps on outside libraries none of whose headers the target includes
++P5 12 unused and missing deps of targets, and files in the srcs and hdrs of no target or of several
++P5.unused_project 8 targets' deps on project libraries none of whose headers the target includes
++P5.unused_outside 2 targets' deps on outside libraries none of whose headers the target includes
+ P5.missing 1 targets that include a header of a library they do not list
+ P5.files 1 files under src/ and tests/ in the srcs and hdrs of no target or of more than one
+ P5.frozen 7 of them in the stand-in cell's files, which a refactoring does not edit
+diff --git a/docs/architecture/principles.md b/docs/architecture/principles.md
+index 10e557b..db087ad 100644
+--- a/docs/architecture/principles.md
++++ b/docs/architecture/principles.md
+@@ -157,8 +157,8 @@ counts fetches without a version, commit or hash, `P4.group` the includes of a l
+ from a group that may not, one line per library counts the targets that list it, and
+ `P4.mujoco_files` the files that include MuJoCo.
+ 
+-**Now.** `P4 26`, `P4.unpinned 0`, `P4.group 0`; `@eigen` 78 targets, `@mujoco` 67,
+-`@googletest` 42, `@nlohmann_json` 4, `@ompl` 1, `@glfw` 1; `P4.mujoco_files 70`.
++**Now.** `P4 26`, `P4.unpinned 0`, `P4.group 0`; `@eigen` 77 targets, `@mujoco` 67,
++`@googletest` 42, `@nlohmann_json` 3, `@ompl` 1, `@glfw` 1; `P4.mujoco_files 70`.
+ 
+ **Target.** `P4` does not grow without a decision record; `P4.unpinned` and `P4.group`
+ stay 0; the lines per library do not grow.
+@@ -189,7 +189,7 @@ files include, plus includes of a library that is not in `deps`, plus files unde
+ one. It compares `#include` lines with `deps`: an include that nothing needs, and a
+ name used only through another header's include, are not seen.
+ 
+-**Now.** `P5 16`: `P5.unused_project 10`, `P5.unused_outside 4`, `P5.missing 1`
++**Now.** `P5 12`: `P5.unused_project 8`, `P5.unused_outside 2`, `P5.missing 1`
+ (`//:layout_plan_test` without `@mujoco`), `P5.files 1` (`src/viewer.cc`, in eight
+ programs). `P5.frozen 7`.
+ 
+diff --git a/tools/architecture/deps.json b/tools/architecture/deps.json
+index c29d2b7..ce2d67b 100644
+--- a/tools/architecture/deps.json
++++ b/tools/architecture/deps.json
+@@ -144,17 +144,13 @@
+       {"kind": "include", "from": "src/module_finder.h", "to": "src/pallet.h", "item": "left"},
+       {"kind": "include", "from": "tests/locating_gate_test.cc", "to": "src/bay_hardware.h", "item": "left"},
+       {"kind": "unused_dep", "target": "//:check_camera_cell_test", "dep": "//:depth_camera", "item": "left"},
+-      {"kind": "unused_dep", "target": "//:layout_model", "dep": "//:container", "item": "B1"},
+       {"kind": "unused_dep", "target": "//:layout_plan", "dep": "//:mj_handles", "item": "B2"},
+-      {"kind": "unused_dep", "target": "//:layout_rows_test", "dep": "//:container", "item": "B1"},
+       {"kind": "unused_dep", "target": "//:layout_scene_test", "dep": "//:mj_handles", "item": "B2"},
+       {"kind": "unused_dep", "target": "//:pick_place", "dep": "//:path_timing", "item": "left"},
+       {"kind": "unused_dep", "target": "//:trial_runner_test", "dep": "//:cell", "item": "left"},
+       {"kind": "unused_dep", "target": "//:trial_runner_test", "dep": "//:pick_place", "item": "left"},
+       {"kind": "unused_dep", "target": "//:trial_runner_test", "dep": "//:score", "item": "left"},
+       {"kind": "unused_dep", "target": "//:viewer_lib", "dep": "//:mj_handles", "item": "B2"},
+-      {"kind": "unused_outside_dep", "target": "//:bay_model_test", "dep": "eigen", "item": "B1"},
+-      {"kind": "unused_outside_dep", "target": "//:plan_replay_test", "dep": "nlohmann_json", "item": "B1"},
+       {"kind": "unused_outside_dep", "target": "//:print_plane_fit", "dep": "eigen", "item": "left"},
+       {"kind": "unused_outside_dep", "target": "//:print_points", "dep": "eigen", "item": "left"},
+       {"kind": "missing_dep", "target": "//:layout_plan_test", "dep": "@mujoco", "item": "B3"}
