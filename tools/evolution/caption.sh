@@ -6,7 +6,8 @@
 # `tools/evolution/pages.py caption <id>`. Each line goes through a text file
 # (drawtext textfile=), so no character needs escaping. Font sizes are 22 px
 # for line 1 and 19 px for the others at 720 px width, scaled to the input's
-# width. A GIF keeps its frame rate and loops forever, with at most 64 colours
+# width; a line too long for the picture is wrapped at spaces. A GIF keeps
+# its frame rate and loops forever, with at most 64 colours
 # (32 on a second try). Prints the output's size in bytes; exits 1 when it is
 # above 2,500,000 bytes. Temporary files go under ${V:-$HOME/video}.
 set -e
@@ -25,17 +26,28 @@ width=$(ffprobe -v error -select_streams v:0 -show_entries stream=width -of csv=
 size1=$(awk -v w="$width" 'BEGIN { printf "%d", 22 * w / 720 + 0.5 }')
 size2=$(awk -v w="$width" 'BEGIN { printf "%d", 19 * w / 720 + 0.5 }')
 pad=$(awk -v w="$width" 'BEGIN { printf "%d", 8 * w / 720 + 0.5 }')
-lines=$#
-band=$(( pad * 2 + size1 + (lines - 1) * (size2 + pad / 2 + 2) + 2 ))
-band=$(( band + band % 2 ))
-vf="pad=iw:ih+$band:0:$band:white"
+# A line too long for the width is wrapped at spaces. DejaVu Sans averages
+# well under 0.6 of the font size per character, so a line of at most
+# (width - 2 * pad) / (0.6 * size) characters fits.
+texts=(); sizes=()
 i=0
-y=$pad
 for line in "$@"; do
   i=$((i + 1))
-  printf '%s' "$line" > "$work/line$i.txt"
   if [ $i -eq 1 ]; then s=$size1; else s=$size2; fi
-  vf="$vf,drawtext=fontfile=$font:textfile=$work/line$i.txt:fontsize=$s:fontcolor=#222222:x=$pad:y=$y"
+  max=$(awk -v w="$width" -v p="$pad" -v s="$s" 'BEGIN { printf "%d", (w - 2 * p) / (0.6 * s) }')
+  while IFS= read -r part; do
+    texts+=("$part"); sizes+=("$s")
+  done < <(printf '%s\n' "$line" | fold -s -w "$max" | sed 's/ *$//')
+done
+band=$(( pad * 2 + 2 ))
+for s in "${sizes[@]}"; do band=$(( band + s + pad / 2 + 2 )); done
+band=$(( band + band % 2 ))
+vf="pad=iw:ih+$band:0:$band:white"
+y=$pad
+for k in "${!texts[@]}"; do
+  printf '%s' "${texts[$k]}" > "$work/line$k.txt"
+  s=${sizes[$k]}
+  vf="$vf,drawtext=fontfile=$font:textfile=$work/line$k.txt:fontsize=$s:fontcolor=#222222:x=$pad:y=$y"
   y=$(( y + s + pad / 2 + 2 ))
 done
 mkdir -p "$(dirname "$out")"

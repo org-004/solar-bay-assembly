@@ -14,7 +14,7 @@ No version is chosen; the newest version that is not a candidate is v04, "Whole 
 | modules_in_tolerance | 240 | of 240 | measured | README.md at dd03149, The gate: all 240 in tolerance; docs/gate.md at dd03149 (measured at 69b9087 plus this stage): `bazel test --config=opt //:gate_test` |
 | placement_mm | 1.95 | mm | measured | README.md at dd03149, The gate: worst 1.95 mm; docs/gate.md at dd03149, worst position in the rails' plane (seed 4, module 6); `bazel test --config=opt //:gate_test` |
 | placement_deg | 0.059 | deg | measured | README.md at dd03149, The gate: worst 0.059 degrees; `bazel test --config=opt //:gate_test` |
-| gate_tolerance_mm | 3 | mm (and 0.15 deg) | planned | docs/gate.md at dd03149, The tolerance: an assumption chosen by the project owner, not a tracker maker's figure |
+| gate_tolerance_mm | 3 | mm (and 0.15 deg) | assumed | docs/gate.md at dd03149, The tolerance: an assumption chosen by the project owner, not a tracker maker's figure |
 | cycle_s | 23.90 | s per module | measured | README.md at dd03149, Planning: a cycle 23.9 s with the planned carry, without the check (the check costs 0.6 s more per README at 69b9087 commit message); `bazel run --config=opt //:run_cell -- --pretty --trials 20 --carry planned` |
 
 ## Progress
@@ -28,7 +28,7 @@ No version is chosen; the newest version that is not a candidate is v04, "Whole 
 
 ![Cycle time of each version](stand-in-cell-cycle.svg)
 
-A filled marker is a cycle time that is planned or measured, a hollow marker one that is modelled; a lighter marker is a candidate that was not chosen.
+A filled circle is a cycle time that is planned, a square one that is measured, a hollow circle one that is modelled; a lighter marker is a candidate that was not chosen.
 
 ## v04 Whole pallets in tolerance: the gate
 
@@ -46,14 +46,16 @@ A filled marker is a cycle time that is planned or measured, a hollow marker one
 | modules_in_tolerance | 240 | of 240 | measured | README.md at dd03149, The gate: all 240 in tolerance; docs/gate.md at dd03149 (measured at 69b9087 plus this stage): `bazel test --config=opt //:gate_test` |
 | placement_mm | 1.95 | mm | measured | README.md at dd03149, The gate: worst 1.95 mm; docs/gate.md at dd03149, worst position in the rails' plane (seed 4, module 6); `bazel test --config=opt //:gate_test` |
 | placement_deg | 0.059 | deg | measured | README.md at dd03149, The gate: worst 0.059 degrees; `bazel test --config=opt //:gate_test` |
-| gate_tolerance_mm | 3 | mm (and 0.15 deg) | planned | docs/gate.md at dd03149, The tolerance: an assumption chosen by the project owner, not a tracker maker's figure |
+| gate_tolerance_mm | 3 | mm (and 0.15 deg) | assumed | docs/gate.md at dd03149, The tolerance: an assumption chosen by the project owner, not a tracker maker's figure |
 | cycle_s | 23.90 | s per module | measured | README.md at dd03149, Planning: a cycle 23.9 s with the planned carry, without the check (the check costs 0.6 s more per README at 69b9087 commit message); `bazel run --config=opt //:run_cell -- --pretty --trials 20 --carry planned` |
 
 **Against v03.**
 
+Each figure as the two versions' own sources report it; the conditions of a run may differ between them (see each figure's source).
+
 | Measure | Before (v03) | Now (v04) | Difference |
 |---|---|---|---|
-| arms | 1 arms | 1 arms | 0 arms |
+| arms | 1 arm | 1 arm | 0 arms |
 | cycle_s | 23.90 s per module | 23.90 s per module | 0.00 s per module |
 | placement_mm | 0.28 mm | 1.95 mm | +1.67 mm |
 
@@ -78,9 +80,11 @@ A filled marker is a cycle time that is planned or measured, a hollow marker one
 
 **Against v02.**
 
+Each figure as the two versions' own sources report it; the conditions of a run may differ between them (see each figure's source).
+
 | Measure | Before (v02) | Now (v03) | Difference |
 |---|---|---|---|
-| arms | 1 arms | 1 arms | 0 arms |
+| arms | 1 arm | 1 arm | 0 arms |
 | cycle_s | 25.90 s per module | 23.90 s per module | -2.00 s per module |
 | input_tolerance | 30 mm (and 3 deg) | 30 mm (and 3 deg) | 0 mm (and 3 deg) |
 | placement_mm | 0.6 mm | 0.28 mm | -0.32 mm |
@@ -98,7 +102,7 @@ A filled marker is a cycle time that is planned or measured, a hollow marker one
 | Figure | Value | Unit | How known | Source |
 |---|---|---|---|---|
 | arms | 1 | arms | counted | README.md at a2f4e85, Status, The cell: a KUKA KR 210 R2700-2 with a suction tool |
-| cycle_s | 25.90 | s per module | measured | README.md at a2f4e85, Status: a whole pallet of 30 placed onto three tubes, 25.9 s a cycle on average (the README also says about 25 s); `bazel run --config=opt //:run_cell -- --pretty --trials 20` |
+| cycle_s | 25.90 | s per module | measured | README.md at a2f4e85, Status: a whole pallet of 30 placed onto three tubes, 25.9 s a cycle on average (the README also says about 25 s); the README gives no command for the pallet run |
 | placement_mm | 0.6 | mm | measured | README.md at a2f4e85, Status: over 20 pallets, worst 0.13 mm along the tube and 0.60 mm across it; `bazel run --config=opt //:run_cell -- --pretty --trials 20` |
 | placement_deg | 0.012 | deg | measured | README.md at a2f4e85, Status: over 20 pallets, worst 0.012 degrees; `bazel run --config=opt //:run_cell -- --pretty --trials 20` |
 | input_tolerance | 30 | mm (and 3 deg) | measured | README.md at a2f4e85, Status: pallets set down up to 30 mm and 3 degrees off, with noisy pictures; `bazel run --config=opt //:run_cell -- --pretty --trials 20` |
@@ -106,9 +110,11 @@ A filled marker is a cycle time that is planned or measured, a hollow marker one
 
 **Against v01.**
 
+Each figure as the two versions' own sources report it; the conditions of a run may differ between them (see each figure's source).
+
 | Measure | Before (v01) | Now (v02) | Difference |
 |---|---|---|---|
-| arms | 1 arms | 1 arms | 0 arms |
+| arms | 1 arm | 1 arm | 0 arms |
 | cycle_s | 25.00 s per module | 25.90 s per module | +0.90 s per module |
 | placement_mm | 0.1 mm | 0.6 mm | +0.5 mm |
 

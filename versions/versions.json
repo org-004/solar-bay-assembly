@@ -102,7 +102,7 @@
           "value": 25.9,
           "unit": "s per module",
           "known": "measured",
-          "source": "README.md at a2f4e85, Status: a whole pallet of 30 placed onto three tubes, 25.9 s a cycle on average (the README also says about 25 s); `bazel run --config=opt //:run_cell -- --pretty --trials 20`"
+          "source": "README.md at a2f4e85, Status: a whole pallet of 30 placed onto three tubes, 25.9 s a cycle on average (the README also says about 25 s); the README gives no command for the pallet run"
         },
         {
           "name": "placement_mm",
@@ -242,7 +242,7 @@
           "name": "gate_tolerance_mm",
           "value": 3,
           "unit": "mm (and 0.15 deg)",
-          "known": "planned",
+          "known": "assumed",
           "source": "docs/gate.md at dd03149, The tolerance: an assumption chosen by the project owner, not a tracker maker's figure"
         },
         {
@@ -274,21 +274,21 @@
           "name": "modules_per_bay",
           "value": 10,
           "unit": "modules",
-          "known": "planned",
+          "known": "assumed",
           "source": "docs/bay-hardware.md at 1213319, The bay (marked ours): 10 modules, the largest whose bay is no longer than 11.8 m"
         },
         {
           "name": "bay_mass_kg",
           "value": 455.3,
           "unit": "kg",
-          "known": "modelled",
+          "known": "derived",
           "source": "docs/bay-hardware.md at 1213319, The bay (derived: tube 105.42 + 11 rails x 2.35 + 10 modules x 32.4): `bazel run --config=opt //:print_bay -- --summary`"
         },
         {
           "name": "bay_length_mm",
           "value": 11760,
           "unit": "mm",
-          "known": "planned",
+          "known": "derived",
           "source": "docs/bay-hardware.md at 1213319, The bay: tube as shipped, 11,760 mm (derived)"
         },
         {
@@ -302,14 +302,14 @@
           "name": "container_gross_kg",
           "value": 23800,
           "unit": "kg",
-          "known": "planned",
+          "known": "assumed",
           "source": "docs/bay-hardware.md at 1213319, The container this project assumes: gross mass for transport 23,800 kg, tare 6,600 kg (both marked ours)"
         },
         {
           "name": "mass_left_for_cell_kg",
           "value": 17200,
           "unit": "kg",
-          "known": "modelled",
+          "known": "derived",
           "source": "docs/bay-hardware.md at 1213319, The container this project assumes: 23,800 - 6,600 (derived)"
         }
       ]
@@ -348,7 +348,7 @@
           "name": "bay_mass_kg",
           "value": 410.3,
           "unit": "kg",
-          "known": "modelled",
+          "known": "derived",
           "source": "docs/bay-hardware.md at 68a1199, The bay: tube 95.16 + 10 rails x 2.35 + 9 modules x 32.4 (derived); `bazel run --config=opt //:print_bay -- --summary`"
         },
         {
@@ -362,14 +362,14 @@
           "name": "reach_rows_passed",
           "value": 186,
           "unit": "of 186",
-          "known": "modelled",
+          "known": "counted",
           "source": "docs/layout.md at 68a1199, comparison table, reach; kinematic check, not a physics run: `bazel run --config=opt //:check_layout -- below_rails_by_module_arm --summary`"
         },
         {
           "name": "clearance_rows_passed",
           "value": 270,
           "unit": "of 270",
-          "known": "modelled",
+          "known": "counted",
           "source": "docs/layout.md at 68a1199, comparison table, clearance, tightest 0.0003 m; `bazel run --config=opt //:check_layout -- below_rails_by_module_arm --summary`"
         }
       ]

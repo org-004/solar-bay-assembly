@@ -236,12 +236,17 @@ TEST(Scorecard, FewerArmsLessEverything) {
   const std::optional<Scorecard> three = Compute("flat_rack_3_pin_arms");
   ASSERT_TRUE(two.has_value());
   ASSERT_TRUE(three.has_value());
+  auto value = [](const Scorecard& card, const char* name) {
+    const Measure* m = FindMeasure(card, name);
+    EXPECT_NE(m, nullptr) << card.layout << " has no measure " << name;
+    EXPECT_TRUE(m != nullptr && m->value.has_value())
+        << card.layout << ": " << name << " is not known";
+    return m != nullptr ? m->value.value_or(0.0) : 0.0;
+  };
   for (const char* name : {"part_count", "arms", "mass_in_transit_kg"}) {
-    EXPECT_LT(*FindMeasure(*two, name)->value, *FindMeasure(*three, name)->value)
-        << name;
+    EXPECT_LT(value(*two, name), value(*three, name)) << name;
   }
-  EXPECT_GT(*FindMeasure(*two, "cycle_s")->value,
-            *FindMeasure(*three, "cycle_s")->value);
+  EXPECT_GT(value(*two, "cycle_s"), value(*three, "cycle_s"));
 }
 
 TEST(Scorecard, JsonRoundTrips) {

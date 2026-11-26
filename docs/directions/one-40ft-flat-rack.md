@@ -41,7 +41,7 @@ The measures and gates are defined in [the scorecard](../scorecard.md).
 
 ![Cycle time of each version](one-40ft-flat-rack-cycle.svg)
 
-A filled marker is a cycle time that is planned or measured, a hollow marker one that is modelled; a lighter marker is a candidate that was not chosen.
+A filled circle is a cycle time that is planned, a square one that is measured, a hollow circle one that is modelled; a lighter marker is a candidate that was not chosen.
 
 ## v09 Three pin arms on the flat rack: a whole bay planned
 
@@ -76,6 +76,8 @@ The measures and gates are defined in [the scorecard](../scorecard.md).
 
 **Against v06.**
 
+Each figure as the two versions' own sources report it; the conditions of a run may differ between them (see each figure's source).
+
 | Measure | Before (v06) | Now (v09) | Difference |
 |---|---|---|---|
 | arms | 2 arms | 4 arms | +2 arms |
@@ -84,11 +86,11 @@ The measures and gates are defined in [the scorecard](../scorecard.md).
 
 **Candidates it was chosen over.**
 
-| Version | Cycle time | Arms | Part count | Mass in transit | Failures per bay | Cycle time is | Recording | Status |
-|---|---|---|---|---|---|---|---|---|
-| v09 (this version) | 644.28 s per bay | 4 | 39 | 3426.3 kg | 0.385 | planned | [v09.gif](../evolution/v09.gif) | chosen |
-| v07 | 907.34 s per bay | 2 | none | none | none | planned | [v07.png](../evolution/v07.png) | candidate |
-| v08 | 700.08 s per bay | 3 | 31 | 3376.9 kg | 0.382 | planned | [v08.gif](../evolution/v08.gif) | candidate |
+| Version | Cycle time | Arms | Part count | Mass in transit | Failures per bay | Cycle time is | Recording | Layout | Commit | Status |
+|---|---|---|---|---|---|---|---|---|---|---|
+| v09 (this version) | 644.28 s per bay | 4 | 39 | 3426.3 kg | 0.385 | planned | [v09.gif](../evolution/v09.gif) | [flat_rack_3_pin_arms.json](../../layouts/flat_rack_3_pin_arms.json) | [940a01b](https://github.com/org-004/solar-bay-assembly/commit/940a01b) | chosen |
+| v07 | 907.34 s per bay | 2 | none | none | none | planned | [v07.png](../evolution/v07.png) | [flat_rack_1_pin_arm.json](../../layouts/flat_rack_1_pin_arm.json) | [940a01b](https://github.com/org-004/solar-bay-assembly/commit/940a01b) | candidate |
+| v08 | 700.08 s per bay | 3 | 31 | 3376.9 kg | 0.382 | planned | [v08.gif](../evolution/v08.gif) | [flat_rack_2_pin_arms.json](../../layouts/flat_rack_2_pin_arms.json) | [940a01b](https://github.com/org-004/solar-bay-assembly/commit/940a01b) | candidate |
 
 **Files.** [layout](../../layouts/flat_rack_3_pin_arms.json), [plan](../../plans/flat_rack_3_pin_arms.json), [scorecard](../../scores/flat_rack_3_pin_arms.json)
 
@@ -106,12 +108,14 @@ The measures and gates are defined in [the scorecard](../scorecard.md).
 |---|---|---|---|---|
 | cycle_s | 628.50 | s per bay | modelled | docs/layout.md at 68a1199, comparison table, Time for a bay, below_rails_by_module_arm, from the time model whose process times are marked ours; `bazel run --config=opt //:check_layout -- below_rails_by_module_arm` |
 | arms | 2 | arms | counted | docs/layout.md at 68a1199, comparison table, Arms: one KUKA KR 210 R2700-2 and one UR10e, both on floor tracks |
-| bay_mass_kg | 410.3 | kg | modelled | docs/bay-hardware.md at 68a1199, The bay: tube 95.16 + 10 rails x 2.35 + 9 modules x 32.4 (derived); `bazel run --config=opt //:print_bay -- --summary` |
+| bay_mass_kg | 410.3 | kg | derived | docs/bay-hardware.md at 68a1199, The bay: tube 95.16 + 10 rails x 2.35 + 9 modules x 32.4 (derived); `bazel run --config=opt //:print_bay -- --summary` |
 | mass_in_transit_kg | 3227.3 | kg | counted | docs/layout.md at 68a1199, comparison table, Mass that travels inside, of 17,200 kg: arms 1110, tracks 1850, tools 47.0, holder 220; `bazel run --config=opt //:check_layout -- below_rails_by_module_arm`. No stocks travelled inside at that commit, so the whole row is mass in transit by the owner's definition |
-| reach_rows_passed | 186 | of 186 | modelled | docs/layout.md at 68a1199, comparison table, reach; kinematic check, not a physics run: `bazel run --config=opt //:check_layout -- below_rails_by_module_arm --summary` |
-| clearance_rows_passed | 270 | of 270 | modelled | docs/layout.md at 68a1199, comparison table, clearance, tightest 0.0003 m; `bazel run --config=opt //:check_layout -- below_rails_by_module_arm --summary` |
+| reach_rows_passed | 186 | of 186 | counted | docs/layout.md at 68a1199, comparison table, reach; kinematic check, not a physics run: `bazel run --config=opt //:check_layout -- below_rails_by_module_arm --summary` |
+| clearance_rows_passed | 270 | of 270 | counted | docs/layout.md at 68a1199, comparison table, clearance, tightest 0.0003 m; `bazel run --config=opt //:check_layout -- below_rails_by_module_arm --summary` |
 
 **Against v05.**
+
+Each figure as the two versions' own sources report it; the conditions of a run may differ between them (see each figure's source).
 
 | Measure | Before (v05) | Now (v06) | Difference |
 |---|---|---|---|
@@ -129,12 +133,12 @@ The measures and gates are defined in [the scorecard](../scorecard.md).
 
 | Figure | Value | Unit | How known | Source |
 |---|---|---|---|---|
-| modules_per_bay | 10 | modules | planned | docs/bay-hardware.md at 1213319, The bay (marked ours): 10 modules, the largest whose bay is no longer than 11.8 m |
-| bay_mass_kg | 455.3 | kg | modelled | docs/bay-hardware.md at 1213319, The bay (derived: tube 105.42 + 11 rails x 2.35 + 10 modules x 32.4): `bazel run --config=opt //:print_bay -- --summary` |
-| bay_length_mm | 11760 | mm | planned | docs/bay-hardware.md at 1213319, The bay: tube as shipped, 11,760 mm (derived) |
+| modules_per_bay | 10 | modules | assumed | docs/bay-hardware.md at 1213319, The bay (marked ours): 10 modules, the largest whose bay is no longer than 11.8 m |
+| bay_mass_kg | 455.3 | kg | derived | docs/bay-hardware.md at 1213319, The bay (derived: tube 105.42 + 11 rails x 2.35 + 10 modules x 32.4): `bazel run --config=opt //:print_bay -- --summary` |
+| bay_length_mm | 11760 | mm | derived | docs/bay-hardware.md at 1213319, The bay: tube as shipped, 11,760 mm (derived) |
 | fastenings | 51 | points | counted | docs/bay-hardware.md at 1213319, The bay: 11 rail to tube plus 40 module to rail, named sites in models/bay.xml; `bazel run --config=opt //:print_bay -- --summary` |
-| container_gross_kg | 23800.0 | kg | planned | docs/bay-hardware.md at 1213319, The container this project assumes: gross mass for transport 23,800 kg, tare 6,600 kg (both marked ours) |
-| mass_left_for_cell_kg | 17200.0 | kg | modelled | docs/bay-hardware.md at 1213319, The container this project assumes: 23,800 - 6,600 (derived) |
+| container_gross_kg | 23800.0 | kg | assumed | docs/bay-hardware.md at 1213319, The container this project assumes: gross mass for transport 23,800 kg, tare 6,600 kg (both marked ours) |
+| mass_left_for_cell_kg | 17200.0 | kg | derived | docs/bay-hardware.md at 1213319, The container this project assumes: 23,800 - 6,600 (derived) |
 
 First version of this direction.
 

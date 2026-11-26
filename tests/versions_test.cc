@@ -10,6 +10,7 @@
 #include <optional>
 #include <set>
 #include <string>
+#include <system_error>
 #include <vector>
 
 #include <gtest/gtest.h>
@@ -117,12 +118,29 @@ TEST(Versions, RecordingsExistWithinTheirSize) {
 }
 
 TEST(Versions, TheEvolutionDirectoryIsSmall) {
+  // Every file of docs/evolution/ (BUILD.bazel gives the test all of them),
+  // not only those a version names.
   long long total = 0;
-  for (const Version& v : Versions()) {
-    total += std::max(0LL, SizeOf(v.recording));
+  int files = 0;
+  std::error_code ec;
+  for (const auto& entry :
+       std::filesystem::directory_iterator("docs/evolution", ec)) {
+    if (!entry.is_regular_file()) continue;
+    ++files;
+    total += std::max(0LL, SizeOf(entry.path().string()));
   }
+  EXPECT_FALSE(ec) << "cannot list docs/evolution: " << ec.message();
+  EXPECT_GT(files, 0) << "docs/evolution/ holds no recording";
   EXPECT_LE(total, kEvolutionMaxBytes)
-      << "the recordings of docs/evolution/ together are larger than 20,000,000 bytes";
+      << "the files of docs/evolution/ together are larger than 20,000,000 bytes";
+}
+
+TEST(Versions, EveryScorecardExists) {
+  for (const Version& v : Versions()) {
+    if (v.scores.empty()) continue;
+    EXPECT_GE(SizeOf(v.scores), 0)
+        << v.id << " names the scorecard " << v.scores << ", which does not exist";
+  }
 }
 
 }  // namespace

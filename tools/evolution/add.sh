@@ -41,6 +41,13 @@ if [ ! -f "plans/$name.json" ]; then
   echo "add.sh: layouts/$name.json has no committed plan (plans/$name.json); the scorecard needs one" >&2
   exit 2
 fi
+if python3 -I -B -c 'import hashlib,json,sys
+v = json.load(open("versions/versions.json"))["versions"]
+sha = hashlib.sha256(open(sys.argv[1], "rb").read()).hexdigest()
+sys.exit(0 if any((x.get("layout") or {}).get("sha256") == sha for x in v) else 1)' "layouts/$name.json"; then
+  echo "add.sh: layouts/$name.json is already registered with this content; a change adds a new layout file" >&2
+  exit 2
+fi
 id=$(python3 -I -B -c 'import json,sys
 v = json.load(open("versions/versions.json"))["versions"]
 print("v%02d" % (max(int(x["id"][1:]) for x in v) + 1))')
@@ -48,7 +55,10 @@ planned=$(python3 -I -B -c 'import json,sys; print(json.load(open(sys.argv[1]))[
 raw=$V/$id-raw.gif
 
 echo "add.sh: 1/5 scoring $name"
-flock -o "$HOME/bazel.lock" bazel run --config=opt --config=agent //:score_layout -- "$name" --write
+# Exit 1 means a gate fails: the scorecard is written all the same, and a
+# version whose gate fails may still be registered (as a candidate).
+flock -o "$HOME/bazel.lock" bazel run --config=opt --config=agent //:score_layout -- "$name" --write \
+  || [ $? -eq 1 ]
 
 echo "add.sh: 2/5 recording the bay of $name ($planned s)"
 xvfb_pid=""

@@ -21,18 +21,20 @@
 <text x="412.00" y="260" text-anchor="middle" fill="#444444">v03</text>
 <text x="548.00" y="260" text-anchor="middle" fill="#444444">v04</text>
 <polyline fill="none" stroke="#1f5fa8" stroke-width="1.5" points="140.00,144.00 276.00,140.40 412.00,148.40 548.00,148.40"/>
-<circle cx="140.00" cy="144.00" r="5" fill="#1f5fa8" stroke="#1f5fa8" stroke-width="2"/>
+<rect x="135.00" y="139.00" width="10" height="10" fill="#1f5fa8" stroke="#1f5fa8" stroke-width="2"/>
 <text x="140.00" y="134.00" text-anchor="middle" fill="#222222">25.00</text>
-<circle cx="276.00" cy="140.40" r="5" fill="#1f5fa8" stroke="#1f5fa8" stroke-width="2"/>
+<rect x="271.00" y="135.40" width="10" height="10" fill="#1f5fa8" stroke="#1f5fa8" stroke-width="2"/>
 <text x="276.00" y="130.40" text-anchor="middle" fill="#222222">25.90</text>
-<circle cx="412.00" cy="148.40" r="5" fill="#1f5fa8" stroke="#1f5fa8" stroke-width="2"/>
+<rect x="407.00" y="143.40" width="10" height="10" fill="#1f5fa8" stroke="#1f5fa8" stroke-width="2"/>
 <text x="412.00" y="138.40" text-anchor="middle" fill="#222222">23.90</text>
-<circle cx="548.00" cy="148.40" r="5" fill="#1f5fa8" stroke="#1f5fa8" stroke-width="2"/>
+<rect x="543.00" y="143.40" width="10" height="10" fill="#1f5fa8" stroke="#1f5fa8" stroke-width="2"/>
 <text x="548.00" y="138.40" text-anchor="middle" fill="#222222">23.90</text>
 <circle cx="72" cy="284" r="4" fill="#1f5fa8" stroke="#1f5fa8" stroke-width="2"/>
-<text x="82" y="288" fill="#444444">planned or measured</text>
-<circle cx="222" cy="284" r="4" fill="#ffffff" stroke="#1f5fa8" stroke-width="2"/>
-<text x="232" y="288" fill="#444444">modelled</text>
-<circle cx="312" cy="284" r="4" fill="#9aa5b1" stroke="#9aa5b1" stroke-width="2"/>
-<text x="322" y="288" fill="#444444">candidate</text>
+<text x="82" y="288" fill="#444444">planned</text>
+<rect x="158" y="280" width="8" height="8" fill="#1f5fa8" stroke="#1f5fa8" stroke-width="2"/>
+<text x="172" y="288" fill="#444444">measured</text>
+<circle cx="252" cy="284" r="4" fill="#ffffff" stroke="#1f5fa8" stroke-width="2"/>
+<text x="262" y="288" fill="#444444">modelled</text>
+<circle cx="342" cy="284" r="4" fill="#9aa5b1" stroke="#9aa5b1" stroke-width="2"/>
+<text x="352" y="288" fill="#444444">candidate</text>
 </svg>

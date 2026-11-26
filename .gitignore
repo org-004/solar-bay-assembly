@@ -6,6 +6,7 @@
 # Scratch plots and screenshots; the README's pictures are kept
 *.png
 !docs/img/*.png
+!docs/evolution/*.png
 
 # Python
 __pycache__/

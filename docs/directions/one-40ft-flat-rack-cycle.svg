@@ -31,9 +31,11 @@
 <circle cx="561.60" cy="115.14" r="5" fill="#1f5fa8" stroke="#1f5fa8" stroke-width="2"/>
 <text x="561.60" y="105.14" text-anchor="middle" fill="#222222">644.28</text>
 <circle cx="72" cy="284" r="4" fill="#1f5fa8" stroke="#1f5fa8" stroke-width="2"/>
-<text x="82" y="288" fill="#444444">planned or measured</text>
-<circle cx="222" cy="284" r="4" fill="#ffffff" stroke="#1f5fa8" stroke-width="2"/>
-<text x="232" y="288" fill="#444444">modelled</text>
-<circle cx="312" cy="284" r="4" fill="#9aa5b1" stroke="#9aa5b1" stroke-width="2"/>
-<text x="322" y="288" fill="#444444">candidate</text>
+<text x="82" y="288" fill="#444444">planned</text>
+<rect x="158" y="280" width="8" height="8" fill="#1f5fa8" stroke="#1f5fa8" stroke-width="2"/>
+<text x="172" y="288" fill="#444444">measured</text>
+<circle cx="252" cy="284" r="4" fill="#ffffff" stroke="#1f5fa8" stroke-width="2"/>
+<text x="262" y="288" fill="#444444">modelled</text>
+<circle cx="342" cy="284" r="4" fill="#9aa5b1" stroke="#9aa5b1" stroke-width="2"/>
+<text x="352" y="288" fill="#444444">candidate</text>
 </svg>

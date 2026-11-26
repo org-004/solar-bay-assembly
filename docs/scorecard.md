@@ -10,12 +10,15 @@ program prints the figures.
 
 - `bazel run --config=opt //:score_layout -- <name>` prints the scorecard of one layout:
   the measures, the gates, the breakdowns of the part count, the driven axes and the mass
-  in transit, and the operations by kind. It takes about 16 s, because it runs
-  `CheckLayout` and `VerifyPlan` itself.
+  in transit, and the operations by kind. It prints from the committed `scores/<name>.json`
+  when that file's three sha256 (layout, plan, rates) match the files as they are, which
+  takes well under a second; otherwise it computes the scorecard afresh, running
+  `CheckLayout` and `VerifyPlan` (about 16 s), and says so on standard error.
 - `-- <name> --json` prints the same scorecard as JSON; `-- <name> --write` writes it to
   `scores/<name>.json`.
-- `-- --all` prints one row per layout that has a committed plan, one column per measure,
-  and the gates as one column.
+- `-- --all` prints one row per layout that has a committed scorecard (`scores/*.json`),
+  one column per measure, and the gates as one column; `-- --all --write` first writes the
+  scorecard of every layout that has a committed plan.
 - The exit code is 0 when every gate passes, 1 when one fails, and 2 for a layout without
   a committed plan, an unknown layout or a usage error.
 
@@ -32,6 +35,11 @@ How a figure is known, in the word of the `known` column:
   `src/scorecard.h` and in this document.
 - **modelled**: a model over counted operations, such as the expected failures.
 - **none**: not known. The basis column says why.
+
+The figures of the versions older than layouts (`versions/versions.json`, `figures`) use
+two words more, because their documents report figures of those kinds: **assumed** (a
+figure chosen or designed, marked `ours` or an owner's choice in its document) and
+**derived** (computed from other figures by the formula its document gives).
 
 ## The measures
 
@@ -113,14 +121,18 @@ prints them:
 - `holder_end_unit`: the holder's end unit, one.
 - `item`: each item of the layout (feeders, lanes, carts), whether it travels or not.
 - `pin_magazine`: each pin magazine that a stock inside the cell holds (a stock whose part
-  is a magazine counts its `holds` of them).
+  is a magazine counts its `holds` of them, the number on its nest when the nest is full).
 
 Not counted: the parts of the bay (tube, rails, modules, pins, bolts), and what they
 arrive in (the pallets and the rail rack, which are stocks outside). The bay's parts are
 what the cell makes its output from and not equipment of the cell. A pallet or a rack is
 the container of a part that arrives and is not part of the cell. A pin magazine is counted
-because it is a piece of equipment that stands in the cell and is refilled, while the pins
-in it are not.
+because the spec names magazines among the equipment of the cell, while the pins in it are
+not. This choice could go the other way: the layout says a pin arm's tool takes one
+magazine for each bay, which makes a magazine also what pins arrive in. The mass in
+transit takes the other side of the same question (below): the 3 kg that the layout gives
+its stocks of magazines are left out as infed parts. Counted the other way, the part
+count of `flat_rack_3_pin_arms` would be 33 and its mass in transit 3,429.3 kg.
 
 The breakdown for `flat_rack_3_pin_arms`, as `score_layout` prints it (39 in all):
 
@@ -156,9 +168,9 @@ already outside it.
 | `tools` | yes | Each tool an arm has. It is robotics and it travels. |
 | `holder` | yes | The holder travels inside and holds the tube. It is part of the robotics assembly. |
 | `items inside` | yes | An item that travels inside, such as the pin lane. It is part of the assembly. |
-| `stocks inside` | no | A stock inside holds infed parts: the pin magazines with their pins. The owner's definition leaves infed parts out. |
+| `stocks inside` | no | A stock inside holds infed parts: the pin magazines with their pins, fed in for each bay. The owner's definition leaves infed parts out. The part count counts the magazines all the same (see its rule): a choice that could go the other way, worth 3 kg here. |
 | Items that do not travel (the transfer cart, the pin feeder) | no, outside the row | They are not on the flat rack in transit, so the row does not add them. |
-| Pallets | no, outside the row | They are infed parts' containers and always outside: the loader refuses a pallet that is not on the flat rack. |
+| Pallets | no, outside the row | They are infed parts' containers and always outside the cell: for a layout on the flat rack the loader refuses a pallet that is not `outside`. |
 | The rail rack | no, outside the row | It is a stock outside (`outside: true`) that holds infed parts. |
 | The flat rack itself | no, outside the row | The owner's definition names the flat bed container. The transport row's limit is what the flat rack leaves for the cell. |
 | The bay's parts (tube, rails, modules, pins, bolts) | no, outside the row | They are infed parts, not robotics. |
@@ -272,3 +284,14 @@ The directions:
 - [`docs/directions/one-40ft-flat-rack.md`](directions/one-40ft-flat-rack.md)
 - [`docs/directions/stand-in-cell.md`](directions/stand-in-cell.md)
 - [`docs/directions/two-20ft-flat-racks.md`](directions/two-20ft-flat-racks.md)
+
+### Changing the chosen layout: what the tests do not yet allow
+
+`chosen: true` is a field of the layout file, and `tests/layout_model_test.cc` wants
+exactly one layout to have it. Choosing a new layout therefore means editing the file of
+the old one, which changes its sha256. `//:versions_test` then fails for the old version,
+and the old plan no longer verifies against its layout (`VerifyPlan` checks the plan's
+`layout_sha256` against the file), so the old scorecard's clearance gate fails. Until a
+spec decides how (for example, that the planner and the registry hash a layout without
+its `chosen` field, or that `chosen` moves to `versions/versions.json`), the first change of
+the chosen layout has to settle it.

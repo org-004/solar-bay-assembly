@@ -33,7 +33,6 @@ from xml.sax.saxutils import escape as xml_escape
 BEGIN = "<!-- BEGIN results: written by tools/evolution/pages.py; do not edit -->"
 END = "<!-- END results -->"
 REPO_URL = "https://github.com/org-004/solar-bay-assembly/commit/"
-NOT_LANDED = "this commit (not yet landed)"
 COUNTS = {"arms", "part_count"}
 THREE_SIG = {"failures_per_bay", "physics_share"}
 
@@ -96,18 +95,16 @@ class Registry:
         return self._hashes[v["id"]]
 
     def _resolve(self, vid):
-        try:
-            out = subprocess.run(
-                ["git", "-C", self.root, "log", "--format=%h", "--diff-filter=AM",
-                 "-S", '"id": "%s"' % vid, "--", "versions/versions.json"],
-                capture_output=True, text=True, check=True).stdout.split()
-        except (OSError, subprocess.CalledProcessError):
-            return NOT_LANDED
-        return out[-1] if out else NOT_LANDED
+        # A page cannot hold the hash of the commit that adds it, and a page
+        # that looked the hash up would differ before and after landing and
+        # between a full and a shallow clone. So the page names the commit by
+        # the git log command that finds it, the same text everywhere.
+        return ("the commit that added %s: `git log --format=%%h -S '\"id\": \"%s\"' "
+                "-- versions/versions.json | tail -1`" % (vid, vid))
 
     def commit_link(self, v):
         c = self.commit(v)
-        return c if c == NOT_LANDED else "[%s](%s%s)" % (c, REPO_URL, c)
+        return c if v["commit"] == "this" else "[%s](%s%s)" % (c, REPO_URL, c)
 
 
 # ---------------------------------------------------------------- figures
@@ -159,7 +156,10 @@ def with_unit(name, it):
     if it is None or it["value"] is None:
         return "none"
     s = fmt(name, it["value"])
-    return s + (" " + it["unit"] if it["unit"] else "")
+    unit = it["unit"]
+    if unit == "arms" and it["value"] == 1:
+        unit = "arm"
+    return s + (" " + unit if unit else "")
 
 
 def cell(reg, v, name):
@@ -323,9 +323,11 @@ def competition_table(reg, v, cands):
                      cell(reg, w, "cycle_s"), plain(reg, w, "arms"), plain(reg, w, "part_count"),
                      cell(reg, w, "mass_in_transit_kg"), plain(reg, w, "failures_per_bay"),
                      cycle_known(reg, w), "[%s](../evolution/%s)" % (recording_name(w), recording_name(w)),
-                     w["status"]])
+                     "[%s](../../%s)" % (os.path.basename(w["layout"]["path"]), w["layout"]["path"])
+                     if w.get("layout") else "none",
+                     reg.commit_link(w), w["status"]])
     return table(["Version", "Cycle time", "Arms", "Part count", "Mass in transit",
-                  "Failures per bay", "Cycle time is", "Recording", "Status"], rows)
+                  "Failures per bay", "Cycle time is", "Recording", "Layout", "Commit", "Status"], rows)
 
 
 # ---------------------------------------------------------------- direction page
@@ -369,8 +371,8 @@ def direction_page(reg, d):
         L += ["No version of this direction has a cycle time yet, so there is no chart.", ""]
     else:
         L += ["![Cycle time of each version](%s-cycle.svg)" % d["id"], "",
-              "A filled marker is a cycle time that is planned or measured, a hollow marker one that is "
-              "modelled; a lighter marker is a candidate that was not chosen."]
+              "A filled circle is a cycle time that is planned, a square one that is measured, a hollow "
+              "circle one that is modelled; a lighter marker is a candidate that was not chosen."]
         left = [v["id"] for v in vs if (items(reg, v).get("cycle_s") or {}).get("value") is not None
                 and items(reg, v)["cycle_s"]["unit"] != unit]
         if left:
@@ -386,7 +388,9 @@ def direction_page(reg, d):
               "**What changed.** " + v["changed"], "", "**Why.** " + v["why"], ""]
         L += state_blocks(reg, v)
         if i > 0:
-            L += ["**Against %s.**" % settled[i - 1]["id"], ""] + compare_table(reg, settled[i - 1], v)
+            L += ["**Against %s.**" % settled[i - 1]["id"], "",
+                  "Each figure as the two versions' own sources report it; the conditions of a run "
+                  "may differ between them (see each figure's source).", ""] + compare_table(reg, settled[i - 1], v)
         else:
             L += ["First version of this direction.", ""]
         cands = [w for w in vs if w.get("competed_with") == v["id"]]
@@ -456,17 +460,23 @@ def chart_svg(reg, d):
     for i, v, it in pts:
         colour = "#9aa5b1" if v["status"] == "candidate" else "#1f5fa8"
         fill = "#ffffff" if it["known"] == "modelled" else colour
-        S.append('<circle cx="%.2f" cy="%.2f" r="5" fill="%s" stroke="%s" stroke-width="2"/>'
-                 % (X(i), Y(it["value"]), fill, colour))
+        if it["known"] == "measured":
+            S.append('<rect x="%.2f" y="%.2f" width="10" height="10" fill="%s" stroke="%s" stroke-width="2"/>'
+                     % (X(i) - 5, Y(it["value"]) - 5, fill, colour))
+        else:
+            S.append('<circle cx="%.2f" cy="%.2f" r="5" fill="%s" stroke="%s" stroke-width="2"/>'
+                     % (X(i), Y(it["value"]), fill, colour))
         S.append('<text x="%.2f" y="%.2f" text-anchor="middle" fill="#222222">%s</text>'
                  % (X(i), Y(it["value"]) - 10, fmt("cycle_s", it["value"])))
     ly = H - 12
     S.append('<circle cx="%d" cy="%d" r="4" fill="#1f5fa8" stroke="#1f5fa8" stroke-width="2"/>' % (ml, ly - 4))
-    S.append('<text x="%d" y="%d" fill="#444444">planned or measured</text>' % (ml + 10, ly))
-    S.append('<circle cx="%d" cy="%d" r="4" fill="#ffffff" stroke="#1f5fa8" stroke-width="2"/>' % (ml + 150, ly - 4))
-    S.append('<text x="%d" y="%d" fill="#444444">modelled</text>' % (ml + 160, ly))
-    S.append('<circle cx="%d" cy="%d" r="4" fill="#9aa5b1" stroke="#9aa5b1" stroke-width="2"/>' % (ml + 240, ly - 4))
-    S.append('<text x="%d" y="%d" fill="#444444">candidate</text>' % (ml + 250, ly))
+    S.append('<text x="%d" y="%d" fill="#444444">planned</text>' % (ml + 10, ly))
+    S.append('<rect x="%d" y="%d" width="8" height="8" fill="#1f5fa8" stroke="#1f5fa8" stroke-width="2"/>' % (ml + 86, ly - 8))
+    S.append('<text x="%d" y="%d" fill="#444444">measured</text>' % (ml + 100, ly))
+    S.append('<circle cx="%d" cy="%d" r="4" fill="#ffffff" stroke="#1f5fa8" stroke-width="2"/>' % (ml + 180, ly - 4))
+    S.append('<text x="%d" y="%d" fill="#444444">modelled</text>' % (ml + 190, ly))
+    S.append('<circle cx="%d" cy="%d" r="4" fill="#9aa5b1" stroke="#9aa5b1" stroke-width="2"/>' % (ml + 270, ly - 4))
+    S.append('<text x="%d" y="%d" fill="#444444">candidate</text>' % (ml + 280, ly))
     S.append("</svg>")
     return "\n".join(S) + "\n"
 

@@ -399,8 +399,9 @@ std::optional<Scorecard> ComputeScorecard(
   clearance.unit = "m";
   clearance.holds = ">=";
   if (verify.ok) {
+    // Held against the limit unrounded; rounded only for the output.
+    clearance.pass = verify.least_clearance_m >= clearance.limit;
     clearance.figure = Round(verify.least_clearance_m, 4);
-    clearance.pass = clearance.figure >= clearance.limit;
     clearance.basis =
         "least distance over the plan's schedule, from VerifyPlan";
   } else {
