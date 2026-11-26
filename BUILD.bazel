@@ -1922,6 +1922,7 @@ cc_library(
         ":bay_hardware",
         ":bay_model",
         ":container",
+        ":flat_rack",
         ":layout",
         ":mj_handles",
         "@eigen",
@@ -1941,6 +1942,7 @@ cc_test(
     deps = [
         ":bay_hardware",
         ":container",
+        ":flat_rack",
         ":layout",
         ":layout_model",
         ":mj_handles",
@@ -1979,11 +1981,13 @@ cc_library(
         "src/layout_check.cc",
         "src/layout_rows.cc",
         "src/layout_scene.cc",
+        "src/layout_stages.cc",
     ],
     hdrs = [
         "src/layout_check.h",
         "src/layout_rows.h",
         "src/layout_scene.h",
+        "src/layout_stages.h",
     ],
     deps = [
         ":bay_hardware",

@@ -39,6 +39,7 @@
 #include "src/arm_catalog.h"
 #include "src/bay_hardware.h"
 #include "src/container.h"
+#include "src/flat_rack.h"
 #include "src/layout.h"
 #include "src/layout_model.h"
 #include "src/mj_handles.h"
@@ -1152,7 +1153,7 @@ TEST(LayoutForm, RefusalsOfTheWiderForm) {
     nlohmann::json j = good;
     j["base"] = "raft";
     const std::string e = LoadBroken(j, kFlatName, "unknown_base");
-    EXPECT_TRUE(has(e, "\"container\" or \"flat_rack\"")) << e;
+    EXPECT_TRUE(has(e, "\"flat_rack\" or \"two_flat_racks\"")) << e;
   }
   {
     nlohmann::json j = flat;
@@ -1507,6 +1508,123 @@ TEST(LayoutForm, FlatRackRefusesAPalletInsideAndAHolderLeftBehind) {
     j["pallets"][0]["outside"] = false;
     j["holder"]["travels_inside"] = false;
     EXPECT_TRUE(LoadGood(j, "below", "container_pallet_inside").has_value());
+  }
+}
+
+// Base "two_flat_racks": both 20 ft racks are one base body, rack b is at
+// its place with the layout's shift, and the working and stowed states build.
+TEST(TwoRacks, TheDraftBuildsWithBothRacksAsTheBase) {
+  std::string error;
+  std::optional<Layout> l = LoadLayout(LayoutPath("two_flat_racks_draft"), &error);
+  ASSERT_TRUE(l.has_value()) << error;
+  LayoutState stowed;
+  stowed.stowed = true;
+  for (const LayoutState& state : {LayoutState{}, Bay(10, 9), stowed}) {
+    Built b = Build(*l, state);
+    ASSERT_TRUE(b.model);
+    EXPECT_EQ(b.handles.base_body, "two_flat_racks_frame");
+    EXPECT_EQ(b.handles.base_geoms.size(), 10u);
+    for (int g : b.handles.base_geoms) {
+      const char* name = mj_id2name(b.model.get(), mjOBJ_GEOM, g);
+      ASSERT_NE(name, nullptr);
+      EXPECT_EQ(std::string(name).rfind("flat_rack_", 0), 0u) << name;
+    }
+  }
+  // Rack a on -X, rack b on +X, the long sides at +-gap/2, the deck 0.370 up.
+  Built b = Build(*l, LayoutState{});
+  for (int g : b.handles.base_geoms) {
+    const std::string name = mj_id2name(b.model.get(), mjOBJ_GEOM, g);
+    if (name != "flat_rack_a_deck" && name != "flat_rack_b_deck") continue;
+    const double sign = name == "flat_rack_a_deck" ? -1.0 : 1.0;
+    EXPECT_NEAR(b.data->geom_xpos[3 * g], sign * (0.0125 + 1.219), 1e-9) << name;
+    EXPECT_NEAR(b.data->geom_xpos[3 * g + 2] + b.model->geom_size[3 * g + 2],
+                flat_rack::twenty::kDeckHeight, 1e-9) << name;
+  }
+}
+
+TEST(TwoRacks, MovedRackBMovesRackBsBaseGeomsByTheShift) {
+  std::string error;
+  std::optional<Layout> l = LoadLayout(LayoutPath("two_flat_racks_draft"), &error);
+  ASSERT_TRUE(l.has_value()) << error;
+  const Layout moved = MovedRackB(*l, 0.025, -0.025);
+  EXPECT_NEAR(moved.two_flat_racks.b_shift[0], 0.025, 1e-12);
+  EXPECT_NEAR(moved.two_flat_racks.b_shift[1], -0.025, 1e-12);
+  Built before = Build(*l, LayoutState{});
+  Built after = Build(moved, LayoutState{});
+  ASSERT_TRUE(before.model);
+  ASSERT_TRUE(after.model);
+  ASSERT_EQ(before.handles.base_geoms.size(), after.handles.base_geoms.size());
+  for (size_t i = 0; i < before.handles.base_geoms.size(); ++i) {
+    const int g = before.handles.base_geoms[i];
+    const int h = after.handles.base_geoms[i];
+    const std::string name = mj_id2name(before.model.get(), mjOBJ_GEOM, g);
+    const bool b_rack = name.rfind("flat_rack_b_", 0) == 0;
+    EXPECT_NEAR(after.data->geom_xpos[3 * h] - before.data->geom_xpos[3 * g],
+                b_rack ? 0.025 : 0.0, 1e-9) << name;
+    EXPECT_NEAR(after.data->geom_xpos[3 * h + 1] - before.data->geom_xpos[3 * g + 1],
+                b_rack ? -0.025 : 0.0, 1e-9) << name;
+    EXPECT_NEAR(after.data->geom_xpos[3 * h + 2], before.data->geom_xpos[3 * g + 2], 1e-9);
+  }
+  // What stands on rack b moved with it: the module arm's beam.
+  const int beam_before = before.handles.arms[0].beam_geoms.at(0);
+  const int beam_after = after.handles.arms[0].beam_geoms.at(0);
+  EXPECT_NEAR(after.data->geom_xpos[3 * beam_after] - before.data->geom_xpos[3 * beam_before], 0.025, 1e-9);
+  // Rack a's holder stayed.
+  EXPECT_NEAR(after.data->geom_xpos[3 * after.handles.holder_geoms.at(0)],
+              before.data->geom_xpos[3 * before.handles.holder_geoms.at(0)], 1e-9);
+}
+
+// The loader refuses what the second direction forbids: small JSON variants of
+// the draft layout, written to a temporary directory.
+std::string LoadVariant(const nlohmann::json& j, const std::string& which) {
+  const char* tmp = std::getenv("TEST_TMPDIR");
+  const std::filesystem::path dir =
+      std::filesystem::path(tmp != nullptr ? tmp : "/tmp") / ("racks_" + which);
+  std::filesystem::create_directories(dir);
+  const std::string path = (dir / "two_flat_racks_draft.json").string();
+  std::ofstream(path) << j.dump(1);
+  std::string error;
+  EXPECT_FALSE(LoadLayout(path, &error).has_value()) << which;
+  return error;
+}
+
+nlohmann::json DraftJson() {
+  std::ifstream in(LayoutPath("two_flat_racks_draft"));
+  return nlohmann::json::parse(in);
+}
+
+TEST(TwoRackLoader, RefusesWhatTheFormForbids) {
+  {
+    nlohmann::json j = DraftJson();
+    j["arms"][1].erase("rack");
+    EXPECT_NE(LoadVariant(j, "arm_no_rack").find("arms[1].rack"), std::string::npos);
+  }
+  {
+    nlohmann::json j = DraftJson();
+    j["holder"]["rack"] = "c";
+    EXPECT_NE(LoadVariant(j, "rack_c").find("holder.rack"), std::string::npos);
+  }
+  {
+    nlohmann::json j = DraftJson();
+    j["two_flat_racks"]["gap_m"] = 0.06;  // Above gap_hi_m.
+    const std::string e = LoadVariant(j, "gap");
+    EXPECT_NE(e.find("two_flat_racks"), std::string::npos) << e;
+    EXPECT_NE(e.find("tolerance"), std::string::npos) << e;
+  }
+  {
+    nlohmann::json j = DraftJson();
+    j["staging"]["stages"][1]["rails"] = "3-6";  // Rail 3 is also in stage 1.
+    const std::string e = LoadVariant(j, "rail_twice");
+    EXPECT_NE(e.find("rail 3"), std::string::npos) << e;
+    EXPECT_NE(e.find("two stages"), std::string::npos) << e;
+  }
+  {
+    // A rack on a flat rack layout, which has no second rack.
+    nlohmann::json j = nlohmann::json::parse(
+        std::ifstream(LayoutPath("flat_rack_3_pin_arms")));
+    j["arms"][0]["rack"] = "a";
+    const std::string e = LoadVariant(j, "rack_on_flat_rack");
+    EXPECT_NE(e.find("arms[0].rack"), std::string::npos) << e;
   }
 }
 

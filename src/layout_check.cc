@@ -11,6 +11,7 @@
 #include <limits>
 #include <map>
 #include <memory>
+#include <mutex>
 #include <numbers>
 #include <optional>
 #include <random>
@@ -28,6 +29,7 @@
 #include "src/container.h"
 #include "src/layout_rows.h"
 #include "src/layout_scene.h"
+#include "src/layout_stages.h"
 #include "src/mj_handles.h"
 #include "src/portable_random.h"
 
@@ -194,7 +196,7 @@ class Checker {
     return phases_;
   }
   std::vector<PostureChanges> postures() const {
-    return L_.base == "flat_rack" ? postures_ : std::vector<PostureChanges>();
+    return OnFlatRacks(L_) ? postures_ : std::vector<PostureChanges>();
   }
   // The flat rack's rows of the wait poses: reach, clearance.
   std::vector<CheckRow> WaitPoseRows(const std::string& check);
@@ -210,6 +212,7 @@ class Checker {
     PointResult result;
     LegResult legs[2];  // Approach, retreat.
     bool legs_done = false;  // Walked for the chosen pose already.
+    bool in_scope = true;    // A point of the stage checked (CheckOptions::stage).
   };
 
   const mjModel& M() const { return scene_->model(); }
@@ -240,6 +243,27 @@ class Checker {
            r.figure >= opt_.clearance_m;
   }
   Nearest FreeSpace(const Job& job, std::string* which);
+  // The scene's AtWorkPoint, with the bay as built in staged work
+  // (CheckOptions::stage): the earlier stages' rails and modules on, the
+  // later stages' off.
+  StepScene At(const WorkPoint& p, Leg leg) const;
+  bool InScope(const std::string& kind, int index) const;
+  // The bay as built when the stage starts and when it ends (the whole
+  // bay's bare tube and full bay without stages).
+  Built StageStart() const;
+  Built StageEnd() const;
+  // The least distance of `moving` swept along `path` (offsets from its
+  // place) against `obstacles`: a ways row. Holder geoms within clearance_m
+  // of `moving` at the path's first offset are left out while the offset is
+  // straight up (lifting out of a saddle); with `slide`, those within
+  // clearance_m of its kHeld geoms (the tube) at the first or the last
+  // offset are left out against them all along (it slides in them).
+  CheckRow SweepRow(const std::string& item,
+                    const std::vector<MovingGeom>& moving,
+                    const std::vector<Obstacle>& obstacles,
+                    const std::vector<Vec3>& path, bool slide);
+  // The bay as built at the stage's end swept to the next stage's place.
+  CheckRow TransferRow();
   std::string Key(const Job& job) const;
   std::vector<std::pair<std::string, int>> StepOrder() const;
   double MoveTime(int arm, const Pose& from, const Pose& to) const;
@@ -443,6 +467,30 @@ std::vector<std::pair<double, std::string>> Checker::TrackCandidates(
                           std::abs(s - s0 - off) > 1e-9 ? ", clamped" : "")});
   }
   return out;
+}
+
+bool Has(const std::vector<int>& v, int x) {
+  return std::find(v.begin(), v.end(), x) != v.end();
+}
+
+StepScene Checker::At(const WorkPoint& p, Leg leg) const {
+  StepScene sc = scene_->AtWorkPoint(p, leg);
+  if (opt_.stage) BuiltInStage(*opt_.stage, &sc);
+  return sc;
+}
+
+bool Checker::InScope(const std::string& kind, int index) const {
+  if (!opt_.stage) return true;
+  auto it = opt_.stage->points.find(kind);
+  return it != opt_.stage->points.end() && Has(it->second, index);
+}
+
+Built Checker::StageStart() const {
+  return BuiltAtStageStart(opt_.stage, PointCount(L_, "module_take"));
+}
+
+Built Checker::StageEnd() const {
+  return BuiltAtStageEnd(opt_.stage, PointCount(L_, "module_take"));
 }
 
 Nearest Checker::PoseClearance(Job& job) {
@@ -787,7 +835,7 @@ void Checker::WalkLeg(Job& job, int leg, const Approach& rule) {
   r.walked = true;
   const PointResult& w = job.result;
   const StepScene sc =
-      scene_->AtWorkPoint(job.point, leg == 0 ? Leg::kApproach : Leg::kRetreat);
+      At(job.point, leg == 0 ? Leg::kApproach : Leg::kRetreat);
   r.held = sc.held;
   if (!sc.error.empty() || !w.reached) {
     r.why = "no work pose: " +
@@ -987,7 +1035,8 @@ void Checker::SolveAll() {
     for (const WorkPoint& p : WorkPoints(L_, kind)) {
       Job job;
       job.point = p;
-      job.sc = scene_->AtWorkPoint(p, Leg::kWork);
+      job.in_scope = InScope(kind, p.index);
+      job.sc = At(p, Leg::kWork);
       list.push_back(job);
     }
     if (list.empty()) {
@@ -1005,7 +1054,7 @@ void Checker::SolveAll() {
       continue;
     }
     Job& job = it->second[index];
-    if (job.result.solved) continue;
+    if (job.result.solved || !job.in_scope) continue;
     const int count = static_cast<int>(it->second.size());
     const std::string key = job.sc.error.empty() ? Key(job) : "";
     auto same = key.empty() ? done.end() : done.find(key);
@@ -1030,7 +1079,7 @@ void Checker::SolveAll() {
     const Approach* rule = FindApproach(L_, kind);
     if (rule == nullptr) continue;
     for (Job& job : list) {
-      if (job.legs_done) continue;
+      if (job.legs_done || !job.in_scope) continue;
       WalkLeg(job, 0, *rule);
       WalkLeg(job, 1, *rule);
     }
@@ -1073,6 +1122,7 @@ std::vector<CheckRow> Checker::ReachRows() {
     auto it = jobs_.find(kind);
     if (it == jobs_.end()) continue;
     for (const Job& job : it->second) {
+      if (!job.in_scope) continue;
       const PointResult& r = job.result;
       const std::string arm = job.sc.arm >= 0 ? Use(job.sc.arm).name : "";
       std::string detail;
@@ -1186,6 +1236,7 @@ std::vector<CheckRow> Checker::ClearanceRows() {
     auto it = jobs_.find(kind);
     if (it == jobs_.end()) continue;
     for (Job& job : it->second) {
+      if (!job.in_scope) continue;
       const PointResult& r = job.result;
       const std::string arm = job.sc.arm >= 0 ? Use(job.sc.arm).name : "";
       if (!r.reached) {
@@ -1204,6 +1255,7 @@ std::vector<CheckRow> Checker::ClearanceRows() {
     }
     if (kind == "strap_bolt" || kind == "pin" || kind == "locate") {
       for (Job& job : it->second) {
+        if (!job.in_scope) continue;
         std::string which;
         const Nearest n = FreeSpace(job, &which);
         std::string detail =
@@ -1429,7 +1481,7 @@ std::vector<CheckRow> Checker::LoadRows() {
       std::string detail = Fmt("tool %.2f + %s %.2f; rated payload of %s",
                                t.mass_kg, what.c_str(), part,
                                c != nullptr ? c->maker.c_str() : "?");
-      if (L_.base == "flat_rack" && c != nullptr) {
+      if (OnFlatRacks(L_) && c != nullptr) {
         // The load's centre of mass in the flange's frame: the tool's mass
         // at the volume-weighted centre of its boxes (ours: uniform
         // density), the part's at the working point.
@@ -1473,83 +1525,137 @@ std::vector<CheckRow> Checker::WaysRows() {
   AllAtWait();
   if (H.probe_mocap >= 0) d->mocap_pos[3 * H.probe_mocap + 2] = -10.0;
   mj_kinematics(&m, d);
-  // What moves and what is there along each way: the scene's.
-  std::set<int> holder(H.holder_geoms.begin(), H.holder_geoms.end());
-  struct Sweep {
-    std::string item;
-    const Way* way;
-    WayKind kind;
-  };
-  const std::vector<Sweep> sweeps = {
-      {"tube in", &L_.tube_in, WayKind::kTubeIn},
-      {"bay out", &L_.bay_out, WayKind::kBayOut}};
-  for (const Sweep& s : sweeps) {
-    const std::vector<MovingGeom> moving = scene_->WayMoving(s.kind);
-    const std::vector<Obstacle> obstacles = scene_->WayObstacles(s.kind);
-    std::vector<int> geoms;
-    for (const MovingGeom& g : moving) geoms.push_back(g.geom);
-    std::vector<Vec> orig;
-    for (int g : geoms) {
-      orig.push_back(Vec(d->geom_xpos[3 * g], d->geom_xpos[3 * g + 1],
-                         d->geom_xpos[3 * g + 2]));
-    }
-    // The holder's geoms the moving set rests in.
-    std::vector<Obstacle> rest = obstacles;
-    for (size_t j = 0; j < obstacles.size(); ++j) {
-      if (!holder.count(obstacles[j].geom)) continue;
-      std::vector<Obstacle> one = {obstacles[j]};
-      if (scene_->LeastDistance(d, moving, one).distance < opt_.clearance_m) {
-        rest[j].skip |= kHeld;
-      }
-    }
-    // The samples.
-    std::vector<Vec> samples;
-    const std::vector<Vec3>& path = s.way->path;
-    if (path.empty()) samples.push_back(Vec::Zero());
-    for (size_t i = 0; i < path.size(); ++i) {
-      if (i == 0) {
-        samples.push_back(V(path[0]));
-        continue;
-      }
-      const Vec a = V(path[i - 1]), b = V(path[i]);
-      const int n = std::max(
-          1, static_cast<int>(std::ceil((b - a).norm() / opt_.sweep_step_m)));
-      for (int k = 1; k <= n; ++k) samples.push_back(a + (b - a) * k / n);
-    }
-    Nearest worst;
-    worst.distance = kFar + 1.0;
-    Vec worst_at = Vec::Zero();
-    for (const Vec& o : samples) {
-      for (size_t i = 0; i < geoms.size(); ++i) {
-        for (int c = 0; c < 3; ++c) {
-          d->geom_xpos[3 * geoms[i] + c] = orig[i][c] + o[c];
-        }
-      }
-      const bool above = std::hypot(o.x(), o.y()) < 1e-9 && o.z() >= -1e-9;
-      const Nearest n =
-          scene_->LeastDistance(d, moving, above ? rest : obstacles);
-      if (n.distance < worst.distance) {
-        worst = n;
-        worst_at = o;
-      }
-    }
-    for (size_t i = 0; i < geoms.size(); ++i) {
-      for (int c = 0; c < 3; ++c) d->geom_xpos[3 * geoms[i] + c] = orig[i][c];
-    }
-    if (geoms.empty()) worst.distance = 0.0;
-    rows.push_back(Row(
-        "ways", s.item, "", "", std::min(worst.distance, kFar), "m",
-        opt_.clearance_m, !geoms.empty() && worst.distance >= opt_.clearance_m,
-        geoms.empty()
-            ? "the model has no tube"
-            : Fmt("%s at offset (%.3f, %.3f, %.3f); %d samples, at most "
-                  "%.3f m apart",
-                  scene_->PairText(worst).c_str(), worst_at.x(), worst_at.y(),
-                  worst_at.z(), static_cast<int>(samples.size()),
-                  opt_.sweep_step_m)));
+  // What moves and what is there along each way: the scene's. In staged
+  // work the tube comes in at the first stage and the bay leaves at the
+  // last.
+  const StageScope* st = opt_.stage ? &*opt_.stage : nullptr;
+  if (st == nullptr || st->first) {
+    rows.push_back(SweepRow("tube in", scene_->WayMoving(WayKind::kTubeIn),
+                            scene_->WayObstacles(WayKind::kTubeIn),
+                            L_.tube_in.path, false));
+  }
+  if (st != nullptr && !st->last) rows.push_back(TransferRow());
+  if (st == nullptr || st->last) {
+    rows.push_back(SweepRow("bay out", scene_->WayMoving(WayKind::kBayOut),
+                            scene_->WayObstacles(WayKind::kBayOut),
+                            L_.bay_out.path, false));
   }
   mj_kinematics(&m, d);
   return rows;
+}
+
+CheckRow Checker::TransferRow() {
+  const StageScope& st = *opt_.stage;
+  const LayoutHandles& H = this->H();
+  // The tube in a group of its own (kHeld), the rails and modules built on
+  // it in another (kCarriage), so that the holder's geoms the tube slides in
+  // can be left out against the tube alone.
+  std::vector<MovingGeom> moving;
+  for (int g : H.tube_geoms) moving.push_back({g, kHeld});
+  const Built end = StageEnd();
+  for (int k : end.rails) {
+    if (k < static_cast<int>(H.rail_geoms.size())) {
+      for (int g : H.rail_geoms[k]) moving.push_back({g, kCarriage});
+    }
+  }
+  for (int k : end.modules) {
+    if (k < static_cast<int>(H.module_geoms.size())) {
+      for (int g : H.module_geoms[k]) moving.push_back({g, kCarriage});
+    }
+  }
+  // What is there: as along the ways, the carriers of both ways left out
+  // (the infeed and the outfeed move the tube).
+  std::set<int> carried;
+  for (const std::string& name : scene_->WayCarriers(WayKind::kBayOut)) {
+    auto it = H.item_geoms.find(name);
+    if (it != H.item_geoms.end()) carried.insert(it->second.begin(), it->second.end());
+  }
+  std::vector<Obstacle> obstacles;
+  for (const Obstacle& o : scene_->WayObstacles(WayKind::kTubeIn)) {
+    if (!carried.count(o.geom)) obstacles.push_back(o);
+  }
+  return SweepRow("stage " + st.name + " to " + st.next, moving, obstacles,
+                  {Vec3{0.0, 0.0, 0.0}, Vec3{0.0, st.to_next_m, 0.0}}, true);
+}
+
+CheckRow Checker::SweepRow(const std::string& item,
+                           const std::vector<MovingGeom>& moving,
+                           const std::vector<Obstacle>& obstacles,
+                           const std::vector<Vec3>& path, bool slide) {
+  const LayoutHandles& H = this->H();
+  mjData* d = data_.get();
+  std::set<int> holder(H.holder_geoms.begin(), H.holder_geoms.end());
+  std::vector<int> geoms;
+  for (const MovingGeom& g : moving) geoms.push_back(g.geom);
+  std::vector<Vec> orig;
+  for (int g : geoms) {
+    orig.push_back(Vec(d->geom_xpos[3 * g], d->geom_xpos[3 * g + 1],
+                       d->geom_xpos[3 * g + 2]));
+  }
+  auto place = [&](const Vec& o) {
+    for (size_t i = 0; i < geoms.size(); ++i) {
+      for (int c = 0; c < 3; ++c) {
+        d->geom_xpos[3 * geoms[i] + c] = orig[i][c] + o[c];
+      }
+    }
+  };
+  // The holder's geoms the moving set rests in (with `slide`, the tube
+  // slides in, at either end of the path).
+  std::vector<MovingGeom> slider;
+  for (const MovingGeom& g : moving) {
+    if (!slide || g.group == kHeld) slider.push_back(g);
+  }
+  std::vector<Obstacle> rest = obstacles;
+  for (size_t j = 0; j < obstacles.size(); ++j) {
+    if (!holder.count(obstacles[j].geom)) continue;
+    std::vector<Obstacle> one = {obstacles[j]};
+    bool near = scene_->LeastDistance(d, slider, one).distance < opt_.clearance_m;
+    if (slide && !near && !path.empty()) {
+      place(V(path.back()));
+      near = scene_->LeastDistance(d, slider, one).distance < opt_.clearance_m;
+      place(Vec::Zero());
+    }
+    if (near) rest[j].skip |= kHeld;
+  }
+  // The samples.
+  std::vector<Vec> samples;
+  if (path.empty()) samples.push_back(Vec::Zero());
+  for (size_t i = 0; i < path.size(); ++i) {
+    if (i == 0) {
+      samples.push_back(V(path[0]));
+      continue;
+    }
+    const Vec a = V(path[i - 1]), b = V(path[i]);
+    const int n = std::max(
+        1, static_cast<int>(std::ceil((b - a).norm() / opt_.sweep_step_m)));
+    for (int k = 1; k <= n; ++k) samples.push_back(a + (b - a) * k / n);
+  }
+  Nearest worst;
+  worst.distance = kFar + 1.0;
+  Vec worst_at = Vec::Zero();
+  for (const Vec& o : samples) {
+    place(o);
+    const bool above =
+        slide || (std::hypot(o.x(), o.y()) < 1e-9 && o.z() >= -1e-9);
+    const Nearest n =
+        scene_->LeastDistance(d, moving, above ? rest : obstacles);
+    if (n.distance < worst.distance) {
+      worst = n;
+      worst_at = o;
+    }
+  }
+  place(Vec::Zero());
+  if (geoms.empty()) worst.distance = 0.0;
+  return Row(
+      "ways", item, "", "", std::min(worst.distance, kFar), "m",
+      opt_.clearance_m, !geoms.empty() && worst.distance >= opt_.clearance_m,
+      geoms.empty()
+          ? "the model has no tube"
+          : Fmt("%s at offset (%.3f, %.3f, %.3f); %d samples, at most "
+                "%.3f m apart",
+                scene_->PairText(worst).c_str(), worst_at.x(), worst_at.y(),
+                worst_at.z(), static_cast<int>(samples.size()),
+                opt_.sweep_step_m));
 }
 
 double Checker::MoveTime(int arm, const Pose& from, const Pose& to) const {
@@ -1689,7 +1795,7 @@ std::vector<CheckRow> Checker::TimeRows(std::vector<BayStep>* steps,
     now[i].tool = Use(i).first_tool;
     now[i].posture = arms_[i].s->wait;
   }
-  const bool postures = L_.base == "flat_rack";
+  const bool postures = OnFlatRacks(L_);
   if (postures) SolveToolChanges();
   postures_.clear();
   for (int i = 0; i < arm_count; ++i) postures_.push_back({Use(i).name});
@@ -1713,7 +1819,10 @@ std::vector<CheckRow> Checker::TimeRows(std::vector<BayStep>* steps,
     }
     return nullptr;
   };
+  // In staged work only the stage's steps (CheckOptions::stage).
+  const StageScope* st = opt_.stage ? &*opt_.stage : nullptr;
   for (int i = 0; i < PointCount(L_, "pins_take"); ++i) {
+    if (!InScope("pins_take", i)) continue;
     const Work* w = FindWork(L_, "pins_take", i);
     const int ai = w != nullptr ? scene_->ArmIndex(w->arm) : -1;
     if (ai >= 0) now[ai].magazines.push_back(i);
@@ -1731,6 +1840,7 @@ std::vector<CheckRow> Checker::TimeRows(std::vector<BayStep>* steps,
     s.index = index;
     s.phase = phase_now;
     s.tool_after = tool_after;
+    if (st != nullptr) s.stage = st->name;
     s.number = static_cast<int>(steps->size()) + 1;
     s.what = what;
     s.arm = arm;
@@ -1794,11 +1904,16 @@ std::vector<CheckRow> Checker::TimeRows(std::vector<BayStep>* steps,
   };
   const int R = bay::kRailCount, M = bay::kModuleCount;
   double total = 0.0;
-  const double tube_in = push("tube in", "", "", "tube", "outside", "holder",
-                              L_.tube_in.time_s, "tube_in");
+  const bool first = st == nullptr || st->first;
+  const bool last = st == nullptr || st->last;
+  const double tube_in =
+      first ? push("tube in", "", "", "tube", "outside", "holder",
+                   L_.tube_in.time_s, "tube_in")
+            : 0.0;
   phase_now = "clamp";
-  const double clamp = push("clamp", "", "", "tube", "", "holder",
-                            L_.holder.clamp_s, "clamp");
+  const double clamp = first ? push("clamp", "", "", "tube", "", "holder",
+                                    L_.holder.clamp_s, "clamp")
+                             : 0.0;
   phase_now = "rails";
   // The rail phase: each rail's take and set lead, its bolt follows.
   const bool each = L_.rail_order == "each_rail_then_its_bolt";
@@ -1813,21 +1928,28 @@ std::vector<CheckRow> Checker::TimeRows(std::vector<BayStep>* steps,
     p.t = work(kind, index, what, part, &p.arm);
     list->push_back(p);
   };
-  auto bolt_rail = [&](int k) {
-    piece(&rail_pieces, "strap_bolt", k, k, false, Fmt("bolt rail %d", k),
+  auto bolt_rail = [&](int k, int unit) {
+    piece(&rail_pieces, "strap_bolt", k, unit, false, Fmt("bolt rail %d", k),
           Fmt("strap bolt %d", k));
   };
+  // The rails worked here, each a unit of the phase.
+  std::vector<int> rails_here;
   for (int k = 0; k < R; ++k) {
-    piece(&rail_pieces, "rail_take", k, k, true, Fmt("take rail %d", k),
+    if (st == nullptr || Has(st->rails, k)) rails_here.push_back(k);
+  }
+  const int rail_units = static_cast<int>(rails_here.size());
+  for (int u = 0; u < rail_units; ++u) {
+    const int k = rails_here[u];
+    piece(&rail_pieces, "rail_take", k, u, true, Fmt("take rail %d", k),
           Fmt("rail %d", k));
-    piece(&rail_pieces, "rail_set", k, k, true, Fmt("set rail %d", k),
+    piece(&rail_pieces, "rail_set", k, u, true, Fmt("set rail %d", k),
           Fmt("rail %d", k));
-    if (each) bolt_rail(k);
+    if (each) bolt_rail(k, u);
   }
   if (!each) {
-    for (int k = 0; k < R; ++k) bolt_rail(k);
+    for (int u = 0; u < rail_units; ++u) bolt_rail(rails_here[u], u);
   }
-  const Phase rails = PhaseTime(rail_pieces, R, arm_count);
+  const Phase rails = PhaseTime(rail_pieces, rail_units, arm_count);
   phase_now = "modules";
   // The module phase: each module's take and set lead, its holes follow;
   // an arm takes its magazine before its first hole.
@@ -1852,15 +1974,23 @@ std::vector<CheckRow> Checker::TimeRows(std::vector<BayStep>* steps,
   // In the layout's order of modules (src/layout.h, WorkOrder): the k-th
   // take is pallet module k, set as bay module order[k]; the time model's
   // unit is the place k in that order.
+  // In staged work the order is the stage's (src/layout_stages.h) and the
+  // unit the place among the stage's modules.
   const std::vector<int> order = ModuleOrder(L_);
+  std::vector<int> takes_here;
   for (int k = 0; k < M; ++k) {
+    if (st == nullptr || Has(st->modules, order[k])) takes_here.push_back(k);
+  }
+  const int module_units = static_cast<int>(takes_here.size());
+  for (int u = 0; u < module_units; ++u) {
+    const int k = takes_here[u];
     const int m = order[k];
-    piece(&module_pieces, "module_take", k, k, true, Fmt("take module %d", m),
+    piece(&module_pieces, "module_take", k, u, true, Fmt("take module %d", m),
           Fmt("pallet module %d", k));
-    piece(&module_pieces, "module_set", m, k, true, Fmt("set module %d", m),
+    piece(&module_pieces, "module_set", m, u, true, Fmt("set module %d", m),
           Fmt("module %d", m));
     // An arm that has a magazine but no hole takes it after the first set.
-    if (k == 0) {
+    if (u == 0) {
       const std::vector<std::string> holers =
           ArmsDoing(L_, {"locate", "pin", "swage"});
       for (int ai = 0; ai < arm_count; ++ai) {
@@ -1880,22 +2010,24 @@ std::vector<CheckRow> Checker::TimeRows(std::vector<BayStep>* steps,
       }
     }
     for (int i : bay::kLocateOrder) {
-      hole("locate", m, k, i, Fmt("locate %d/%d", m, i),
+      hole("locate", m, u, i, Fmt("locate %d/%d", m, i),
            Fmt("module %d hole %d", m, i));
-      hole("pin", m, k, i, Fmt("pin %d/%d", m, i), Fmt("pin %d/%d", m, i));
+      hole("pin", m, u, i, Fmt("pin %d/%d", m, i), Fmt("pin %d/%d", m, i));
     }
     for (int i : bay::kSwageOrder) {
-      hole("swage", m, k, i, Fmt("swage %d/%d", m, i),
+      hole("swage", m, u, i, Fmt("swage %d/%d", m, i),
            Fmt("collar %d/%d", m, i));
     }
   }
-  const Phase modules = PhaseTime(module_pieces, M, arm_count);
+  const Phase modules = PhaseTime(module_pieces, module_units, arm_count);
   phase_now = "end";
   // The end.
-  const double release = push("release", "", "", "bay", "holder", "",
-                              L_.holder.release_s, "release");
-  const double out = push("bay out", "", "", "bay", "holder", "outside",
-                          L_.bay_out.time_s, "bay_out");
+  const double release = last ? push("release", "", "", "bay", "holder", "",
+                                     L_.holder.release_s, "release")
+                              : 0.0;
+  const double out = last ? push("bay out", "", "", "bay", "holder",
+                                 "outside", L_.bay_out.time_s, "bay_out")
+                          : 0.0;
   double back = 0.0;
   for (int i = 0; i < arm_count; ++i) {
     ArmNow& n = now[i];
@@ -1955,13 +2087,18 @@ std::vector<CheckRow> Checker::ApproachRows() {
   std::vector<CheckRow> rows;
   for (const std::string& kind : WorkKinds()) {
     auto it = jobs_.find(kind);
-    if (it == jobs_.end() || it->second.empty()) continue;
+    if (it == jobs_.end() ||
+        std::none_of(it->second.begin(), it->second.end(),
+                     [](const Job& j) { return j.in_scope; })) {
+      continue;
+    }
     if (FindApproach(L_, kind) == nullptr) {
       rows.push_back(Row("approach", kind, "", "", 0.0, "m", opt_.clearance_m,
                          false, "the layout gives no approach for " + kind));
       continue;
     }
     for (const Job& job : it->second) {
+      if (!job.in_scope) continue;
       const std::string arm = job.sc.arm >= 0 ? Use(job.sc.arm).name : "";
       for (int leg = 0; leg < 2; ++leg) {
         const LegResult& r = job.legs[leg];
@@ -2035,12 +2172,7 @@ void Checker::SolveToolChanges() {
     t.p = tc.flange;
     t.z = -Vec::UnitZ();
     std::vector<Q6> seeds = arms_[ai].seeds;  // The wait pose first.
-    Built built;
-    built.rails = std::vector<int>();
-    for (int k = 0; k < bay::kRailCount; ++k) built.rails.push_back(k);
-    for (int k = 0; k < bay::kModuleCount; ++k) built.modules.push_back(k);
-    built.on_pallets =
-        std::max(0, PointCount(L_, "module_take") - bay::kModuleCount);
+    const Built built = StageEnd();
     bool have = false;
     double best_perr = 1e9;
     // Any spin: the solver's own, then eight fixed ones.
@@ -2146,16 +2278,11 @@ void Checker::SolveToolChanges() {
 
 std::vector<CheckRow> Checker::WaitPoseRows(const std::string& check) {
   std::vector<CheckRow> rows;
-  if (L_.base != "flat_rack") return rows;
+  if (!OnFlatRacks(L_)) return rows;
   const mjModel& m = M();
   mjData* d = data_.get();
-  const int total = PointCount(L_, "module_take");
-  Built bare;
-  bare.on_pallets = total;
-  Built full;
-  for (int k = 0; k < bay::kRailCount; ++k) full.rails.push_back(k);
-  for (int k = 0; k < bay::kModuleCount; ++k) full.modules.push_back(k);
-  full.on_pallets = std::max(0, total - bay::kModuleCount);
+  const Built bare = StageStart();
+  const Built full = StageEnd();
   for (int ai = 0; ai < static_cast<int>(arms_.size()); ++ai) {
     const ArmUse& use = Use(ai);
     const SceneArm& sa = *arms_[ai].s;
@@ -2182,8 +2309,11 @@ std::vector<CheckRow> Checker::WaitPoseRows(const std::string& check) {
                        worst.distance >= opt_.clearance_m,
                        scene_->PairText(worst) +
                            (b.distance < a.distance
-                                ? "; worse with all rails and modules on"
-                                : "; worse with the bare tube")));
+                                ? (opt_.stage ? "; worse at the stage's end"
+                                              : "; worse with all rails and "
+                                                "modules on")
+                                : (opt_.stage ? "; worse at the stage's start"
+                                              : "; worse with the bare tube"))));
   }
   return rows;
 }
@@ -2203,7 +2333,7 @@ std::vector<SolvedToolChange> Checker::ToolChanges() {
 
 std::vector<CheckRow> Checker::ToolChangeRows(const std::string& check) {
   std::vector<CheckRow> rows;
-  if (L_.base != "flat_rack") return rows;
+  if (!OnFlatRacks(L_)) return rows;
   SolveToolChanges();
   for (const ToolChange& tc : tool_changes_) {
     const std::string arm = Use(tc.arm).name;
@@ -2226,8 +2356,9 @@ std::vector<CheckRow> Checker::ToolChangeRows(const std::string& check) {
           tc.reached ? tc.nearest.distance : 0.0, "m", opt_.clearance_m,
           tc.reached && tc.nearest.distance >= opt_.clearance_m,
           tc.reached ? scene_->PairText(tc.nearest) + "; worst with " +
-                           tc.worst_tool + " on the flange; all rails and "
-                           "modules on"
+                           tc.worst_tool + " on the flange; " +
+                           (opt_.stage ? "the bay as at the stage's end"
+                                       : "all rails and modules on")
                      : "no pose: " + tc.why));
     }
   }
@@ -2241,8 +2372,10 @@ std::vector<SolvedPoint> Checker::Points() const {
     auto it = jobs_.find(kind);
     if (it == jobs_.end()) continue;
     for (const Job& job : it->second) {
+      if (!job.in_scope) continue;
       SolvedPoint p;
       p.kind = kind;
+      if (opt_.stage) p.stage = opt_.stage->name;
       p.index = job.point.index;
       p.item = job.point.item;
       p.arm = job.sc.arm >= 0 ? Use(job.sc.arm).name : "";
@@ -2251,8 +2384,8 @@ std::vector<SolvedPoint> Checker::Points() const {
       p.held_approach = job.legs[0].walked ? job.legs[0].held : job.sc.held;
       p.held_retreat = job.legs[1].walked ? job.legs[1].held : job.sc.held;
       if (!job.legs[0].walked && job.sc.error.empty()) {
-        p.held_approach = scene_->AtWorkPoint(job.point, Leg::kApproach).held;
-        p.held_retreat = scene_->AtWorkPoint(job.point, Leg::kRetreat).held;
+        p.held_approach = At(job.point, Leg::kApproach).held;
+        p.held_retreat = At(job.point, Leg::kRetreat).held;
       }
       p.track = job.result.pose.track;
       p.work_reached = job.result.reached;
@@ -2314,8 +2447,8 @@ bool Checker::State(const std::string& kind, int index, LayoutState* state,
 // ---------------------------------------------------------------- public
 const std::vector<std::string>& CheckKinds() {
   static const std::vector<std::string> kinds = {
-      "transport", "hold",    "load", "reach",   "clearance",
-      "ways",      "time",    "allowed", "port", "approach"};
+      "transport", "hold", "load",    "reach", "clearance", "ways",
+      "time",      "allowed", "port", "approach", "gap"};
   return kinds;
 }
 
@@ -2516,14 +2649,17 @@ std::string TimeModelText() {
       kAccelFactor, kSettleS);
 }
 
-CheckReport CheckLayout(const Layout& layout, const ModelPaths& paths,
-                        const CheckOptions& options) {
+CheckReport CheckAtOnePlace(const Layout& layout, const ModelPaths& paths,
+                            const CheckOptions& options) {
+  // The stages run side by side (src/layout_stages.cc): models are loaded
+  // one at a time.
+  static std::mutex loading;
   CheckReport report;
   report.time_model = TimeModelText();
   // The margins: on the flat rack the larger of the options' and the
   // layout's.
   CheckOptions opt = options;
-  if (layout.base == "flat_rack") {
+  if (OnFlatRacks(layout)) {
     opt.clearance_m = std::max(opt.clearance_m, layout.margins.clearance_m);
     opt.joint_margin_deg =
         std::max(opt.joint_margin_deg, layout.margins.joint_margin_deg);
@@ -2532,15 +2668,20 @@ CheckReport CheckLayout(const Layout& layout, const ModelPaths& paths,
   report.joint_margin_deg = opt.joint_margin_deg;
   Checker checker(layout, opt);
   std::string error;
+  std::unique_lock<std::mutex> lock(loading);
   const bool ok = checker.Init(paths, &error);
   auto want = [&](const char* kind) { return Wanted(opt.checks, kind); };
   auto append = [&](const std::vector<CheckRow>& rows) {
     report.rows.insert(report.rows.end(), rows.begin(), rows.end());
   };
   if (want("transport")) {
-    append(layout.base == "flat_rack" ? FlatRackTransportRows(layout, paths)
-                                      : checker.TransportRows(paths));
+    append(OnFlatRacks(layout) ? FlatRackTransportRows(layout, paths)
+                               : checker.TransportRows(paths));
   }
+  // PortRows loads models too; it comes later in the output.
+  std::vector<CheckRow> ports;
+  if (want("port")) ports = PortRows(layout, paths);
+  lock.unlock();
   if (!ok) {
     report.error = error;
     for (const char* kind :
@@ -2551,7 +2692,7 @@ CheckReport CheckLayout(const Layout& layout, const ModelPaths& paths,
       }
     }
     if (want("allowed")) append(AllowedRows(layout));
-    if (want("port")) append(PortRows(layout, paths));
+    append(ports);
     if (want("approach")) {
       report.rows.push_back(Row("approach", "model", "", "", 0.0, "", 0.0,
                                 false, "no model: " + error));
@@ -2578,7 +2719,7 @@ CheckReport CheckLayout(const Layout& layout, const ModelPaths& paths,
   if (want("ways")) append(checker.WaysRows());
   if (time) append(checker.TimeRows(&report.steps, &report.bay_time_s));
   if (want("allowed")) append(AllowedRows(layout));
-  if (want("port")) append(PortRows(layout, paths));
+  append(ports);
   if (want("approach")) append(checker.ApproachRows());
   if (poses) report.points = checker.Points();
   report.tool_changes = checker.ToolChanges();
@@ -2594,13 +2735,17 @@ bool StateAt(const Layout& layout, const ModelPaths& paths,
              std::string* error) {
   CheckOptions options;
   options.checks = {"reach"};
-  if (layout.base == "flat_rack") {
+  if (OnFlatRacks(layout)) {
     options.clearance_m =
         std::max(options.clearance_m, layout.margins.clearance_m);
     options.joint_margin_deg =
         std::max(options.joint_margin_deg, layout.margins.joint_margin_deg);
   }
-  Checker checker(layout, options);
+  // Staged work: the point's stage, with the tube at its place.
+  const int stage = layout.staging ? StageOfPoint(layout, kind, index) : -1;
+  const Layout at = stage >= 0 ? StageLayout(layout, stage) : layout;
+  if (stage >= 0) options.stage = ScopeOfStage(layout, stage);
+  Checker checker(at, options);
   std::string e;
   if (!checker.Init(paths, &e)) {
     if (error != nullptr) *error = e;

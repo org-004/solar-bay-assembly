@@ -4,7 +4,9 @@
 // no post, side, roof or end frame, so nothing rises above the deck; the
 // footprint is the 40 ft outside; the derived figures are the ones
 // docs/bay-hardware.md states; and every member is inside the transport
-// envelope.
+// envelope. The 20 ft racks of base "two_flat_racks" (fr::twenty) have their
+// own figures, places and envelopes checked in the same way, without a model
+// file: src/layout_model.cc draws them.
 //
 //   bazel test //:flat_rack_test --test_output=all
 //
@@ -167,6 +169,60 @@ TEST_F(FlatRackTest, EveryMemberIsInsideTheTransportEnvelope) {
           << member.name << " axis " << axis;
     }
   }
+}
+
+// The 20 ft flat racks of base "two_flat_racks" (fr::twenty).
+TEST(TwentyFootRacks, FiguresAreTheSourcesAndTheDerivedOnes) {
+  namespace tw = fr::twenty;
+  EXPECT_NEAR(tw::kLength, 6.058, kTol);
+  EXPECT_NEAR(tw::kWidth, 2.438, kTol);
+  EXPECT_NEAR(tw::kDeckHeight, 0.370, kTol);
+  EXPECT_NEAR(tw::kHeight, 2.896, kTol);
+  EXPECT_NEAR(tw::kTareMass, 2900.0, kTol);
+  EXPECT_NEAR(tw::kTransitMassLimit, 13608.0, kTol);
+  EXPECT_NEAR(tw::kTransitMassLimit, 30000.0 * 0.45359237, 1.0);
+  EXPECT_NEAR(tw::PairHalfWidth(0.025), 2.4505, kTol);
+}
+
+TEST(TwentyFootRacks, EachRackIsWhereTheFrameSaysAndInsideItsEnvelope) {
+  namespace tw = fr::twenty;
+  for (bool b : {false, true}) {
+    const Eigen::Vector2d c = tw::RackCentre(b);
+    EXPECT_NEAR(c.x(), (b ? 1.0 : -1.0) * (0.0125 + 1.219), kTol);
+    EXPECT_NEAR(c.y(), 0.0, kTol);
+    const std::vector<Box> members = tw::Members(b);
+    EXPECT_EQ(members.size(), 5u);
+    Eigen::Vector3d lo = Eigen::Vector3d::Constant(1e9);
+    Eigen::Vector3d hi = Eigen::Vector3d::Constant(-1e9);
+    const Box env = tw::TransportEnvelope(b);
+    for (const Box& m : members) {
+      lo = lo.cwiseMin(m.centre - m.half_size);
+      hi = hi.cwiseMax(m.centre + m.half_size);
+      EXPECT_LE(m.centre.z() + m.half_size.z(), tw::kDeckHeight + kTol) << m.name;
+      for (int axis = 0; axis < 3; ++axis) {
+        EXPECT_GE(m.centre[axis] - m.half_size[axis],
+                  env.centre[axis] - env.half_size[axis] - kTol) << m.name;
+        EXPECT_LE(m.centre[axis] + m.half_size[axis],
+                  env.centre[axis] + env.half_size[axis] + kTol) << m.name;
+      }
+    }
+    EXPECT_NEAR(hi.x() - lo.x(), 2.438, kTol);
+    EXPECT_NEAR(hi.y() - lo.y(), 6.058, kTol);
+    EXPECT_NEAR(lo.z(), 0.0, kTol);
+    // The long sides face each other across the nominal gap.
+    EXPECT_NEAR(b ? lo.x() : hi.x(), b ? 0.0125 : -0.0125, kTol);
+    const Box above = tw::CellEnvelope(b);
+    EXPECT_NEAR(above.centre.z() - above.half_size.z(), tw::kDeckHeight, kTol);
+    EXPECT_NEAR(above.centre.z() + above.half_size.z(), 2.896, kTol);
+  }
+}
+
+TEST(TwentyFootRacks, RackBMovesByItsShiftAndRackAStays) {
+  namespace tw = fr::twenty;
+  EXPECT_NEAR(tw::RackCentre(true, 0.025, 0.02, -0.03).x(), 1.2315 + 0.02, kTol);
+  EXPECT_NEAR(tw::RackCentre(true, 0.025, 0.02, -0.03).y(), -0.03, kTol);
+  EXPECT_NEAR(tw::RackCentre(false, 0.025, 0.02, -0.03).x(), -1.2315, kTol);
+  EXPECT_NEAR(tw::Members(true, 0.025, 0.0, 0.025)[0].centre.y(), 0.025, kTol);
 }
 
 }  // namespace

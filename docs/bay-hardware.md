@@ -764,6 +764,25 @@ The flat rack this project assumes:
 | Height of the stowed cell on a chassis | 4,115, which is 13 ft 6 in | 1,219 + 2,896, as for the high cube above | derived |
 | Where the figures live | `src/flat_rack.h`, `models/flat_rack.xml`, `//:flat_rack_test` | The test checks that the header and the model agree | ours |
 
+The 20 ft flat racks this project assumes (base "two_flat_racks", `src/flat_rack.h`,
+namespace `twenty`): two racks set down side by side, long sides adjacent, nominal gap
+25 mm, structurally separate but one cell.
+
+| Figure | Value | Source, computation or reason | Basis |
+|---|---|---|---|
+| Outside length and width of each rack | 6,058 x 2,438 | ISO 668's 20 ft outside [S34] | published |
+| Height of the deck above the ground | 370 | "Height bottom" of a 20 ft flat rack [S66]; a second carrier's page gives no base height but the same tare and gross [S67] | published |
+| Tare of one rack | 2,900 kg | A 20 ft flat rack [S66], [S67]; other listings run from 2,360 to 3,000 kg depending on the maker and on whether the end frames fold | published |
+| Gross mass of one rack | 45,000 kg | [S66], [S67]; not used: the owner's limit below governs | published |
+| State in which it works | each rack the base alone: no post, side, roof or end frame; end frames dropped or taken off | As for the 40 ft rack: the owner's decision of 2026-11-24 | ours |
+| Members each rack is drawn with | 2 side rails 150 wide, an end sill 181 long at each end, a deck 115 thick | As the 40 ft rack's, the deck thinner for the lower base (200 x 370 / 648); not a structural calculation | ours |
+| The gap and its tolerance | 25 nominal, 0 to 50; rack b along Y 25 either way | The owner's spec for the second direction | ours |
+| Stow envelope of one rack | 6,058 x 2,438 x 2,896, from the ground, the rack included | The outside of a 20 ft high cube [S34] | ours |
+| Height left above the deck | 2,526 | 2,896 - 370 | derived |
+| What one rack carries in transit | 13,608 kg (30,000 lb) | The owner's limit, counted as `docs/scorecard.md` counts the mass: the robotics as it travels, without parts fed in and without the rack itself | ours |
+| Footprint of the pair, for the ports | 4,901 x 6,058: both racks and the gap, at the nominal gap | 2 x 2,438 + 25 | derived |
+| Where the figures live | `src/flat_rack.h` (`twenty`), drawn into the model by `src/layout_model.cc` (no part file), `//:flat_rack_test` | | ours |
+
 ## Against the cell today
 
 What the cell's models and headers assume now, beside the reference. Nothing here is
@@ -962,3 +981,7 @@ or a public filing that attaches the document.
 [S64] Technical specifications for purpose-built containers (Giants). Giants (filed with City of Mercer Island permit). <https://permitbulletin.mercerisland.gov/public/2307-086/SUB2/giants%20typical%20technical%20specifications%20for%20purpose-built%20containers.pdf>. Read 2026-11-24. Taken: purpose-built container ratings and reduced racking/stacking tests.
 
 [S65] Friction - Coefficients for Common Materials and Surfaces. The Engineering ToolBox. <https://www.engineeringtoolbox.com/friction-coefficients-d_778.html>. Read 2026-11-24. Taken: aluminum on mild steel, clean and dry: static 0.61, kinetic (sliding) 0.47.
+
+[S66] 20' Flatrack. Hapag-Lloyd. <https://www.hapag-lloyd.com/en/services-information/cargo-fleet/container/20-flatrack.html>. Read 2026-11-26. Taken: height bottom 370 mm, tare 2,900 kg, max gross 45,000 kg, max payload 42,100 kg, inside height 2,233 mm.
+
+[S67] 20-foot flat rack dimensions. Senate Freight. <https://senatefreight.com/container-types/20-flat-rack>. Read 2026-11-26. Taken: tare 2,900 kg, max gross 45,000 kg (no base height given).

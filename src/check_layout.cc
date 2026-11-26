@@ -8,13 +8,15 @@
 //   bazel run --config=opt //:check_layout -- below --checks reach,clearance
 //
 // --list: one line per layout under LAYOUT_DIR, tab-separated: its name,
-// "chosen" for the chosen one or "-", its title and its base ("container" or
-// "flat_rack"). The chosen layout is the one versions/versions.json names
+// "chosen" for the chosen one or "-", its title and its base ("container",
+// "flat_rack" or "two_flat_racks"). The chosen layout is the one versions/versions.json names
 // (VERSIONS_JSON; src/layout.h, ChosenLayout); exits 1 when that file names
 // none or a layout that is not under LAYOUT_DIR.
 // <name>: the rows as CSV (check,item,arm,tool,figure,unit,limit,result,
 // detail), then the bay's time, the time model and the margins used as #
-// lines; exits 0 only when every row passes. --checks a,b,c: makes and
+// lines, and for a layout worked in stages one # line per stage (its name,
+// how far the tube is moved, its rails, modules and grips, its time); exits
+// 0 only when every row passes. --checks a,b,c: makes and
 // prints only the rows of those kinds (src/layout_check.h, CheckKinds) and
 // exits by them alone. --summary: one line per kind of check, then the bay's
 // time and the margins. --steps: the steps of one bay as CSV. --pretty:
@@ -147,6 +149,30 @@ void PrintMargins(const CheckReport& report) {
   }
 }
 
+void PrintStages(const cell::layout::Layout& layout, const CheckReport& report) {
+  if (!layout.staging) return;
+  for (const cell::layout::Stage& st : layout.staging->stages) {
+    std::string grips;
+    for (const cell::layout::Grip& g : st.grips) {
+      grips += (grips.empty() ? "" : ", ") + std::string("bay_hold_") +
+               std::to_string(g.hold);
+    }
+    std::string time = "no time";
+    for (const CheckRow& r : report.rows) {
+      if (r.check == "time" && r.item == "stage " + st.name + ": bay") {
+        char buffer[32];
+        std::snprintf(buffer, sizeof(buffer), "%.1f s", r.figure);
+        time = buffer;
+      }
+    }
+    std::printf("# stage %s: tube moved %+.3f m along Y; rails %s; modules "
+                "%s; grips %s; %s\n",
+                st.name.c_str(), st.tube_offset_m, st.rails.c_str(),
+                st.modules.empty() ? "none" : st.modules.c_str(),
+                grips.empty() ? "none" : grips.c_str(), time.c_str());
+  }
+}
+
 const char kUsage[] =
     "usage: check_layout --list | <name> [--summary|--steps] [--pretty] "
     "[--checks kind,kind,...]\n";
@@ -263,6 +289,7 @@ int main(int argc, char** argv) {
     std::printf("# bay time %.1f s; %s\n", report.bay_time_s,
                 report.pass ? "pass" : "fail");
     PrintMargins(report);
+    PrintStages(*layout, report);
   } else {
     std::vector<std::vector<std::string>> rows = {
         {"check", "item", "arm", "tool", "figure", "unit", "limit", "result",
@@ -282,6 +309,7 @@ int main(int argc, char** argv) {
       start = end + 1;
     }
     PrintMargins(report);
+    PrintStages(*layout, report);
   }
   return report.pass ? 0 : 1;
 }

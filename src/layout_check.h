@@ -32,7 +32,11 @@
 //   allowed, port
 //              the rows of src/layout_rows.h, which need no pose;
 //   approach   every work point is come to and left along its kind's rule
-//              (below).
+//              (below);
+//   gap        two flat racks only: reach, clearance, approach and ways
+//              again with rack "b" at the ends of its tolerance (below).
+// "The flat rack" below means either flat rack base (OnFlatRacks of
+// src/layout.h): its rules hold on "two_flat_racks" too.
 //
 // What moves, what is there at a step, what touches by design and what is
 // near by design are defined in src/layout_scene.h, once, for the checker
@@ -277,11 +281,62 @@
 // SideBySide, with one arm the plain sum. The time rows: "bay", whose detail
 // gives the phases, and "busy <arm>" for each arm, the sum of its steps.
 // The time row has no limit: it passes when every step it needs has a pose.
+//
+// Stages (a layout with "staging"; without it nothing here applies). Each
+// stage is checked on its own model of AtStage(layout, stage) for its own
+// points: rail_take, rail_set, strap_bolt k of its rails; module_set m of its
+// modules and module_take k of each, k its place in the staged order (the
+// stages in order, each one's modules in the layout's order;
+// src/layout_stages.h); locate, pin, swage 4m+i of its modules; pins_take i
+// at the stage of the arm's first hole in that order (an arm with no hole:
+// the first module's stage); the other pallets' takes (k >= 9) at the last
+// stage. The bay at a point is the plain rule's in the staged order with
+// the earlier stages' rails and modules on and the later stages' off (at a
+// rail of stage 2 the modules of stage 1 are on). Each stage's solver starts
+// from the wait poses. Hold, reach, clearance and approach rows are made per
+// stage, items prefixed "stage <name>: ", in stage order; there the wait
+// pose's clearance is at the stage's start and end, the tool-change pose's
+// with the bay at its end. Made once, unprefixed, from the first stage:
+// transport, load, allowed, port, "wait track <arm>" and "wait pose <arm>"
+// of reach, "tool in free space ..." of clearance, before the stages' rows.
+// Hold adds per stage and grip "grip bay_hold_<k> in the holder": the piece
+// gripped (the stretch's middle at the stage's tube place +/- length / 2
+// along Y) lies along Y within a holder box; figure the least distance of
+// its ends inside the best box, limit 0. Ways: "tube in" at the first
+// stage's place, then for each move "stage <a> to <b>": the tube with the
+// rails and modules of a and the stages before, swept along +Y by the
+// difference of the offsets against what is there along a way with both
+// ways' carriers left out, the holder's geoms within clearance_m of the tube
+// at either end left out against the tube alone (it slides in them, let
+// go); then "bay out" from the last stage's place. Time: each stage by the
+// model with its own rails and modules as the units (tube in and clamp at
+// the first, release and bay out at the last, the arms back to wait at the
+// end of each), rows "stage <name>: bay" and "stage <name>: busy <arm>";
+// then "bay", their sum plus staging.transfer_s for each move, the stages in
+// the detail, passing when each stage's does, and "busy <arm>", the sums.
+// CheckReport's steps are the stages' with a step "transfer" between; its
+// points and postures are merged (a posture's poses prefixed by the stage),
+// its tool-change poses the first stage's, its phases summed by name with a
+// sixth, "transfer".
+//
+// The gap (base "two_flat_racks"). The rows above are the cell at the
+// nominal gap. Reach, clearance, approach and ways are made again at every
+// stage on MovedRackB of the layout for four variants: the gap at gap_lo_m
+// and at gap_hi_m, and rack "b" moved by +misalign_m and -misalign_m along
+// Y at the nominal gap. One row each, items "gap <lo> mm", "gap <hi> mm",
+// "misaligned +<m> mm", "misaligned -<m> mm": figure the least of the
+// variant's clearance, approach and ways rows held to clearance_m, unit m,
+// limit clearance_m; it passes when every rerun row passes. The detail names
+// that row, how many rows fail by kind and the worst failing one (the least
+// distance if it fails, else the distance, else the joint margin furthest
+// below its limit) with its figure and limit.
 
 #ifndef SRC_LAYOUT_CHECK_H_
 #define SRC_LAYOUT_CHECK_H_
 
 #include <array>
+#include <map>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -317,13 +372,34 @@ struct BayStep {
   std::string to;
   double time_s = 0.0;
   // The work kind of src/layout.h for a working step, else one of
-  // "tube_in", "clamp", "tool_change", "to_wait", "release", "bay_out".
+  // "tube_in", "clamp", "tool_change", "to_wait", "release", "bay_out",
+  // "transfer" (staged work: the tube moved to the next stage).
   std::string kind;
   int index = -1;          // The work point's number for a work kind.
   // The phase of the time model the step counts in: "tube in", "clamp",
-  // "rails", "modules" or "end".
+  // "rails", "modules", "end" or, in staged work, "transfer".
   std::string phase;
   std::string tool_after;  // For a tool_change: the tool on the flange after it.
+  std::string stage;       // Staged work: the stage's name; else "".
+};
+
+// One stage of staged work as the checker checks it (see the opening
+// comment, "Stages"; src/layout_stages.h makes it from the layout's staging).
+struct StageScope {
+  std::string name;
+  bool first = true;  // The tube comes in before it: tube in, clamp.
+  bool last = true;   // The bay leaves after it: release, bay out.
+  // On the tube when the stage starts: the earlier stages' rails and modules.
+  std::vector<int> rails_before, modules_before;
+  // Set at this stage: rails sorted, modules in the order they are set.
+  std::vector<int> rails, modules;
+  // The work points solved and reported, by kind, sorted; a kind that is
+  // not listed has none here.
+  std::map<std::string, std::vector<int>> points;
+  // When not last: the next stage's name and how far the tube moves to it
+  // along +Y.
+  std::string next;
+  double to_next_m = 0.0;
 };
 
 struct CheckOptions {
@@ -346,6 +422,10 @@ struct CheckOptions {
   // Seeds of the inverse kinematics after the previous solution and the
   // wait pose.
   int ik_seeds = 16;
+  // Set by CheckLayout for each stage of a staged layout, which it checks
+  // on AtStage(layout, stage): only the stage's points, the bay as built in
+  // staged work. Unset: the whole bay at one place of the tube.
+  std::optional<StageScope> stage;
 };
 
 // The poses solved for one work point, for a planner: the work pose and,
@@ -377,6 +457,7 @@ struct SolvedPoint {
   std::vector<std::array<double, 6>> retreat_leg_deg;
   double approach_length_m = 0.0;  // The rule's distances.
   double retreat_length_m = 0.0;
+  std::string stage;  // Staged work: the stage it is solved at; else "".
 };
 
 // The flange at an arm's tool-change pose stands this far above the highest
@@ -417,7 +498,8 @@ struct CheckReport {
   // Every arm with more than one tool, in the layout's order of arms.
   std::vector<SolvedToolChange> tool_changes;
   // The time model's five phases in order ("tube in", "clamp", "rails",
-  // "modules", "end") with their seconds, as in the time,bay row's detail.
+  // "modules", "end") with their seconds, as in the time,bay row's detail;
+  // in staged work summed over the stages, and a sixth, "transfer".
   std::vector<std::pair<std::string, double>> phases;
   std::vector<PostureChanges> postures;  // Per arm, flat rack layouts only.
   bool pass = false;       // Every row passes.

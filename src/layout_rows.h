@@ -22,7 +22,8 @@
 //   port       a separate unit stands against the cell only at a port. Rows:
 //              that tubes and bays are two ports; for each port, that its
 //              frame is on the outline of the base's footprint (at the deck's
-//              height), that its zone's centre lies on the +x side of the
+//              height; for two racks the pair's outer rectangle at the
+//              nominal gap), that its zone's centre lies on the +x side of the
 //              frame (the frame faces its zone), and that it hands over what
 //              crosses it (tubes: way:tube_in; bays: way:bay_out; modules:
 //              pallets only; rails: stock:rails; pin magazines: a stock of
@@ -57,6 +58,17 @@
 //              arm's stow track value inside its track; the mass within what
 //              the flat rack leaves for the cell. The row's detail names
 //              every geom that stands outside.
+//              On two racks (base "two_flat_racks"), in place of the 40 ft
+//              envelope and mass rows: "rack a envelope" and "rack b
+//              envelope", every stowed geom of what
+//              stands on that rack inside that rack's 6.058 x 2.438 x 2.896 m
+//              box from the ground at its place, above its deck, the figure
+//              being the worst distance inside and the detail naming the geom
+//              and the side; "rack a mass" and "rack b mass": what stands on
+//              it against 13,608 kg; "nothing spans the gap": no stowed geom
+//              of the cell lies in the band between the racks, the figure
+//              the least distance of any from it. The rows on the deck keep
+//              to the thing's own rack.
 //
 // The parts of the mass row are TransportMassParts below, so that the
 // scorecard (src/scorecard.h) reads them from here and does not add them up
@@ -83,8 +95,8 @@ std::vector<CheckRow> AllowedRows(const Layout& layout);
 // a fault returns one failing row that says what could not be built.
 std::vector<CheckRow> PortRows(const Layout& layout, const ModelPaths& paths);
 
-// The `transport` rows of a layout whose base is "flat_rack", the rows
-// without a limit included. Builds the stowed model itself.
+// The `transport` rows of a layout whose base is "flat_rack" or
+// "two_flat_racks", the rows without a limit included. Builds the stowed model itself.
 std::vector<CheckRow> FlatRackTransportRows(const Layout& layout,
                                             const ModelPaths& paths);
 
@@ -100,6 +112,9 @@ struct MassPart {
   std::string component;
   std::string name;
   double mass_kg = 0.0;
+  // The rack ("a" or "b") the thing stands on, for a layout on two racks; ""
+  // on every other base.
+  std::string rack;
 };
 
 // The parts of the transport row's mass, in the order the row adds them:
