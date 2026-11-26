@@ -394,8 +394,39 @@ int main(int argc, char** argv) {
     std::printf("bay_model_s: %s\n", Num(plan.bay_model_s).c_str());
     std::printf("bays: %d\n", plan.bays);
     for (const BayEvent& e : plan.events) {
-      std::printf("bay_%d_%s: %s to %s s\n", e.bay, e.kind.c_str(),
+      const std::string kind =
+          e.kind == "transfer" ? "transfer_" + std::to_string(e.from_stage) + "_to_" +
+                                     std::to_string(e.to_stage)
+                               : e.kind;
+      std::printf("bay_%d_%s: %s to %s s\n", e.bay, kind.c_str(),
                   Num(e.t0).c_str(), Num(e.t1).c_str());
+    }
+    // Staged work: each stage's stretch, from the clamp's or its transfer's
+    // end to the next transfer's start or the bay_out's.
+    const std::vector<Stage> stages = StagesOf(*layout);
+    for (int b = 0; layout->staging && b < plan.bays; ++b) {
+      double from = 0.0;
+      for (const BayEvent& e : plan.events) {
+        if (e.bay != b || (e.kind != "clamp" && e.kind != "transfer" && e.kind != "bay_out")) {
+          continue;
+        }
+        if (e.kind != "clamp") {
+          const int k = e.kind == "transfer" ? e.from_stage - 1 : static_cast<int>(stages.size()) - 1;
+          std::printf("bay_%d_stage_%s: %s to %s s (%s s)\n", b, stages[k].name.c_str(),
+                      Num(from).c_str(), Num(e.t0).c_str(), Num(e.t0 - from).c_str());
+        }
+        from = e.t1;
+      }
+    }
+    // How long bay b+1's tube comes in while bay b goes out.
+    for (int b = 0; b + 1 < plan.bays; ++b) {
+      double out = 0.0, in = 0.0;
+      for (const BayEvent& e : plan.events) {
+        if (e.bay == b && e.kind == "bay_out") out = e.t1;
+        if (e.bay == b + 1 && e.kind == "tube_in") in = e.t0;
+      }
+      std::printf("bay_%d_out_bay_%d_in_overlap_s: %s\n", b, b + 1,
+                  Num(std::max(0.0, out - in)).c_str());
     }
     const CycleFigures cycle = CycleFiguresOf(plan);
     std::printf("one_bay_s: %s\n", Num(cycle.one_bay_s).c_str());
