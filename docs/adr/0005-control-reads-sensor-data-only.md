@@ -34,7 +34,7 @@ is a run without sensing: `README.md:164` says that with `--blind` none of 20 tr
 placed a module.
 
 **Consequences.** The one reason written is at `src/pick_place.h:24-25`:
-keeping truth out of the script "is what makes the score of a run a fair measure of
+keeping truth out of the script is what makes the score of a run "a fair measure of
 what each way of sensing costs". What it buys today is that the new cell's files
 (`src/layout*`, `src/bay*`, `src/container*`, `src/flat_rack*`) read no truth. What
 it costs: the check sees names and fields, not meaning, so a pose read under another

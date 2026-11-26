@@ -52,4 +52,4 @@ version, commit or hash, stays 0), `P4.group` (includes of a library from a grou
 that may not, stays 0) and `P4.allowed` (pairs of group and library, may not grow);
 `tools/architecture/measure.sh --check` exits 1 when one grows.
 
-**Migration.** None.
+**Migration.** None: the code already follows this.

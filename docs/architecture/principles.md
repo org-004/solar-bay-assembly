@@ -85,8 +85,8 @@ or a capture of `--help` lowers it and holds nothing. A new test or capture coun
 when it fails after the result it names is changed by hand; try that before relying
 on it.
 
-**Now.** `P2 6`: the three viewers' files, `src/viewer_lib.h` and `.cc`, and `src/run_gate.cc`.
-`P2.untested 24`, `P2.unrun 11`.
+**Now.** `P2 6`: the three viewers' files, `src/viewer_lib.h` and `.cc`, and
+`src/run_gate.cc`. `P2.untested 24`, `P2.unrun 11`.
 
 **Target.** `P2` is 0 but for the programs that need a display; `P2.untested` falls as
 tests are written. Never worse meanwhile.
@@ -254,8 +254,9 @@ of known duplicates, found by the spelling each has today; a fact found written 
 is added to it with its home, in the commit that finds it. A home must be in a group
 that every user may include (P1); where it is not, the home moves first.
 
-**Now.** `P7 17`: `mj_geomDistance` in 3 files beside its home, the module's size in 2, the
-gate's figures in 1, the container's base in 1, pi as a literal in 10. `P7.frozen 9`.
+**Now.** `P7 17`: `mj_geomDistance` in 3 files beside its home, the module's size in 2,
+the gate's figures in 1, the container's base in 1, pi as a literal in 10.
+`P7.frozen 9`.
 
 **Target.** `P7` equals `P7.frozen`, then 0. Never worse meanwhile.
 
@@ -315,8 +316,9 @@ fall.
 `baseline.txt`. `tools/architecture/tidy.sh`: the places each check finds, against the
 `T` lines, and no check under `WarningsAsErrors` fires.
 
-**Now.** `P9 0`. Under `--config=strict`: `-Wconversion` 61, `-Wmissing-field-initializers`
-11, `-Wshadow` 8, `-Wparentheses` 4, `-Wcomment` 3, `-Wnull-dereference` 2, six flags
+**Now.** `P9 0`. Under `--config=strict`: `-Wconversion` 61,
+`-Wmissing-field-initializers` 11, `-Wshadow` 8, `-Wparentheses` 4, `-Wcomment` 3,
+`-Wnull-dereference` 2, six flags
 at 0. `clang-tidy`: 13 checks with 128 places, the largest `cert-err34-c` 60.
 
 **Target.** `P9` stays 0; every `W` and `T` line reaches 0, and the commit that brings

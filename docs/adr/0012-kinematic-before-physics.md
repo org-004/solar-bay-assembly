@@ -10,7 +10,7 @@ first, then iteration" (the project brief). The first cell's limits, set the sam
 end with "The work is kinematic only" (`docs/flat-rack-cell.md:32-40`). What a kinematic
 check cannot see is plain: the time model, which moves each arm on a straight line in
 joint space, came out low against the repository's own planner by 1.731 to 3.488 times
-on six moves (`docs/layout.md`, "The time model against the planner"). The stand-in
+on seven moves (`docs/layout.md`, "The time model against the planner"). The stand-in
 cell, by contrast, is a physics simulation with controllers, a camera and a gate (ADR
 0013).
 

@@ -78,7 +78,7 @@ count is from `grep -c`.
 | nlohmann_json | JSON of the layouts (`src/layout.h`) | 4 (`P4.nlohmann_json`) | no | registry module |
 | googletest | the test framework | 42 (`P4.googletest`) | tests only (`dev_dependency = True`) | registry module |
 | menagerie_ur10e | the stand-in arm, UR10e, with scene | 3 lines of `BUILD.bazel` name it (`grep -c`); go through `UR10E_FILES` (`BUILD.bazel:12`) | no: tests and programs of the stand-in cell | files by hash |
-| kuka_kr210_r2700_2 | the KR 210 R2700-2 meshes and licence; `models/arm.xml` is hand-made | 3 lines name it; go through `ARM_MESH_FILES` (`BUILD.bazel:189`) | no | files by hash |
+| kuka_kr210_r2700_2 | the KR 210 R2700-2 meshes and licence; `models/arm.xml` is hand-made | 5 lines name it; go through `ARM_MESH_FILES` (`BUILD.bazel:189`) | no | files by hash |
 | ompl | the planner's second search (`src/ompl_search.h`) | 1 (`P4.ompl`); go through `//:ompl` (`BUILD.bazel:1585`) | no: every target that plans links it | hash-pinned archive |
 | boost.* (each of the 17) | headers OMPL includes; only `boost.serialization` compiles code | 0 in `BUILD.bazel`; each is listed once, by `@ompl//:ompl` (`bazel/ompl.BUILD.bazel:107` to `123`) | no: linked through OMPL | registry module |
 

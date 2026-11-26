@@ -8,7 +8,8 @@ result. Take the first item whose **State** is `open` and whose **After** items 
 [`behavior.md`](behavior.md). The figures are those of `tools/architecture/measure.sh`
 at the commit this file lands with; `tools/architecture/warnings.sh` prints the `W`
 lines and `tools/architecture/tidy.sh` the `T` lines. A **Done when** figure assumes
-that the items above it have landed.
+that the items above it have landed. So do the line numbers: an earlier item that edits
+the same file can move them by a few lines, and the text quoted finds the place.
 
 Every item also changes `docs/architecture/baseline.txt`, and most change the **Now**
 line of their principle in `principles.md`; those two are listed in **Touches**, and
@@ -36,7 +37,9 @@ of `src/container.h` (`grep -n 'container::' src/layout_model.*` prints nothing)
 `tests/layout_rows_test.cc` includes `src/flat_rack.h`, not `src/container.h`;
 `tests/bay_model_test.cc` names no `Eigen` (`grep -c Eigen` prints 0);
 `tests/plan_replay_test.cc` includes no `nlohmann/` header. None includes through a
-macro (`grep -n '#define'` in the four files finds only include guards).
+macro (`grep -n '#define'` in the four files finds the include guard of
+`src/layout_model.h` and `NEED_COMMITTED` in `tests/plan_replay_test.cc:470`, which
+names no header).
 **Change.** In `BUILD.bazel` delete the line `":container",` from the `deps` of
 `layout_model` (section `layout`) and of `layout_rows_test` (section `layout_rows`),
 `"@eigen",` from `bay_model_test` (section `bay`) and `"@nlohmann_json//:json",` from
@@ -64,15 +67,16 @@ the captures `check_layout.*` and `plan_layout.*`. Nothing to pin first.
 **Where.** `//:layout_plan`, `//:layout_scene_test`, `//:viewer_lib`.
 **Evidence.** `measure.sh --list P5` lists `//:layout_plan //:mj_handles`,
 `//:layout_scene_test //:mj_handles`, `//:viewer_lib //:mj_handles`.
-`src/layout_plan.cc` (lines 712, 1043, 1356), `src/layout_replay.cc` (887, 1637, 1651)
+`src/layout_plan.cc` (lines 712, 1043, 1356), `src/layout_replay.cc` (1637, 1651)
 and `tests/layout_scene_test.cc` (91, 115, 164, 174) name `DataPtr` of
 `src/mj_handles.h` but reach it only through `src/layout_scene.h:136`.
 `src/viewer_lib.cc` and `.h` name nothing of it
 (`grep -n 'DataPtr\|ModelPtr\|MakeData\|LoadModel' src/viewer_lib.*` prints nothing).
 **Change.** Add `#include "src/mj_handles.h"` to the project includes of
 `src/layout_plan.cc`, `src/layout_replay.cc` and `tests/layout_scene_test.cc`, in
-alphabetical place. In `BUILD.bazel`, section `cell`, delete `":mj_handles",` from the
-`deps` of `viewer_lib`. Delete the three entries of `departures` in `deps.json`.
+alphabetical place. In `BUILD.bazel`, delete `":mj_handles",` from the `deps` of
+`viewer_lib` (line 656, between `# END cell` and `# BEGIN pick_place`, in no
+section). Delete the three entries of `departures` in `deps.json`.
 **Done when.** `measure.sh` prints `P5 9`, `P5.unused_project 5`, `P1.listed 13`;
 `deps.py` prints ok; `bazel build --config=opt //...` passes; `behavior.sh compare`
 prints `same`.
@@ -81,7 +85,7 @@ prints `same`.
 change and the build proves them.
 **Size.** 4 files, 3 lines added, 4 deleted.
 **Touches.** `src/layout_plan.cc`, `src/layout_replay.cc`,
-`tests/layout_scene_test.cc`, `BUILD.bazel` (section `cell`),
+`tests/layout_scene_test.cc`, `BUILD.bazel` (`viewer_lib`, in no section),
 `tools/architecture/deps.json`, `docs/architecture/baseline.txt`,
 `docs/architecture/principles.md` (P5 **Now**).
 **After.** B1
@@ -114,7 +118,7 @@ that list MuJoCo and rises by one: this target already used it through
 
 **Principles.** P10
 **Decisions.** ADR 0001
-**Where.** `docs/layout.md`, lines 666 and 667.
+**Where.** `docs/layout.md`, lines 667 and 668.
 **Evidence.** `measure.sh --list P10` prints `docs/layout.md:667 //:print_layout_moves`;
 `docs/layout.md:11` already says the program no longer exists (it left in run 012).
 **Change.** Replace the sentence "The command is `bazel run --config=opt
@@ -233,15 +237,15 @@ draws differed: stop and report.
 **Where.** `src/viewer_lib.cc` (`ParseViewerArgs`, `ViewerArgsUsage`), a new test.
 **Evidence.** `measure.sh --list P2` lists `src/viewer_lib.cc` and `src/viewer_lib.h`;
 `behavior.md`, "Outside the net", says the parsing can be tested without a display.
-`src/viewer_lib.cc` 200 to 300 parse `--lookat`, `--distance`, `--speed`, `--fps`,
-`--overlay`, `--overlay-at`, `--caption`, `--font-scale`, `--size`, `--record`,
-`--quit-at`, `--key`, `--groups`.
+`src/viewer_lib.cc` 214 to 326 parse `--no-overlay`, `--lookat`, `--distance`,
+`--azimuth`, `--elevation`, `--speed`, `--fps`, `--overlay`, `--overlay-at`,
+`--caption`, `--font-scale`, `--size`, `--record`, `--quit-at`, `--key`, `--groups`.
 **Change.** Write `tests/viewer_lib_test.cc` (new): for each option one case that it is
 taken (the field of `ViewerOptions` or `ViewerRun` holds the value) and one that a bad
 value is refused with the message `ParseViewerArgs` gives today (read it from the
 source, do not change it), and one case for an unknown option. Add `cc_test(name =
 "viewer_lib_test", size = "small", srcs = ["tests/viewer_lib_test.cc"], deps =
-[":viewer_lib", "@googletest//:gtest_main"])` after `viewer_lib` in section `cell`, and
+[":viewer_lib", "@googletest//:gtest_main"])` after `viewer_lib` (in no section), and
 `tests/viewer_lib_test.cc` (new) to the files of group `viewer` in `deps.json`. Then
 change one parsed value by hand in `src/viewer_lib.cc`, see the test fail, and put it
 back.
@@ -251,7 +255,7 @@ captures after the change compare `same`, and against the capture before only
 `tests.txt` differs, by the new target.
 **Net.** This item is the net for `src/viewer_lib.*`.
 **Size.** 3 files, about 150 lines added.
-**Touches.** `tests/viewer_lib_test.cc` (new), `BUILD.bazel` (section `cell`),
+**Touches.** `tests/viewer_lib_test.cc` (new), `BUILD.bazel` (after `viewer_lib`),
 `tools/architecture/deps.json`, `docs/architecture/behavior.md` (section 6a, the row of
 `src/viewer_lib.cc`), `docs/architecture/baseline.txt`,
 `docs/architecture/principles.md` (P2 **Now**).
@@ -273,7 +277,7 @@ the source lines of the times it cuts:
 `print_check.study | //:print_check | --study | <cuts>`. The cuts are the wall-clock
 fields only: for `run_gate`, "in N s wall" of `src/trial_runner.cc:745`, "in N s of
 trial wall time" of `:767` and "wall time N s" of `src/run_gate.cc:147`; for `--study`,
-every field computed from the render time of `src/check_placement.cc:634` to `:637`. Run
+every field computed from the render time of `src/check_placement.cc:634` to `:638`. Run
 each twice and find every other field that differs; if one is not a time, stop and
 report. Add both ids to the table of section 3 of `behavior.md` and drop `run_gate` and
 `print_check --study` from section 4b.
@@ -324,7 +328,8 @@ the change compare `same` (the test target is the same, its result passes).
 **Where.** `tools/architecture/ci.sh`.
 **Evidence.** `measure.sh --list P8` prints `MODULE.bazel.lock`; `deps.json`,
 `generated`: "no build runs with --lockfile_mode=error". `docs/ompl-integration.md:1572`
-records that `bazel build --nobuild --lockfile_mode=error --config=opt //...` exits 0
+records that `bazel build --nobuild --lockfile_mode=error --config=opt //...` (there
+with a smoke target added) exits 0
 when the lock file is current (`bazel mod deps` cannot be used: it fails on this
 repository). The lock file holds no entry for one platform (`grep -c '"os:'
 MODULE.bazel.lock` prints 0), so the check passes on x86-64 as on arm64.
@@ -336,7 +341,8 @@ in the opening comment. In `deps.json`, entry `MODULE.bazel.lock`, set `test` to
 does not match MODULE.bazel (--lockfile_mode=error), in CI's architecture job". Add a
 row to the guardrails table of `docs/architecture/README.md`. Check it: add a
 `bazel_dep` to a scratch copy, see the step fail, put it back.
-**Done when.** `tools/architecture/ci.sh` prints `== 0: ok`; `measure.sh` prints `P8 0`.
+**Done when.** `tools/architecture/ci.sh` prints `ci.sh: ok`, its step 0 included;
+`measure.sh` prints `P8 0`.
 No code changes, so no capture.
 **Net.** None needed: no code.
 **Size.** 3 files, about 20 lines.
@@ -519,8 +525,8 @@ nothing else.
 **Evidence.** `T bugprone-branch-clone 3`. At `src/layout_plan.cc:972`
 `e.config = s0.kind == "move" ? s0.path.front() : s0.path.front();` has two equal arms
 and no side effect, so both give the start of the first segment, which the comment
-above it asks for. `src/path_timing.cc:432` to `:441` gives `kInfinity` in its first and
-third branch; `src/plan_layout.cc:298` to `:307` returns `Usage()` in two.
+above it asks for. `src/path_timing.cc:438` to `:444` gives `kInfinity` in its first and
+third branch; `src/plan_layout.cc:303` to `:308` returns `Usage()` in two.
 **Change.** Write `e.config = s0.path.front();`. In `src/path_timing.cc` join the first
 and third branch as `if (line.straight_on[c] || (!stop[c] && sine[c] < kStraightOn))`
 and keep the `stop` branch and the last one as they are. In `src/plan_layout.cc` write
@@ -547,10 +553,9 @@ captures `plan_layout.*`, `print_plan.*`, `run_cell.*`.
 **Where.** `tests/plan_replay_test.cc:470` to `:472`.
 **Evidence.** `T bugprone-macro-parentheses 2`, both at line 472 ("macro argument
 should be enclosed in parentheses").
-**Change.** Write the macro's two uses of `c` as `(c)`:
-`const Committed& (c) = TheCommitted();` and `if (!(c).error.empty()) FAIL() <<
-(c).error;`. Delete `-bugprone-macro-parentheses,` under `WarningsAsErrors` and its `T`
-line.
+**Change.** On line 472 write the two uses of `c` as `(c)`: `if (!(c).error.empty())
+FAIL() << (c).error;`; line 471, where `c` is declared, stays. Delete
+`-bugprone-macro-parentheses,` under `WarningsAsErrors` and its `T` line.
 **Done when.** `tidy.sh` prints no place of the check and exits 0, and the same commit
 moves the check to the errors; `P9.held` unchanged; `plan_replay_test` passes;
 `behavior.sh compare` (with the tests) prints `same`.
@@ -573,7 +578,7 @@ variable is unset (Bazel sets it; a binary run by hand does not). The third,
 **Change.** At `arm_follower_test.cc:718` write `const char* env =
 std::getenv("MODEL_PATH"); ASSERT_NE(env, nullptr) << "MODEL_PATH is not set";
 const std::string path = env;`. At `layout_model_test.cc:1135` use the file's
-`LayoutPath("flat_rack_3_pin_arms")` (line 51).
+`LayoutPath("flat_rack_3_pin_arms")` (line 52).
 **Done when.** `tidy.sh` prints `T clang-analyzer-cplusplus.StringChecker 1` and exits
 0; the check stays counted until the stand-in cell's files go; both tests pass;
 `behavior.sh compare` (with the tests) prints `same`.
@@ -761,8 +766,8 @@ check `trapezoid` and `s_curve` as the function's other failures do. Add the lin
 `T bugprone-unchecked-optional-access <n>` that `tidy.sh` prints, and change ADR 0015's
 sentence by a superseding record only if the lead asks; this item edits no record.
 **Done when.** `tidy.sh` prints `T bugprone-unchecked-optional-access` with only places
-in frozen files (64 expected) and exits 0; `P9.held 63` (one higher: a new
-entry of `Checks`); `behavior.sh compare`
+in frozen files (64 expected) and exits 0; `P9.held` unchanged (61: only
+exclusions change, which it does not count); `behavior.sh compare`
 (with the tests) prints `same`.
 **Net.** `joint_move_test` and every cycle test, `layout_plan_test`,
 `plan_replay_test`; captures `print_profile.*`, `plan_layout.*`.
@@ -1153,7 +1158,7 @@ By principle, with the figure `measure.sh` (or `warnings.sh`, `tidy.sh`) prints 
   and exit code change (`behavior.md`, section 1). The owner decides whether that is
   wanted; then it is an item per group, and the 43 frozen places stay.
 - **The clock-bounded searches** (P6, `P6.clock 6`): `src/rrt.cc:451` stops RRT-Connect
-  after `RrtOptions::max_seconds` (5 s by default, `src/rrt.h:240`), `src/rrt.cc:516`
+  after `RrtOptions::max_seconds` (5 s by default, `src/rrt.h:240`), `src/rrt.cc:517`
   path shortening, `src/ompl_search.cc:417` OMPL, and `src/motion_planner.cc:343`,
   `:372` hand the time left on. On a slow machine a search can end in another state, so
   a plan depends on the machine's speed. The cure, a budget of queries in place of
@@ -1171,9 +1176,3 @@ By principle, with the figure `measure.sh` (or `warnings.sh`, `tidy.sh`) prints 
   and `src/layout_rows.cc:39`, 2048 in `src/layout_plan.cc:38`, 1024 in
   `src/layout_replay.cc:194`; a longer message is cut without a word. One `Fmt` would
   change where messages are cut.
-- **The arm's clearance through `mj_geomDistance`** (P7): `src/collision.cc:526`
-  measures on a model with Menagerie's capsules, which MuJoCo 4.0.0 measures as clear
-  when a capsule's axis passes through a box (`src/layout_model.cc:717`). Collisions
-  themselves are found by contacts; the clearance figures `print_plan` and `run_cell`
-  print may be too large in that case. Mending the model as `src/layout_model.cc` does
-  would change those figures.

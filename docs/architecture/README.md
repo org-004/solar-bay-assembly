@@ -94,7 +94,7 @@ and everything you had to guess.
 Run `tools/architecture/measure.sh` and the two guardrails, and audit the code
 against each principle: its **Check** says what the figure cannot see, and that is
 where to look. Write what you find as new items at the end of `backlog.md`, in the
-form of the items there (the ten labels and `**State.** open`), or under "Left as it
+form of the items there (the eleven labels and `**State.** open`), or under "Left as it
 is" or "Needs the owner" with the reason. Do none of the new items in that run
 unless the task says so.
 

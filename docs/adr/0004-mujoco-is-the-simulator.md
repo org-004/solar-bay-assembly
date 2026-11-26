@@ -14,7 +14,7 @@ take 5 to 70 times longer and that plain `-c opt` fails inside MuJoCo.
 **Decision.** The simulator is MuJoCo, version 4.0.0, a `bazel_dep` at
 `MODULE.bazel:12`, used through its C API (`@mujoco//:mujoco`, owning handles in
 `src/mj_handles.h`). Perception, motion planning and control are written in this
-repository against it: "hand-written in C++ against MuJoCo" (`README.md:4-6`, the
+repository against it: "hand-written in C++ against MuJoCo" (`README.md:6-7`, the
 same sentence as in `8adf3bd`). OMPL is the one planning library, behind a switch
 (ADR 0008). The language is C++20 for the project's code and for everything it builds
 from source (`.bazelrc:1-3`). Builds and tests use `--config=opt`, which sets `-c opt`

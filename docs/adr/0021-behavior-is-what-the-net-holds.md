@@ -33,7 +33,7 @@ request (`--gate`); `AGENTS.md` says when it runs.
   in no test's dependencies.
 - Golden files committed under `tests/`, compared by a test. Lost for now: the outputs
   depend on the platform's random distributions (P6), so a committed file would fail
-  on CI's x86-64; and committing 59 outputs makes every intended change of a table a
+  on CI's x86-64; and committing 58 outputs makes every intended change of a table a
   conflict. A capture is made where and when it is needed and thrown away.
 - Comparing numbers within a tolerance. Lost: a refactoring changes no number at all,
   and a tolerance would hide a reordered sum.

@@ -73,8 +73,8 @@ name `check_layout` for that layout (R26 of the spec, shown in the run's report)
 
 All targets are `bazel run --config=opt`. "-" is no arguments. Each line is one file in
 the capture; `@layout` is each of the 8 names of `layouts/*.json` and `@plan` each of
-the 2 files of `plans/`, so a capture holds 58 program files and `tests.txt`
-(42 lines, of which 4 expand: 8 + 8 + 2 + 2 files).
+the 2 files of `plans/`, so a capture holds 58 program files (the 42 lines of
+`programs.txt`, of which 4 expand: 8 + 8 + 2 + 2 files) and `tests.txt` (42 lines).
 
 | Capture id | Target | Arguments |
 |---|---|---|

@@ -5,8 +5,8 @@ Date: 2026-11-25
 Decided by: run 013-design-principles-and-r2 (spec 013, R12)
 
 **Context.** Every target of the repository is in one package: `BUILD.bazel` at the
-top, 2,133 lines, 110 rules in 29 sections marked `# BEGIN x` / `# END x`, and
-`grep -c visibility BUILD.bazel` prints 0. `src/` holds 99 files in one directory and
+top, 2,133 lines, 110 targets (`bazel query 'kind(rule, //...)' | wc -l`) in 29
+sections marked `# BEGIN x` / `# END x`, and `grep -c visibility BUILD.bazel` prints 0. `src/` holds 99 files in one directory and
 `tests/` 41. The usual advice for a Bazel project is a package for each directory with
 narrow `visibility`, so that Bazel itself refuses a dependency in the wrong direction
 ([S4], [S5] of `docs/architecture/research.md`), and Drake is built that way ([S48],
