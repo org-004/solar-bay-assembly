@@ -90,6 +90,11 @@ gate adds about 4 on four cores.
   is reproduced with `run_cell` or a `print_*` program at that commit, not copied from
   another agent's summary. A change that moves a number in the README's Status updates
   it there.
+- **Layouts and versions.** A change to the chosen layout or its plan adds a new layout
+  file and a version with `tools/evolution/add.sh`; a registered version does not change
+  (`//:versions_test`). A change that should move a measure quotes
+  `bazel run --config=opt //:score_layout -- <name>` before and after in its report; the
+  measures are defined in `docs/scorecard.md`.
 - **Commits.** `Area: what changed`, then bullets in plain, complete sentences. No
   attribution line.
 - **Decisions and the backlog.** A change that departs from an accepted record under

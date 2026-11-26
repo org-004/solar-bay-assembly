@@ -69,8 +69,9 @@ TEST(Versions, TheChosenLayoutIsTheNewestChosenVersions) {
     ASSERT_TRUE(layout.has_value()) << error;
     if (layout->chosen) chosen = name;
   }
+  const std::vector<Version> versions = Versions();
   const Version* newest = nullptr;
-  for (const Version& v : Versions()) {
+  for (const Version& v : versions) {
     if (v.status == "chosen") newest = &v;
   }
   ASSERT_NE(newest, nullptr) << "no version has status chosen";

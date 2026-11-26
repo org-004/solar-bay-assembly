@@ -51,6 +51,8 @@ after. Changing the chosen layout costs a new file and a version, which is the p
 `scorecard_test` computes every committed plan's scorecard, about 16 s each. Python 3
 must be on the machine that runs `ci.sh`, as it already is for `tools/architecture/`.
 The three new tests raise `P4.googletest` from 42 to 45, as every new test does.
+The pages' entry of `generated` in `tools/architecture/deps.json` is excused from a Bazel test
+because `ci.sh` compares them, so `P8.no_test` goes from 6 to 7.
 
 **Check.** `bazel test --config=opt //:scorecard_test //:versions_test
 //:score_layout_test` and `python3 tools/evolution/pages.py check`. `tools/architecture/programs.txt` captures `score_layout`

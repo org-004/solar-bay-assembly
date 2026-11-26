@@ -426,6 +426,47 @@
           "source": "docs/flat-rack-cell.md at 940a01b, How many pin arms (R12), Rows passed (all); `bazel run --config=opt //:check_layout -- flat_rack_1_pin_arm --summary`"
         }
       ]
+    },
+    {
+      "id": "v08",
+      "date": "2026-11-25",
+      "commit": "940a01b",
+      "title": "Two pin arms on the flat rack",
+      "direction": "one-40ft-flat-rack",
+      "status": "candidate",
+      "changed": "The same flat rack cell with two UR10e pin arms below the bay, which share the modules 0-4 and 5-8. Its bay was planned whole and the plan is committed.",
+      "why": "The middle of three pin-arm counts compared for the flat rack: within 10 percent of three arms' planned bay, but its least clearance over the schedule, 0.0179 m, is not larger than three arms' 0.0181 m, so it was not chosen.",
+      "recording": "docs/evolution/v08.gif",
+      "competed_with": "v09",
+      "layout": {
+        "path": "layouts/flat_rack_2_pin_arms.json",
+        "sha256": "d6186f393828cac23e669c5a368e81455f83525c52a9bab16aa6b1d5a237deca"
+      },
+      "plan": {
+        "path": "plans/flat_rack_2_pin_arms.json",
+        "sha256": "9008bbae403eb6aa2c0cc2e4c80e6ce5162bf7aac93a585fcd93924e3da56278"
+      },
+      "scores": "scores/flat_rack_2_pin_arms.json"
+    },
+    {
+      "id": "v09",
+      "date": "2026-11-25",
+      "commit": "940a01b",
+      "title": "Three pin arms on the flat rack: a whole bay planned",
+      "direction": "one-40ft-flat-rack",
+      "status": "chosen",
+      "changed": "The cell stands on the base of a 40 ft flat rack: one KUKA KR 210 on a track sets the ten rails and nine modules, and three UR10e on tracks below the bay drive the strap bolts and locate, pin and swage the modules. Every move of every arm for one bay is planned free of collision, the four arms are scheduled on one clock, and the plan is verified and committed.",
+      "why": "The owner allowed the first cell to stand on a flat rack with up to three pin arms. Of one, two and three pin arms, three gave the shortest planned bay, 644.28 s against 700.08 s and 907.34 s, with the same tightest clearance at a pose.",
+      "recording": "docs/evolution/v09.gif",
+      "layout": {
+        "path": "layouts/flat_rack_3_pin_arms.json",
+        "sha256": "41247743a71c0f9f9595eb77e6f3737e67cfa6929988e0f19b5cc03b4813abf6"
+      },
+      "plan": {
+        "path": "plans/flat_rack_3_pin_arms.json",
+        "sha256": "9fa5e7cb73837e7a2a9a03b6117cf6d9f9e9062425deb3cbd3b8fb14eddf697d"
+      },
+      "scores": "scores/flat_rack_3_pin_arms.json"
     }
   ]
 }

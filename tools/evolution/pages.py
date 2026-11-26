@@ -171,6 +171,15 @@ def plain(reg, v, name):
     return "none" if it is None else fmt(name, it["value"])
 
 
+def known_cell(reg, v, name):
+    """The value with its unit and, when it is known, how it is known."""
+    it = items(reg, v).get(name)
+    text = cell(reg, v, name)
+    if it is None or it.get("value") is None:
+        return text
+    return "%s (%s)" % (text, it["known"])
+
+
 def cycle_known(reg, v):
     it = items(reg, v).get("cycle_s")
     return "none" if it is None or it["value"] is None else it["known"]
@@ -478,9 +487,10 @@ def results_block(reg):
         row = [best["id"], cell(reg, best, "cycle_s") + ("" if cycle_known(reg, best) == "none"
                else " (%s)" % cycle_known(reg, best)),
                plain(reg, best, "failures_per_bay"), plain(reg, best, "arms"), plain(reg, best, "part_count"),
-               cell(reg, best, "mass_in_transit_kg"), gate_status(card) if card else "none"]
-        L += table(["Version", "Cycle time", "Failures per bay", "Arms", "Part count", "Mass in transit",
-                    "Gates"], [row]) + ["", link, ""]
+               known_cell(reg, best, "placement_mm"), cell(reg, best, "mass_in_transit_kg"),
+               gate_status(card) if card else "none"]
+        L += table(["Version", "Cycle time", "Failures per bay", "Arms", "Part count", "Placement error",
+                    "Mass in transit", "Gates"], [row]) + ["", link, ""]
     return "\n".join(L)
 
 

@@ -6,7 +6,7 @@ P1.listed 20 departures on the list of deps.json (a rule of deps.json; may not g
 P1.frozen_files 66 files in frozen groups (a rule of deps.json; may not grow)
 P1.frozen 4 of them in the stand-in cell's files, which a refactoring does not edit
 P2 6 files under src/ that no test and no captured program (programs.txt) depends on (bazel)
-P2.untested 24 files under src/ that no test target depends on (bazel)
+P2.untested 25 files under src/ that no test target depends on (bazel)
 P2.unrun 11 cc_binary targets that programs.txt does not capture
 P2.frozen 2 of them in the stand-in cell's files, which a refactoring does not edit (bazel)
 P3 5 files that read the simulation's truth and are not allowed to (deps.json truth)
@@ -16,8 +16,8 @@ P4 26 outside dependencies in MODULE.bazel (bazel_dep, fetches, use_repo names, 
 P4.unpinned 0 of them not pinned by a version, a commit, an integrity or a sha256
 P4.mujoco 67 targets that list @mujoco directly (may not grow)
 P4.eigen 78 targets that list @eigen directly (may not grow)
-P4.googletest 42 targets that list @googletest directly (may not grow)
-P4.nlohmann_json 4 targets that list @nlohmann_json directly (may not grow)
+P4.googletest 45 targets that list @googletest directly (may not grow)
+P4.nlohmann_json 5 targets that list @nlohmann_json directly (may not grow)
 P4.ompl 1 targets that list @ompl directly (may not grow)
 P4.glfw 1 targets that list @glfw directly (may not grow)
 P4.mujoco_files 70 files that include mujoco/ (may not grow)
@@ -42,7 +42,7 @@ P7.pi 10 files under src/ outside its home that write pi as a literal
 P7.frozen 9 of them in the stand-in cell's files, which a refactoring does not edit
 P8 2 committed generated files with no test that compares them to their source and no reason why none can
 P8.unmatched 0 generated entries that match no tracked file, and plans and models that match no entry
-P8.no_test 6 entries excused from a test (a rule of deps.json; may not grow)
+P8.no_test 7 entries excused from a test (a rule of deps.json; may not grow)
 P9 0 places that silence a compiler's or analyzer's finding (deps.json silenced)
 P9.allowed 2 silencers excused (a rule of deps.json; may not grow)
 P9.held 61 -Werror= flags in .bazelrc plus enabled entries of Checks and WarningsAsErrors in .clang-tidy (a guard; may not fall)

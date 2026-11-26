@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="300" viewBox="0 0 640 300" font-family="DejaVu Sans, Arial, sans-serif" font-size="11">
+<title>Cycle time of each version, s per module</title>
+<rect width="640" height="300" fill="#ffffff"/>
+<text x="72" y="22" font-size="14" font-weight="bold" fill="#222222">Cycle time of each version (s per module)</text>
+<line x1="72" y1="244.00" x2="616" y2="244.00" stroke="#e1e5ea" stroke-width="1"/>
+<text x="66" y="248.00" text-anchor="end" fill="#444444">0</text>
+<line x1="72" y1="204.00" x2="616" y2="204.00" stroke="#e1e5ea" stroke-width="1"/>
+<text x="66" y="208.00" text-anchor="end" fill="#444444">10</text>
+<line x1="72" y1="164.00" x2="616" y2="164.00" stroke="#e1e5ea" stroke-width="1"/>
+<text x="66" y="168.00" text-anchor="end" fill="#444444">20</text>
+<line x1="72" y1="124.00" x2="616" y2="124.00" stroke="#e1e5ea" stroke-width="1"/>
+<text x="66" y="128.00" text-anchor="end" fill="#444444">30</text>
+<line x1="72" y1="84.00" x2="616" y2="84.00" stroke="#e1e5ea" stroke-width="1"/>
+<text x="66" y="88.00" text-anchor="end" fill="#444444">40</text>
+<line x1="72" y1="44.00" x2="616" y2="44.00" stroke="#e1e5ea" stroke-width="1"/>
+<text x="66" y="48.00" text-anchor="end" fill="#444444">50</text>
+<line x1="72" y1="244" x2="616" y2="244" stroke="#444444"/>
+<text transform="translate(16 144.00) rotate(-90)" text-anchor="middle" fill="#444444">cycle time (s per module)</text>
+<text x="140.00" y="260" text-anchor="middle" fill="#444444">v01</text>
+<text x="276.00" y="260" text-anchor="middle" fill="#444444">v02</text>
+<text x="412.00" y="260" text-anchor="middle" fill="#444444">v03</text>
+<text x="548.00" y="260" text-anchor="middle" fill="#444444">v04</text>
+<polyline fill="none" stroke="#1f5fa8" stroke-width="1.5" points="140.00,144.00 276.00,140.40 412.00,148.40 548.00,148.40"/>
+<circle cx="140.00" cy="144.00" r="5" fill="#1f5fa8" stroke="#1f5fa8" stroke-width="2"/>
+<text x="140.00" y="134.00" text-anchor="middle" fill="#222222">25.00</text>
+<circle cx="276.00" cy="140.40" r="5" fill="#1f5fa8" stroke="#1f5fa8" stroke-width="2"/>
+<text x="276.00" y="130.40" text-anchor="middle" fill="#222222">25.90</text>
+<circle cx="412.00" cy="148.40" r="5" fill="#1f5fa8" stroke="#1f5fa8" stroke-width="2"/>
+<text x="412.00" y="138.40" text-anchor="middle" fill="#222222">23.90</text>
+<circle cx="548.00" cy="148.40" r="5" fill="#1f5fa8" stroke="#1f5fa8" stroke-width="2"/>
+<text x="548.00" y="138.40" text-anchor="middle" fill="#222222">23.90</text>
+<circle cx="72" cy="284" r="4" fill="#1f5fa8" stroke="#1f5fa8" stroke-width="2"/>
+<text x="82" y="288" fill="#444444">planned or measured</text>
+<circle cx="222" cy="284" r="4" fill="#ffffff" stroke="#1f5fa8" stroke-width="2"/>
+<text x="232" y="288" fill="#444444">modelled</text>
+<circle cx="312" cy="284" r="4" fill="#9aa5b1" stroke="#9aa5b1" stroke-width="2"/>
+<text x="322" y="288" fill="#444444">candidate</text>
+</svg>

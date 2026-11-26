@@ -86,7 +86,7 @@ when it fails after the result it names is changed by hand; try that before rely
 on it.
 
 **Now.** `P2 6`: the three viewers' files, `src/viewer_lib.h` and `.cc`, and
-`src/run_gate.cc`. `P2.untested 24`, `P2.unrun 11`.
+`src/run_gate.cc`. `P2.untested 25` (the programs' mains, `src/score_layout.cc` among them since spec 017), `P2.unrun 11`.
 
 **Target.** `P2` is 0 but for the programs that need a display; `P2.untested` falls as
 tests are written. Never worse meanwhile.
@@ -144,7 +144,7 @@ the rest of the code through one target.
 (`MODULE.bazel`, `MODULE.bazel.lock`, `bazel/kuka.bzl`, `bazel/menagerie.bzl`,
 `bazel/ompl.BUILD.bazel`), and it is small enough to hold that way: OMPL is included by
 one file (`src/ompl_search.cc`), GLFW by one (`src/viewer_lib.cc`), nlohmann_json by
-three. MuJoCo and Eigen are everywhere, which is their place in a simulation, but
+four. MuJoCo and Eigen are everywhere, which is their place in a simulation, but
 `planning` includes no MuJoCo today and that is what lets `src/rrt.h` be tested without
 a model. `bazel mod graph` fails on this repository (a flaw of the `mujoco` module), so
 the tree toward the outside is described in [`dependencies.md`](dependencies.md) and
@@ -158,7 +158,7 @@ from a group that may not, one line per library counts the targets that list it,
 `P4.mujoco_files` the files that include MuJoCo.
 
 **Now.** `P4 26`, `P4.unpinned 0`, `P4.group 0`; `@eigen` 78 targets, `@mujoco` 67,
-`@googletest` 42, `@nlohmann_json` 4, `@ompl` 1, `@glfw` 1; `P4.mujoco_files 70`.
+`@googletest` 45, `@nlohmann_json` 5 (`//:scorecard`, ADR 0023), `@ompl` 1, `@glfw` 1; `P4.mujoco_files 70`.
 
 **Target.** `P4` does not grow without a decision record; `P4.unpinned` and `P4.group`
 stay 0; the lines per library do not grow.
