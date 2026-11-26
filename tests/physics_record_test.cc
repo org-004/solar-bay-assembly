@@ -313,5 +313,26 @@ TEST(PhysicsRecord, EveryCommittedRecordAgreesWithItsPlanAndItsCard) {
   }
 }
 
+// The chosen layout has a committed record, its scorecard counts it, and so
+// its physics_share is above 0 (R5 of run 019).
+TEST(PhysicsRecord, TheChosenLayoutHasARecordAndAShareAboveZero) {
+  std::string error;
+  const std::optional<std::string> name = ChosenLayout(VersionsPath(), &error);
+  ASSERT_TRUE(name.has_value()) << error;
+  const std::string path = Dir("PHYSICS_DIR", "physics") + "/" + *name + ".json";
+  const std::optional<PhysicsRecord> record = PhysicsRecordFromJson(ReadFile(path), &error);
+  ASSERT_TRUE(record.has_value()) << path << ": " << error;
+  EXPECT_GT(CountedSeconds(*record), 0.0);
+  const std::optional<Scorecard> card = ScorecardFromJson(
+      ReadFile(Dir("SCORES_DIR", "scores") + "/" + *name + ".json"), &error);
+  ASSERT_TRUE(card.has_value()) << error;
+  const Measure* m = FindMeasure(*card, "physics_share");
+  ASSERT_NE(m, nullptr);
+  ASSERT_TRUE(m->value.has_value());
+  EXPECT_GT(*m->value, 0.0);
+  EXPECT_EQ(m->known, "measured");
+  EXPECT_NE(m->basis.find("physics/" + *name + ".json"), std::string::npos) << m->basis;
+}
+
 }  // namespace
 }  // namespace cell::layout

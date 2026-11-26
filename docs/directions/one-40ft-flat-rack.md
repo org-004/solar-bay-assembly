@@ -12,7 +12,7 @@ The chosen version is v10, "Three pin arms on the flat rack, the bay shortened b
 |---|---|---|---|---|---|---|
 | P0 | cycle_s | 560.45 | s per bay | lower | planned | the committed plan's bay_planned_s: kinematic, on assumed speeds and process times |
 | P0 | failures_per_bay | 0.385 | - | lower | modelled | count of operations by kind x rates of scores/rates.json; 100% of it on rates of basis ours |
-| P0 | physics_share | 0 | - | higher | counted | no committed, repeatable run in physics of this layout's arms and parts |
+| P0 | physics_share | 0.0394 | - | higher | measured | physics/flat_rack_3_pin_arms_ordered.json: steps 63, 64 of module 4 carried out in physics, 22.068854 s of 560.452329 s counted |
 | P1 | part_count | 39 | - | lower | counted | pieces of equipment by the rule of docs/scorecard.md |
 | P1 | arms | 4 | arms | lower | counted | arms of the layout |
 | P1 | driven_axes | 40 | - | lower | counted | arm joints, tracks, driven tools and grips by the rule of docs/scorecard.md |
@@ -58,7 +58,7 @@ A filled circle is a cycle time that is planned, a square one that is measured, 
 |---|---|---|---|---|---|---|
 | P0 | cycle_s | 560.45 | s per bay | lower | planned | the committed plan's bay_planned_s: kinematic, on assumed speeds and process times |
 | P0 | failures_per_bay | 0.385 | - | lower | modelled | count of operations by kind x rates of scores/rates.json; 100% of it on rates of basis ours |
-| P0 | physics_share | 0 | - | higher | counted | no committed, repeatable run in physics of this layout's arms and parts |
+| P0 | physics_share | 0.0394 | - | higher | measured | physics/flat_rack_3_pin_arms_ordered.json: steps 63, 64 of module 4 carried out in physics, 22.068854 s of 560.452329 s counted |
 | P1 | part_count | 39 | - | lower | counted | pieces of equipment by the rule of docs/scorecard.md |
 | P1 | arms | 4 | arms | lower | counted | arms of the layout |
 | P1 | driven_axes | 40 | - | lower | counted | arm joints, tracks, driven tools and grips by the rule of docs/scorecard.md |
@@ -88,7 +88,7 @@ Each figure as the two versions' own sources report it; the conditions of a run 
 | input_tolerance | none | none | not comparable: not known |
 | mass_in_transit_kg | 3426.3 kg | 3426.3 kg | 0.0 kg |
 | part_count | 39 | 39 | 0 |
-| physics_share | 0 | 0 | 0 |
+| physics_share | 0 | 0.0394 | +0.0394 (counted → measured) |
 | placement_mm | none | none | not comparable: not known |
 | plan_s | none | none | not comparable: not known |
 
