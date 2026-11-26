@@ -15,7 +15,7 @@
   "margins": {
     "clearance_m": 0.015,
     "joint_margin_deg": 5.0,
-    "reason": "Clearance 0.015 m, half again over the floor of 0.010 m, as on the 40 ft layouts: the tightest pose that is not near by design, the pin tool's nose beside the next module's flange (stage 1: locate 0/2 and the same holes' pin and swage), has 0.0188 m, and with rack b at the ends of its tolerance the least row is 0.0172 m (stage 2: module_set 3 approach, the gap at 0 mm and rack b 25 mm toward +Y), so 0.020 m would not pass. Joint margin at the floor of 5 degrees: the least at a work pose is 17.5 degrees (stage 3: module_take 35, the module arm's joint 2), the least of all 10.0 degrees at the module arm's wait pose.",
+    "reason": "Clearance 0.015 m, half again over the floor of 0.010 m, as on the 40 ft layouts: the tightest pose that is not near by design, the pin tool's nose beside the next module's flange (stage 1: locate 0/2 and the same holes' pin and swage), has 0.0188 m, and with rack b at the ends of its tolerance the least row is 0.0172 m (stage 2: module_set 3 approach, the gap at 0 mm and rack b 25 mm toward +Y), so 0.020 m would not pass. Joint margin at the floor of 5 degrees: the least at a work pose is 17.5 degrees (stage 3: module_take 35, the module arm's joint 2), the least of the wait poses 10.0 degrees (the module arm's), and the least of all 8.6 degrees, along the retreat leg of stage 1: module_take 0 (the module arm's joint 3).",
     "basis": "ours"
   },
   "tube": {

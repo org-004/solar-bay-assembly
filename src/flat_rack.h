@@ -209,10 +209,9 @@ inline std::vector<Box> Members(bool b, double gap = kNominalGap,
                     kDeckHeight / 2.0},
                    {kSideRailWidth / 2.0, hy, kDeckHeight / 2.0}});
   }
-  const char* ends[] = {"front", "rear"};
-  int end = 0;
-  for (double sy : {-1.0, 1.0}) {
-    all.push_back({p + "end_sill_" + ends[end++],
+  for (int e = 0; e < 2; ++e) {
+    const double sy = e == 0 ? -1.0 : 1.0;
+    all.push_back({p + "end_sill_" + (e == 0 ? "front" : "rear"),
                    {c.x(), c.y() + sy * (hy - kEndSillLength / 2.0),
                     kDeckHeight / 2.0},
                    {between_x, kEndSillLength / 2.0, kDeckHeight / 2.0}});

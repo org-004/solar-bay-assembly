@@ -794,6 +794,47 @@ are timed but not checked; the held part is not checked against the arm's own li
 edges are checked every 0.01 m of weighted motion, so 0.010 m is not a strict guarantee
 between the checked points. Seven moves of 165 steps were planned; the others are not.
 
+## The form for two racks and for stages
+
+Since run 020 a layout may stand on two 20 ft flat racks and may work the tube in stages.
+The form is in the opening comment of `src/layout.h` ("Two racks", "Stages"); the cell
+that uses it, its results and its comparison are in
+[`docs/two-flat-racks-cell.md`](two-flat-racks-cell.md).
+
+- **Frame and base.** `"two_flat_racks"` stands in place of `"flat_rack"`. The origin is
+  on the ground under the middle of the pair at the nominal gap (25 mm), +Y along the
+  racks, +X across; rack "a" is on -X, rack "b" on +X, both centred on y = 0. The state
+  holds `gap_m`, `gap_lo_m` and `gap_hi_m` (0 to 50 mm) and `misalign_m` (25 mm).
+- **The rack field.** Every arm, the holder, and every stock and item that travels has
+  `rack`, "a" or "b". It is required on this base and refused on the others. A thing
+  stands on one rack only and travels on it; arms may reach across the gap.
+- **Staging.** `staging` (optional, on either flat-rack base) has `why`, `transfer_s` and
+  `stages`. A stage names the tube's offset along +Y (`tube_offset_m`), its rails and
+  modules, the holder's grips, the stretch that fixes the angle and what pins it
+  (`angle_pin_hold`, `angle_pin_by`: "holder" or "item:<name>"), and `held_by` in words.
+  The rules: every rail and every module is in exactly one stage; a strap bolt goes with
+  its rail, a hole with its module, a take with the part it takes; a module's two rails
+  are set at its stage or an earlier one. Without `staging` there is one stage as before.
+- **New rows.** Every row of the kinds that depend on the tube's place is made once for each
+  stage and its item starts with "stage <name>: " (for example `reach,stage 2:
+  module_set 3`). The `hold` rows are the grips, that they are not only the ends, the
+  angle pin's stretch, the moment and the angle, and, for each grip and the angle pin,
+  that a holder or unit box is at the piece (`stage 1: grip bay_hold_4 in the holder`).
+  The `ways` rows have the transfers between stages (`stage 1 to 2`) beside the tube in
+  and the bay out. The `transport` rows are made for each rack (`rack a mass`, `rack a
+  envelope`, `rack a above the deck`, the same for b) and `nothing spans the gap`. The
+  `time` rows give a figure for each stage and for the bay with the transfers.
+- **The `gap` kind.** Eight rows for two racks only: reach, clearance, approach and ways
+  again with rack "b" and what stands on it moved to the ends of the tolerance (gap 0 and
+  50 mm, rack b 25 mm either way, and the corners), each row the least figure of its
+  variant against the clearance margin, with what changed against the nominal gap in its
+  detail.
+- **`allowed`.** There is no limit on the number of arms, as long as the cell works and
+  the stowed cell keeps to the weight limit and the stow envelope. A row `maker <arm>`
+  is made for each arm (1 if KUKA, 0 if not). It has a limit of 1 on two racks only
+  (every arm is KUKA, the owner, 2026-11-26); on every other base it has no limit and
+  always passes, so the UR10e layouts above are not changed.
+
 ## Decisions
 
 Every decision the brief left open, with its reason.
