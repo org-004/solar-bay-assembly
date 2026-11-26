@@ -23,11 +23,11 @@ layout, and [`docs/scorecard.md`](docs/scorecard.md) defines each one.
 
 ### One 40 ft base: the cell on the real parts
 
-![v09  2026-11-25  Three pin arms on the flat rack: a whole bay planned; cycle 644.28 s per bay (planned), 4 arms](docs/evolution/v09.gif)
+![v10  2026-11-26  Three pin arms on the flat rack, the bay shortened by the order of work; cycle 560.45 s per bay (planned), 4 arms](docs/evolution/v10.gif)
 
 | Version | Cycle time | Failures per bay | Arms | Part count | Placement error | Mass in transit | Gates |
 |---|---|---|---|---|---|---|---|
-| v09 | 644.28 s per bay (planned) | 0.385 | 4 | 39 | none | 3426.3 kg | all 3 pass |
+| v10 | 560.45 s per bay (planned) | 0.385 | 4 | 39 | none | 3426.3 kg | all 3 pass |
 
 [One 40 ft base: the cell on the real parts: progress and versions](docs/directions/one-40ft-flat-rack.md)
 

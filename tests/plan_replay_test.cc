@@ -744,7 +744,7 @@ TEST(Committed, TamperingIsFound) {
   }
   // R22 along the schedule, in a short stretch of it.
   {
-    // A pin arm's longest wait put at the work pose of its next locate: the
+    // A pin arm's longest wait before a locate put at that locate's work pose: the
     // tool's nose then stands 5 to 10 mm from the rail outside its work.
     Plan p = c.plan;
     int pa = -1, g = -1, w = -1;
@@ -756,14 +756,15 @@ TEST(Committed, TamperingIsFound) {
         if (as[i].kind != "wait" || as[i].t1 - as[i].t0 <= longest) continue;
         for (size_t j = i + 1; j < as.size(); ++j) {
           if (as[j].kind != "work") continue;
+          // Only a wait whose next work is the locate.
           const StepTime* st = StepOf(p, as[j].step);
           if (st != nullptr && Begins(st->what, "locate ")) {
             pa = static_cast<int>(k);
             g = static_cast<int>(i);
             w = static_cast<int>(j);
             longest = as[i].t1 - as[i].t0;
-            break;
           }
+          break;
         }
       }
     }
@@ -834,27 +835,39 @@ struct OrderedPlan {
   std::string sha256;
 };
 
-const OrderedPlan& TheOrdered() {
-  static const OrderedPlan* o = [] {
-    auto* o = new OrderedPlan;
-    const std::string name = "flat_rack_3_pin_arms_ordered";
-    std::string error;
-    const std::optional<Layout> l = LoadLayout(LayoutDir() + "/" + name + ".json", &error);
-    if (!l) {
-      o->error = error;
-      return o;
-    }
-    o->layout = *l;
-    const std::optional<Plan> p = PlanFromJson(ReadFile(PlanDir() + "/" + name + ".json"), &error);
-    if (!p) {
-      o->error = "plans/" + name + ".json: " + error;
-      return o;
-    }
-    o->plan = *p;
-    o->sha256 = Sha256OfFile(LayoutDir() + "/" + name + ".json");
+// A committed plan by its layout's name.
+OrderedPlan NamedPlan(const std::string& name) {
+  OrderedPlan o;
+  std::string error;
+  const std::optional<Layout> l = LoadLayout(LayoutDir() + "/" + name + ".json", &error);
+  if (!l) {
+    o.error = error;
     return o;
-  }();
-  return *o;
+  }
+  o.layout = *l;
+  const std::optional<Plan> p = PlanFromJson(ReadFile(PlanDir() + "/" + name + ".json"), &error);
+  if (!p) {
+    o.error = "plans/" + name + ".json: " + error;
+    return o;
+  }
+  o.plan = *p;
+  o.sha256 = Sha256OfFile(LayoutDir() + "/" + name + ".json");
+  return o;
+}
+
+const OrderedPlan& TheOrdered() {
+  static const OrderedPlan o = NamedPlan("flat_rack_3_pin_arms_ordered");
+  return o;
+}
+
+// v09's plan, no longer the chosen one, still verifies against its layout.
+TEST(Superseded, FlatRack3PinArmsPassesTheVerifierWithoutTheSchedule) {
+  const OrderedPlan o = NamedPlan("flat_rack_3_pin_arms");
+  ASSERT_TRUE(o.error.empty()) << o.error;
+  const VerifyReport r =
+      VerifyPlan(o.layout, ModelPaths::FromEnvironment(), o.plan, o.sha256, Quick(false));
+  EXPECT_TRUE(r.ok) << Faults(r);
+  EXPECT_NEAR(o.plan.bay_planned_s, 644.28, 0.005);
 }
 
 TEST(Ordered, PassesTheVerifierWithoutTheSchedule) {
