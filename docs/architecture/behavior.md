@@ -255,6 +255,6 @@ show is not a refactoring.
 
 Flags and arguments not in section 3, and the programs that take a layout name or a
 seed: only the seeds and names listed are run. The behavior on another platform: a
-capture is of one machine, and says nothing about CI's x86-64 (P6). Time and memory
+capture is of one machine, and says nothing about another, CI's included (P6). Time and memory
 (section 1), and a test's own output (only its result). A `same` is a statement about
 these 58 files and the results, not about the code.

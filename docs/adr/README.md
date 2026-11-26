@@ -12,7 +12,8 @@ them is in [`docs/architecture/README.md`](../architecture/README.md).
 
 Records 0002 to 0013 write down decisions that were made before records were kept,
 each with the reason the repository's history gives and the commit that made it.
-Records 0014 to 0021 are decisions of the run that introduced the records.
+Records 0014 to 0021 are decisions of the run that introduced the records. Record 0022
+is the owner's decision of the same day.
 
 | No | Decision | Status | Date |
 |---|---|---|---|
@@ -37,6 +38,7 @@ Records 0014 to 0021 are decisions of the run that introduced the records.
 | 0019 | [Namespaces stay as they are: cell, and one nested namespace for each family of the new cell](0019-namespaces-follow-the-families.md) | accepted | 2026-11-25 |
 | 0020 | [A refactoring does not edit the stand-in cell's files, and moves or renames them last](0020-refactoring-and-the-stand-in-cell.md) | accepted | 2026-11-25 |
 | 0021 | [A refactoring proves itself by a capture before and after that compare the same](0021-behavior-is-what-the-net-holds.md) | accepted | 2026-11-25 |
+| 0022 | [CI runs on 64-bit ARM, the platform the code is developed and proved on](0022-ci-runs-on-arm64.md) | accepted | 2026-11-25 |
 
 ## The form
 

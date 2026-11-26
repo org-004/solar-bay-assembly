@@ -81,7 +81,8 @@ gate adds about 4 on four cores.
 - **What "correct" means is the owner's.** Do not loosen a tolerance or a test's bound,
   change the cell's layout or drop a planned item to make something pass. Leave it
   failing and say what you found.
-- **The same on every platform.** Development machines are 64-bit ARM and CI is x86-64.
+- **The same on every platform.** Development machines and CI are 64-bit ARM (ADR 0022);
+  a result must still not depend on the machine or on a library's version.
   A bound that rests on particular random scenes takes its draws from
   `src/portable_random.h`, one draw per statement. Do not bound a wall-clock time in a
   test; bound a count.

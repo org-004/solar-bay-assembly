@@ -205,7 +205,8 @@ programs). `P5.frozen 7`.
 depend on a clock.
 
 **Why here.** `AGENTS.md`, "The same on every platform", asks for it where a bound
-rests on random scenes; development is on 64-bit ARM and CI on x86-64. The standard
+rests on random scenes. Development and CI are both on 64-bit ARM (ADR 0022); what can
+still differ is the machine and the version of a library. The standard
 fixes the sequence of `std::mt19937` and leaves the distributions to each library, and
 this code still draws through them in files that decide results: `src/rrt.cc:442`
 samples with `std::uniform_real_distribution`, so a plan made on one machine is not
