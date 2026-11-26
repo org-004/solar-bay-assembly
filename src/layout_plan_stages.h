@@ -57,8 +57,9 @@
 //   - budgets: a staged layout's moves are planned with a fourth RRT budget,
 //     kStagedLastBudget iterations, after PlanFigures' three (the plan's
 //     figures record it); the hole-to-hole swings of pin_arm_a at the
-//     later stages' places need more search. Plans without staging keep
-//     the three.
+//     later stages' places need more search. A move between holes tries
+//     its own world with the three and then the world without the next
+//     modules with all four. Plans without staging keep the three.
 //   - phases: per bay "tube in", "clamp", "rails", "modules", "end" and
 //     "transfer". For each stage, from its start (the clamp's end, or its
 //     transfer's) to its end (the next transfer's start, or the bay's end):

@@ -211,7 +211,7 @@ class Planner {
 
   bool Assemble();
   void PlanMoves();
-  void PlanOne(MoveJob& job, mjData* d);
+  void PlanOne(MoveJob& job, mjData* d, const std::vector<int>& budgets);
   void PlanNarrowed(MoveJob& job, mjData* d);
   bool Schedule();
   void FillPlan();
@@ -629,7 +629,7 @@ bool Planner::Assemble() {
   return ok;
 }
 
-void Planner::PlanOne(MoveJob& job, mjData* d) {
+void Planner::PlanOne(MoveJob& job, mjData* d, const std::vector<int>& budgets) {
   const auto begun = std::chrono::steady_clock::now();
   struct Report {
     const MoveJob& job;
@@ -702,7 +702,7 @@ void Planner::PlanOne(MoveJob& job, mjData* d) {
   std::optional<JointPath> path;
   // The queries the checks of start and goal made above are counted; the
   // planner checks them once more and counts those too.
-  for (int budget : f_.budgets) {
+  for (int budget : budgets) {
     ro.max_iterations = budget;
     RrtReport rr;
     path = PlanRrtConnect(start, goal, lower, upper, is_free, ro, &rr);
@@ -758,13 +758,16 @@ void Planner::PlanOne(MoveJob& job, mjData* d) {
 // Staged work (src/layout_plan_stages.h): a move between the holes of module
 // m not found where the next modules may have been set is planned without
 // them; the next module's set then waits for it (Schedule).
+// A narrowable move tries its own world without the staged fourth budget.
 void Planner::PlanNarrowed(MoveJob& job, mjData* d) {
-  PlanOne(job, d);
+  std::vector<int> first = f_.budgets;
+  if (job.narrowable && first.size() > 1) first.pop_back();
+  PlanOne(job, d, job.narrowable ? first : f_.budgets);
   if (job.found || !job.narrowable) return;
   MoveJob narrow = job;
   narrow.built = job.narrow;
   narrow.note.clear();
-  PlanOne(narrow, d);
+  PlanOne(narrow, d, f_.budgets);
   narrow.queries += job.queries;
   narrow.log.insert(narrow.log.begin(), job.log.begin(), job.log.end());
   if (!narrow.found) narrow.note = job.note + "; without the next modules: " + narrow.note;
