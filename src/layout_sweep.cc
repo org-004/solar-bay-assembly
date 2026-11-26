@@ -17,6 +17,7 @@ using Vec = Eigen::Vector3d;
 // The tube's geoms, in addition to their group: the by-design geoms skip and
 // are near this alone (not the rails and modules on the tube).
 constexpr unsigned kTubeOnly = 64;
+constexpr unsigned kTravels = 128;
 
 std::string Fmt(const char* format, ...) {
   char buffer[256];
@@ -41,6 +42,12 @@ CheckRow SweepRow(const LayoutScene& scene, mjData* d, const SweepSpec& spec) {
       g.group |= kTubeOnly;
       tube.push_back(g);
     }
+  }
+  // The travelling geoms: shifted with the set, measured against the rest.
+  std::vector<MovingGeom> carried;
+  for (int g : spec.travels) {
+    geoms.push_back(g);
+    carried.push_back({g, kTravels});
   }
   std::vector<Vec> orig;
   for (int g : geoms) {
@@ -108,6 +115,16 @@ CheckRow SweepRow(const LayoutScene& scene, mjData* d, const SweepSpec& spec) {
       if (spec.slide) rest[j].near |= kHeld;
     }
   }
+  // What travels is not an obstacle of the set; the rest is theirs.
+  auto without = [&](std::vector<Obstacle>* v) {
+    v->erase(std::remove_if(v->begin(), v->end(),
+                            [&](const Obstacle& o) {
+                              return spec.travels.count(o.geom) > 0;
+                            }),
+             v->end());
+  };
+  without(&all);
+  without(&rest);
   // The samples.
   std::vector<Vec> samples;
   if (spec.path.empty()) samples.push_back(Vec::Zero());
@@ -124,20 +141,27 @@ CheckRow SweepRow(const LayoutScene& scene, mjData* d, const SweepSpec& spec) {
   Nearest worst;
   worst.distance = kSceneFar + 1.0;
   Vec worst_at = Vec::Zero();
+  double carry_least = kSceneFar;
   for (const Vec& o : samples) {
     place(o);
     const bool above =
         spec.slide || (std::hypot(o.x(), o.y()) < 1e-9 && o.z() >= -1e-9);
-    const Nearest n = scene.LeastDistance(d, moving, above ? rest : all);
+    const std::vector<Obstacle>& there = above ? rest : all;
+    Nearest n = scene.LeastDistance(d, moving, there);
+    if (!carried.empty()) {
+      const Nearest c = scene.LeastDistance(d, carried, there);
+      if (c.distance < carry_least) carry_least = c.distance;
+      if (c.distance < n.distance) n = c;
+    }
     if (n.distance < worst.distance) {
       worst = n;
       worst_at = o;
     }
   }
   place(Vec::Zero());
-  if (geoms.empty()) worst.distance = 0.0;
+  if (moving.empty()) worst.distance = 0.0;
   std::string detail =
-      geoms.empty()
+      moving.empty()
           ? "the model has no tube"
           : Fmt("%s at offset (%.3f, %.3f, %.3f); %d samples, at most "
                 "%.3f m apart",
@@ -149,6 +173,16 @@ CheckRow SweepRow(const LayoutScene& scene, mjData* d, const SweepSpec& spec) {
       detail += Fmt(" %s (%.4f m)", scene.GeomName(g.geom).c_str(), g.distance);
     }
   }
+  if (!carried.empty()) {
+    detail += ";";
+    for (const MovingGeom& g : carried) {
+      detail += " " + scene.GeomName(g.geom);
+    }
+    detail += Fmt(" moves with the bay by the sweep's offset (the reading of "
+                  "the layout's bay_out text): not measured against it, "
+                  "measured moved against the rest, least %.4f m",
+                  carry_least);
+  }
   const double figure = std::min(worst.distance, kSceneFar);
   return {"ways",
           spec.item,
@@ -157,7 +191,7 @@ CheckRow SweepRow(const LayoutScene& scene, mjData* d, const SweepSpec& spec) {
           figure,
           "m",
           spec.clearance_m,
-          !geoms.empty() && worst.distance >= spec.clearance_m,
+          !moving.empty() && worst.distance >= spec.clearance_m,
           detail};
 }
 

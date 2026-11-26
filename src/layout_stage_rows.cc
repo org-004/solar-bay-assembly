@@ -24,6 +24,27 @@ void AddGeoms(const LayoutScene& scene, const std::vector<std::string>& items,
   }
 }
 
+// The grips (boxes named "jaw..." and "head") of the item that the stage's
+// angle_pin_by names, if it is an item.
+std::set<int> GripGeoms(const LayoutScene& scene, const Layout& layout,
+                        const Stage& stage) {
+  std::set<int> out;
+  if (stage.angle_pin_by.rfind("item:", 0) != 0) return out;
+  const std::string name = stage.angle_pin_by.substr(5);
+  const auto it = scene.handles().item_geoms.find(name);
+  if (it == scene.handles().item_geoms.end()) return out;
+  const std::string prefix = "item_" + name + "_";
+  for (int g : it->second) {
+    const char* raw = mj_id2name(&scene.model(), mjOBJ_GEOM, g);
+    const std::string full = raw != nullptr ? raw : "";
+    if (full.rfind(prefix, 0) != 0) continue;
+    const std::string box = full.substr(prefix.size());
+    if (box.rfind("jaw", 0) == 0 || box == "head") out.insert(g);
+  }
+  (void)layout;
+  return out;
+}
+
 SweepSpec Base(const LayoutScene& scene, const std::string& item,
                double clearance_m, double step_m) {
   const LayoutHandles& H = scene.handles();
@@ -39,14 +60,22 @@ SweepSpec Base(const LayoutScene& scene, const std::string& item,
 }  // namespace
 
 CheckRow WayRow(const LayoutScene& scene, mjData* d, const std::string& item,
-                WayKind way, const std::vector<Vec3>& path, bool units,
-                double clearance_m, double step_m) {
+                const Layout& layout, WayKind way,
+                const std::vector<Vec3>& path, bool units, double clearance_m,
+                double step_m) {
   SweepSpec s = Base(scene, item, clearance_m, step_m);
   s.moving = scene.WayMoving(way);
   s.obstacles = scene.WayObstacles(way);
   s.path = path;
   if (units) {
     AddGeoms(scene, scene.WayCarriers(way), &s.by_design, &s.obstacles);
+    // The bay out: the grips of the unit that pins the angle at the last
+    // stage draw the bay out with them (layout_sweep.h, travels).
+    const std::vector<Stage> stages = StagesOf(layout);
+    if (way == WayKind::kBayOut && !stages.empty()) {
+      s.travels = GripGeoms(scene, layout, stages.back());
+      for (int g : s.travels) s.by_design.erase(g);
+    }
   }
   return SweepRow(scene, d, s);
 }
@@ -99,33 +128,17 @@ CheckRow TubeAtRestRow(const LayoutScene& scene, mjData* d,
     }
   }
   // Every item's every box; the grips of the unit that pins the tube here
-  // are near it by design.
-  std::string pinned_by;
+  // are near it by design: only below zero (touching) counts, since they
+  // hold the tube from beside it; never the unit's bed.
   for (const Stage& st : StagesOf(stage_layout)) {
-    if (st.name == stage.name && st.angle_pin_by.rfind("item:", 0) == 0) {
-      pinned_by = st.angle_pin_by.substr(5);
+    if (st.name == stage.name) {
+      s.by_design = GripGeoms(scene, stage_layout, st);
     }
   }
-  const mjModel& m = scene.model();
   for (const Item& item : stage_layout.items) {
     auto it = H.item_geoms.find(item.name);
     if (it == H.item_geoms.end()) continue;
-    for (int g : it->second) {
-      s.obstacles.push_back({g, 0u, 0u});
-      const std::string prefix = "item_" + item.name + "_";
-      const char* raw = mj_id2name(&m, mjOBJ_GEOM, g);
-      const std::string box =
-          raw != nullptr && std::string(raw).rfind(prefix, 0) == 0
-              ? std::string(raw).substr(prefix.size())
-              : std::string();
-      // Near by design only below zero (touching): the grips hold the tube
-      // from beside it, so a distance above zero is no reason to fail, but
-      // going into it is; and only these boxes, never the unit's bed.
-      if (item.name == pinned_by &&
-          (box.rfind("jaw", 0) == 0 || box == "head")) {
-        s.by_design.insert(g);
-      }
-    }
+    for (int g : it->second) s.obstacles.push_back({g, 0u, 0u});
   }
   return SweepRow(scene, d, s);
 }

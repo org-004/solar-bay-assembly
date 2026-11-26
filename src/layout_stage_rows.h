@@ -17,7 +17,12 @@
 // item, and every pair of a rail or a module with a unit, are held to
 // clearance_m. In a transfer the carriers of both ways are the by-design
 // units (the infeed unit holds the neck, the outfeed unit carries the built
-// part). The row's detail names each by-design box and how near it is.
+// part). Along "bay out" the grips of the unit that pins the angle at the
+// last stage (the outfeed head) move with the bay by the sweep's offset, as
+// the layout's bay_out text has it (the head pins the angle, lifts the bay
+// out of the saddle and takes it out): not measured against the bay (their
+// distance to it is the at-rest row's), but moved against everything else,
+// at clearance_m. The tube in and the transfers keep them fixed. The row's detail names each by-design box and how near it is.
 //
 // The tube at rest (TubeAtRestRow), at each stage of a staged layout: the
 // tube with the rails and modules on it at the stage's end (those at its
@@ -47,8 +52,9 @@ namespace cell::layout {
 // above; without it (a layout with no staging) as the scene's WayObstacles
 // has it, the carriers left out.
 CheckRow WayRow(const LayoutScene& scene, mjData* d, const std::string& item,
-                WayKind way, const std::vector<Vec3>& path, bool units,
-                double clearance_m, double step_m);
+                const Layout& layout, WayKind way,
+                const std::vector<Vec3>& path, bool units, double clearance_m,
+                double step_m);
 
 // "stage <name> to <next>": the tube and the bay as built at the stage's
 // end (`end`), swept along +Y by stage.to_next_m.

@@ -1522,7 +1522,7 @@ std::vector<CheckRow> Checker::WaysRows() {
   const StageScope* st = opt_.stage ? &*opt_.stage : nullptr;
   const double c = opt_.clearance_m, step = opt_.sweep_step_m;
   if (st == nullptr || st->first) {
-    rows.push_back(WayRow(*scene_, d, "tube in", WayKind::kTubeIn,
+    rows.push_back(WayRow(*scene_, d, "tube in", L_, WayKind::kTubeIn,
                           L_.tube_in.path, st != nullptr, c, step));
   }
   if (st != nullptr) {
@@ -1532,7 +1532,7 @@ std::vector<CheckRow> Checker::WaysRows() {
     rows.push_back(TransferRow(*scene_, d, *st, StageEnd(), c, step));
   }
   if (st == nullptr || st->last) {
-    rows.push_back(WayRow(*scene_, d, "bay out", WayKind::kBayOut,
+    rows.push_back(WayRow(*scene_, d, "bay out", L_, WayKind::kBayOut,
                           L_.bay_out.path, st != nullptr, c, step));
   }
   mj_kinematics(&m, d);
