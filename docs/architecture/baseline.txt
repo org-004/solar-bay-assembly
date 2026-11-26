@@ -1,28 +1,28 @@
 P1 5 file-to-header pairs (a file and a project header it includes) against the groups' allowed direction (deps.json)
 P1.cycles 0 header cycles
 P1.namespace 0 files under src/ that open a namespace their group does not allow (deps.json namespaces), and #define lines with the word namespace
-P1.allowed 24 pairs (group, group it may include) (a rule of deps.json; may not grow)
+P1.allowed 31 pairs (group, group it may include) (a rule of deps.json; may not grow)
 P1.listed 20 departures on the list of deps.json (a rule of deps.json; may not grow)
 P1.frozen_files 66 files in frozen groups (a rule of deps.json; may not grow)
 P1.frozen 4 of them in the stand-in cell's files, which a refactoring does not edit
 P2 6 files under src/ that no test and no captured program (programs.txt) depends on (bazel)
-P2.untested 25 files under src/ that no test target depends on (bazel)
+P2.untested 26 files under src/ that no test target depends on (bazel)
 P2.unrun 11 cc_binary targets that programs.txt does not capture
 P2.frozen 2 of them in the stand-in cell's files, which a refactoring does not edit (bazel)
 P3 5 files that read the simulation's truth and are not allowed to (deps.json truth)
-P3.allowed 55 files that may read the truth, by exact name (a rule of deps.json; may not grow)
+P3.allowed 56 files that may read the truth, by exact name (a rule of deps.json; may not grow)
 P3.frozen 5 of them in the stand-in cell's files, which a refactoring does not edit
 P4 26 outside dependencies in MODULE.bazel (bazel_dep, fetches, use_repo names, overrides; may not grow)
 P4.unpinned 0 of them not pinned by a version, a commit, an integrity or a sha256
-P4.mujoco 67 targets that list @mujoco directly (may not grow)
-P4.eigen 78 targets that list @eigen directly (may not grow)
-P4.googletest 45 targets that list @googletest directly (may not grow)
-P4.nlohmann_json 5 targets that list @nlohmann_json directly (may not grow)
+P4.mujoco 68 targets that list @mujoco directly (may not grow)
+P4.eigen 79 targets that list @eigen directly (may not grow)
+P4.googletest 47 targets that list @googletest directly (may not grow)
+P4.nlohmann_json 6 targets that list @nlohmann_json directly (may not grow)
 P4.ompl 1 targets that list @ompl directly (may not grow)
 P4.glfw 1 targets that list @glfw directly (may not grow)
-P4.mujoco_files 70 files that include mujoco/ (may not grow)
+P4.mujoco_files 71 files that include mujoco/ (may not grow)
 P4.group 0 #include lines of an outside library from a group that may not include it, and files that reach one through project headers
-P4.allowed 22 pairs (group, outside library) (a rule of deps.json; may not grow)
+P4.allowed 24 pairs (group, outside library) (a rule of deps.json; may not grow)
 P5 16 unused and missing deps of targets, and files in the srcs and hdrs of no target or of several
 P5.unused_project 10 targets' deps on project libraries none of whose headers the target includes
 P5.unused_outside 4 targets' deps on outside libraries none of whose headers the target includes

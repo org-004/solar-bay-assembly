@@ -26,6 +26,7 @@
 #include "src/layout_model.h"
 #include "src/layout_plan.h"
 #include "src/layout_rows.h"
+#include "src/physics_record.h"
 
 namespace cell::layout {
 
@@ -313,11 +314,51 @@ std::vector<MassLeftOut> MassLeftOutOfTransit(const Layout& layout) {
   return parts;
 }
 
+namespace {
+
+// physics_share: 0 without a record or with one that does not agree with the
+// committed plan, else the planned seconds that count over cycle_s.
+Measure PhysicsShare(const std::string& name, const Plan& plan,
+                     const std::string& plan_sha256,
+                     const PhysicsRecord* physics) {
+  if (physics == nullptr) {
+    return MakeMeasure("physics_share", "P0", 0.0, "1", "higher", "counted",
+                       "no committed, repeatable run in physics of this "
+                       "layout's arms and parts");
+  }
+  const std::string file = "physics/" + name + ".json";
+  const std::vector<std::string> faults =
+      CheckPhysicsRecord(*physics, plan, plan_sha256);
+  if (physics->plan_sha256 != plan_sha256 || !faults.empty()) {
+    return MakeMeasure(
+        "physics_share", "P0", 0.0, "1", "higher", "counted",
+        file + " does not agree with the committed plan: " +
+            (faults.empty() ? "plan_sha256 differs" : faults.front()));
+  }
+  std::string steps;
+  for (const PhysicsStep& s : physics->steps) {
+    if (!StepCounts(*physics, s)) continue;
+    steps += (steps.empty() ? "" : ", ") + std::to_string(s.number);
+  }
+  char seconds[64];
+  std::snprintf(seconds, sizeof(seconds), "%.6f s of %.6f s counted",
+                CountedSeconds(*physics), plan.bay_planned_s);
+  return MakeMeasure(
+      "physics_share", "P0",
+      Round(CountedSeconds(*physics) / plan.bay_planned_s, 6), "1", "higher",
+      "measured",
+      file + ": " + (steps.empty() ? "no step" : "steps " + steps) +
+          " of module " + std::to_string(physics->module) +
+          " carried out in physics, " + seconds);
+}
+
+}  // namespace
+
 std::optional<Scorecard> ComputeScorecard(
     const Layout& layout, const Plan& plan, const std::vector<Rate>& rates,
     const ModelPaths& paths, const std::string& layout_sha256,
     const std::string& plan_sha256, const std::string& rates_sha256,
-    std::string* error) {
+    const PhysicsRecord* physics, std::string* error) {
   Scorecard card;
   card.layout = layout.name;
   card.layout_sha256 = layout_sha256;
@@ -358,9 +399,7 @@ std::optional<Scorecard> ComputeScorecard(
                   "count of operations by kind x rates of scores/rates.json; " +
                       Percent(on_ours, failures) +
                       " of it on rates of basis ours"),
-      MakeMeasure("physics_share", "P0", 0.0, "1", "higher", "counted",
-                  "no committed, repeatable run in physics of this layout's "
-                  "arms and parts"),
+      PhysicsShare(layout.name, plan, plan_sha256, physics),
       MakeMeasure("part_count", "P1", Total(card.part_count), "1", "lower",
                   "counted", "pieces of equipment by the rule of "
                              "docs/scorecard.md"),
@@ -430,6 +469,7 @@ std::string ScorecardToJson(const Scorecard& card) {
   j["layout_sha256"] = card.layout_sha256;
   j["plan_sha256"] = card.plan_sha256;
   j["rates_sha256"] = card.rates_sha256;
+  if (!card.physics_sha256.empty()) j["physics_sha256"] = card.physics_sha256;
   OJson measures = OJson::array();
   for (const Measure& m : card.measures) {
     OJson e = OJson::object();
@@ -510,6 +550,9 @@ std::optional<Scorecard> ScorecardFromJson(const std::string& text,
     card.layout_sha256 = j.at("layout_sha256").get<std::string>();
     card.plan_sha256 = j.at("plan_sha256").get<std::string>();
     card.rates_sha256 = j.at("rates_sha256").get<std::string>();
+    if (j.contains("physics_sha256")) {
+      card.physics_sha256 = j.at("physics_sha256").get<std::string>();
+    }
     for (const nlohmann::json& e : j.at("measures")) {
       Measure m;
       m.name = e.at("name").get<std::string>();
@@ -704,13 +747,18 @@ std::optional<Scorecard> Get(const std::string& name, bool compute) {
   const std::string layout_sha = Sha256OfFile(layout_path);
   const std::string plan_sha = Sha256OfFile(plan_path);
   const std::string rates_sha = Sha256OfFile(rates_path);
+  const std::string physics_path =
+      Env("PHYSICS_DIR", "physics") + "/" + name + ".json";
+  const std::string physics_sha =
+      Exists(physics_path) ? Sha256OfFile(physics_path) : "";
   std::string error;
   if (!compute) {
     const std::string text = ReadFile(scores_dir + "/" + name + ".json");
     const std::optional<Scorecard> card =
         text.empty() ? std::nullopt : ScorecardFromJson(text, &error);
     if (card && card->layout_sha256 == layout_sha &&
-        card->plan_sha256 == plan_sha && card->rates_sha256 == rates_sha) {
+        card->plan_sha256 == plan_sha && card->rates_sha256 == rates_sha &&
+        card->physics_sha256 == physics_sha) {
       return card;
     }
     std::fprintf(stderr,
@@ -735,11 +783,22 @@ std::optional<Scorecard> Get(const std::string& name, bool compute) {
     std::fprintf(stderr, "score_layout: %s\n", error.c_str());
     return std::nullopt;
   }
-  const std::optional<Scorecard> card = ComputeScorecard(
+  std::optional<PhysicsRecord> record;
+  if (!physics_sha.empty()) {
+    record = PhysicsRecordFromJson(ReadFile(physics_path), &error);
+    if (!record) {
+      std::fprintf(stderr, "score_layout: %s: %s\n", physics_path.c_str(),
+                   error.c_str());
+      return std::nullopt;
+    }
+  }
+  std::optional<Scorecard> card = ComputeScorecard(
       *layout, *plan, *rates, ModelPaths::FromEnvironment(),
-      layout_sha, plan_sha, rates_sha, &error);
+      layout_sha, plan_sha, rates_sha, record ? &*record : nullptr, &error);
   if (!card) {
     std::fprintf(stderr, "score_layout: %s: %s\n", name.c_str(), error.c_str());
+  } else {
+    card->physics_sha256 = physics_sha;
   }
   return card;
 }

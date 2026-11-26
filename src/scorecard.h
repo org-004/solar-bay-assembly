@@ -13,9 +13,14 @@
 //   P0  failures_per_bay    lower   modelled  sum over kinds of operation of
 //                                             count in the plan x rate of
 //                                             scores/rates.json
-//   P0  physics_share       higher  counted   share of cycle_s carried out
-//                                             in physics by a committed run;
-//                                             0 for every flat rack layout
+//   P0  physics_share       higher  measured  share of cycle_s carried out
+//                                   counted   in physics by a committed run
+//                                             (physics/<name>.json, rule in
+//                                             src/physics_record.h): measured
+//                                             when a record agreeing with the
+//                                             plan is used; counted, 0, for a
+//                                             layout without one, and 0 for a
+//                                             record that does not agree
 //   P1  part_count          lower   counted   pieces of equipment of the cell
 //   P1  arms                lower   counted
 //   P1  driven_axes         lower   counted   arm joints, tracks, driven
@@ -74,7 +79,9 @@
 //                          "rate", "basis" ("source" or "ours"), "source",
 //                          "reasoning"}, ...]}
 //   scores/<name>.json     ScorecardToJson: {"layout", "layout_sha256",
-//                          "plan_sha256", "rates_sha256", "measures": [{"name",
+//                          "plan_sha256", "rates_sha256", "physics_sha256"
+//                          (only when a physics record was given, see
+//                          ComputeScorecard), "measures": [{"name",
 //                          "rank", "value" (null when not known), "unit",
 //                          "better", "known", "basis"}], "gates": [{"name",
 //                          "figure", "limit", "unit", "holds" ("<=" or ">="),
@@ -110,6 +117,7 @@
 #include "src/layout_model.h"
 #include "src/layout_plan.h"
 #include "src/layout_rows.h"
+#include "src/physics_record.h"
 
 namespace cell::layout {
 
@@ -164,6 +172,10 @@ struct OperationCount {
 struct Scorecard {
   std::string layout;            // The layout's name.
   std::string layout_sha256, plan_sha256, rates_sha256;
+  // Of physics/<name>.json when the card was made with that record, else
+  // empty (and then not in the file). ComputeScorecard does not know the
+  // file; the caller sets it.
+  std::string physics_sha256;
   std::vector<Measure> measures;     // In the order of the table above.
   std::vector<Gate> gates;           // In the order of the comment above.
   std::vector<Count> part_count;     // The breakdown of part_count.
@@ -209,11 +221,16 @@ std::vector<MassLeftOut> MassLeftOutOfTransit(const Layout& layout);
 // sha256s are of the files as they are; `layout_sha256` is also what the
 // plan is verified against. Returns nothing and sets *error when the plan
 // does not map, a rate is missing or the model cannot be built.
+// `physics` is the committed record of a run in physics of the layout
+// (src/physics_record.h), or nullptr for none: physics_share is then 0. A
+// record whose plan_sha256 is not `plan_sha256`, or that CheckPhysicsRecord
+// finds faults in, counts nothing (0, and the basis says why); otherwise
+// physics_share is its CountedSeconds over the plan's bay_planned_s.
 std::optional<Scorecard> ComputeScorecard(
     const Layout& layout, const Plan& plan, const std::vector<Rate>& rates,
     const ModelPaths& paths, const std::string& layout_sha256,
     const std::string& plan_sha256, const std::string& rates_sha256,
-    std::string* error);
+    const PhysicsRecord* physics, std::string* error);
 
 // scores/<name>.json and --json: the same text, 2-space indent, a final
 // newline. ScorecardFromJson reads it back.

@@ -7,8 +7,9 @@ with a shorter order of work, `flat_rack_3_pin_arms_ordered`, in
 [`docs/flat-rack-order.md`](flat-rack-order.md)): one KUKA KR 210 R2700-2 sets the rails and the modules, and
 three Universal Robots UR10e below the bay drive the strap bolts and locate, pin and
 swage the modules. The cell is designed, not built, and kinematic: arms, tools, parts
-and envelopes are checked at poses and along planned motion, and nothing steps the
-physics. Every result below is printed by these commands:
+and envelopes are checked at poses and along planned motion. Since run 019 one module's
+cycle of the chosen plan, the module arm's take and set of module 4, is also run in
+physics: [`docs/flat-rack-physics.md`](flat-rack-physics.md). Every result below is printed by these commands:
 
 - `bazel run --config=opt //:check_layout -- <name>` (`--list`, `--summary`, `--steps`,
   `--checks <kinds>`): every row of every check as CSV
@@ -637,7 +638,9 @@ These sentences are the engineer's judgement, not results of a program.
 
 ## What was not considered
 
-- Physics, sensing and controllers; the base's structure under the cell, and wind.
+- Physics, sensing and controllers; the base's structure under the cell, and wind. (Run
+  019 runs one module's cycle of the module arm in physics, on its servos and without
+  sensing: [`docs/flat-rack-physics.md`](flat-rack-physics.md).)
 - The strap's closing under the tube, and the tool holders' strokes at a tool change.
 - The transfer cart's forks and the pin feeder as mechanisms: they are envelopes.
 - Changing an empty pallet, refilling the rail rack and the lane; a second pallet place.

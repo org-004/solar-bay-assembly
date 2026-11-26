@@ -141,6 +141,7 @@ Each header opens with a long comment that explains the piece (240 of the 1,173 
 | What moves and what is there at a step, pairs by design, the one distance function | `src/layout_scene.h` |
 | Planned motion of a bay: every move planned, the arms scheduled on one clock, verified | `src/layout_plan.h`, `bazel run --config=opt //:plan_layout -- <name> [--summary\|--margins\|--out PATH]`, `plans/*.json`, `tests/plan_replay_test.cc`, `tests/layout_plan_test.cc` |
 | Playback of a committed plan (needs a display) | `bazel run --config=opt //:viewer_layout -- <name> --play`, `tools/video/play_gif.sh` |
+| One module's cycle of the chosen plan in physics: the module arm on its servos, the record that `physics_share` counts | `docs/flat-rack-physics.md`, `src/physics_run.h`, `bazel run --config=opt //:run_physics`, `physics/*.json`, `src/physics_record.h`, `viewer_layout -- <name> --physics`, `tools/video/physics_gif.sh` |
 | A layout as a model, and its viewer (needs a display) | `src/layout_model.h`, `bazel run --config=opt //:viewer_layout -- <name> --state finished`, `tests/layout_model_test.cc` |
 | A picture of any model from the plain viewer | `src/viewer.cc`, `src/viewer_lib.h` (`ParseViewerArgs`), `tools/video/shot_viewer.sh` |
 | Design principles, decision records, the backlog of refactorings, and the checks that hold them | `docs/architecture/README.md` (start here), `docs/architecture/principles.md`, `docs/adr/`, `docs/architecture/backlog.md`, `tools/architecture/` |

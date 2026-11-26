@@ -170,6 +170,36 @@ bool ArmFollower::Follow(const Trajectory& trajectory, const mjData& data,
   return true;
 }
 
+bool ArmFollower::Follow(const TimedPath& path, const mjData& data,
+                         std::string* reason) {
+  auto refuse = [reason](std::string why) {
+    if (reason != nullptr) *reason = std::move(why);
+    return false;
+  };
+  if (TimeLeft(data) > 0.0) return refuse("a move is still running");
+  if (!path.at) return refuse("the path has no function");
+  if (!(path.seconds > 0.0) || !std::isfinite(path.seconds)) {
+    return refuse("the path's duration " + std::to_string(path.seconds) +
+                  " is not positive and finite");
+  }
+  const JointSample start = path.At(0.0);
+  const JointSample end = path.At(path.seconds);
+  for (const JointSample* s : {&start, &end}) {
+    const std::string why = CheckGoal(s->position);
+    if (!why.empty()) return refuse(std::string(s == &start ? "start" : "end") + ": " + why);
+  }
+  const double gap = (start.position - Goal(data)).cwiseAbs().maxCoeff();
+  if (gap > 1e-9) {
+    return refuse("the path starts " + std::to_string(gap) +
+                  " rad from the commanded pose");
+  }
+  Adopt(data);
+  held_ = end.position;
+  legs_.clear();
+  legs_.push_back({path, data.time});
+  return true;
+}
+
 void ArmFollower::Hold(const mjData& data) {
   adopted_ = true;
   held_ = JointAngles(arm_, data);
@@ -197,6 +227,7 @@ void ArmFollower::Update(const mjModel& model, mjData* data) {
     for (int i = 0; i < Arm::kJoints; ++i) {
       acceleration_[arm_.dof[i]] = plan.acceleration[i];
     }
+    for (const auto& [dof, a] : carrier_) acceleration_[dof] = a;
     mj_mulM(&model, data, torque_.data(), acceleration_.data());
     for (int i = 0; i < Arm::kJoints; ++i) {
       const int dof = arm_.dof[i];

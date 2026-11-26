@@ -41,8 +41,10 @@
       "namespaces": ["cell", "cell::layout"],
       "files": ["src/arm_catalog.h", "src/layout.*", "src/layout_lookup.*", "src/layout_check.*", "src/layout_model.*", "src/layout_plan.*",
                 "src/layout_replay.cc", "src/layout_rows.*", "src/layout_scene.*", "src/scorecard.*",
+                "src/physics_record.*",
                 "tests/layout_*_test.cc", "tests/plan_replay_test.cc",
-                "tests/scorecard_test.cc", "tests/score_layout_test.cc", "tests/versions_test.cc"],
+                "tests/scorecard_test.cc", "tests/score_layout_test.cc", "tests/versions_test.cc",
+                "tests/physics_record_test.cc"],
       "may_include": ["base", "planning", "hardware"],
       "outside": ["eigen", "mujoco", "nlohmann_json"]
     },
@@ -105,13 +107,22 @@
       "outside": ["eigen", "mujoco"]
     },
     {
+      "name": "physics",
+      "what": "A layout's committed plan run in physics: the module arm on its servos (the arm's follower) carrying a module with the stand-in cell's suction weld, measured as the checker measures, and its program (ADR 0024).",
+      "frozen": false,
+      "namespaces": ["cell", "cell::layout"],
+      "files": ["src/physics_run.*", "src/run_physics.cc", "tests/physics_run_test.cc"],
+      "may_include": ["base", "planning", "hardware", "layout", "arm", "standin"],
+      "outside": ["eigen", "mujoco"]
+    },
+    {
       "name": "layout_programs",
       "what": "Programs with a main for the hardware and the new cell: gen_bay, print_bay, check_layout, plan_layout, score_layout and the layout's viewer.",
       "frozen": false,
       "namespaces": ["cell"],
       "files": ["src/gen_bay.cc", "src/print_bay.cc", "src/check_layout.cc", "src/plan_layout.cc", "src/view_layout.cc",
                 "src/score_layout.cc"],
-      "may_include": ["base", "planning", "hardware", "layout", "viewer"],
+      "may_include": ["base", "planning", "hardware", "layout", "viewer", "physics"],
       "outside": ["eigen", "mujoco"]
     }
   ],
@@ -176,7 +187,8 @@
       {"files": ["src/cell.cc", "src/cell.h", "src/conveyor.cc", "src/conveyor.h", "src/pallet.cc", "src/pallet.h"], "why": "The scene generator: they place and randomize the bodies and define the True... accessors."},
       {"files": ["src/suction.cc", "src/suction.h"], "why": "The simulated suction cup: it grips the module the physics puts under it, which is the simulation's part, not control's."},
       {"files": ["src/check_rig.cc", "src/check_rig.h"], "why": "The check camera's rig: it sets the held module where an experiment wants it, a scene generator of its own."},
-      {"files": ["src/collision.cc", "src/layout_check.cc"], "why": "Poses read out of a private copy of the model that the planner or the checker poses itself; not the simulation's truth."}
+      {"files": ["src/collision.cc", "src/layout_check.cc"], "why": "Poses read out of a private copy of the model that the planner or the checker poses itself; not the simulation's truth."},
+      {"files": ["src/physics_run.cc"], "why": "The scorer of a run in physics (ADR 0024): it measures the carried module's true pose against the plan and on its rails, as src/score.cc does for the stand-in cell; its control reads joint angles only."}
     ]
   },
 
@@ -198,6 +210,7 @@
       {"committed": "plans/flat_rack_3_pin_arms.json", "generator": "bazel run --config=opt //:plan_layout -- flat_rack_3_pin_arms --out PATH", "test": "tests/plan_replay_test.cc", "compares": "Superseded.FlatRack3PinArmsPassesTheVerifierWithoutTheSchedule: its layout file's SHA-256 and the verifier over the plan without the schedule's samples (since run 018, when v09 stopped being the chosen version); the plan is not made again"},
       {"committed": "plans/flat_rack_3_pin_arms_ordered.json", "generator": "bazel run --config=opt //:plan_layout -- flat_rack_3_pin_arms_ordered --out PATH", "test": "tests/plan_replay_test.cc", "compares": "the plan of the chosen layout (v10): its layout file's SHA-256 against the layout as it is and the verifier over the whole plan (Committed.*), and the verifier's rules of the order of work on copies of the layout (Ordered.*); the plan is not made again"},
       {"committed": "plans/flat_rack_2_pin_arms.json", "generator": "bazel run --config=opt //:plan_layout -- flat_rack_2_pin_arms --out PATH", "test": null, "compares": "nothing: plan_replay_test reads only the chosen layout's plan"},
+      {"committed": "physics/*.json", "generator": "bazel run --config=opt //:run_physics -- <name> --write", "test": "tests/physics_run_test.cc", "compares": "the chosen layout's run made again against its committed record, figure by figure within tolerances for another platform (tests/physics_record_test.cc also checks every record against its plan and its scorecard)"},
       {"committed": "scores/flat_rack_*.json", "generator": "bazel run --config=opt //:score_layout -- <name> --write (or -- --all --write)", "test": "tests/scorecard_test.cc", "compares": "the whole scorecard as text with what ScorecardToJson gives for the layout, its plan and scores/rates.json as they are"},
       {"committed": "docs/img/{pallet_depth,check_depth,placement,carry,profile,gate}.png", "generator": "tools/plots/*.py from the output of print_* and run_cell (tools/plots/README.md)", "test": null, "no_test": "A plot is judged by eye; it needs no display but matplotlib, which the repository does not depend on. The commands are in tools/plots/README.md.", "compares": "nothing"},
       {"committed": "docs/{cycle,pallet,pick,check,blind_vs_camera}.gif", "generator": "tools/video/make_all.sh (needs a display)", "test": null, "no_test": "No test can compare it: a viewer needs a display and a picture is judged by eye. The script tools/video/make_all.sh holds the commands.", "compares": "nothing"},

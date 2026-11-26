@@ -346,6 +346,17 @@ def chart_unit(reg, vs):
     return None
 
 
+def physics_block(reg, v):
+    """The recording of the version's cycle in physics, when its file exists."""
+    name = "%s-physics.gif" % v["id"]
+    if not os.path.exists(os.path.join(reg.root, "docs", "evolution", name)):
+        return []
+    layout = os.path.splitext(os.path.basename(v["layout"]["path"]))[0]
+    return ["This recording shows the module arm's take and set of one module of %s in physics "
+            "(`physics/%s.json`, `//:run_physics`)." % (v["id"], layout), "",
+            "![%s in physics: the module arm takes and sets one module](../evolution/%s)" % (v["id"], name), ""]
+
+
 def direction_page(reg, d):
     vs = reg.of_direction(d)
     L = ["# " + d["title"], "", d["description"], "", "**Limits.** " + d["limits"], ""]
@@ -390,6 +401,7 @@ def direction_page(reg, d):
         v = settled[i]
         L += ["## %s %s" % (v["id"], v["title"]), "",
               "![%s](../evolution/%s)" % (alt_text(reg, v), recording_name(v)), "",
+              ] + physics_block(reg, v) + [
               "%s, %s, commit %s" % (v["date"], v["status"], reg.commit_link(v)), "",
               "**What changed.** " + v["changed"], "", "**Why.** " + v["why"], ""]
         L += state_blocks(reg, v)

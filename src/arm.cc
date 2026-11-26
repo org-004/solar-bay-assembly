@@ -19,7 +19,9 @@ constexpr double kJerkPerAcceleration = 10.0;
 
 }  // namespace
 
-std::optional<Arm> FindArm(const mjModel& model) {
+std::optional<Arm> FindArm(const mjModel& model) { return FindArm(model, ArmNames{}); }
+
+std::optional<Arm> FindArm(const mjModel& model, const ArmNames& names) {
   Arm arm;
   arm.lower.resize(Arm::kJoints);
   arm.upper.resize(Arm::kJoints);
@@ -32,9 +34,9 @@ std::optional<Arm> FindArm(const mjModel& model) {
   for (int i = 0; i < Arm::kJoints; ++i) {
     const std::string number = std::to_string(i + 1);
     const int joint =
-        mj_name2id(&model, mjOBJ_JOINT, ("arm_joint_" + number).c_str());
+        mj_name2id(&model, mjOBJ_JOINT, (names.prefix + "arm_joint_" + number).c_str());
     const int motor =
-        mj_name2id(&model, mjOBJ_ACTUATOR, ("arm_motor_" + number).c_str());
+        mj_name2id(&model, mjOBJ_ACTUATOR, (names.prefix + "arm_motor_" + number).c_str());
     if (joint < 0 || motor < 0) return std::nullopt;
 
     // The motor must drive this joint, and be a position servo: its force
@@ -65,8 +67,8 @@ std::optional<Arm> FindArm(const mjModel& model) {
     arm.limits.jerk[i] = kJerkPerAcceleration * kAcceleration[i];
   }
 
-  arm.tool_body = mj_name2id(&model, mjOBJ_BODY, "tool");
-  arm.tip_site = mj_name2id(&model, mjOBJ_SITE, "tool_tip");
+  arm.tool_body = mj_name2id(&model, mjOBJ_BODY, names.tool_body.c_str());
+  arm.tip_site = mj_name2id(&model, mjOBJ_SITE, names.tip_site.c_str());
   if (arm.tool_body < 0 || arm.tip_site < 0) return std::nullopt;
   return arm;
 }
