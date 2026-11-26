@@ -11,8 +11,9 @@ lines and `tools/architecture/tidy.sh` the `T` lines. A **Done when** figure ass
 that the items above it have landed. So do the line numbers: an earlier item that edits
 the same file can move them by a few lines, and the text quoted finds the place.
 
-Every item also changes `docs/architecture/baseline.txt`, and most change the **Now**
-line of their principle in `principles.md`; those two are listed in **Touches**, and
+Every item also changes its own **State** line in this file and
+`docs/architecture/baseline.txt`, and most change a **Now** line in `principles.md`
+(every one that holds a figure that moved); the last two are listed in **Touches**, and
 two items that share no other file can run side by side and merge those two by running
 the command of step 7 of `README.md` again. A `BUILD.bazel` entry names its section
 (`# BEGIN x`). When an item removes a departure that `tools/architecture/deps.json`
@@ -56,7 +57,7 @@ the captures `check_layout.*` and `plan_layout.*`. Nothing to pin first.
 **Size.** 2 files, 4 lines of `BUILD.bazel` and 4 of `deps.json` deleted.
 **Touches.** `BUILD.bazel` (sections `layout`, `layout_rows`, `bay`, `layout_plan`),
 `tools/architecture/deps.json`, `docs/architecture/baseline.txt`,
-`docs/architecture/principles.md` (P5 **Now**).
+`docs/architecture/principles.md` (P4 and P5 **Now**).
 **After.** None.
 **State.** open
 

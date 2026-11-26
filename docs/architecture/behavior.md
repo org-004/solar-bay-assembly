@@ -41,7 +41,8 @@ On the same machine, before and after the change:
 `<dir>` is empty or absent. `--no-tests` leaves out the results of the tests, without
 it the whole suite runs; `--gate` adds `//:gate_test`. A change that can alter a test's
 result is captured without `--no-tests`, both times. A capture uses `--config=opt`,
-three jobs and no display; when other agents build, take the machine's lock first.
+three jobs and no display. It is a Bazel command like any other: one at a time in a
+checkout (`AGENTS.md`, "Caches, locks and worktrees").
 
 A capture holds: one file for each line of `tools/architecture/programs.txt` (for
 `@layout` one for each name `check_layout --list` prints, for `@plan` one for each

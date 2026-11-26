@@ -22,8 +22,9 @@ guardrails' counts), `ci.sh` (what CI runs), and `deps.json`, the rules as data.
 
 ## The procedure for one item
 
-Do one item in a run and stop, unless the task says otherwise. Work on a branch as
-the task says; if it says nothing, `git checkout -b refactor/b<n>`.
+Do one item in a run and stop, unless the task says otherwise. Work in the checkout
+you were started in, on a branch as the task says; if it says nothing,
+`git checkout -b refactor/b<n>`, commit there, and neither push nor merge.
 
 1. **Pick the item.** Take the first item of `backlog.md` whose **State** is `open`,
    whose **After** items are all `done`, and whose **Touches** no other work under
@@ -32,7 +33,8 @@ the task says; if it says nothing, `git checkout -b refactor/b<n>`.
    --sort=-committerdate --format='%(committerdate:short) %(refname:short)'
    refs/remotes/origin | head`, then `git diff --name-only origin/main...<branch>`
    for each such branch. If a file of the item's **Touches** is in that list, take
-   the next item. Do not pick by interest or by size.
+   the next item. A checkout without a remote has no other work under way but what
+   the task names. Do not pick by interest or by size.
 2. **Measure and capture before**, on a clean checkout (`git status --short` prints
    nothing), with the captures outside the checkout:
    `tools/architecture/measure.sh > "$HOME/before.txt"` and
@@ -47,11 +49,11 @@ the task says; if it says nothing, `git checkout -b refactor/b<n>`.
 4. **Capture after and compare:**
    `tools/architecture/behavior.sh capture "$HOME/capture-after"`, then
    `tools/architecture/behavior.sh compare "$HOME/capture-before" "$HOME/capture-after"`.
-   It must print `same`. The one exception: an item whose **Change** adds a test
-   target or a line of `tools/architecture/programs.txt` widens the net, so
-   `compare` names that target or that program's file as present on one side only,
-   and nothing else; the item says so, and its proof is two captures after the
-   change that compare `same`.
+   Edit nothing while a capture runs. It must print `same`. The one exception: an item
+   whose **Change** adds a test target or a line of `tools/architecture/programs.txt`
+   widens the net, so `compare` names that target or that program's file as present on
+   one side only, and nothing else; the item says so, and its proof is two captures
+   after the change that compare `same`.
 5. **Run the tests `AGENTS.md` asks for before code lands:** everything but the
    gate, `bazel test --config=opt --config=agent //...`, and the gate as `AGENTS.md`,
    "Build and test", says when the commit is to land on `main`.
@@ -59,12 +61,15 @@ the task says; if it says nothing, `git checkout -b refactor/b<n>`.
    `diff "$HOME/before.txt" "$HOME/after.txt"`. The lines that moved must be the ones
    the item's **Done when** names, at the figures it names, and no other line may
    have moved. Where **Done when** names a line that rises (a target that now lists
-   a library it already used), that rise is part of the item. For an item about a compiler flag run `tools/architecture/warnings.sh`
-   (it prints `W <flag> <places in src/ and tests/> <places outside>`), for one about
-   a `clang-tidy` check `tools/architecture/tidy.sh` (it prints `T <check> <places>`).
+   a library it already used), that rise is part of the item. For an item about a
+   compiler flag run `tools/architecture/warnings.sh` (it prints
+   `W <flag> <places in src/ and tests/> <places outside>`), for one about a
+   `clang-tidy` check `tools/architecture/tidy.sh` (it prints `T <check> <places>`).
 7. **Put the record straight in the same commit.** In `backlog.md` set the item's
-   state to `**State.** done`, followed by the figures that moved, for example
-   `(P5 16 to 11)`. Update `baseline.txt`:
+   state to `**State.** done`, followed by every line that moved, for example
+   `(P5 16 to 12, P4.eigen 78 to 77)`. In `principles.md` correct every **Now** line
+   that holds a figure that moved, whichever principle it is under. Update
+   `baseline.txt`:
    `{ tools/architecture/measure.sh && sed -n '/^# not compared/,$p' docs/architecture/baseline.txt; } > "$HOME/baseline.txt" && cp "$HOME/baseline.txt" docs/architecture/baseline.txt`,
    and change a `W` or `T` line by hand to the count just printed. Change any
    sentence of `AGENTS.md`, `README.md` or `docs/` that the item or a decision record
