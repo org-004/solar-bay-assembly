@@ -417,6 +417,32 @@ TEST(MadeUp, WaitsAreCutAtTransfersAndPhasesSumToTheBay) {
   EXPECT_NEAR(phases[5].planned_s, 60.0, 1e-9);
 }
 
+// R2: the next tube comes in at the first stage's place while the bay goes
+// out from the last stage's, as soon as the two stay clearance_m apart; the
+// ports of this layout do not share their zone.
+TEST(MadeUp, TheNextTubeComesInWhileTheBayGoesOutFromTheLastStage) {
+  NEED_LAYOUT(c);
+  ASSERT_FALSE(WaysShareZone(c.layout));
+  std::string error;
+  const std::unique_ptr<LayoutScene> scene = LayoutScene::Load(
+      LayoutOfStage(c.layout, 0), ModelPaths::FromEnvironment(), c.report.joint_margin_deg, &error);
+  ASSERT_TRUE(scene) << error;
+  const BayEvent out{"bay_out", 0, 100.0, 100.0 + c.layout.bay_out.time_s};
+  const double empty = HolderEmptyAt(c.layout, out);
+  const double start = NextTubeStart(*scene, out, 0.05, c.report.clearance_m);
+  std::printf("holder empty at %.2f s, next tube from %.2f s, bay out at %.2f s: %.2f s of "
+              "overlap\n",
+              empty, start, out.t1, out.t1 - start);
+  EXPECT_GE(start, empty);
+  EXPECT_LT(start, out.t1);
+  const DataPtr d = scene->MakeData();
+  EXPECT_TRUE(TubePassesBay(*scene, d.get(), out, start, 0.05, c.report.clearance_m).clear);
+  if (start > empty) {
+    EXPECT_FALSE(
+        TubePassesBay(*scene, d.get(), out, start - 0.05, 0.05, c.report.clearance_m).clear);
+  }
+}
+
 // ----------------------------------------------------- the committed plan
 
 TEST(Committed, IsCompleteAndRoundTrips) {

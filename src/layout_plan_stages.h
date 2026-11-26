@@ -54,6 +54,11 @@
 //     module m+1 would be). The set of each module that world lacks then
 //     starts only when that move has ended; the verifier holds it as it
 //     holds every move's world (what is there while it runs).
+//   - budgets: a staged layout's moves are planned with a fourth RRT budget,
+//     kStagedLastBudget iterations, after PlanFigures' three (the plan's
+//     figures record it); the hole-to-hole swings of pin_arm_a at the
+//     later stages' places need more search. Plans without staging keep
+//     the three.
 //   - phases: per bay "tube in", "clamp", "rails", "modules", "end" and
 //     "transfer". For each stage, from its start (the clamp's end, or its
 //     transfer's) to its end (the next transfer's start, or the bay's end):
@@ -78,6 +83,9 @@
 #include "src/layout_scene.h"
 
 namespace cell::layout {
+
+// The last RRT budget of a staged layout's moves (above).
+inline constexpr int kStagedLastBudget = 640000;
 
 // The layout's stages: StagesOf's count, 1 without staging.
 int StageCount(const Layout& layout);

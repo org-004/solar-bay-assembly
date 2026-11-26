@@ -1312,7 +1312,8 @@ bool Planner::Schedule() {
     // it was in the way of (once for each pair of blocks).
     if (!placed && yield_arm >= 0 && state_[yield_arm].next > 0) {
       const int last = arm_blocks_[yield_arm][state_[yield_arm].next - 1];
-      if (yielded_.insert({last, yield_to}).second) {
+      // (In a part of the bay that block may lie outside the part, unplaced.)
+      if (blocks_[last].placed && yielded_.insert({last, yield_to}).second) {
         for (int k = -1; k != last;) {
           k = placed_order_.back();
           placed_order_.pop_back();
@@ -1507,6 +1508,8 @@ PlanResult Planner::Run(bool plan, bool verify) {
   }
   f_ = PlanFigures{};
   if (!options_.budgets.empty()) f_.budgets = options_.budgets;
+  // Staged work: a fourth budget (src/layout_plan_stages.h), in the plan's figures.
+  if (options_.budgets.empty() && layout_.staging) f_.budgets.push_back(kStagedLastBudget);
   f_.clearance_m = report_.clearance_m;
   f_.joint_margin_deg = report_.joint_margin_deg;
   for (int a = 0; a < scene_->ArmCount(); ++a) {
