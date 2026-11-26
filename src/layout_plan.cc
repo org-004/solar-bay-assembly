@@ -21,8 +21,9 @@
 #include <thread>
 #include <tuple>
 
-#include "src/bay_hardware.h"
 #include "src/layout_bays.h"
+#include "src/layout_plan_stages.h"
+#include "src/layout_stages.h"
 #include "src/portable_random.h"
 #include "src/rrt.h"
 
@@ -93,19 +94,6 @@ Built Union(const std::vector<Built>& states) {
   return b;
 }
 
-// For an arm that follows another: every part the leading arm may set
-// before the move ends, by the move's phase.
-void AddLeadersParts(const std::string& phase, Built* b) {
-  if (phase != "rails" && phase != "modules" && phase != "end") return;
-  std::set<int> rails(b->rails.begin(), b->rails.end());
-  for (int k = 0; k < bay::kRailCount; ++k) rails.insert(k);
-  b->rails.assign(rails.begin(), rails.end());
-  if (phase == "rails") return;
-  std::set<int> modules(b->modules.begin(), b->modules.end());
-  for (int k = 0; k < bay::kModuleCount; ++k) modules.insert(k);
-  b->modules.assign(modules.begin(), modules.end());
-}
-
 bool IsHoleKind(const std::string& kind) {
   return kind == "locate" || kind == "pin" || kind == "swage";
 }
@@ -122,6 +110,11 @@ struct MoveJob {
   std::string from_label, to_label;
   std::uint32_t seed = 0;
   bool in_range = true;
+  int stage = 0;        // Planned in this stage's scene (staged work).
+  // Staged work: the bay without the modules set after the hole's module,
+  // tried when the move is not found in `built` (PlanNarrowed).
+  bool narrowable = false, narrowed = false;
+  Built narrow;
   // Results.
   bool found = false;
   int budget = 0;
@@ -142,6 +135,8 @@ struct Block {
   std::vector<int> moves;  // Indices into the moves, in segment order.
   bool in_range = true;
   bool parking = false;  // The move to the wait pose before the step.
+  bool magazine = false; // Staged: that move follows a magazine take.
+  int stage = 0;         // Staged work: its step's stage.
   int after = -1;        // A block it gave way to, placed before it.
   // Placed.
   bool placed = false;
@@ -216,7 +211,8 @@ class Planner {
 
   bool Assemble();
   void PlanMoves();
-  void PlanOne(MoveJob& job, mjData* d);
+  void PlanOne(MoveJob& job, mjData* d, const std::vector<int>& budgets);
+  void PlanNarrowed(MoveJob& job, mjData* d);
   bool Schedule();
   void FillPlan();
 
@@ -245,6 +241,13 @@ class Planner {
                                         const std::string& held);
   const std::vector<Obstacle>& ArmObstacles(int a, const std::string& tool,
                                             const std::string& held);
+  // Staged work (src/layout_plan_stages.h): when the transfer to stage s
+  // ends, -1 while a block of an earlier stage is not placed; the leaders'
+  // parts of a move of `phase` at `stage`.
+  double TransferEnd(int s) const;
+  void Lead(int stage, const std::string& phase, Built* b) const {
+    LeadersParts(staged_ ? &scopes_[stage] : nullptr, phase, b);
+  }
   void Place(int a, Block& b, double s, double ready,
              const std::string& need_reason, const std::string& wait_reason);
   std::string SegmentText(int a, int segment) const;
@@ -259,7 +262,12 @@ class Planner {
   const double shift_;
   PlanResult result_;
   CheckReport report_;
-  std::unique_ptr<LayoutScene> scene_;
+  std::vector<std::unique_ptr<LayoutScene>> scenes_;  // One for each stage.
+  LayoutScene* scene_ = nullptr;                      // The first stage's.
+  bool staged_ = false;
+  std::vector<StageScope> scopes_;
+  std::map<int, int> stage_of_step_;                  // Step number to stage.
+  std::vector<int> staged_pos_;                       // Module to its place in the order.
   PlanFigures f_;
   std::vector<ArmMotion> motions_;
   std::vector<MoveJob> moves_;
@@ -320,7 +328,8 @@ bool Planner::Assemble() {
     const WorkPoint* last_wp = nullptr;       // Its bay 0's point.
     int last_block = -1;
     bool last_retreat = false;  // The last block ends with a retreat.
-    std::string last_phase;     // Of its last step.
+    std::string last_phase, last_kind;  // Of its last step.
+    int last_stage = 0;
   };
   std::vector<Now> now(n);
   for (int a = 0; a < n; ++a) {
@@ -331,15 +340,20 @@ bool Planner::Assemble() {
   const int per_bay = ModulesPerBay(report_);
   bool ok = true;
   // The bay after the arm's previous step, for a tool change or a return.
-  auto bay_after = [&](int a, const std::string& phase) {
+  auto bay_after = [&](int a, const std::string& phase, int stage) {
     Built b;
     b.on_pallets = pallet_total;
     if (now[a].last_wp != nullptr) {
-      b = Union(scene_->AtWorkPoint(*now[a].last_wp, Leg::kRetreat).built);
+      StepScene at = scenes_[now[a].last_stage]->AtWorkPoint(*now[a].last_wp, Leg::kRetreat);
+      if (staged_) BuiltInStage(scopes_[now[a].last_stage], pallet_total, &at);
+      b = Union(at.built);
+    }
+    if (staged_ && (now[a].last_wp == nullptr || now[a].last_stage < stage)) {
+      b = BuiltAtStageStart(scopes_[stage], pallet_total);
     }
     const bool leader = std::find(leaders.begin(), leaders.end(),
                                   scene_->arm(a).use->name) != leaders.end();
-    if (!leader) AddLeadersParts(phase, &b);
+    if (!leader) Lead(stage, phase, &b);
     return BuiltInBay(b, bay_, per_bay);
   };
   auto add_move = [&](int a, Block& block, int block_index, const Config& to,
@@ -359,6 +373,7 @@ bool Planner::Assemble() {
     job.from_label = now[a].label;
     job.to_label = to_label;
     job.in_range = block.in_range;
+    job.stage = block.stage;
     Segment s;
     s.kind = "move";
     s.step = block.number;
@@ -379,6 +394,8 @@ bool Planner::Assemble() {
   for (size_t si = 0; si < report_.steps.size(); ++si) {
     const BayStep& st = report_.steps[si];
     index_of_step_[st.number] = static_cast<int>(si);
+    const int stage = StageIndexOf(layout_, st);
+    stage_of_step_[st.number] = stage;
     if (st.arm.empty()) continue;
     const int a = scene_->ArmIndex(st.arm);
     if (a < 0) {
@@ -391,23 +408,28 @@ bool Planner::Assemble() {
     // Parking: after its last step of the rail phase an arm that follows
     // another goes to its wait pose. The move belongs to the arm's next
     // step and is a block of its own, which starts as soon as the arm is
-    // free; the next step then starts from the wait pose when it may.
-    if (!leader && now[a].last_phase == "rails" && st.phase != "rails") {
+    // free; the next step then starts from the wait pose when it may. In
+    // staged work an arm parks after its magazine take as well.
+    const bool magazine = staged_ && now[a].last_kind == "pins_take";
+    if ((!leader && now[a].last_phase == "rails" && st.phase != "rails" &&
+         st.kind != "to_wait") || magazine) {
       Block park;
       park.arm = a;
       park.step_index = static_cast<int>(si);
       park.number = st.number;
       park.in_range = InRange(st.number);
       park.parking = true;
+      park.magazine = magazine;
+      park.stage = stage;
       const Config w = WaitPose(scene_->arm(a));
-      if (!now[a].held.empty()) {
+      if (!now[a].held.empty() && !magazine) {  // A magazine has no geoms.
         Fault(Fmt("step %d (%s): %s still holds %s when it parks", st.number,
                   st.what.c_str(), st.arm.c_str(), now[a].held.c_str()));
         ok = false;
       }
       double tp = 0.0;
       const int pi = static_cast<int>(blocks_.size());
-      add_move(a, park, pi, w, "wait", bay_after(a, st.phase), tp);
+      add_move(a, park, pi, w, "wait", bay_after(a, magazine ? "rails" : st.phase, stage), tp);
       if (!park.segs.empty()) {
         blocks_.push_back(park);
         arm_blocks_[a].push_back(pi);
@@ -416,11 +438,13 @@ bool Planner::Assemble() {
       }
     }
     now[a].last_phase = st.phase;
+    now[a].last_kind = st.kind;
     Block block;
     block.arm = a;
     block.step_index = static_cast<int>(si);
     block.number = st.number;
     block.in_range = InRange(st.number);
+    block.stage = stage;
     const int bi = static_cast<int>(blocks_.size());
     double t = 0.0;
     auto push = [&](const std::string& kind, const std::string& tool,
@@ -462,7 +486,7 @@ bool Planner::Assemble() {
                   st.what.c_str(), st.arm.c_str(), now[a].held.c_str()));
         ok = false;
       }
-      add_move(a, block, bi, target, label, bay_after(a, st.phase), t);
+      add_move(a, block, bi, target, label, bay_after(a, st.phase, stage), t);
       if (st.kind == "tool_change") {
         push("work", now[a].tool, now[a].held, {target},
              scene_->arm(a).use->tool_change_s);
@@ -475,9 +499,10 @@ bool Planner::Assemble() {
         }
         if (!later) {
           add_move(a, block, bi, WaitPose(scene_->arm(a)), "wait",
-                   bay_after(a, st.phase), t);
+                   bay_after(a, st.phase, stage), t);
         }
       }
+      if (block.segs.empty()) continue;  // Already there.
       now[a].last_retreat = false;
       now[a].last_block = bi;
       blocks_.push_back(block);
@@ -550,10 +575,27 @@ bool Planner::Assemble() {
                   now[a].held.c_str(), p->held_approach.c_str()));
         ok = false;
       }
-      Built built = Union(scene_->AtWorkPoint(*wp, Leg::kApproach).built);
-      if (!leader) AddLeadersParts(st.phase, &built);
+      // Staged work: the bay kept to the stage, and a magazine taken
+      // before the stage's modules are set.
+      StepScene at = scenes_[stage]->AtWorkPoint(*wp, Leg::kApproach);
+      if (staged_) BuiltInStage(scopes_[stage], pallet_total, &at);
+      Built built = Union(at.built);
+      if (!leader) Lead(stage, staged_ && st.kind == "pins_take" ? "rails" : st.phase, &built);
+      Built narrow = built;  // Without the modules set after the hole's.
+      narrow.modules.clear();
+      for (int m : built.modules) {
+        if (staged_ && staged_pos_[m] <= staged_pos_[std::clamp(st.index / 4, 0, 8)]) {
+          narrow.modules.push_back(m);
+        }
+      }
+      const size_t before = moves_.size();
       add_move(a, block, bi, approach.front(), p->item + " approach",
                BuiltInBay(built, bay_, per_bay), t);
+      if (moves_.size() > before && staged_ && !leader && IsHoleKind(st.kind) &&
+          narrow.modules != built.modules) {
+        moves_.back().narrowable = true;
+        moves_.back().narrow = BuiltInBay(narrow, bay_, per_bay);
+      }
       push("approach", p->tool, p->held_approach, approach, ta);
     }
     push("work", p->tool, p->held_approach, {work_c}, work->process_s);
@@ -563,6 +605,7 @@ bool Planner::Assemble() {
     now[a].label = p->item + " retreat";
     now[a].last_point = p;
     now[a].last_wp = wp;
+    now[a].last_stage = stage;
     now[a].last_block = bi;
     now[a].last_retreat = block.segs.back().kind == "retreat";
     blocks_.push_back(block);
@@ -586,7 +629,7 @@ bool Planner::Assemble() {
   return ok;
 }
 
-void Planner::PlanOne(MoveJob& job, mjData* d) {
+void Planner::PlanOne(MoveJob& job, mjData* d, const std::vector<int>& budgets) {
   const auto begun = std::chrono::steady_clock::now();
   struct Report {
     const MoveJob& job;
@@ -606,11 +649,11 @@ void Planner::PlanOne(MoveJob& job, mjData* d) {
   // their wait poses, whatever moves this data was used for before: a
   // thread plans moves of several arms, and the plan must not depend on
   // which.
-  scene_->AllAtWait(d);
+  const LayoutScene& sc = *scenes_[job.stage];
+  sc.AllAtWait(d);
   job.log.clear();
   const double clear = f_.clearance_m + f_.plan_pad_m;
-  const MoveWorld world(*scene_, job.arm, job.tool, job.held, job.built,
-                        clear);
+  const MoveWorld world(sc, job.arm, job.tool, job.held, job.built, clear);
   const ArmMotion& m = motions_[job.arm];
   std::int64_t queries = 0;
   // Start and goal: a finding when either is not free.
@@ -622,13 +665,13 @@ void Planner::PlanOne(MoveJob& job, mjData* d) {
       job.note += Fmt("%s%s not free at %.4f m: %s at %.4f m",
                       job.note.empty() ? "" : "; ",
                       end == 0 ? "start" : "goal", clear,
-                      scene_->PairText(nearest).c_str(), nearest.distance);
+                      sc.PairText(nearest).c_str(), nearest.distance);
     }
   }
   if (!job.note.empty()) {
     job.queries = queries;
     job.model_s =
-        ModelMoveSeconds(*scene_, job.arm, ToPose(job.from), ToPose(job.to));
+        ModelMoveSeconds(sc, job.arm, ToPose(job.from), ToPose(job.to));
     return;
   }
   const bool fixed = std::abs(job.from[6] - job.to[6]) <= 1e-12;
@@ -659,7 +702,7 @@ void Planner::PlanOne(MoveJob& job, mjData* d) {
   std::optional<JointPath> path;
   // The queries the checks of start and goal made above are counted; the
   // planner checks them once more and counts those too.
-  for (int budget : f_.budgets) {
+  for (int budget : budgets) {
     ro.max_iterations = budget;
     RrtReport rr;
     path = PlanRrtConnect(start, goal, lower, upper, is_free, ro, &rr);
@@ -684,7 +727,7 @@ void Planner::PlanOne(MoveJob& job, mjData* d) {
     job.note = Fmt("not found within %d iterations", budget);
   }
   job.model_s =
-      ModelMoveSeconds(*scene_, job.arm, ToPose(job.from), ToPose(job.to));
+      ModelMoveSeconds(sc, job.arm, ToPose(job.from), ToPose(job.to));
   if (!path) {
     job.queries = queries;
     return;
@@ -712,6 +755,27 @@ void Planner::PlanOne(MoveJob& job, mjData* d) {
   job.found = true;
 }
 
+// Staged work (src/layout_plan_stages.h): a move between the holes of module
+// m not found where the next modules may have been set is planned without
+// them; the next module's set then waits for it (Schedule).
+// A narrowable move tries its own world without the staged fourth budget.
+void Planner::PlanNarrowed(MoveJob& job, mjData* d) {
+  std::vector<int> first = f_.budgets;
+  if (job.narrowable && first.size() > 1) first.pop_back();
+  PlanOne(job, d, job.narrowable ? first : f_.budgets);
+  if (job.found || !job.narrowable) return;
+  MoveJob narrow = job;
+  narrow.built = job.narrow;
+  narrow.note.clear();
+  PlanOne(narrow, d, f_.budgets);
+  narrow.queries += job.queries;
+  narrow.log.insert(narrow.log.begin(), job.log.begin(), job.log.end());
+  if (!narrow.found) narrow.note = job.note + "; without the next modules: " + narrow.note;
+  if (!narrow.found) narrow.built = job.built;
+  narrow.narrowed = narrow.found;
+  job = narrow;
+}
+
 void Planner::PlanMoves() {
   std::vector<int> todo;
   for (size_t i = 0; i < moves_.size(); ++i) {
@@ -721,11 +785,13 @@ void Planner::PlanMoves() {
       1, std::min<int>(options_.threads, static_cast<int>(todo.size())));
   std::atomic<int> next{0};
   auto worker = [&]() {
-    DataPtr d = scene_->MakeData();
+    std::vector<DataPtr> d(scenes_.size());  // One for each stage's scene.
     for (;;) {
       const int k = next.fetch_add(1);
       if (k >= static_cast<int>(todo.size())) break;
-      PlanOne(moves_[todo[k]], d.get());
+      MoveJob& job = moves_[todo[k]];
+      if (!d[job.stage]) d[job.stage] = scenes_[job.stage]->MakeData();
+      PlanNarrowed(job, d[job.stage].get());
     }
   };
   if (threads == 1) {
@@ -766,6 +832,7 @@ void Planner::PlanMoves() {
     s.planned_s = job.planned_s;
     s.model_s = job.model_s;
     s.seed = job.seed;
+    s.built = job.built;
     if (job.found) s.path = job.path;
     // The move's duration, and every later segment of the block after it.
     const double duration = job.found ? job.planned_s + f_.settle_s : 0.0;
@@ -1014,13 +1081,14 @@ bool Planner::Schedule() {
     if (wseg.t1 > 0.0) rows_[a].segments.push_back(wseg);
     state_[a].free = wseg.t1;
   }
-  // The precedences of each block.
-  int first_take = -1;
-  std::vector<int> bolts;
+  // The precedences of each block; the first take and the bolts by stage.
+  std::map<int, int> first_take;
+  std::map<int, std::vector<int>> bolts;
   std::map<int, int> rail_set_step, module_set_step, bolt_step;
   for (const BayStep& st : report_.steps) {
-    if (st.kind == "module_take" && first_take < 0) first_take = st.number;
-    if (st.kind == "strap_bolt") bolts.push_back(st.number);
+    const int k = stage_of_step_[st.number];
+    if (st.kind == "module_take" && !first_take.count(k)) first_take[k] = st.number;
+    if (st.kind == "strap_bolt") bolts[k].push_back(st.number);
     if (st.kind == "strap_bolt") bolt_step[st.index] = st.number;
     if (st.kind == "rail_set") rail_set_step[st.index] = st.number;
     if (st.kind == "module_set") module_set_step[st.index] = st.number;
@@ -1036,6 +1104,7 @@ bool Planner::Schedule() {
   auto next_hole = [&](const Block& b) -> int {
     const BayStep& st = report_.steps[b.step_index];
     if (st.phase != "modules" || early_pin_tools) return -1;
+    if (staged_ && st.kind == "pins_take") return -1;  // Before the modules.
     if (st.kind != "tool_change" && st.kind != "pins_take") return -1;
     for (size_t k = b.step_index + 1; k < report_.steps.size(); ++k) {
       const BayStep& q = report_.steps[k];
@@ -1074,8 +1143,8 @@ bool Planner::Schedule() {
           if (it != bolt_step.end()) needs.push_back({it->second, false});
         }
       }
-    } else if (st.number == first_take) {
-      for (int k : bolts) needs.push_back({k, false});
+    } else if (first_take[stage_of_step_[st.number]] == st.number) {
+      for (int k : bolts[stage_of_step_[st.number]]) needs.push_back({k, false});
     }
     return needs;
   };
@@ -1130,6 +1199,39 @@ bool Planner::Schedule() {
                           report_.steps[hole].number,
                           report_.steps[hole].what.c_str());
           }
+        }
+      }
+      // Staged work: after the transfer to the block's stage, and a module
+      // set after the stage's magazine takes and their parks.
+      const double moved = b.stage > 0 ? TransferEnd(b.stage) : 0.0;
+      if (moved < 0.0) can = false;
+      if (moved > r) {
+        r = moved;
+        reason = "for the tube to move to stage " + scopes_[b.stage].name;
+      }
+      for (const MoveJob& j : moves_) {
+        const BayStep& set = report_.steps[b.step_index];
+        if (!j.narrowed || set.kind != "module_set" || j.stage != b.stage ||
+            std::count(j.built.modules.begin(), j.built.modules.end(), set.index) > 0) {
+          continue;
+        }
+        const Block& mb = blocks_[j.block];
+        can = can && mb.placed;
+        if (mb.placed && mb.start + mb.segs[j.segment].t1 > r) {
+          r = mb.start + mb.segs[j.segment].t1;
+          reason = Fmt("for %s's move to step %d, planned without module %d",
+                       scene_->arm(j.arm).use->name.c_str(), j.step, set.index);
+        }
+      }
+      for (const Block& pb : blocks_) {
+        if (!pb.magazine || pb.stage != b.stage || !pb.in_range ||
+            report_.steps[b.step_index].kind != "module_set") {
+          continue;
+        }
+        can = can && pb.placed;
+        if (pb.placed && pb.end > r) {
+          r = pb.end;
+          reason = "for " + scene_->arm(pb.arm).use->name + " to take its pin magazine and park";
         }
       }
       if (can) ready.push_back({a, bi, r, reason});
@@ -1213,7 +1315,8 @@ bool Planner::Schedule() {
     // it was in the way of (once for each pair of blocks).
     if (!placed && yield_arm >= 0 && state_[yield_arm].next > 0) {
       const int last = arm_blocks_[yield_arm][state_[yield_arm].next - 1];
-      if (yielded_.insert({last, yield_to}).second) {
+      // (In a part of the bay that block may lie outside the part, unplaced.)
+      if (blocks_[last].placed && yielded_.insert({last, yield_to}).second) {
         for (int k = -1; k != last;) {
           k = placed_order_.back();
           placed_order_.pop_back();
@@ -1242,6 +1345,15 @@ bool Planner::Schedule() {
   }
   double bay_end = clamp_end_;
   for (int a = 0; a < n; ++a) bay_end = std::max(bay_end, state_[a].free);
+  for (const BayStep& st : report_.steps) {
+    const int k = stage_of_step_[st.number];
+    if (st.kind != "transfer" || TransferEnd(k) < 0.0) continue;
+    BayEvent move{"transfer", st.number, TransferEnd(k) - layout_.staging->transfer_s,
+                  TransferEnd(k)};
+    move.from_stage = k;
+    move.to_stage = k + 1;
+    events_.push_back(move);
+  }
   if (!Partial()) {
     BayEvent release{"release", 0, modules_end,
                      modules_end + layout_.holder.release_s};
@@ -1272,7 +1384,21 @@ bool Planner::Schedule() {
       state_[a].free = bay_end;
     }
   }
+  WaitsThroughTransfers(layout_, events_, &rows_);
   return true;
+}
+
+double Planner::TransferEnd(int s) const {
+  double t = clamp_end_;
+  for (int k = 0; k < s; ++k) {
+    for (const Block& b : blocks_) {
+      if (!b.in_range || b.stage != k) continue;
+      if (!b.placed) return -1.0;
+      t = std::max(t, b.end);
+    }
+    t += layout_.staging ? layout_.staging->transfer_s : 0.0;
+  }
+  return t;
 }
 
 void Planner::FillPlan() {
@@ -1328,6 +1454,11 @@ void Planner::FillPlan() {
       {"modules", modules_end - last_bolt, model["modules"]},
       {"end", bay_end - modules_end, model["end"]},
   };
+  if (staged_) {
+    std::map<int, StepTime> times;
+    for (const StepTime& st : plan.steps) times[st.number] = st;
+    plan.phases = StagedPhases(layout_, report_, 0, times, events_, bay_end);
+  }
   // Without a schedule there are no planned times.
   if (!scheduled_) {
     for (PhaseTime& p : plan.phases) p.planned_s = 0.0;
@@ -1365,13 +1496,23 @@ PlanResult Planner::Run(bool plan, bool verify) {
     return done();
   }
   std::string error;
-  scene_ = LayoutScene::Load(layout_, paths_, report_.joint_margin_deg, &error);
+  scenes_ = StageScenes(layout_, paths_, report_.joint_margin_deg, &error);
+  scene_ = scenes_.empty() ? nullptr : scenes_.front().get();
+  staged_ = layout_.staging.has_value();
+  for (int k = 0; staged_ && k < StageCount(layout_); ++k) {
+    scopes_.push_back(ScopeOfStage(layout_, k));
+  }
+  const std::vector<int> order = StagedModuleOrder(layout_);
+  staged_pos_.assign(order.size(), 0);
+  for (size_t k = 0; k < order.size(); ++k) staged_pos_[order[k]] = static_cast<int>(k);
   if (!scene_) {
     Fault("the scene could not be loaded: " + error);
     return done();
   }
   f_ = PlanFigures{};
   if (!options_.budgets.empty()) f_.budgets = options_.budgets;
+  // Staged work: a fourth budget (src/layout_plan_stages.h), in the plan's figures.
+  if (options_.budgets.empty() && layout_.staging) f_.budgets.push_back(kStagedLastBudget);
   f_.clearance_m = report_.clearance_m;
   f_.joint_margin_deg = report_.joint_margin_deg;
   for (int a = 0; a < scene_->ArmCount(); ++a) {
@@ -1428,12 +1569,15 @@ std::vector<std::string> Planner::Why(const std::vector<int>& steps) {
   Run(false);
   for (const std::string& f : result_.faults) out.push_back("fault: " + f);
   if (!prepared_) return out;
-  DataPtr d = scene_->MakeData();
+  std::vector<DataPtr> data;
+  for (const auto& sc : scenes_) data.push_back(sc->MakeData());
   for (int step : steps) {
     int count = 0;
     for (MoveJob& job : moves_) {
       if (job.step != step) continue;
       ++count;
+      const DataPtr& d = data[job.stage];
+      const LayoutScene& sc = *scenes_[job.stage];
       const std::string arm = scene_->arm(job.arm).use->name;
       out.push_back(Fmt("step %d: %s from %s to %s, tool %s, holding %s, seed %u",
                         step, arm.c_str(), job.from_label.c_str(),
@@ -1456,10 +1600,9 @@ std::vector<std::string> Planner::Why(const std::vector<int>& steps) {
       for (int k : job.built.modules) bay += Fmt(" %d", k);
       bay += Fmt(", %d on the pallets", job.built.on_pallets);
       out.push_back(bay);
-      scene_->AllAtWait(d.get());
+      sc.AllAtWait(d.get());
       const double clear = f_.clearance_m + f_.plan_pad_m;
-      const MoveWorld world(*scene_, job.arm, job.tool, job.held, job.built,
-                            clear);
+      const MoveWorld world(sc, job.arm, job.tool, job.held, job.built, clear);
       for (int end = 0; end < 2; ++end) {
         const Nearest n = world.Least(d.get(), end == 0 ? job.from : job.to,
                                       kSceneFar);
@@ -1503,7 +1646,7 @@ std::vector<std::string> Planner::Why(const std::vector<int>& steps) {
         out.push_back(Fmt("  straight line free (%d points checked)", n - 1));
         continue;
       }
-      PlanOne(job, d.get());
+      PlanNarrowed(job, d.get());
       for (const std::string& line : job.log) out.push_back("  " + line);
       out.push_back(job.found ? Fmt("  found at budget %d, %d waypoints, %lld "
                                     "queries",

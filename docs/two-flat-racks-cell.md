@@ -2,8 +2,9 @@
 
 This is the second direction's cell: the robot cell that builds bays (one round tube, ten
 rails, nine modules: `docs/bay-hardware.md`) on two 20 ft flat racks set down side by
-side. It is designed and checked, not planned. There is no motion plan, no cycle time
-and no scorecard for it yet; the next run plans and scores it. Every figure below is
+side. It is designed and checked; since run 022 the planner and the verifier work in its
+stages, but no complete plan of it exists (see "Planning in stages" below), so there is no
+cycle time and no scorecard for it yet. Every figure below is
 printed by `check_layout` on the two layout files (`layouts/two_flat_racks_2_pin_arms.json`
 and `layouts/two_flat_racks_1_pin_arm.json`), run at the commit of this document, and
 each says which row it comes from. Positions and envelopes in the files are `ours`
@@ -234,27 +235,107 @@ output reproduces them.
 - Not tried: a KR 20 for the bolts (the +X side between the tube and the gap is 0.84 m)
   and the module arm on rack a.
 
-## What the checker does not check yet
+## The rows that measure the units (run 022)
 
-- The infeed and outfeed units are the ways' carriers, so their boxes are left out of
-  every transfer and way sweep. No row checks the tube, or the bay on it, at rest against
-  items; only against the active arm and the probes. Nothing would catch a carrier's box
-  drawn through the tube. The stage-2 jaws stand 0.002 m beside the tube at stage 1, by
-  design.
-- Paths between poses: the rows check poses, and approaches and retreats along straight
-  legs, not the arm's motion from one to the next.
-- Arms at the same time: each pose is checked with the other arms at their wait poses.
-- The time is a model (`src/layout_check.h`, "time"), without limit.
+Run 020 named three gaps; run 022 closed them (`src/layout_stage_rows.h`,
+`src/layout_sweep.h`, `tests/layout_stage_rows_test.cc`):
+
+- The infeed and outfeed units are measured in every way and transfer sweep: the moving
+  tube with its rails and modules against every box of every item. Near by design, and
+  counted only below zero, are only a carrier's boxes within `clearance_m` of the tube at
+  its place or at an end of the path, and only against the tube itself. Along `bay out`
+  the outfeed unit's `head`, which pins the plain end and draws the bay out (the layout's
+  `bay_out` text), moves with the bay: it is not measured against the bay, and it is
+  measured, moved, against everything else. Measured fixed, it stood 0.042 m inside the
+  tube's way.
+- A row per stage, `ways` "stage <name>: tube at rest", holds the tube with the stage's
+  rails and modules against every item box. Near by design are only the `jaw*` and
+  `head` boxes of the stage's `angle_pin_by` unit. At stage 1 these are the jaws that
+  grip it and the open stage-2 jaws 0.002 m beside it.
+- The eight gap variants rerun the `port` rows too. For example, at gap 0 mm the row
+  "stowed clear of zone bays_out" goes from 0.1200 to 0.0950 m.
+
+From `bazel run --config=opt //:check_layout -- two_flat_racks_2_pin_arms` (985 rows,
+none failing; 963 for `two_flat_racks_1_pin_arm`, none failing):
+
+| Row (`ways`) | Figure, m | Nearest |
+|---|---|---|
+| tube in | 0.0405 | `bay_tube` to `holder_stand_1_column` |
+| stage 1: tube at rest | 0.2880 | `bay_tube` to `item_infeed_unit_bed` |
+| stage 1 to 2 | 0.0405 | `bay_tube` to `holder_stand_1_column` |
+| stage 2: tube at rest | 0.2880 | `bay_tube` to `item_infeed_unit_bed` |
+| stage 2 to 3 | 0.0405 | `bay_tube` to `holder_stand_1_column` |
+| stage 3: tube at rest | 0.1100 | `bay_rail_0_foot_a_neg` to `item_outfeed_unit_head` |
+| bay out | 0.0405 | `bay_tube` to `holder_stand_1_column` |
+
+Still not checked by the rows: paths between poses (the planner's work), the arms at
+the same time, and the time, which is a model without a limit.
+
+## Planning in stages (run 022)
+
+`src/layout_plan_stages.h` holds the rules; `src/layout_plan.h` points to it. In short:
+
+- Each stage has its own scene, `StageLayout(layout, s)`: the tube at the stage's place.
+  Every move of a step of stage s is planned there and verified there edge by edge. The
+  bay at a move is the checker's, kept to the stage. A following arm's obstacle set holds
+  the earlier stages' parts and this stage's, never a later stage's.
+- A `transfer` event (from and to stage, counted from 1) lasts the layout's
+  `transfer_s`, 30 s (our own figure). It starts when every arm stands at its wait pose
+  with its first tool and nothing held. Every arm waits through it, and no step of the
+  next stage starts before it ends. Per bay the events are `tube_in`, `clamp`,
+  `transfer`, `transfer`, `release`, `bay_out`.
+- The verifier (`VerifyPlan`) plays the tube and the bay built so far at each stage's
+  place and moves them linearly through a transfer. It faults an arm off its wait pose
+  during a transfer, a step that crosses one, a transfer of the wrong length, number or
+  order, and a stage's first module take before that stage's strap bolts. Otherwise it
+  makes today's clearance, segment, timing and parts checks.
+  `tests/plan_replay_staged_test.cc` holds it. Its tests on the committed plan skip until
+  that plan exists; it checks the same faults on a plan made from the checker's steps.
+- Pin magazines: an arm takes its magazine before its stage's first module set and parks
+  at its wait pose, because the take's approach pose of pin arm A is 0.0086 m from
+  module 0's flange once that module is set. The checker solves that pose with no module
+  set.
+- A hole-to-hole move not found in its world, with the modules that may be set while it
+  runs, is planned once more without them. Those modules' sets then wait for that move
+  to end.
+- A staged layout's moves get a fourth RRT budget of 640,000 iterations. A layout without
+  staging keeps three budgets, and the three 40 ft plans re-plan byte-identical.
+
+**What blocks the plan of `two_flat_racks_2_pin_arms`.** Stage 1 plans whole. From
+`bazel run --config=opt //:plan_layout -- two_flat_racks_2_pin_arms --bays 1 --first-step 1
+--last-step 62 --summary`: 47 of 47 moves found, the clamp ends at 45.00 s, stage 1 runs
+45.00 to 283.33 s (238.33 s planned, against the time model's 203.9 s), and the first
+transfer runs 283.33 to 313.33 s. That took 374 s of planning. The summary of such a
+partial plan also prints a second transfer and a negative `end` phase; they belong to no
+step it planned.
+
+In bay 0, four of pin arm A's moves are not found with three budgets of up to 160,000
+iterations: steps 93 and 99 (module 4, stage 2) and steps 135 and 141 (module 6,
+stage 3). In each the arm swings joint 1 by about 180 deg between the two pose families
+of one module's holes (hole 2 to hole 3 at the locates, swage 3 to swage 2). The stages
+move the tube by whole pitches, so modules 4 and 6 are worked where module 1 stood at
+stage 1. There the module one pitch beyond module 0's place, already set at an earlier
+stage, blocks the swing. With that module taken out of the world, each move is found at
+160,000. A run of step 93 alone with the fourth budget had not ended after 37 minutes.
+
+What would fix it, each for a later run:
+
+- the checker solves all four holes of a module in one pose family of the arm;
+- the layout's `work` gives these holes to pin arm B, or places or tracks pin arm A
+  differently;
+- a much larger search for these moves.
+
+One staged bay took 29 minutes to plan with three budgets, so a plan of three bays would
+take more than an hour and a half.
 
 ## What the next run needs that this run did not build
 
-- A plan of staged work: the planner (`src/layout_plan.h`) and the scorecard know one
-  tube position.
+- A complete plan of staged work, and with it the scorecard and a version in this
+  direction: see above.
 - A time model of the transfers: the 30 s of `transfer_s` is a figure of the layout, not
   the model of a move.
 - The units' own design: the infeed unit, the outfeed unit and the pin feeder are boxes
   at their ports, not designed units.
-- Registering a version (`tools/evolution/add.sh`): none exists in this direction.
 
 ## The pictures and the commands that made them
 

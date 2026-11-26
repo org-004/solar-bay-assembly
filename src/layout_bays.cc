@@ -11,6 +11,8 @@
 #include <set>
 #include <utility>
 
+#include "src/layout_plan_stages.h"
+
 namespace cell::layout {
 
 namespace {
@@ -186,9 +188,12 @@ WayPassing TubePassesBay(const LayoutScene& scene, mjData* d,
     times.push_back(static_cast<double>(k) * sample_s);
   }
   std::sort(times.begin(), times.end());
+  // Staged work: the scene is the first stage's, where the tube comes in,
+  // and the bay leaves from the last stage's place (src/layout_plan_stages.h).
+  const Eigen::Vector3d from = StageOffset(L, StageCount(L) - 1);
   for (double t : times) {
     put(WayOffsetAt(L.tube_in.path, WayFraction(tube_start, L.tube_in.time_s, t)),
-        WayOffsetAt(L.bay_out.path, WayFraction(bay_out.t0, bay_span, t)));
+        WayOffsetAt(L.bay_out.path, WayFraction(bay_out.t0, bay_span, t)) + from);
     const Nearest n = scene.LeastDistance(d, tube, obstacles, clearance_m);
     if (n.distance < clearance_m) {
       out.clear = false;
@@ -420,7 +425,7 @@ PlanResult PlanBays(const Layout& layout, const ModelPaths& paths,
   if (!report.error.empty() || !report.pass) return plan_bay(0, report, BayClock{});
   std::string error;
   const std::unique_ptr<LayoutScene> scene =
-      LayoutScene::Load(layout, paths, report.joint_margin_deg, &error);
+      LayoutScene::Load(LayoutOfStage(layout, 0), paths, report.joint_margin_deg, &error);
   PlanResult out;
   if (!scene) {
     out.faults.push_back("the scene could not be loaded: " + error);

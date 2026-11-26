@@ -98,6 +98,10 @@
 //     plan_pad_m from the tube where it is on its way, at every sample, and
 //     the verifier measures it so (PlanOptions::early_steps, on by default;
 //     bay 0 starts every arm after its clamp, as before).
+// Staged work (a layout's "staging"): stage by stage, with a transfer
+// between stages, src/layout_plan_stages.h; without it nothing changes.
+// There an arm takes its pin magazine before its stage's first module set
+// and parks at its wait pose, and the stage's module sets wait for that.
 // The verifier holds all four (src/layout_bays.h, BetweenBays, and its own
 // check of each bay's events: an arm off its wait pose during a tube_in or
 // bay_out is measured against the tube or the bay where it is on its way;
@@ -287,10 +291,11 @@ struct ArmPlan {
 };
 
 struct BayEvent {
-  std::string kind;        // "tube_in", "clamp", "release", "bay_out".
+  std::string kind;        // "tube_in", "clamp", "transfer", "release", "bay_out".
   int step = 0;
   double t0 = 0.0, t1 = 0.0;
   int bay = 0;             // Which of the plan's bays (src/layout_bays.h).
+  int from_stage = 0, to_stage = 0;  // A transfer's, counted from 1.
 };
 
 // When a step of the bay starts (its move, or its approach or work where it
@@ -304,7 +309,7 @@ struct StepTime {
 };
 
 struct PhaseTime {
-  std::string name;        // "tube in", "clamp", "rails", "modules", "end".
+  std::string name;        // "tube in", "clamp", "rails", "modules", "end", "transfer".
   double planned_s = 0.0;
   double model_s = 0.0;
   int bay = 0;             // One set of phases for each bay.
@@ -423,7 +428,11 @@ struct WorldAt {
   // The offset of the tube (coming in) or of the bay (going out) from its
   // place in the holder; zero when it lies in the holder.
   Eigen::Vector3d way_offset = Eigen::Vector3d::Zero();
-  std::string event;           // "tube_in", "clamp", "release", "bay_out" or "".
+  std::string event;           // A BayEvent's kind or "".
+  // Staged work: the stage (0-based) and the offset of the tube and the bay
+  // from the first stage's place, through a transfer on its way.
+  int stage = 0;
+  Eigen::Vector3d stage_offset = Eigen::Vector3d::Zero();
   // The bay in the holder or going out: the first whose bay_out has not
   // ended (the last once all are out). What follows is that bay's; the
   // pallet counts on over the bays.

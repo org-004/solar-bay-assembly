@@ -29,6 +29,7 @@
 #include "src/container.h"
 #include "src/layout_rows.h"
 #include "src/layout_scene.h"
+#include "src/layout_stage_rows.h"
 #include "src/layout_stages.h"
 #include "src/mj_handles.h"
 #include "src/portable_random.h"
@@ -252,19 +253,6 @@ class Checker {
   // bay's bare tube and full bay without stages).
   Built StageStart() const;
   Built StageEnd() const;
-  // The least distance of `moving` swept along `path` (offsets from its
-  // place) against `obstacles`: a ways row. Holder geoms within clearance_m
-  // of `moving` at the path's first offset are left out while the offset is
-  // straight up (lifting out of a saddle); with `slide`, those within
-  // clearance_m of its kHeld geoms (the tube) at the first or the last
-  // offset are near by design against them all along (it slides in them):
-  // they count only when the distance goes below zero.
-  CheckRow SweepRow(const std::string& item,
-                    const std::vector<MovingGeom>& moving,
-                    const std::vector<Obstacle>& obstacles,
-                    const std::vector<Vec3>& path, bool slide);
-  // The bay as built at the stage's end swept to the next stage's place.
-  CheckRow TransferRow();
   std::string Key(const Job& job) const;
   std::vector<std::pair<std::string, int>> StepOrder() const;
   double MoveTime(int arm, const Pose& from, const Pose& to) const;
@@ -1532,137 +1520,23 @@ std::vector<CheckRow> Checker::WaysRows() {
   // work the tube comes in at the first stage and the bay leaves at the
   // last.
   const StageScope* st = opt_.stage ? &*opt_.stage : nullptr;
+  const double c = opt_.clearance_m, step = opt_.sweep_step_m;
   if (st == nullptr || st->first) {
-    rows.push_back(SweepRow("tube in", scene_->WayMoving(WayKind::kTubeIn),
-                            scene_->WayObstacles(WayKind::kTubeIn),
-                            L_.tube_in.path, false));
+    rows.push_back(WayRow(*scene_, d, "tube in", L_, WayKind::kTubeIn,
+                          L_.tube_in.path, st != nullptr, c, step));
   }
-  if (st != nullptr && !st->last) rows.push_back(TransferRow());
+  if (st != nullptr) {
+    rows.push_back(TubeAtRestRow(*scene_, d, L_, *st, StageEnd(), c, step));
+  }
+  if (st != nullptr && !st->last) {
+    rows.push_back(TransferRow(*scene_, d, *st, StageEnd(), c, step));
+  }
   if (st == nullptr || st->last) {
-    rows.push_back(SweepRow("bay out", scene_->WayMoving(WayKind::kBayOut),
-                            scene_->WayObstacles(WayKind::kBayOut),
-                            L_.bay_out.path, false));
+    rows.push_back(WayRow(*scene_, d, "bay out", L_, WayKind::kBayOut,
+                          L_.bay_out.path, st != nullptr, c, step));
   }
   mj_kinematics(&m, d);
   return rows;
-}
-
-CheckRow Checker::TransferRow() {
-  const StageScope& st = *opt_.stage;
-  const LayoutHandles& H = this->H();
-  // The tube in a group of its own (kHeld), the rails and modules built on
-  // it in another (kCarriage), so that the holder's geoms the tube slides in
-  // can be left out against the tube alone.
-  std::vector<MovingGeom> moving;
-  for (int g : H.tube_geoms) moving.push_back({g, kHeld});
-  const Built end = StageEnd();
-  for (int k : end.rails) {
-    if (k < static_cast<int>(H.rail_geoms.size())) {
-      for (int g : H.rail_geoms[k]) moving.push_back({g, kCarriage});
-    }
-  }
-  for (int k : end.modules) {
-    if (k < static_cast<int>(H.module_geoms.size())) {
-      for (int g : H.module_geoms[k]) moving.push_back({g, kCarriage});
-    }
-  }
-  // What is there: as along the ways, the carriers of both ways left out
-  // (the infeed and the outfeed move the tube).
-  std::set<int> carried;
-  for (const std::string& name : scene_->WayCarriers(WayKind::kBayOut)) {
-    auto it = H.item_geoms.find(name);
-    if (it != H.item_geoms.end()) carried.insert(it->second.begin(), it->second.end());
-  }
-  std::vector<Obstacle> obstacles;
-  for (const Obstacle& o : scene_->WayObstacles(WayKind::kTubeIn)) {
-    if (!carried.count(o.geom)) obstacles.push_back(o);
-  }
-  return SweepRow("stage " + st.name + " to " + st.next, moving, obstacles,
-                  {Vec3{0.0, 0.0, 0.0}, Vec3{0.0, st.to_next_m, 0.0}}, true);
-}
-
-CheckRow Checker::SweepRow(const std::string& item,
-                           const std::vector<MovingGeom>& moving,
-                           const std::vector<Obstacle>& obstacles,
-                           const std::vector<Vec3>& path, bool slide) {
-  const LayoutHandles& H = this->H();
-  mjData* d = data_.get();
-  std::set<int> holder(H.holder_geoms.begin(), H.holder_geoms.end());
-  std::vector<int> geoms;
-  for (const MovingGeom& g : moving) geoms.push_back(g.geom);
-  std::vector<Vec> orig;
-  for (int g : geoms) {
-    orig.push_back(Vec(d->geom_xpos[3 * g], d->geom_xpos[3 * g + 1],
-                       d->geom_xpos[3 * g + 2]));
-  }
-  auto place = [&](const Vec& o) {
-    for (size_t i = 0; i < geoms.size(); ++i) {
-      for (int c = 0; c < 3; ++c) {
-        d->geom_xpos[3 * geoms[i] + c] = orig[i][c] + o[c];
-      }
-    }
-  };
-  // The holder's geoms the moving set rests in (with `slide`, those the
-  // tube rests in at either end of the path).
-  std::vector<MovingGeom> slider;
-  for (const MovingGeom& g : moving) {
-    if (!slide || g.group == kHeld) slider.push_back(g);
-  }
-  std::vector<Obstacle> rest = obstacles;
-  for (size_t j = 0; j < obstacles.size(); ++j) {
-    if (!holder.count(obstacles[j].geom)) continue;
-    std::vector<Obstacle> one = {obstacles[j]};
-    bool near = scene_->LeastDistance(d, slider, one).distance < opt_.clearance_m;
-    if (slide && !near && !path.empty()) {
-      place(V(path.back()));
-      near = scene_->LeastDistance(d, slider, one).distance < opt_.clearance_m;
-      place(Vec::Zero());
-    }
-    if (!near) continue;
-    rest[j].skip |= kHeld;
-    // Along a transfer the tube slides in them: near by design, so they
-    // count against it only below zero, never not at all.
-    if (slide) rest[j].near |= kHeld;
-  }
-  // The samples.
-  std::vector<Vec> samples;
-  if (path.empty()) samples.push_back(Vec::Zero());
-  for (size_t i = 0; i < path.size(); ++i) {
-    if (i == 0) {
-      samples.push_back(V(path[0]));
-      continue;
-    }
-    const Vec a = V(path[i - 1]), b = V(path[i]);
-    const int n = std::max(
-        1, static_cast<int>(std::ceil((b - a).norm() / opt_.sweep_step_m)));
-    for (int k = 1; k <= n; ++k) samples.push_back(a + (b - a) * k / n);
-  }
-  Nearest worst;
-  worst.distance = kFar + 1.0;
-  Vec worst_at = Vec::Zero();
-  for (const Vec& o : samples) {
-    place(o);
-    const bool above =
-        slide || (std::hypot(o.x(), o.y()) < 1e-9 && o.z() >= -1e-9);
-    const Nearest n =
-        scene_->LeastDistance(d, moving, above ? rest : obstacles);
-    if (n.distance < worst.distance) {
-      worst = n;
-      worst_at = o;
-    }
-  }
-  place(Vec::Zero());
-  if (geoms.empty()) worst.distance = 0.0;
-  return Row(
-      "ways", item, "", "", std::min(worst.distance, kFar), "m",
-      opt_.clearance_m, !geoms.empty() && worst.distance >= opt_.clearance_m,
-      geoms.empty()
-          ? "the model has no tube"
-          : Fmt("%s at offset (%.3f, %.3f, %.3f); %d samples, at most "
-                "%.3f m apart",
-                scene_->PairText(worst).c_str(), worst_at.x(), worst_at.y(),
-                worst_at.z(), static_cast<int>(samples.size()),
-                opt_.sweep_step_m));
 }
 
 double Checker::MoveTime(int arm, const Pose& from, const Pose& to) const {

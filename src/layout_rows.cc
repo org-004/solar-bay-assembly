@@ -890,8 +890,9 @@ std::vector<CheckRow> FlatRackTransportRows(const Layout& layout,
     if (part.component == "stocks inside") stocks += part.mass_kg;
   }
   const double total = arms + tracks + tools + holder + items + stocks;
-  rows.push_back(Row(kind, "mass", "", total, "kg", flat_rack::kCellMassBudget,
-                     total <= flat_rack::kCellMassBudget,
+  rows.push_back(Row(kind, "mass", "", total, "kg",
+                     flat_rack::kTransitMassLimitKg,
+                     total <= flat_rack::kTransitMassLimitKg,
                      Fmt("arms %.0f, tracks %.0f, tools %.1f, holder %.0f, "
                          "items inside %.0f, stocks inside %.0f",
                          arms, tracks, tools, holder, items, stocks)));

@@ -13,7 +13,9 @@
 // the gap again, on MovedRackB of the layout. The runs are independent, each
 // with its own model and solver, and run side by side on a few threads; the
 // rows are put together in a fixed order, so the result does not depend on
-// the threads.
+// the threads. The gap variants rerun reach, clearance, ways (with the tube
+// at rest of each stage), port and approach; the ways rows measure the infeed
+// and outfeed units (src/layout_stage_rows.h).
 //
 // The order of a staged bay's modules (StagedModuleOrder): the stages in
 // order, and within each stage its modules in the layout's order of modules

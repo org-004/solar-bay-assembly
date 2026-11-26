@@ -27,7 +27,8 @@
 // of a 40 ft high-cube container, TransportEnvelope(): 12.192 x 2.438 x
 // 2.896 m from the ground, the base included, so the cell has
 // kHeight - kDeckHeight above the deck. Its mass must be within
-// kCellMassBudget, the road's gross mass less the flat rack's tare. On a
+// kTransitMassLimitKg, the owner's 13,608 kg (30,000 lb) of robotics in
+// transit (the road's gross mass less the tare would allow 17,900). On a
 // chassis whose deck is at kChassisDeckHeight the stowed cell is
 // kStowedHeightOnChassis high, the lowest usual state limit in the United
 // States (13 ft 6 in).
@@ -78,8 +79,10 @@ inline constexpr double kDeckThickness = 0.200;
 
 // Masses.
 inline constexpr double kTareMass = 5900.0;
-inline constexpr double kTransportGrossMass = 23800.0;  // As src/container.h.
-inline constexpr double kCellMassBudget = kTransportGrossMass - kTareMass;
+// What the robotics on one rack or one 40 ft base may weigh in transit: 30,000
+// lb, the owner's limit. The one figure: the transport rows, the scorecard's
+// mass_in_transit_kg and the 20 ft racks' limit all take it from here.
+inline constexpr double kTransitMassLimitKg = 13608.0;
 
 // On a chassis.
 inline constexpr double kChassisDeckHeight = 1.219;
@@ -156,7 +159,7 @@ inline constexpr double kDeckThickness = 0.115;
 // Masses, per rack.
 inline constexpr double kTareMass = 2900.0;  // Hapag-Lloyd's 20' flatrack.
 // What the robotics on one rack may weigh in transit: 30,000 lb (the owner).
-inline constexpr double kTransitMassLimit = 13608.0;
+inline constexpr double kTransitMassLimit = kTransitMassLimitKg;
 
 // The nominal gap between the two racks' long sides.
 inline constexpr double kNominalGap = 0.025;

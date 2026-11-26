@@ -102,7 +102,8 @@ double HolderEmptyAt(const Layout& layout, const BayEvent& bay_out);
 // nearer than it to anything that comes at it across its axis, as both ways
 // of the layouts here do. `d` is the scene's data with every geom at its
 // place (MakeData; mjData comes through src/layout_plan.h); its geoms are
-// put back.
+// put back. In staged work the scene is the first stage's, where the tube
+// comes in, and the bay goes out from the last stage's place.
 struct WayPassing {
   bool clear = true;
   double t = 0.0;          // The first sample that is not clear.

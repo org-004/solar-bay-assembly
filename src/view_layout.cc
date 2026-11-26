@@ -80,6 +80,7 @@
 #include "src/layout_check.h"
 #include "src/layout_model.h"
 #include "src/layout_plan.h"
+#include "src/layout_plan_stages.h"
 #include "src/layout_scene.h"
 #include "src/mj_handles.h"
 #include "src/physics_run.h"
@@ -161,8 +162,10 @@ int Play(const cell::layout::Layout& layout, const std::string& name,
     std::fprintf(stderr, "%s\n", report.error.c_str());
     return 1;
   }
+  // Staged work: the first stage's scene, as the verifier plays it
+  // (src/layout_plan_stages.h).
   std::unique_ptr<LayoutScene> scene =
-      LayoutScene::Load(layout, paths, report.joint_margin_deg, &error);
+      LayoutScene::Load(LayoutOfStage(layout, 0), paths, report.joint_margin_deg, &error);
   if (!scene) {
     std::fprintf(stderr, "%s\n", error.c_str());
     return 1;
@@ -262,7 +265,9 @@ int Play(const cell::layout::Layout& layout, const std::string& name,
     for (const auto& [g, a0] : alpha) {
       model->geom_rgba[4 * g + 3] = visible.count(g) != 0 ? a0 : 0.0f;
     }
-    // The tube on its way in, and the bay on its way out, move along the way.
+    // The tube on its way in, and the bay on its way out, move along the way;
+    // in staged work the tube and the bay built so far stand at the stage's
+    // place, and move with the tube through a transfer.
     if (w.event == "tube_in" || w.event == "bay_out") {
       std::set<int> moved(tube.begin(), tube.end());
       if (w.event == "bay_out") {
@@ -271,6 +276,14 @@ int Play(const cell::layout::Layout& layout, const std::string& name,
       }
       for (int g : moved) {
         for (int i = 0; i < 3; ++i) data->geom_xpos[3 * g + i] += w.way_offset[i];
+      }
+    }
+    if (w.stage_offset != Eigen::Vector3d::Zero()) {
+      std::set<int> staged(tube.begin(), tube.end());
+      for (const auto& g : rails) staged.insert(g.begin(), g.end());
+      for (const auto& g : modules) staged.insert(g.begin(), g.end());
+      for (int g : staged) {
+        for (int i = 0; i < 3; ++i) data->geom_xpos[3 * g + i] += w.stage_offset[i];
       }
     }
     lines.clear();

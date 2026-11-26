@@ -959,6 +959,18 @@ Layout FlatRackNamed(const std::string& name) {
   return layout.value_or(Layout{});
 }
 
+// The 40 ft flat rack's transport mass row is held to the owner's 13,608 kg
+// (30,000 lb) of robotics in transit, not to the road's gross mass less tare.
+TEST(LayoutCheck, FlatRackTransportMassIsTheOwnersLimit) {
+  const Layout layout = FlatRackNamed("flat_rack_3_pin_arms_ordered");
+  const CheckReport report = RunChecks(layout, {"transport"});
+  const CheckRow* m = FindRow(report, "transport", "mass");
+  ASSERT_NE(m, nullptr);
+  EXPECT_DOUBLE_EQ(m->limit, 13608.0);
+  EXPECT_NEAR(m->figure, 3429.3, 0.05) << m->detail;  // Stocks inside too.
+  EXPECT_TRUE(m->pass) << m->detail;
+}
+
 // The steps carry their kind, point, phase and the tool after a change.
 // The steps follow the layout's order of modules: the k-th take is pallet
 // module k and the k-th set is module order[k], each module's holes come
