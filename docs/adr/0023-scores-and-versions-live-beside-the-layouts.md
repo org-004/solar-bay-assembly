@@ -7,7 +7,7 @@ Decided by: spec 017 (a scorecard for every layout and a browsable history of th
 **Context.** The owner steers the cell by ranked measures: cycle time and expected
 failures per bay first, then part count and placement error, then the mass in transit and
 the tolerated error of the infed parts. Before spec 017 these figures were scattered or
-absent. Cycle time was a field of a plan (`plans/*.json`, `bay_planned_s`), the mass was
+absent: cycle time was a field of a plan (`plans/*.json`, `bay_planned_s`), the mass was
 one row of `check_layout` held against another limit, and nothing computed part count or
 expected failures. The owner also asked for "some kind of versioning for the different
 layouts & their corresponding motion plan" and for a page for each research direction.
@@ -27,8 +27,8 @@ sha256 and does not copy them, and `//:versions_test` fails when a registered fi
 changes. A later change to the chosen layout or its plan therefore adds a layout file and
 a version, with `tools/evolution/add.sh`. `tools/evolution/pages.py` writes the pages of
 the directions (`docs/directions/`), their charts and the README's results from the
-registry and the scorecards, and `//:directions_pages_test` fails when a committed page
-differs from what it writes. Recordings of the versions, with burned-in captions, are
+registry and the scorecards, and `tools/architecture/ci.sh` (its third step,
+`pages.py check`) fails when a committed page differs from what it writes. Recordings of the versions, with burned-in captions, are
 under `docs/evolution/`. The scorecard library is the fifth target that lists
 `@nlohmann_json` (`P4.nlohmann_json` 4 to 5). Nothing in `MODULE.bazel` is added, and
 the pages are written in Python with the standard library only.
@@ -40,16 +40,20 @@ version, and a plan is 770 kB. Git tags for versions: a squashed landing would n
 step after the landing, and the registry needs none. One combined score: the owner ranked
 the measures and did not weight them. A JSON reader of the scorecard's own, to keep
 `P4.nlohmann_json` at 4: a second parser is worse than one more target behind the library
-that the layout code already uses. `rules_python` for the page check: it would add to
-`MODULE.bazel` (P4), so a `cc_test` runs `python3` on the script instead.
+that the layout code already uses. A Bazel test of the pages: `rules_python` or `rules_shell`
+would add to `MODULE.bazel` (P4), and a `cc_test` that starts `python3` needs POSIX
+headers that `tools/architecture/deps.py` does not allow, so the check is a step of
+`ci.sh`, which CI's architecture job runs. For the same reason `score_layout`'s work is a
+function of the library (`RunScoreLayout`), which its test calls in-process.
 
 **Consequences.** A spec that should move a measure can quote `score_layout` before and
 after. Changing the chosen layout costs a new file and a version, which is the point.
 `scorecard_test` computes every committed plan's scorecard, about 16 s each. Python 3
-must be on the machine that runs the tests, as it is for `tools/architecture/`.
+must be on the machine that runs `ci.sh`, as it already is for `tools/architecture/`.
+The three new tests raise `P4.googletest` from 42 to 45, as every new test does.
 
 **Check.** `bazel test --config=opt //:scorecard_test //:versions_test
-//:directions_pages_test`. `tools/architecture/programs.txt` captures `score_layout`
+//:score_layout_test` and `python3 tools/evolution/pages.py check`. `tools/architecture/programs.txt` captures `score_layout`
 for each committed plan and for `--all`, and the `generated` entries of
 `tools/architecture/deps.json` name each generator and its test (P8).
 
