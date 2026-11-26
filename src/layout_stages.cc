@@ -143,15 +143,27 @@ std::vector<CheckRow> StagedRows(const Layout& layout,
     }
   };
   auto all = [](const CheckRow&) { return true; };
-  if (kind == "transport" || kind == "load" || kind == "allowed" ||
-      kind == "port") {
+  if (kind == "transport" || kind == "load" || kind == "allowed") {
     of_kind(*reports[0], all);
+  } else if (kind == "port") {
+    // The bay leaves from the last stage's place, so its port row is the
+    // last stage's; the tube comes in at the first.
+    for (const CheckRow& row : reports[0]->rows) {
+      if (row.check != kind) continue;
+      const CheckRow* last =
+          StartsWith(row.item, "way bay_out")
+              ? Find(*reports.back(), kind, row.item)
+              : nullptr;
+      out.push_back(last != nullptr ? *last : row);
+    }
   } else if (kind == "ways") {
     for (const CheckReport* r : reports) of_kind(*r, all);
   } else if (kind == "hold") {
     for (size_t s = 0; s < reports.size(); ++s) {
       prefixed(s, all);
-      for (CheckRow row : GripInHolderRows(StageLayout(layout, static_cast<int>(s)))) {
+      for (CheckRow row :
+           StageHoldRows(StageLayout(layout, static_cast<int>(s)), stages[s],
+                         reports[s]->clearance_m)) {
         row.item = Prefix(stages[s].name) + row.item;
         out.push_back(row);
       }
@@ -202,52 +214,73 @@ const std::vector<std::string>& GapKinds() {
   return kinds;
 }
 
-// The row of one gap variant from its rerun rows.
+// The row of one gap variant from its rerun rows and the same rows at the
+// nominal gap (src/layout_check.h, "The gap").
 CheckRow GapRow(const GapVariant& v, const std::vector<CheckRow>& rows,
-                double clearance_m) {
+                const std::vector<CheckRow>& nominal, double clearance_m) {
+  std::map<std::pair<std::string, std::string>, const CheckRow*> at_nominal;
+  for (const CheckRow& r : nominal) at_nominal[{r.check, r.item}] = &r;
+  auto nominal_of = [&](const CheckRow& r) -> const CheckRow* {
+    auto it = at_nominal.find({r.check, r.item});
+    return it != at_nominal.end() ? it->second : nullptr;
+  };
   const CheckRow* least = nullptr;
-  const CheckRow* worst = nullptr;
-  std::map<std::string, int> failing;
-  int fails = 0;
+  const CheckRow* worst_new = nullptr;
+  // The largest drops against the nominal figure, of distances and of
+  // joint margins.
+  const CheckRow* drop_m = nullptr;
+  const CheckRow* drop_deg = nullptr;
+  double drop_m_by = 0.0, drop_deg_by = 0.0;
+  int fails = 0, newly_failing = 0, newly_passing = 0;
   for (const CheckRow& r : rows) {
     const bool distance = r.check != "reach" && r.unit == "m" &&
                           std::abs(r.limit - clearance_m) < 1e-12;
     if (distance && (least == nullptr || r.figure < least->figure)) least = &r;
-    if (r.pass) continue;
-    ++fails;
-    ++failing[r.check];
-    // The worst failing row: of distances, the one furthest below its
-    // limit; else of the others (joint margins), likewise.
-    const bool m = r.unit == "m";
-    const bool worst_m = worst != nullptr && worst->unit == "m";
-    if (worst == nullptr || (m && !worst_m) ||
-        (m == worst_m && r.figure - r.limit < worst->figure - worst->limit)) {
-      worst = &r;
+    fails += r.pass ? 0 : 1;
+    const CheckRow* n = nominal_of(r);
+    if (r.pass && n != nullptr && !n->pass) ++newly_passing;
+    if (!r.pass && (n == nullptr || n->pass)) {
+      ++newly_failing;
+      // The worst of them: of distances the one furthest below its limit,
+      // else of joint margins.
+      const bool m = r.unit == "m";
+      const bool worst_m = worst_new != nullptr && worst_new->unit == "m";
+      if (worst_new == nullptr || (m && !worst_m) ||
+          (m == worst_m &&
+           r.figure - r.limit < worst_new->figure - worst_new->limit)) {
+        worst_new = &r;
+      }
+    }
+    if (n == nullptr) continue;
+    const double by = n->figure - r.figure;
+    if (r.unit == "m" && by > drop_m_by) {
+      drop_m_by = by;
+      drop_m = &r;
+    }
+    if (r.unit == "deg" && by > drop_deg_by) {
+      drop_deg_by = by;
+      drop_deg = &r;
     }
   }
-  // A failing least distance is the worst row.
-  if (least != nullptr && !least->pass) worst = least;
   auto name = [](const CheckRow& r) { return r.check + " " + r.item; };
-  std::string detail;
-  if (least != nullptr) {
-    detail = "least" + Fmt(" %.4f m", least->figure) + " at " + name(*least);
-  } else {
-    detail = "no distance rows";
-  }
-  if (fails == 0) {
-    detail += "; all " + std::to_string(rows.size()) + " rows pass";
-  } else {
-    std::string kinds;
-    for (const std::string& k : CheckKinds()) {
-      auto it = failing.find(k);
-      if (it == failing.end()) continue;
-      kinds += (kinds.empty() ? "" : ", ") + k + " " + std::to_string(it->second);
-    }
-    detail += "; " + std::to_string(fails) + " of " +
-              std::to_string(rows.size()) + " rows fail (" + kinds +
-              "); worst " + name(*worst) + Fmt(" %.4f", worst->figure) + " " +
-              worst->unit + " against" + Fmt(" %.4f", worst->limit);
-  }
+  auto change = [&](const CheckRow& r) {
+    const CheckRow* n = nominal_of(r);
+    return name(r) + (n != nullptr ? Fmt(" %.4f", n->figure) + " ->" : "") +
+           Fmt(" %.4f", r.figure) + " " + r.unit;
+  };
+  std::string detail =
+      least != nullptr
+          ? "least" + Fmt(" %.4f m", least->figure) + " at " + name(*least)
+          : "no distance rows";
+  detail += "; " + std::to_string(fails) + " of " +
+            std::to_string(rows.size()) +
+            " rows fail; against the nominal gap " +
+            std::to_string(newly_failing) + " newly fail";
+  if (worst_new != nullptr) detail += " (worst " + change(*worst_new) + ")";
+  detail += ", " + std::to_string(newly_passing) + " newly pass";
+  detail += drop_m != nullptr ? "; largest drop " + change(*drop_m)
+                              : "; no distance drops";
+  if (drop_deg != nullptr) detail += "; of joint margins " + change(*drop_deg);
   return {"gap",  v.item,
           "",     "",
           least != nullptr ? least->figure : 0.0,
@@ -366,8 +399,13 @@ int StageOfPoint(const Layout& layout, const std::string& kind, int index) {
   return 0;
 }
 
-void BuiltInStage(const StageScope& stage, StepScene* scene) {
+void BuiltInStage(const StageScope& stage, int pallet_total,
+                  StepScene* scene) {
+  // The earlier stages' modules have left the pallets.
+  const int left =
+      pallet_total - static_cast<int>(stage.modules_before.size());
   for (Built& b : scene->built) {
+    b.on_pallets = std::min(b.on_pallets, left);
     std::vector<int> rails = stage.rails_before;
     std::vector<int> modules = stage.modules_before;
     for (int r : b.rails) {
@@ -415,39 +453,93 @@ Built BuiltAtStageEnd(const std::optional<StageScope>& stage,
   return b;
 }
 
-std::vector<CheckRow> GripInHolderRows(const Layout& stage_layout) {
+namespace {
+
+// How well a piece of the tube, its centre `at` on the axis, `length` along
+// Y, sits at one of `boxes`: for the best box, the least of its margin along
+// Y and how far the box reaches into the tube's radius plus clearance_m
+// across (its distance from the axis in the x-z plane); one row, limit 0.
+// Along Y the margin is how far the piece lies inside the box (`contain`),
+// or else the overlap of the two along Y plus clearance_m (the box reaches
+// the piece: they overlap or are at most clearance_m apart).
+CheckRow AtBoxes(const std::string& item, const Eigen::Vector3d& at,
+                 double length, double radius, double clearance_m,
+                 const std::vector<Box>& boxes, const std::string& owner,
+                 bool contain) {
+  const double lo = at.y() - length / 2.0, hi = at.y() + length / 2.0;
+  double best = -1e9;
+  std::string which = owner + " has no boxes";
+  for (const Box& b : boxes) {
+    const double blo = b.pos[1] - b.size[1] / 2.0;
+    const double bhi = b.pos[1] + b.size[1] / 2.0;
+    const double along = contain ? std::min(lo - blo, bhi - hi)
+                                 : std::min(hi, bhi) - std::max(lo, blo) +
+                                       clearance_m;
+    const double dx = std::max(0.0, std::abs(at.x() - b.pos[0]) - b.size[0] / 2.0);
+    const double dz = std::max(0.0, std::abs(at.z() - b.pos[2]) - b.size[2] / 2.0);
+    const double across = radius + clearance_m - std::hypot(dx, dz);
+    const double f = std::min(along, across);
+    if (f > best) {
+      best = f;
+      which = "box " + b.name + " y" + Fmt(" %.3f", blo) + ".." +
+              Fmt("%.3f", bhi) + ", " + Fmt("%.3f", std::hypot(dx, dz)) +
+              " from the axis across";
+    }
+  }
+  const bool any = !boxes.empty();
+  return {"hold", item, "", "", any ? best : 0.0, "m", 0.0,
+          any && best >= -1e-9,
+          "the piece y" + Fmt(" %.3f", lo) + ".." + Fmt("%.3f", hi) +
+              "; " + which + Fmt(" (reaching it: within %.3f)", radius + clearance_m)};
+}
+
+}  // namespace
+
+std::vector<CheckRow> StageHoldRows(const Layout& stage_layout,
+                                    const Stage& stage, double clearance_m) {
   std::vector<CheckRow> rows;
   const std::vector<bay::Hold> holds = bay::Holds();
+  const int count = static_cast<int>(holds.size());
   for (const Grip& g : stage_layout.holder.grips) {
     const std::string item =
         "grip bay_hold_" + std::to_string(g.hold) + " in the holder";
-    if (g.hold < 0 || g.hold >= static_cast<int>(holds.size())) {
+    if (g.hold < 0 || g.hold >= count) {
       rows.push_back({"hold", item, "", "", 0.0, "m", 0.0, false,
                       "no such stretch"});
       continue;
     }
     // The gripped piece: the stretch's middle, at the stage's place of the
     // tube, +/- half the grip's length along Y.
-    const double y =
-        BayPoint(stage_layout, holds[g.hold].pose.translation()).y();
-    const double lo = y - g.length / 2.0, hi = y + g.length / 2.0;
-    double best = -1e9;
-    std::string which = "the holder has no boxes";
-    for (const Box& b : stage_layout.holder.boxes) {
-      const double blo = b.pos[1] - b.size[1] / 2.0;
-      const double bhi = b.pos[1] + b.size[1] / 2.0;
-      const double inside = std::min(lo - blo, bhi - hi);
-      if (inside > best) {
-        best = inside;
-        which = "box " + b.name + " y" + Fmt(" %.3f", blo) + ".." +
-                Fmt("%.3f", bhi);
-      }
+    rows.push_back(AtBoxes(
+        item, BayPoint(stage_layout, holds[g.hold].pose.translation()),
+        g.length, holds[g.hold].radius, clearance_m, stage_layout.holder.boxes,
+        "the holder", true));
+  }
+  // The angle pin: the unit's pin goes into the end stretch's holes from its
+  // head, so a box of what pins it must reach the whole stretch.
+  const int k = stage.angle_pin_hold;
+  const std::string by = stage.angle_pin_by.rfind("item:", 0) == 0
+                             ? stage.angle_pin_by.substr(5)
+                             : stage.angle_pin_by;
+  const std::string item =
+      "angle pin bay_hold_" + std::to_string(k) + " at " + by;
+  const std::vector<Box>* boxes = nullptr;
+  if (stage.angle_pin_by == "holder") {
+    boxes = &stage_layout.holder.boxes;
+  } else {
+    for (const Item& it : stage_layout.items) {
+      if ("item:" + it.name == stage.angle_pin_by) boxes = &it.boxes;
     }
-    const bool any = !stage_layout.holder.boxes.empty();
-    rows.push_back({"hold", item, "", "", any ? best : 0.0, "m", 0.0,
-                    any && best >= -1e-9,
-                    "the piece y" + Fmt(" %.3f", lo) + ".." + Fmt("%.3f", hi) +
-                        "; " + which});
+  }
+  if (k < 0 || k >= count || boxes == nullptr) {
+    rows.push_back({"hold", item, "", "", 0.0, "m", 0.0, false,
+                    k < 0 || k >= count ? "no such stretch"
+                                        : "no " + stage.angle_pin_by});
+  } else {
+    rows.push_back(AtBoxes(item,
+                           BayPoint(stage_layout, holds[k].pose.translation()),
+                           2.0 * holds[k].half_length, holds[k].radius,
+                           clearance_m, *boxes, by, false));
   }
   return rows;
 }
@@ -459,7 +551,20 @@ std::vector<GapVariant> GapVariants(const Layout& layout) {
           {"misaligned" + Fmt(" %+.0f mm", t.misalign_m * 1000.0), 0.0,
            t.misalign_m},
           {"misaligned" + Fmt(" %+.0f mm", -t.misalign_m * 1000.0), 0.0,
-           -t.misalign_m}};
+           -t.misalign_m},
+          // The corners.
+          {"gap" + Fmt(" %.0f mm", t.gap_lo_m * 1000.0) + ", misaligned" +
+               Fmt(" %+.0f mm", t.misalign_m * 1000.0),
+           t.gap_lo_m - t.gap_m, t.misalign_m},
+          {"gap" + Fmt(" %.0f mm", t.gap_lo_m * 1000.0) + ", misaligned" +
+               Fmt(" %+.0f mm", -t.misalign_m * 1000.0),
+           t.gap_lo_m - t.gap_m, -t.misalign_m},
+          {"gap" + Fmt(" %.0f mm", t.gap_hi_m * 1000.0) + ", misaligned" +
+               Fmt(" %+.0f mm", t.misalign_m * 1000.0),
+           t.gap_hi_m - t.gap_m, t.misalign_m},
+          {"gap" + Fmt(" %.0f mm", t.gap_hi_m * 1000.0) + ", misaligned" +
+               Fmt(" %+.0f mm", -t.misalign_m * 1000.0),
+           t.gap_hi_m - t.gap_m, -t.misalign_m}};
 }
 
 CheckReport CheckLayout(const Layout& layout, const ModelPaths& paths,
@@ -501,7 +606,11 @@ CheckReport CheckLayout(const Layout& layout, const ModelPaths& paths,
       for (const std::string& k : kinds) {
         const bool is_once =
             std::find(once.begin(), once.end(), k) != once.end();
-        if (variant > 0 || !is_once || s == 0) r.options.checks.push_back(k);
+        // Made once at the first stage; the ports also at the last, for
+        // the bay's way out.
+        if (variant > 0 || !is_once || s == 0 || (k == "port" && s == n - 1)) {
+          r.options.checks.push_back(k);
+        }
       }
       if (r.options.checks.empty()) continue;
       r.layout = staged ? StageLayout(l, s) : l;
@@ -514,6 +623,15 @@ CheckReport CheckLayout(const Layout& layout, const ModelPaths& paths,
     add(static_cast<int>(v) + 1,
         MovedRackB(layout, variants[v].dx, variants[v].dy), rerun);
   }
+  // The gap rows compare with the rerun kinds at the nominal gap: the
+  // nominal runs' when they make them all, else runs of their own.
+  const int reference = static_cast<int>(variants.size()) + 1;
+  bool nominal_has_all = true;
+  for (const std::string& k : GapKinds()) {
+    nominal_has_all = nominal_has_all &&
+                      std::find(nominal.begin(), nominal.end(), k) != nominal.end();
+  }
+  if (!variants.empty() && !nominal_has_all) add(reference, layout, rerun);
   RunAll(&runs, paths);
 
   CheckReport report;
@@ -556,9 +674,8 @@ CheckReport CheckLayout(const Layout& layout, const ModelPaths& paths,
       report.rows.insert(report.rows.end(), rows.begin(), rows.end());
     }
   }
-  for (size_t v = 0; v < variants.size(); ++v) {
-    const std::vector<const CheckReport*> reps =
-        reports_of(static_cast<int>(v) + 1);
+  auto rerun_rows = [&](int variant) {
+    const std::vector<const CheckReport*> reps = reports_of(variant);
     std::vector<CheckRow> rows;
     for (const std::string& kind : GapKinds()) {
       if (staged) {
@@ -570,7 +687,16 @@ CheckReport CheckLayout(const Layout& layout, const ModelPaths& paths,
         }
       }
     }
-    report.rows.push_back(GapRow(variants[v], rows, report.clearance_m));
+    return rows;
+  };
+  if (!variants.empty()) {
+    const std::vector<CheckRow> at_nominal =
+        rerun_rows(nominal_has_all ? 0 : reference);
+    for (size_t v = 0; v < variants.size(); ++v) {
+      report.rows.push_back(GapRow(variants[v],
+                                   rerun_rows(static_cast<int>(v) + 1),
+                                   at_nominal, report.clearance_m));
+    }
   }
   // The steps, points, poses and phases of the nominal runs.
   const double transfer = layout.staging ? layout.staging->transfer_s : 0.0;
@@ -610,6 +736,17 @@ CheckReport CheckLayout(const Layout& layout, const ModelPaths& paths,
       }
     }
     if (report.error.empty()) report.error = r.error;
+  }
+  // The errors of the gap's runs, each once, named by its variant.
+  for (const Run& r : runs) {
+    if (r.variant == 0 || r.report.error.empty()) continue;
+    const std::string what =
+        (r.variant <= static_cast<int>(variants.size())
+             ? variants[r.variant - 1].item
+             : std::string("nominal gap")) +
+        (staged ? ", stage " + stages[r.stage].name : "") + ": " +
+        r.report.error;
+    report.error += (report.error.empty() ? "" : "; ") + what;
   }
   for (size_t i = 0; i < report.steps.size(); ++i) {
     report.steps[i].number = static_cast<int>(i) + 1;

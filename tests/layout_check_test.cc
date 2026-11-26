@@ -1304,10 +1304,31 @@ TEST(LayoutCheck, SecondStageMovesTheTubeAndKeepsTheFirstStagesModules) {
   const Layout staged =
       Staged(plain, {{"1", 0.0, "0-4", "0-3"}, {"2", d, "5-9", "4-8"}});
   CheckOptions options;
-  options.checks = {"reach"};
+  options.checks = {"hold", "reach"};
   options.work_kinds = {"rail_set", "module_set"};
   const CheckReport report = CheckLayout(staged, Paths(), options);
   ASSERT_NE(FindRow(report, "reach", "stage 2: rail_set 7"), nullptr);
+  // The holder's saddles stay where the grips are at stage 1; at stage 2 the
+  // gripped pieces are d off them along Y.
+  const CheckRow* grip1 =
+      FindRow(report, "hold", "stage 1: grip bay_hold_2 in the holder");
+  const CheckRow* grip2 =
+      FindRow(report, "hold", "stage 2: grip bay_hold_2 in the holder");
+  ASSERT_NE(grip1, nullptr);
+  ASSERT_NE(grip2, nullptr);
+  EXPECT_TRUE(grip1->pass) << grip1->detail;
+  EXPECT_FALSE(grip2->pass);
+  EXPECT_NEAR(grip2->figure, grip1->figure - d, 1e-9);
+  // The angle pin's box must reach the end stretch along Y: moved d away
+  // from it, the overlap is d less.
+  const CheckRow* pin1 =
+      FindRow(report, "hold", "stage 1: angle pin bay_hold_0 at holder");
+  const CheckRow* pin2 =
+      FindRow(report, "hold", "stage 2: angle pin bay_hold_0 at holder");
+  ASSERT_NE(pin1, nullptr);
+  ASSERT_NE(pin2, nullptr);
+  EXPECT_NEAR(pin2->figure, pin1->figure - d, 1e-9) << pin2->detail;
+  EXPECT_DOUBLE_EQ(pin2->limit, 0.0);
   ASSERT_NE(FindRow(report, "reach", "stage 1: module_set 3"), nullptr);
   EXPECT_EQ(FindRow(report, "reach", "stage 1: rail_set 7"), nullptr);
   const Layout second = StageLayout(staged, 1);
@@ -1342,16 +1363,18 @@ TEST(LayoutCheck, SecondStageMovesTheTubeAndKeepsTheFirstStagesModules) {
   // order; a module of stage 1 is not worked with one of stage 2 beside it.
   const StageScope two = ScopeOfStage(staged, 1);
   StepScene rail6 = scene->AtWorkPoint(WorkPoints(second, "rail_set")[6]);
-  BuiltInStage(two, &rail6);
+  BuiltInStage(two, PointCount(staged, "module_take"), &rail6);
   ASSERT_EQ(rail6.built.size(), 1u);
   EXPECT_EQ(rail6.built[0].rails, (std::vector<int>{0, 1, 2, 3, 4, 5}));
   EXPECT_EQ(rail6.built[0].modules, (std::vector<int>{0, 1, 2, 3}));
+  EXPECT_EQ(rail6.built[0].on_pallets, PointCount(staged, "module_take") - 4);
   StepScene set5 = scene->AtWorkPoint(WorkPoints(second, "module_set")[5]);
-  BuiltInStage(two, &set5);
+  BuiltInStage(two, PointCount(staged, "module_take"), &set5);
   EXPECT_EQ(set5.built[0].rails.size(), 10u);
   EXPECT_EQ(set5.built[0].modules, (std::vector<int>{0, 1, 2, 3, 4}));
   StepScene hole = scene->AtWorkPoint(WorkPoints(second, "locate")[4 * 3 + 2]);
-  BuiltInStage(ScopeOfStage(staged, 0), &hole);
+  BuiltInStage(ScopeOfStage(staged, 0), PointCount(staged, "module_take"),
+               &hole);
   ASSERT_EQ(hole.built.size(), 2u);
   EXPECT_EQ(hole.built[1].modules, (std::vector<int>{0, 1, 2, 3}));
   EXPECT_EQ(hole.built[1].rails, (std::vector<int>{0, 1, 2, 3, 4}));
@@ -1373,16 +1396,23 @@ TEST(LayoutCheck, GapRowsOnTwoRacks) {
     std::snprintf(b, sizeof(b), format, m * 1000.0);
     return std::string(b);
   };
-  const std::vector<std::string> items = {
+  std::vector<std::string> items = {
       mm("gap %.0f mm", t.gap_lo_m), mm("gap %.0f mm", t.gap_hi_m),
       mm("misaligned %+.0f mm", t.misalign_m),
       mm("misaligned %+.0f mm", -t.misalign_m)};
-  ASSERT_EQ(gap.rows.size(), 4u);
+  for (double g : {t.gap_lo_m, t.gap_hi_m}) {
+    for (double m : {t.misalign_m, -t.misalign_m}) {
+      items.push_back(mm("gap %.0f mm", g) + ", " + mm("misaligned %+.0f mm", m));
+    }
+  }
+  ASSERT_EQ(gap.rows.size(), 8u);
   for (size_t i = 0; i < items.size(); ++i) {
     EXPECT_EQ(gap.rows[i].check, "gap");
     EXPECT_EQ(gap.rows[i].item, items[i]);
     EXPECT_EQ(gap.rows[i].unit, "m");
     EXPECT_DOUBLE_EQ(gap.rows[i].limit, gap.clearance_m);
+    EXPECT_NE(gap.rows[i].detail.find("against the nominal gap"),
+              std::string::npos);
   }
   // The first variant by hand: the gap at its low end.
   options.checks = {"reach", "clearance", "ways", "approach"};

@@ -1619,6 +1619,20 @@ TEST(TwoRackLoader, RefusesWhatTheFormForbids) {
     EXPECT_NE(e.find("two stages"), std::string::npos) << e;
   }
   {
+    // Module 0 lies on rails 0 and 1; staged with rails 2-3 only it is before
+    // its rail.
+    nlohmann::json j = DraftJson();
+    j["staging"]["stages"][0]["rails"] = "0";
+    j["staging"]["stages"][1]["rails"] = "1-6";
+    const std::string e = LoadVariant(j, "module_before_rail");
+    EXPECT_NE(e.find("module"), std::string::npos) << e;
+  }
+  {
+    nlohmann::json j = DraftJson();
+    j["staging"]["stages"][0]["angle_pin_by"] = "item:nothing_of_that_name";
+    EXPECT_NE(LoadVariant(j, "angle_pin_by").find("angle_pin_by"), std::string::npos);
+  }
+  {
     // A rack on a flat rack layout, which has no second rack.
     nlohmann::json j = nlohmann::json::parse(
         std::ifstream(LayoutPath("flat_rack_3_pin_arms")));

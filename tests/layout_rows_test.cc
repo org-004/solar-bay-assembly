@@ -420,6 +420,8 @@ TEST(TwoRackRows, MassIsSplitByRack) {
   double a = 0.0, b = 0.0, all = 0.0;
   for (const MassPart& p : TransportMassParts(l)) {
     EXPECT_TRUE(p.rack == "a" || p.rack == "b") << p.name;
+    // Stocks inside are infed parts and are not in the row (docs/scorecard.md).
+    if (p.component == "stocks inside") continue;
     (p.rack == "a" ? a : b) += p.mass_kg;
     all += p.mass_kg;
   }
@@ -439,6 +441,26 @@ TEST(TwoRackRows, MassIsSplitByRack) {
   const std::vector<CheckRow> h = FlatRackTransportRows(heavy, Paths());
   ExpectFails(h, "rack a mass");
   EXPECT_TRUE(Find(h, "rack b mass")->pass);
+}
+
+TEST(TwoRackRows, EnvelopeIsFromTheGroundWithAMarginOnEachSide) {
+  const std::vector<CheckRow> rows = FlatRackTransportRows(TwoRacks(), Paths());
+  const CheckRow* a = Find(rows, "rack a envelope");
+  ASSERT_NE(a, nullptr);
+  EXPECT_GT(a->figure, 0.0) << a->detail;  // Not pinned at the deck.
+  for (const char* word : {"across", "along", "top"}) {
+    EXPECT_NE(a->detail.find(word), std::string::npos) << a->detail;
+  }
+  EXPECT_NE(Find(rows, "rack a above the deck"), nullptr);
+  EXPECT_TRUE(Find(rows, "rack b above the deck")->pass);
+  // The visual meshes of an arm count: a KR 210 base pushed to the gap's edge
+  // fails rack b's envelope.
+  Layout l = TwoRacks();
+  l.arms[0].base_pos[0] = 0.2;
+  l.arms[0].track->beam.pos[0] = 0.2;
+  ExpectFails(FlatRackTransportRows(l, Paths()), "nothing spans the gap");
+  EXPECT_TRUE(Find(FlatRackTransportRows(l, Paths()), "rack b envelope")->figure <
+              Find(rows, "rack b envelope")->figure);
 }
 
 TEST(TwoRackRows, OneRackLayoutsHaveNoRackInTheirParts) {

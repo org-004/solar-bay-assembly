@@ -61,9 +61,10 @@ int StageOfPoint(const Layout& layout, const std::string& kind, int index);
 
 // The bay as built at a work point in staged work: in each Built of the
 // scene's step, the stage's rails_before and modules_before, and of the
-// rails and modules it has, those of the stage. The pallets are left as
-// they are.
-void BuiltInStage(const StageScope& stage, StepScene* scene);
+// rails and modules it has, those of the stage; the pallets hold at most
+// the modules not taken at the earlier stages (pallet_total less
+// modules_before).
+void BuiltInStage(const StageScope& stage, int pallet_total, StepScene* scene);
 
 // The bay when the stage starts and when it ends: without a stage the bare
 // tube with every module on the pallets, and the whole bay with all but
@@ -73,9 +74,11 @@ Built BuiltAtStageStart(const std::optional<StageScope>& stage,
 Built BuiltAtStageEnd(const std::optional<StageScope>& stage,
                       int pallet_total);
 
-// The hold rows of the stage's grips in the holder (src/layout_check.h,
-// "Stages"), item "grip bay_hold_<k> in the holder", for the stage's layout.
-std::vector<CheckRow> GripInHolderRows(const Layout& stage_layout);
+// The hold rows of a stage (src/layout_check.h, "Stages"), for the stage's
+// layout: "grip bay_hold_<k> in the holder" for each grip and "angle pin
+// bay_hold_<k> at <holder|item>".
+std::vector<CheckRow> StageHoldRows(const Layout& stage_layout,
+                                    const Stage& stage, double clearance_m);
 
 // One of the places of rack "b" the gap rows check.
 struct GapVariant {

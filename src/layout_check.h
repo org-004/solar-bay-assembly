@@ -292,44 +292,58 @@
 // the first module's stage); the other pallets' takes (k >= 9) at the last
 // stage. The bay at a point is the plain rule's in the staged order with
 // the earlier stages' rails and modules on and the later stages' off (at a
-// rail of stage 2 the modules of stage 1 are on). Each stage's solver starts
-// from the wait poses. Hold, reach, clearance and approach rows are made per
-// stage, items prefixed "stage <name>: ", in stage order; there the wait
-// pose's clearance is at the stage's start and end, the tool-change pose's
-// with the bay at its end. Made once, unprefixed, from the first stage:
-// transport, load, allowed, port, "wait track <arm>" and "wait pose <arm>"
-// of reach, "tool in free space ..." of clearance, before the stages' rows.
-// Hold adds per stage and grip "grip bay_hold_<k> in the holder": the piece
-// gripped (the stretch's middle at the stage's tube place +/- length / 2
-// along Y) lies along Y within a holder box; figure the least distance of
-// its ends inside the best box, limit 0. Ways: "tube in" at the first
+// rail of stage 2 the modules of stage 1 are on), and the earlier stages'
+// modules off the pallets. Each stage's solver starts from the wait poses.
+// Hold, reach, clearance and approach rows are made per stage, items
+// prefixed "stage <name>: ", in stage order; there the wait pose's clearance
+// is at the stage's start and end, the tool-change pose's with the bay at
+// its end. Made once, unprefixed, before the stages' rows: transport, load,
+// allowed, "wait track <arm>" and "wait pose <arm>" of reach, "tool in free
+// space ..." of clearance, from the first stage, and port, from the first
+// stage but "way bay_out in a zone", from the last (the bay leaves there).
+// Hold adds per stage "grip bay_hold_<k> in the holder" for each grip (the
+// piece gripped: the stretch's middle at the stage's tube place +/- the
+// grip's length / 2 along Y), held when it lies within a holder box along
+// Y, and "angle pin bay_hold_<k> at <holder|item>" for the stage's angle pin
+// (the whole stretch; the boxes of what angle_pin_by names), reached when a
+// box's Y range overlaps it or is at most clearance_m from it (the pin goes
+// in from the unit's head); either way the box must also come within the
+// stretch's radius plus clearance_m of the tube's axis in the x-z plane.
+// Figure, for the best box, the lesser of two margins, limit 0: along Y the
+// piece's ends inside the box (grip) or the overlap plus clearance_m,
+// negative when apart (angle pin); across the radius plus clearance_m less
+// the distance. Ways: "tube in" at the first
 // stage's place, then for each move "stage <a> to <b>": the tube with the
 // rails and modules of a and the stages before, swept along +Y by the
 // difference of the offsets against what is there along a way with both
-// ways' carriers left out, the holder's geoms within clearance_m of the tube
-// at either end left out against the tube alone (it slides in them, let
-// go); then "bay out" from the last stage's place. Time: each stage by the
-// model with its own rails and modules as the units (tube in and clamp at
-// the first, release and bay out at the last, the arms back to wait at the
-// end of each), rows "stage <name>: bay" and "stage <name>: busy <arm>";
-// then "bay", their sum plus staging.transfer_s for each move, the stages in
-// the detail, passing when each stage's does, and "busy <arm>", the sums.
-// CheckReport's steps are the stages' with a step "transfer" between; its
-// points and postures are merged (a posture's poses prefixed by the stage),
-// its tool-change poses the first stage's, its phases summed by name with a
-// sixth, "transfer".
+// ways' carriers left out, every pair at clearance_m but the holder's geoms
+// within clearance_m of the tube at either end, which are near by design
+// against the tube (it slides in them, let go): counted only below zero;
+// then "bay out" from the last stage's place. Time: each stage by the model
+// with its own rails and modules as units (tube in, clamp at the first;
+// release, bay out at the last; the arms back to wait at the end of each),
+// rows "stage <name>: bay", "stage <name>: busy <arm>"; then "bay", their
+// sum plus staging.transfer_s per move, passing when each stage's does, and
+// "busy <arm>", the sums. CheckReport's steps are the stages' with a step
+// "transfer" between; its points and postures are merged (a posture's poses
+// prefixed by the stage), its tool-change poses the first stage's, its
+// phases summed by name with a sixth, "transfer".
 //
 // The gap (base "two_flat_racks"). The rows above are the cell at the
 // nominal gap. Reach, clearance, approach and ways are made again at every
-// stage on MovedRackB of the layout for four variants: the gap at gap_lo_m
-// and at gap_hi_m, and rack "b" moved by +misalign_m and -misalign_m along
-// Y at the nominal gap. One row each, items "gap <lo> mm", "gap <hi> mm",
-// "misaligned +<m> mm", "misaligned -<m> mm": figure the least of the
-// variant's clearance, approach and ways rows held to clearance_m, unit m,
-// limit clearance_m; it passes when every rerun row passes. The detail names
-// that row, how many rows fail by kind and the worst failing one (the least
-// distance if it fails, else the distance, else the joint margin furthest
-// below its limit) with its figure and limit.
+// stage on MovedRackB of the layout for eight variants: the gap at gap_lo_m
+// and at gap_hi_m; rack "b" moved by +misalign_m and -misalign_m along Y at
+// the nominal gap; and the four corners, each end of the gap with each
+// misalignment. One row each, items "gap <lo> mm", "gap <hi> mm",
+// "misaligned +<m> mm", "misaligned -<m> mm", "gap <lo> mm, misaligned +<m>
+// mm" and so on: figure the least of the variant's clearance, approach and
+// ways rows held to clearance_m, unit m, limit clearance_m; it passes when
+// every rerun row passes. The detail names that row and how many rows fail,
+// then against the same rows at the nominal gap: how many newly fail (and
+// the worst of them, distances first, furthest below the limit, nominal ->
+// variant figure) and newly pass, and the largest drop of a distance's and
+// of a joint margin's figure (row, nominal -> variant). Errors of these runs
+// are added to CheckReport::error.
 
 #ifndef SRC_LAYOUT_CHECK_H_
 #define SRC_LAYOUT_CHECK_H_

@@ -257,7 +257,8 @@ class Checker {
   // of `moving` at the path's first offset are left out while the offset is
   // straight up (lifting out of a saddle); with `slide`, those within
   // clearance_m of its kHeld geoms (the tube) at the first or the last
-  // offset are left out against them all along (it slides in them).
+  // offset are near by design against them all along (it slides in them):
+  // they count only when the distance goes below zero.
   CheckRow SweepRow(const std::string& item,
                     const std::vector<MovingGeom>& moving,
                     const std::vector<Obstacle>& obstacles,
@@ -475,7 +476,9 @@ bool Has(const std::vector<int>& v, int x) {
 
 StepScene Checker::At(const WorkPoint& p, Leg leg) const {
   StepScene sc = scene_->AtWorkPoint(p, leg);
-  if (opt_.stage) BuiltInStage(*opt_.stage, &sc);
+  if (opt_.stage) {
+    BuiltInStage(*opt_.stage, PointCount(L_, "module_take"), &sc);
+  }
   return sc;
 }
 
@@ -1599,8 +1602,8 @@ CheckRow Checker::SweepRow(const std::string& item,
       }
     }
   };
-  // The holder's geoms the moving set rests in (with `slide`, the tube
-  // slides in, at either end of the path).
+  // The holder's geoms the moving set rests in (with `slide`, those the
+  // tube rests in at either end of the path).
   std::vector<MovingGeom> slider;
   for (const MovingGeom& g : moving) {
     if (!slide || g.group == kHeld) slider.push_back(g);
@@ -1615,7 +1618,11 @@ CheckRow Checker::SweepRow(const std::string& item,
       near = scene_->LeastDistance(d, slider, one).distance < opt_.clearance_m;
       place(Vec::Zero());
     }
-    if (near) rest[j].skip |= kHeld;
+    if (!near) continue;
+    rest[j].skip |= kHeld;
+    // Along a transfer the tube slides in them: near by design, so they
+    // count against it only below zero, never not at all.
+    if (slide) rest[j].near |= kHeld;
   }
   // The samples.
   std::vector<Vec> samples;

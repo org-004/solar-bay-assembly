@@ -605,20 +605,37 @@ int NotCarried(const std::vector<Box>& boxes, double deck, const Foot& foot,
 // The geoms of everything that stands on rack "a" or "b": the holder, each
 // arm with its tools and track, and the items and stocks, each by the rack
 // the layout names for it.
-std::vector<int> RackGeoms(const Layout& layout, const LayoutHandles& h,
-                           const std::string& rack) {
+std::vector<int> RackGeoms(const Layout& layout, const mjModel& m,
+                           const LayoutHandles& h, const std::string& rack) {
   std::vector<int> out;
   auto add = [&](const std::vector<int>& g) { out.insert(out.end(), g.begin(), g.end()); };
   if (layout.holder.rack == rack) add(h.holder_geoms);
   for (size_t i = 0; i < layout.arms.size() && i < h.arms.size(); ++i) {
     if (layout.arms[i].rack != rack) continue;
     const ArmHandle& a = h.arms[i];
-    add(a.link_geoms);
     add(a.carriage_geoms);
     add(a.beam_geoms);
     for (const auto& [name, g] : a.tool_geoms) add(g);
     for (const auto& [name, g] : a.waiting_tool_geoms) add(g);
     for (const auto& [name, g] : a.held_geoms) add(g);
+  }
+  // Every geom of an arm's moving part, the visual meshes included (the
+  // handles' link_geoms leave out geoms that collide with nothing).
+  std::set<std::string> carried;
+  for (const ArmUse& a : layout.arms) {
+    if (a.rack == rack) {
+      carried.insert(a.name + "_carriage");
+      carried.insert(a.name + "_mount");
+    }
+  }
+  for (int g = 0; g < m.ngeom; ++g) {
+    for (int b = m.geom_bodyid[g]; b > 0; b = m.body_parentid[b]) {
+      const char* name = mj_id2name(&m, mjOBJ_BODY, b);
+      if (name != nullptr && carried.count(name)) {
+        out.push_back(g);
+        break;
+      }
+    }
   }
   for (const Stock& st : layout.stocks) {
     auto it = h.stock_geoms.find(st.name);
@@ -639,37 +656,48 @@ void TwoRackEnvelopeRows(const Layout& layout, const Scene& s,
   const Vec3& sh = layout.two_flat_racks.b_shift;
   const double gap = layout.two_flat_racks.gap_m;
   for (const char* rack : {"a", "b"}) {
-    const flat_rack::Box env = flat_rack::twenty::CellEnvelope(
+    const flat_rack::Box env = flat_rack::twenty::TransportEnvelope(
         std::string(rack) == "b", gap, sh[0], sh[1]);
     const Vec elo = env.centre - env.half_size;
     const Vec ehi = env.centre + env.half_size;
-    double worst = kInf;
-    std::string what = "nothing stands on it";
-    for (int g : RackGeoms(layout, s.handles, rack)) {
+    // The least margin on each side (x, y, top) and the geom that has it,
+    // and how far the lowest geom is above the rack's deck.
+    double margin[3] = {kInf, kInf, kInf};
+    int worst[3] = {-1, -1, -1};
+    double lowest = kInf;
+    for (int g : RackGeoms(layout, *s.model, s.handles, rack)) {
       if (s.model->geom_type[g] == mjGEOM_PLANE) continue;
       Vec lo, hi;
       ExactExtent(*s.model, *s.data, g, &lo, &hi);
-      const double faces[6] = {lo.x() - elo.x(), ehi.x() - hi.x(),
-                               lo.y() - elo.y(), ehi.y() - hi.y(),
-                               lo.z() - elo.z(), ehi.z() - hi.z()};
-      static const char* names[6] = {"-x side", "+x side", "-y end", "+y end",
-                                     "deck", "top"};
-      for (int f = 0; f < 6; ++f) {
-        if (faces[f] < worst) {
-          worst = faces[f];
-          what = Fmt("worst %s at the %s", GeomName(*s.model, g).c_str(), names[f]);
-        }
+      const double m[3] = {std::min(ehi.x() - hi.x(), lo.x() - elo.x()),
+                           std::min(ehi.y() - hi.y(), lo.y() - elo.y()),
+                           ehi.z() - hi.z()};
+      for (int k = 0; k < 3; ++k) {
+        if (m[k] < margin[k]) { margin[k] = m[k]; worst[k] = g; }
       }
+      lowest = std::min(lowest, lo.z());
     }
-    const double f = worst == kInf ? 0.0 : worst;
-    rows->push_back(Row("transport", std::string("rack ") + rack + " envelope",
-                        "", f, "m", 0.0, f >= -1e-6,
-                        what + Fmt(", inside its %.3f x %.3f x %.3f m box from "
-                                   "the ground, above its deck %.3f",
-                                   flat_rack::twenty::kWidth,
-                                   flat_rack::twenty::kLength,
-                                   flat_rack::twenty::kHeight,
-                                   flat_rack::twenty::kDeckHeight)));
+    const bool any = worst[0] >= 0;
+    const double f = any ? std::min({margin[0], margin[1], margin[2]}) : 0.0;
+    auto side = [&](int k, const char* name) {
+      return any ? Fmt("%s %.4f (%s)", name, margin[k],
+                       GeomName(*s.model, worst[k]).c_str())
+                 : std::string(name) + " none";
+    };
+    rows->push_back(Row(
+        "transport", std::string("rack ") + rack + " envelope", "", f, "m", 0.0,
+        f >= -1e-6,
+        "margin inside its stow envelope " +
+            Fmt("%.3f x %.3f x %.3f m from the ground: ",
+                flat_rack::twenty::kWidth, flat_rack::twenty::kLength,
+                flat_rack::twenty::kHeight) +
+            side(0, "across") + ", " + side(1, "along") + ", " + side(2, "top")));
+    const double above = any ? lowest - flat_rack::twenty::kDeckHeight : 0.0;
+    rows->push_back(Row("transport", std::string("rack ") + rack + " above the deck",
+                        "", above, "m", 0.0, above >= -1e-6,
+                        Fmt("lowest geom of what stands on it is %.4f m above its "
+                            "deck at %.3f",
+                            above, flat_rack::twenty::kDeckHeight)));
   }
   // The gap's band: from rack a's long side to rack b's, over every y and z.
   const double band_lo = -gap / 2.0;
@@ -692,13 +720,16 @@ void TwoRackEnvelopeRows(const Layout& layout, const Scene& s,
 // What a rack's things weigh in transit, by component; the row's detail.
 void TwoRackMassRows(const Layout& layout, std::vector<CheckRow>* rows) {
   for (const char* rack : {"a", "b"}) {
-    double sum[6] = {};
-    static const char* parts[6] = {"arms", "tracks", "tools", "holder",
-                                   "items inside", "stocks inside"};
+    double sum[5] = {};
+    static const char* parts[5] = {"arms", "tracks", "tools", "holder",
+                                   "items inside"};
     double total = 0.0;
     for (const MassPart& part : TransportMassParts(layout)) {
       if (part.rack != rack) continue;
-      for (int i = 0; i < 6; ++i) {
+      // Counted as docs/scorecard.md counts the mass in transit: stocks
+      // inside hold infed parts and are left out.
+      if (part.component == "stocks inside") continue;
+      for (int i = 0; i < 5; ++i) {
         if (part.component == parts[i]) sum[i] += part.mass_kg;
       }
       total += part.mass_kg;
@@ -707,8 +738,9 @@ void TwoRackMassRows(const Layout& layout, std::vector<CheckRow>* rows) {
                         total, "kg", flat_rack::twenty::kTransitMassLimit,
                         total <= flat_rack::twenty::kTransitMassLimit,
                         Fmt("arms %.0f, tracks %.0f, tools %.1f, holder %.0f, "
-                            "items inside %.0f, stocks inside %.0f",
-                            sum[0], sum[1], sum[2], sum[3], sum[4], sum[5])));
+                            "items inside %.0f; stocks inside left out as infed "
+                            "parts, as docs/scorecard.md counts",
+                            sum[0], sum[1], sum[2], sum[3], sum[4])));
   }
 }
 

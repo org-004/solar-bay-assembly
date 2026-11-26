@@ -60,12 +60,13 @@
 //              every geom that stands outside.
 //              On two racks (base "two_flat_racks"), in place of the 40 ft
 //              envelope and mass rows: "rack a envelope" and "rack b
-//              envelope", every stowed geom of what
+//              envelope", every stowed geom (visual meshes too) of what
 //              stands on that rack inside that rack's 6.058 x 2.438 x 2.896 m
-//              box from the ground at its place, above its deck, the figure
-//              being the worst distance inside and the detail naming the geom
-//              and the side; "rack a mass" and "rack b mass": what stands on
-//              it against 13,608 kg; "nothing spans the gap": no stowed geom
+//              box from the ground at its place, the figure being the least
+//              margin across, along and at the top, the detail giving each
+//              with its geom; "rack a above the deck" and "rack b above the
+//              deck", the lowest geom against the deck; "rack a mass" and "rack b mass": what stands on
+//              it against 13,608 kg, stocks inside left out as infed parts; "nothing spans the gap": no stowed geom
 //              of the cell lies in the band between the racks, the figure
 //              the least distance of any from it. The rows on the deck keep
 //              to the thing's own rack.
