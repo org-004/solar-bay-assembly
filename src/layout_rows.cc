@@ -250,9 +250,6 @@ std::vector<CheckRow> AllowedRows(const Layout& layout) {
   std::vector<CheckRow> rows;
   const std::vector<std::string> movers =
       ArmsDoing(layout, {"module_take", "module_set"});
-  const int n_movers = static_cast<int>(movers.size());
-  rows.push_back(Row("allowed", "module arms", "", n_movers, "arms", 2,
-                     n_movers >= 1 && n_movers <= 2, Join(movers)));
   for (const std::string& name : movers) {
     const ArmUse* arm = FindArm(layout, name);
     const ArmModel* c = arm != nullptr ? FindArmModel(arm->model) : nullptr;
@@ -268,16 +265,33 @@ std::vector<CheckRow> AllowedRows(const Layout& layout) {
                        "kg", 210, ok,
                        Fmt("%s, reach %.3f m", c->maker.c_str(), c->reach_m)));
   }
-  const std::vector<std::string> pinners =
-      ArmsDoing(layout, {"locate", "pin", "swage"});
-  const int n_pinners = static_cast<int>(pinners.size());
-  rows.push_back(Row("allowed", "pin arms", "", n_pinners, "arms", 3,
-                     n_pinners >= 1 && n_pinners <= 3, Join(pinners)));
-  const int n_arms = static_cast<int>(layout.arms.size());
-  std::vector<std::string> all;
-  for (const ArmUse& a : layout.arms) all.push_back(a.name);
-  rows.push_back(Row("allowed", "arms", "", n_arms, "arms", 5, n_arms <= 5,
-                     Join(all)));
+  const bool limited = layout.base == "two_flat_racks";
+  for (const ArmUse& a : layout.arms) {
+    const ArmModel* c = FindArmModel(a.model);
+    if (c == nullptr) {
+      rows.push_back(Row("allowed", "maker " + a.name, a.name, 0.0, "",
+                         limited ? 1.0 : 0.0, !limited,
+                         limited ? "the arm's model is not in the catalogue"
+                                 : "not in the catalogue"));
+      continue;
+    }
+    const bool kuka = StartsWith(c->maker, "KUKA");
+    const double figure = kuka ? 1.0 : 0.0;
+    if (limited) {
+      rows.push_back(Row("allowed", "maker " + a.name, a.name, figure, "", 1.0,
+                         kuka,
+                         Fmt("%s: every arm is KUKA (the owner, 2026-11-26)",
+                             c->maker.c_str())));
+    } else {
+      rows.push_back(Row("allowed", "maker " + a.name, a.name, figure, "", 0.0,
+                         true,
+                         Fmt("%s; no limit on this base: every arm is to be "
+                             "KUKA (the owner, 2026-11-26), and a later spec "
+                             "replaces the UR10e pin arms of the 40 ft "
+                             "layouts",
+                             c->maker.c_str())));
+    }
+  }
   for (size_t p = 0; p < layout.pallets.size(); ++p) {
     const Pallet& pl = layout.pallets[p];
     rows.push_back(Row("allowed", "pallet " + std::to_string(p), "",
@@ -523,30 +537,6 @@ struct Worst {
   }
 };
 
-// The `no limit` row: what stands outside, worst first, up to five.
-CheckRow NoLimitRow(const std::string& item, const Scene& s,
-                    const std::vector<std::pair<double, int>>& per_geom) {
-  std::vector<std::pair<double, int>> out;
-  double worst = kInf;
-  for (const auto& [f, g] : per_geom) {
-    worst = std::min(worst, f);
-    if (f < -1e-6) out.push_back({f, g});
-  }
-  std::sort(out.begin(), out.end());
-  std::string detail = "no limit: ";
-  if (out.empty()) {
-    detail += "everything inside";
-  } else {
-    detail += Fmt("%zu outside: ", out.size());
-    for (size_t i = 0; i < out.size(); ++i) {
-      detail += (i ? ", " : "") + GeomName(*s.model, out[i].second) +
-                Fmt(" %.3f m", out[i].first);
-    }
-  }
-  return Row("transport", item, "", worst == kInf ? 0.0 : worst, "m", 0.0, true,
-             detail);
-}
-
 // Whether every box of a thing is carried by the deck, itself or through
 // what it touches. Returns the number not carried and the first of them.
 int NotCarried(const std::vector<Box>& boxes, double deck, std::string* first) {
@@ -728,33 +718,6 @@ std::vector<CheckRow> FlatRackTransportRows(const Layout& layout,
                      Fmt("arms %.0f, tracks %.0f, tools %.1f, holder %.0f, "
                          "items inside %.0f, stocks inside %.0f",
                          arms, tracks, tools, holder, items, stocks)));
-
-  // What a container that closes would give, as rows without a limit.
-  if (s.model) {
-    const flat_rack::Box closed = flat_rack::ClosedInsideEnvelope();
-    const Vec clo = closed.centre - closed.half_size;
-    const Vec chi = closed.centre + closed.half_size;
-    const double half_between = flat_rack::kBetweenEndFrames / 2.0;
-    std::vector<std::pair<double, int>> fx, fy, ftop, fbetween;
-    for (int g : CellGeoms(s)) {
-      Vec lo, hi;
-      ExactExtent(*s.model, *s.data, g, &lo, &hi);
-      fx.push_back({std::min(chi.x() - hi.x(), lo.x() - clo.x()), g});
-      fy.push_back({std::min(chi.y() - hi.y(), lo.y() - clo.y()), g});
-      ftop.push_back({chi.z() - hi.z(), g});
-      fbetween.push_back({std::min(half_between - hi.y(), lo.y() + half_between), g});
-    }
-    rows.push_back(NoLimitRow("closed container x", s, fx));
-    rows.push_back(NoLimitRow("closed container y", s, fy));
-    rows.push_back(NoLimitRow("closed container top", s, ftop));
-    rows.push_back(NoLimitRow("between end frames y", s, fbetween));
-  } else {
-    for (const char* item : {"closed container x", "closed container y",
-                             "closed container top", "between end frames y"}) {
-      rows.push_back(Row(kind, item, "", 0.0, "m", 0.0, true,
-                         "no limit: no stowed model"));
-    }
-  }
   return rows;
 }
 

@@ -18,11 +18,13 @@
 //   bazel test --config=opt //:layout_model_test --test_output=all
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <map>
+#include <optional>
 #include <set>
 #include <sstream>
 #include <string>
@@ -531,6 +533,200 @@ TEST(ChosenLayout, FlangeZPointsOut) {
       const double front = Extent(m, d, g, z) - V(d->site_xpos + 3 * a.flange_site).dot(z);
       EXPECT_LT(front, 0.005) << arm.name << " " << GeomName(m, g);
     }
+  }
+}
+
+// ------------------------------------------------- the smaller KUKA arms
+
+// One joint of a KUKA arm's URDF: the joint's origin in its parent link's
+// frame (xyz in metres, roll, pitch and yaw in radians, applied about the
+// fixed axes: R = Rz(yaw) Ry(pitch) Rx(roll)), copied from the origin of
+// <joint name="joint_N"> (and of link6-tool0 for the flange) of the vendor's
+// urdf/<arm>_macro.xacro at the commit pinned in MODULE.bazel
+// (kroshu/kuka_robot_descriptions d2fa4377b77b7370cdcf6e52b430fc514a0eef19).
+// Every joint turns about the z axis of its own frame. Nothing here is read
+// from models/*.xml, so a mistake in a model file shows up as a difference.
+struct UrdfJoint {
+  double xyz[3];
+  double rpy[3];
+};
+
+struct SmallKukaArm {
+  const char* key;
+  // joint_1 .. joint_6, then link6-tool0 (the flange, +z out of it).
+  std::array<UrdfJoint, 7> chain;
+  // The flange's centre at all joints zero, from a separate calculation of
+  // the same chain (a Python script, 9 digits), and at two other poses.
+  std::array<double, 3> zero_pos;
+  std::array<double, 6> pose_a;
+  std::array<double, 3> pose_a_pos;
+  std::array<double, 3> pose_a_z;
+  std::array<double, 6> pose_b;
+  std::array<double, 3> pose_b_pos;
+  std::array<double, 3> pose_b_z;
+};
+
+std::vector<SmallKukaArm> SmallKukaArms() {
+  const double h = kPi / 2.0;
+  return {
+      {"kr10_r1100_2",
+       {{{{0.0, 0.0, 0.208}, {kPi, 0.0, 0.0}},
+         {{0.025, -0.0907, -0.192}, {h, 0.0, 0.0}},
+         {{0.56, 0.0, -0.0042}, {0.0, 0.0, 0.0}},
+         {{0.196, -0.025, -0.0865}, {h, 0.0, -h}},
+         {{0.0, 0.0505, -0.319}, {0.0, h, h}},
+         {{0.0615, 0.0, -0.0505}, {h, 0.0, -h}},
+         {{0.0, 0.0, -0.0285}, {kPi, 0.0, kPi}}}},
+       {1.19, 0.0, 0.425},
+       {0.3, -1.2, 1.0, 0.5, 0.7, -0.4},
+       {0.761079936, -0.264526059, 1.012566191},
+       {0.732145946, -0.549773131, -0.402134079},
+       {-0.8, -0.6, 0.9, -1.1, -0.5, 1.3},
+       {0.771537703, 0.739210894, 0.583247138},
+       {0.935386776, 0.349842809, -0.051590591}},
+      {"kr20_r1810_2",
+       {{{{0.0, 0.0, 0.3127}, {kPi, 0.0, 0.0}},
+         {{0.16, 0.0, -0.2073}, {h, 0.0, 0.0}},
+         {{0.78, 0.0, 0.0}, {0.0, 0.0, 0.0}},
+         {{0.427, -0.15, 0.0}, {h, 0.0, -h}},
+         {{0.0, 0.0, -0.433}, {0.0, h, h}},
+         {{0.153, 0.0, 0.0}, {h, 0.0, -h}},
+         {{0.0, 0.0, 0.0}, {kPi, 0.0, kPi}}}},
+       {1.953, 0.0, 0.67},
+       {0.3, -1.2, 1.0, 0.5, 0.7, -0.4},
+       {1.311630448, -0.455198803, 1.503329584},
+       {0.732145946, -0.549773131, -0.402134079},
+       {-0.8, -0.6, 0.9, -1.1, -0.5, 1.3},
+       {1.306390872, 1.251280487, 0.841680864},
+       {0.935386776, 0.349842809, -0.051590591}},
+  };
+}
+
+Eigen::Isometry3d UrdfOrigin(const UrdfJoint& j) {
+  Eigen::Isometry3d t = Eigen::Isometry3d::Identity();
+  t.linear() = (Eigen::AngleAxisd(j.rpy[2], Eigen::Vector3d::UnitZ()) *
+                Eigen::AngleAxisd(j.rpy[1], Eigen::Vector3d::UnitY()) *
+                Eigen::AngleAxisd(j.rpy[0], Eigen::Vector3d::UnitX()))
+                   .toRotationMatrix();
+  t.translation() = Eigen::Vector3d(j.xyz[0], j.xyz[1], j.xyz[2]);
+  return t;
+}
+
+// The flange's frame in the arm's base frame for joint angles q.
+Eigen::Isometry3d UrdfFlange(const SmallKukaArm& arm, const std::array<double, 6>& q) {
+  Eigen::Isometry3d t = Eigen::Isometry3d::Identity();
+  for (int i = 0; i < 6; ++i) {
+    t = t * UrdfOrigin(arm.chain[i]) *
+        Eigen::Isometry3d(Eigen::AngleAxisd(q[i], Eigen::Vector3d::UnitZ()));
+  }
+  return t * UrdfOrigin(arm.chain[6]);
+}
+
+// Each smaller KUKA arm (KR 10 R1100-2, KR 20 R1810-2) builds into a layout
+// in place of the KR 210, its flange follows the vendor's chain at all
+// joints zero and at two other poses (position, z axis and x axis, against a
+// chain computed here from the URDF's joint origins and against the numbers
+// of a separate calculation), and the catalog's joint ranges lie inside the
+// model's. The model's own ranges are the URDF's; the catalog's are the data
+// sheet's, which for these two arms are equal to them.
+TEST(SmallKukaArms, ModelsFollowTheVendorChain) {
+  std::string error;
+  const std::optional<Layout> below = LoadLayout(LayoutPath("below"), &error);
+  ASSERT_TRUE(below.has_value()) << error;
+  for (const SmallKukaArm& spec : SmallKukaArms()) {
+    SCOPED_TRACE(spec.key);
+    const ArmModel* catalog = FindArmModel(spec.key);
+    ASSERT_NE(catalog, nullptr);
+    EXPECT_EQ(catalog->licence, "Apache-2.0 (kroshu/kuka_robot_descriptions)");
+    Layout layout = *below;
+    ArmUse* use = nullptr;
+    for (ArmUse& a : layout.arms) {
+      if (a.model == "kr210_r2700_2") use = &a;
+    }
+    ASSERT_NE(use, nullptr);
+    use->model = spec.key;
+    Built b = Build(layout, Bay(0, 0));
+    ASSERT_TRUE(b.model);
+    const mjModel* m = b.model.get();
+    mjData* d = b.data.get();
+    size_t index = 0;
+    while (layout.arms[index].name != use->name) ++index;
+    const ArmHandle& a = b.handles.arms[index];
+    ASSERT_GE(a.flange_site, 0);
+    const int root =
+        mj_name2id(m, mjOBJ_BODY, (use->name + "_" + catalog->root_body).c_str());
+    ASSERT_GE(root, 0);
+
+    // The joint ranges: the catalog's inside the model's. The URDF writes its
+    // limits to nine decimals (350 degrees as 6.108652375), so they may fall
+    // short of the data sheet's degrees by that much.
+    constexpr double kUrdfRounding = 1e-7;
+    for (int i = 0; i < 6; ++i) {
+      const int j = mj_name2id(m, mjOBJ_JOINT, (use->name + "_" + catalog->joint_names[i]).c_str());
+      ASSERT_GE(j, 0) << i;
+      EXPECT_TRUE(m->jnt_limited[j]) << i;
+      EXPECT_GE(catalog->joint_lo_deg[i] * kPi / 180.0, m->jnt_range[2 * j] - kUrdfRounding) << i;
+      EXPECT_LE(catalog->joint_hi_deg[i] * kPi / 180.0, m->jnt_range[2 * j + 1] + kUrdfRounding) << i;
+      EXPECT_LT(catalog->joint_lo_deg[i], catalog->joint_hi_deg[i]) << i;
+      EXPECT_GT(catalog->joint_speed_deg_s[i], 0.0) << i;
+    }
+
+    const std::array<std::array<double, 6>, 3> poses = {
+        std::array<double, 6>{}, spec.pose_a, spec.pose_b};
+    for (size_t p = 0; p < poses.size(); ++p) {
+      SCOPED_TRACE("pose " + std::to_string(p));
+      for (int i = 0; i < 6; ++i) d->qpos[a.qpos[i]] = poses[p][i];
+      mj_kinematics(m, d);
+      const Eigen::Isometry3d base = [&] {
+        Eigen::Isometry3d t = Eigen::Isometry3d::Identity();
+        t.linear() = M(d->xmat + 9 * root);
+        t.translation() = V(d->xpos + 3 * root);
+        return t;
+      }();
+      const Eigen::Isometry3d want = base * UrdfFlange(spec, poses[p]);
+      const Eigen::Vector3d pos = V(d->site_xpos + 3 * a.flange_site);
+      const Eigen::Matrix3d rot = M(d->site_xmat + 9 * a.flange_site);
+      EXPECT_LT((pos - want.translation()).norm(), 1e-9);
+      EXPECT_LT((rot.col(2) - want.linear().col(2)).norm(), 1e-9);
+      EXPECT_LT((rot.col(0) - want.linear().col(0)).norm(), 1e-9);
+      // The separate calculation, in the base frame.
+      const Eigen::Isometry3d in_base = UrdfFlange(spec, poses[p]);
+      const std::array<double, 3>& expect_pos =
+          p == 0 ? spec.zero_pos : p == 1 ? spec.pose_a_pos : spec.pose_b_pos;
+      EXPECT_LT((in_base.translation() - Eigen::Vector3d(expect_pos[0], expect_pos[1], expect_pos[2])).norm(), 1e-8);
+      if (p > 0) {
+        const std::array<double, 3>& z = p == 1 ? spec.pose_a_z : spec.pose_b_z;
+        EXPECT_LT((in_base.linear().col(2) - Eigen::Vector3d(z[0], z[1], z[2])).norm(), 1e-8);
+      } else {
+        // At zero the flange points along +x.
+        EXPECT_LT((in_base.linear().col(2) - Eigen::Vector3d::UnitX()).norm(), 1e-9);
+      }
+    }
+
+    // The meshes sit where the links are. At the zero pose the last link's
+    // collision geoms lie behind the flange's face, as in FlangeZPointsOut,
+    // and no link's geom reaches further out along the arm than the flange
+    // (to 5 mm) or below the floor under the base (to 5 mm), both measured
+    // in the arm's base frame.
+    for (int i = 0; i < 6; ++i) d->qpos[a.qpos[i]] = 0.0;
+    mj_kinematics(m, d);
+    const Eigen::Vector3d origin = V(d->xpos + 3 * root);
+    const Eigen::Matrix3d frame = M(d->xmat + 9 * root);
+    const Eigen::Vector3d flange = V(d->site_xpos + 3 * a.flange_site);
+    const Eigen::Vector3d z = M(d->site_xmat + 9 * a.flange_site).col(2);
+    const int j6 = mj_name2id(m, mjOBJ_JOINT, (use->name + "_" + catalog->joint_names[5]).c_str());
+    ASSERT_GE(j6, 0);
+    int last_link_geoms = 0;
+    ASSERT_FALSE(a.link_geoms.empty());
+    for (int g : a.link_geoms) {
+      if (m->geom_bodyid[g] == m->jnt_bodyid[j6]) {
+        ++last_link_geoms;
+        EXPECT_LT(Extent(m, d, g, z) - flange.dot(z), 0.005) << GeomName(m, g);
+      }
+      EXPECT_LT(Extent(m, d, g, frame.col(0)) - flange.dot(frame.col(0)), 0.005) << GeomName(m, g);
+      EXPECT_LT(Extent(m, d, g, -frame.col(2)) + origin.dot(frame.col(2)), 0.005) << GeomName(m, g);
+    }
+    EXPECT_GE(last_link_geoms, 1);
   }
 }
 

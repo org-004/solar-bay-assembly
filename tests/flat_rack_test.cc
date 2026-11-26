@@ -1,6 +1,6 @@
 // Checks the flat rack: the model has every member that src/flat_rack.h
 // lists, each a box of the header's size at the header's place, and nothing
-// else on the frame; the three envelope sites agree with the header; there is
+// else on the frame; the two envelope sites agree with the header; there is
 // no post, side, roof or end frame, so nothing rises above the deck; the
 // footprint is the 40 ft outside; the derived figures are the ones
 // docs/bay-hardware.md states; and every member is inside the transport
@@ -108,7 +108,7 @@ TEST_F(FlatRackTest, NamesAndCollisions) {
         << name << " collides with nothing";
   }
   const std::vector<int> sites = SitesOfFrame();
-  EXPECT_EQ(sites.size(), 3u);
+  EXPECT_EQ(sites.size(), 2u);
   for (int s : sites) {
     const char* name = mj_id2name(model_.get(), mjOBJ_SITE, s);
     ASSERT_NE(name, nullptr) << "unnamed site " << s;
@@ -116,10 +116,9 @@ TEST_F(FlatRackTest, NamesAndCollisions) {
   }
 }
 
-TEST_F(FlatRackTest, ThreeEnvelopeSites) {
+TEST_F(FlatRackTest, TwoEnvelopeSites) {
   ExpectSite(fr::TransportEnvelope());
   ExpectSite(fr::CellEnvelope());
-  ExpectSite(fr::ClosedInsideEnvelope());
 }
 
 TEST_F(FlatRackTest, NothingRisesAboveTheDeck) {

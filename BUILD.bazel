@@ -202,6 +202,34 @@ genrule(
     ]),
 )
 
+# The two smaller KUKA arms a layout may use (src/arm_catalog.h): the meshes
+# of models/kr10_r1100_2.xml and models/kr20_r1810_2.xml, from the same
+# repository as the KR 210's (see MODULE.bazel; their paths there are whole,
+# not stripped). They are copied to models/kuka_kr10_r1100_2/collision/ and
+# models/kuka_kr20_r1810_2/collision/, where the models name them. Only layouts
+# load these arms, so they are in LAYOUT_MODEL_FILES and not in arm_model.
+SMALL_ARM_MESH_LINKS = ["base_link", "link_1", "link_2", "link_3", "link_4", "link_5", "link_6"]
+
+genrule(
+    name = "kuka_kr10_r1100_2_meshes",
+    srcs = ["@kuka_kr210_r2700_2//:kuka_agilus_support/meshes/kr10_r1100_2/collision/%s.stl" % link for link in SMALL_ARM_MESH_LINKS],
+    outs = ["models/kuka_kr10_r1100_2/collision/%s.stl" % link for link in SMALL_ARM_MESH_LINKS],
+    cmd = "\n".join([
+        "cp $(location @kuka_kr210_r2700_2//:kuka_agilus_support/meshes/kr10_r1100_2/collision/{l}.stl) $(location models/kuka_kr10_r1100_2/collision/{l}.stl)".format(l = link)
+        for link in SMALL_ARM_MESH_LINKS
+    ]),
+)
+
+genrule(
+    name = "kuka_kr20_r1810_2_meshes",
+    srcs = ["@kuka_kr210_r2700_2//:kuka_cybertech_support/meshes/kr20_r1810_2/collision/%s.stl" % link for link in SMALL_ARM_MESH_LINKS],
+    outs = ["models/kuka_kr20_r1810_2/collision/%s.stl" % link for link in SMALL_ARM_MESH_LINKS],
+    cmd = "\n".join([
+        "cp $(location @kuka_kr210_r2700_2//:kuka_cybertech_support/meshes/kr20_r1810_2/collision/{l}.stl) $(location models/kuka_kr20_r1810_2/collision/{l}.stl)".format(l = link)
+        for link in SMALL_ARM_MESH_LINKS
+    ]),
+)
+
 # Everything a scene needs to include arm.xml: the arm, the tool on its
 # flange, and the meshes. A scene adds MODELS_COMMON and itself.
 filegroup(
@@ -1851,9 +1879,13 @@ SCORE_FILES = glob(["scores/*.json"], allow_empty = True)
 EVOLUTION_FILES = glob(["docs/evolution/*"], allow_empty = True)
 
 # What a layout's model is built from at run time: the container, the
-# common settings, the KUKA with its meshes, and Menagerie's UR10e.
+# common settings, the three KUKA arms with their meshes, and Menagerie's UR10e.
 LAYOUT_MODEL_FILES = MODELS_COMMON + [
     "models/arm.xml",
+    "models/kr10_r1100_2.xml",
+    "models/kr20_r1810_2.xml",
+    ":kuka_kr10_r1100_2_meshes",
+    ":kuka_kr20_r1810_2_meshes",
     "models/container.xml",
     "models/flat_rack.xml",
     ":arm_meshes",

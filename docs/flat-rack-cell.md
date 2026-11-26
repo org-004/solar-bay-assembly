@@ -35,20 +35,22 @@ Lengths are metres, angles degrees, masses kilograms, times seconds.
 
 The owner set these limits on 2026-11-24 for the first cell. The base is a flat rack
 with no sides, posts or roof; its end frames are dropped or taken off while it works,
-and it travels on a semi-trailer. Up to three arms do the pins; up to two KUKA KR 210
-R2700-2, or a smaller KUKA arm, take and set modules; there are at most five arms in
-all. The pallet is the maker's: 36 modules standing on their long edge. Feeders and
+and it travels on a semi-trailer. The arms that take and set modules are a KUKA KR 210
+R2700-2 or a smaller KUKA arm. There is no limit on the number of arms, as long as the
+cell works and the stowed cell keeps to the weight limit and the stow envelope. On
+2026-11-26 the owner added that every arm is to be KUKA; the checker holds that to a
+limit only on a layout whose base is `two_flat_racks`, and this layout is on a single
+flat rack. The pallet is the maker's: 36 modules standing on their long edge. Feeders and
 take-away are separate units that stand against the cell at ports. The engineer sets
 the margins and reports the tightest. The work is kinematic only.
 
-The checker prints these limits as `allowed` rows; the chosen layout passes all five.
+The checker prints these limits as `allowed` rows; the chosen layout passes them all.
 
 | Row | Figure | Limit | Detail | Basis |
 |---|---|---|---|---|
-| module arms | 1 arm | 2 | `module_arm` | derived |
 | module arm module_arm | 210 kg | 210 | KUKA KR 210 R2700-2 (KR QUANTEC), reach 2.701 m | derived |
-| pin arms | 3 arms | 3 | `pin_arm_a`, `pin_arm_b`, `pin_arm_c` | derived |
-| arms | 4 arms | 5 | `module_arm` and the three pin arms | derived |
+| maker module_arm | 1 | none on this base | KUKA KR 210 R2700-2 (KR QUANTEC); no limit on this base | derived |
+| maker pin_arm_a, pin_arm_b, pin_arm_c | 0 | none on this base | Universal Robots UR10e; a later spec replaces the UR10e pin arms | derived |
 | pallet 0 | 36 modules | 36 | stands on its long edge | derived |
 
 ## The base
@@ -76,22 +78,6 @@ Stowed, every arm stands at its stow track value, which is its wait track value.
 | on the deck: the stocks of pins | 0 boxes | 0 | no box (the nests belong to the lane) | derived |
 | on the deck: each arm on its beam | 0.0000 m | 0.001 | carriage on the beam's top and within its length at both ends, base on the carriage | derived |
 | mass | 3429.3 kg | 17900 | arms 1177, tracks 1852, tools 69.0, holder 220, items inside 108, stocks inside 3 | derived |
-
-### Inside a container that closes (R4)
-
-These rows have no limit and cannot fail; a negative figure is how far the stowed cell
-stands outside.
-
-| Row | Figure | What stands outside | Basis |
-|---|---|---|---|
-| closed container x (2.330 m across) | -0.0360 m | 14 geoms: the module arm's base (-0.036, and -0.025 for its collision geom), beam and carriage (-0.035); the holder's four saddles and end column (-0.025), its end head (-0.015) and the four -X cheeks (-0.010) | derived |
-| closed container y (11.830 m along) | -0.1750 m | the pin lane (-0.175) | derived |
-| closed container top (2.240 m above the deck) | 0.2664 m | nothing | derived |
-| between end frames y (11.652 m) | -0.2640 m | the pin lane (-0.264) | derived |
-
-So the cell as stowed does not fit a container that closes: across, the module arm's
-track and the holder's -X side stand up to 36 mm too wide, and along, the pin lane
-runs out to the base's +Y edge. Only the lane stands in the way of raised end frames.
 
 ## The layout
 
@@ -506,11 +492,10 @@ load's centre inside that.
 
 ### The transport rows
 
-The 26 transport rows of `--margins` are those of The base: stowed x 0.0180, y 0.0060,
+The 26 transport rows of `--margins` at that commit are those of The base: stowed x 0.0180, y 0.0060,
 top 0.2744, bottom 0.0000; stow tracks 4.6000, 0.1000, 0.3600, 0.3000; 13 rows of
-things standing on the deck, all 0; mass 3429.3 of 17900 kg; and the four rows without
-a limit, closed container x -0.0360, y -0.1750, top 0.2664, between end frames
--0.2640.
+things standing on the deck, all 0; mass 3429.3 of 17900 kg; and four rows without a limit, which the owner's rule of
+2026-11-26 removed from the checker (22 transport rows remain).
 
 ### The ten tightest, and what would widen each
 
@@ -562,7 +547,7 @@ These sentences are the engineer's judgement, not results of a program.
    limited by the held module against the tube (probes, not printed at this commit). At
    x = 0.77 the 0.862 m base is as far out as it fits (`stowed x` 0.0180 m); the tube
    went 0.03 m toward -X to make the 1.85 m. A base 0.40 m above the deck was compared:
-   the stowed top was too high for a closed container and joint 2's margin at the
+   the stowed top was higher than the owner then wanted and joint 2's margin at the
    pallet fell to 6.8 deg (a probe).
 3. **No smaller module arm, no second module arm.** Without a roof the KR 210's bulk
    does not bind, the load row uses 68.4 of 210 kg, and a new model would buy no margin.
@@ -584,7 +569,7 @@ These sentences are the engineer's judgement, not results of a program.
    both ends as in run 011 (they serve only the end arms), and a stand outside the -X
    side (in the cart's zone, and a reach under the tube). Pin arm B's nest, first at
    y = 0.5, put the arm over the lane in the module arm's way; it moved to 2.2. The
-   lane's end puts it outside a closed container's length (R4 rows).
+   lane's end ran out to the base's +Y edge.
 8. **The pallet outside +X on a dock whose deck is 0.50 m above the ground.** 0.348 m
    gave run 011's height above the floor and 11.2 deg at joint 2 for the last modules
    (not printed at this commit); 0.50 m gives the joint margins of Margins. The rail

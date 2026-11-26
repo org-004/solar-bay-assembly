@@ -51,8 +51,8 @@
 // joint, a slide along the track, before its six.
 //
 // The model needs files beside the layout: models/common.xml,
-// models/container.xml or models/flat_rack.xml, the KUKA's meshes as models/arm.xml names them, and
-// MuJoCo Menagerie's ur10e.xml with its assets. ModelPaths says where they
+// models/container.xml or models/flat_rack.xml, the KUKA arms' model files with
+// their meshes as each names them, and MuJoCo Menagerie's ur10e.xml with its assets. ModelPaths says where they
 // are; FromEnvironment reads MODELS_DIR and UR10E_XML, which the Bazel
 // targets set.
 

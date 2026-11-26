@@ -1,4 +1,4 @@
-// The flat rack the first cell stands on, beside the closed container of
+// The flat rack the first cell stands on, beside the container of
 // src/container.h.
 //
 // A 40 ft high-cube flat rack is a container's base without sides, posts or
@@ -31,13 +31,6 @@
 // chassis whose deck is at kChassisDeckHeight the stowed cell is
 // kStowedHeightOnChassis high, the lowest usual state limit in the United
 // States (13 ft 6 in).
-//
-// A container that closes. The owner would rather have one in the end, so
-// the checker also reports, without a limit, how the stowed cell compares
-// with what a closed container would give it: ClosedInsideEnvelope(), the
-// closed container's inside envelope of src/container.h (11.830 x 2.330 x
-// 2.240 m) standing on this deck, and kBetweenEndFrames, the least length
-// between a flat rack's raised end frames.
 
 #ifndef SRC_FLAT_RACK_H_
 #define SRC_FLAT_RACK_H_
@@ -78,12 +71,6 @@ inline constexpr double kCellMassBudget = kTransportGrossMass - kTareMass;
 inline constexpr double kChassisDeckHeight = 1.219;
 inline constexpr double kStowedHeightOnChassis = kChassisDeckHeight + kHeight;
 
-// What a container that closes would give the cell (no limit; reported).
-inline constexpr double kClosedInsideLength = 11.830;
-inline constexpr double kClosedInsideWidth = 2.330;
-inline constexpr double kClosedInsideHeight = 2.240;
-inline constexpr double kBetweenEndFrames = 11.652;
-
 struct Box {
   std::string name;
   Eigen::Vector3d centre = Eigen::Vector3d::Zero();
@@ -104,14 +91,6 @@ inline Box CellEnvelope() {
   return {"flat_rack_cell_envelope",
           {0.0, 0.0, (kDeckHeight + kHeight) / 2.0},
           {kWidth / 2.0, kLength / 2.0, (kHeight - kDeckHeight) / 2.0}};
-}
-
-// The closed container's inside envelope standing on this deck.
-inline Box ClosedInsideEnvelope() {
-  return {"flat_rack_closed_inside_envelope",
-          {0.0, 0.0, kDeckHeight + kClosedInsideHeight / 2.0},
-          {kClosedInsideWidth / 2.0, kClosedInsideLength / 2.0,
-           kClosedInsideHeight / 2.0}};
 }
 
 // The base's members, each a box, named as in the model.

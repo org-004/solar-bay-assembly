@@ -7,12 +7,18 @@
 // read only the layout and its model at rest.
 //
 //   allowed    the limits the owner set on 2026-11-24 for the first cell, one
-//              row each: how many arms take or set modules (at most two),
-//              that each of them is a KUKA KR 210 R2700-2 or a smaller KUKA
-//              arm of src/arm_catalog.h, how many arms locate, pin or swage
-//              (at most three), how many arms in all (at most five), and that
-//              every pallet is the maker's, 36 modules standing on their long
-//              edge.
+//              row each: that each arm that takes or sets modules is a KUKA
+//              KR 210 R2700-2 or a smaller KUKA arm of src/arm_catalog.h, and
+//              that every pallet is the maker's, 36 modules standing on their
+//              long edge. There is no limit on the number of arms, as long as
+//              the cell works and the stowed cell keeps to the weight limit
+//              and the stow envelope. Since 2026-11-26, one row per arm, in
+//              the layout's order, "maker <arm>": the arm's maker, 1 if KUKA
+//              and 0 if not. On a layout whose base is "two_flat_racks" it is
+//              a limit of 1 (every arm is KUKA, the owner, 2026-11-26); on
+//              every other base it is a row without a limit that always
+//              passes, since a later spec replaces the UR10e pin arms of the
+//              40 ft layouts.
 //   port       a separate unit stands against the cell only at a port. Rows:
 //              that tubes and bays are two ports; for each port, that its
 //              frame is on the outline of the base's footprint (at the deck's
@@ -49,12 +55,8 @@
 //              the beam, its underside on the beam's top), and the base
 //              on the carriage, without one, the base on the deck; each
 //              arm's stow track value inside its track; the mass within what
-//              the flat rack leaves for the cell. Then, as rows without a
-//              limit that always pass, how far the stowed cell is inside
-//              (or, negative, outside) what a container that closes would
-//              give it: the closed container's inside envelope standing on
-//              the deck, and the length between a flat rack's end frames;
-//              the row's detail names every geom that stands outside.
+//              the flat rack leaves for the cell. The row's detail names
+//              every geom that stands outside.
 //
 // The parts of the mass row are TransportMassParts below, so that the
 // scorecard (src/scorecard.h) reads them from here and does not add them up

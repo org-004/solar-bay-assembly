@@ -1,5 +1,6 @@
 // The lookups of src/layout.h that read no layout file: the order of the
-// bay's modules a layout gives (WorkOrder), and which layout is chosen, read
+// bay's modules a layout gives (WorkOrder), whether it stands on flat racks
+// and the stages of its work (Staging), and which layout is chosen, read
 // from the registry of versions.
 
 #include <cstdlib>
@@ -61,6 +62,25 @@ std::optional<std::string> ChosenLayout(const std::string& versions_path,
   } catch (const Json::exception& e) {
     return fail(e.what());
   }
+}
+
+bool OnFlatRacks(const Layout& layout) {
+  return layout.base == "flat_rack" || layout.base == "two_flat_racks";
+}
+
+std::vector<Stage> StagesOf(const Layout& layout) {
+  if (layout.staging && !layout.staging->stages.empty()) {
+    return layout.staging->stages;
+  }
+  Stage one;
+  one.name = "1";
+  one.tube_offset_m = 0.0;
+  one.rails = "all";
+  one.modules = "all";
+  one.grips = layout.holder.grips;
+  one.angle_pin_hold = layout.holder.angle_pin_hold;
+  one.held_by = "the holder alone";
+  return {one};
 }
 
 }  // namespace cell::layout

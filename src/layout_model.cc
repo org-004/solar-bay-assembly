@@ -9,8 +9,10 @@
 //   <body name="<arm>_carriage" ...><attach model="<arm>_model"
 //       body="<root_body>" prefix="<arm>_"/></body>
 // The file <arm>.arm.xml is made at run time, one for each arm of the layout,
-// from the arm's model file (ArmPartXml below): models/arm.xml for the KUKA,
-// Menagerie's ur10e.xml for the UR10e. In it:
+// from the arm's model file (ArmPartXml below): models/arm.xml for the KUKA
+// KR 210, models/kr10_r1100_2.xml and models/kr20_r1810_2.xml for the two
+// smaller KUKA arms (all three alike in what is done to them, and called "the
+// KUKA" below), Menagerie's ur10e.xml for the UR10e. In it:
 //   - the KUKA's <include file="tool.xml"/> (the stand-in cell's suction
 //     tool, under arm_flange) is replaced by this layout's tools, and the
 //     part file gets the compiler settings it leaves to common.xml
@@ -369,15 +371,32 @@ bool ArmPartXml(const Layout& layout, const ArmUse& arm, const ArmModel& model,
   ReplaceAll(&bay_defaults, "class=\"bay_", "class=\"" + cls + "bay_");
   defaults += bay_defaults;
   const std::string mount = ToolMountContents(layout, arm, setup, cls);
-  if (model.source == "kuka") {
-    const std::string file = paths.models_dir + "/arm.xml";
+  // The KUKA arms: each has its own model file and, beside it, its own
+  // directory of meshes (BUILD.bazel).
+  struct KukaFiles {
+    const char* source;
+    const char* file;
+    const char* meshes;
+  };
+  static const KukaFiles kKuka[] = {
+      {"kuka", "arm.xml", "kuka_kr210_r2700_2"},
+      {"kuka_kr10_r1100_2", "kr10_r1100_2.xml", "kuka_kr10_r1100_2"},
+      {"kuka_kr20_r1810_2", "kr20_r1810_2.xml", "kuka_kr20_r1810_2"},
+  };
+  const KukaFiles* kuka = nullptr;
+  for (const KukaFiles& k : kKuka) {
+    if (model.source == k.source) kuka = &k;
+  }
+  if (kuka != nullptr) {
+    const std::string file = paths.models_dir + "/" + kuka->file;
     if (!ReadFile(file, text)) return fail("cannot read " + file);
     if (!ReplaceOnce(text, "<include file=\"tool.xml\"/>",
                      "<body name=\"tool_mount\">\n" + mount + "</body>")) {
       return fail(file + " has no <include file=\"tool.xml\"/> at the flange");
     }
-    ReplaceAll(text, "file=\"kuka_kr210_r2700_2/",
-               "file=\"" + Absolute(paths.models_dir) + "/kuka_kr210_r2700_2/");
+    const std::string meshes = kuka->meshes;
+    ReplaceAll(text, "file=\"" + meshes + "/",
+               "file=\"" + Absolute(paths.models_dir) + "/" + meshes + "/");
     if (!ReplaceOnce(text, "<mujoco>",
                      "<mujoco model=\"" + arm.name +
                          "\">\n  <compiler angle=\"radian\" autolimits=\"true\"/>\n" +

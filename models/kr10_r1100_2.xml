@@ -1,0 +1,192 @@
+<!--
+  The arm: a KUKA KR 10 R1100-2 (KR AGILUS-2 family), 5 kg rated payload (11.1
+  kg at short load centres), 1.101 m reach, 55 kg.
+
+  Converted by hand from the vendor description in
+  github.com/kroshu/kuka_robot_descriptions (Apache 2.0), package
+  kuka_agilus_support, files urdf/kr10_r1100_2_macro.xacro and
+  config/kr10_r1100_2_joint_limits.yaml, at the commit pinned in
+  MODULE.bazel (the same commit as models/arm.xml). The xacro was expanded
+  to plain URDF once and every number below was copied from that URDF: link
+  frames, masses, inertias, mesh placements and joint ranges (numbers closer
+  to zero than 1e-12 are written as 0; rotations that are not about one axis
+  are written as the quaternion of the URDF's roll, pitch and yaw). Nothing
+  here is ours but the choices named below.
+
+  What this file leaves out of arm.xml. There are no motors, no damping and
+  no armature: a layout (src/layout_model.h) moves the arm by setting joint
+  angles and reads positions, and never steps the dynamics, so none of those
+  numbers would be used and none is measured. The vendor's torque limits and
+  speeds are not copied either; the layout checker takes speeds from the
+  catalog (src/arm_catalog.h), which reads them from KUKA's data sheet.
+  Whoever wants to simulate this arm has to add them.
+
+  The meshes are not stored in this repository. Bazel downloads them at the
+  pinned commit and copies them next to this file, into
+  kuka_kr10_r1100_2/collision/ (see the arm section of BUILD.bazel). MuJoCo
+  looks for mesh files relative to the top-level scene file, so a scene that
+  includes this file has to sit in this same directory.
+
+  Only the vendor's collision meshes are used, for contact and for drawing.
+  The vendor's visual meshes are not: link_4.stl of the visual set has
+  vertices up to 10.8 m from the link, so it cannot be drawn as it is, and
+  the others were left out with it so that the arm looks of one piece.
+
+  This is a part file: it holds no compiler settings and is only loaded
+  through a scene that includes common.xml first (see arm_scene.xml; a
+  layout's model builds its own top level from it).
+
+  Frames. Each body's frame is the frame of the URDF link of the same number,
+  so the vendor's inertias go in unchanged. The URDF puts the collision
+  meshes in the base frame at the zero pose, and each link's collision origin
+  moves its mesh into the link's own frame; those origins are the geoms'
+  pos and rotation. The base sits on the floor at the world origin. At all
+  joint angles zero the arm is stretched out horizontally toward +X, as the
+  KR 210's is: the upper arm and the forearm both level, the flange pointing
+  along +X, its centre at (1.190, 0, 0.425).
+
+  Joint zero and signs are KUKA's, as in the vendor URDF (A1 to A6 on the
+  teach pendant read the same as arm_joint_1 to arm_joint_6):
+    joint 1  vertical axis, 0.208 m above the floor. Positive turns the arm
+             clockwise seen from above: the axis points down.
+    joint 2  horizontal axis along world +Y at joint 1 = 0, 0.025 m forward
+             of joint 1's axis and 0.400 m up. Negative lifts the upper arm.
+             The vendor range is -190 to 45 degrees, as the data sheet's.
+    joint 3  parallel to joint 2, 0.56 m along the upper arm. Zero is the
+             forearm in line with the upper arm.
+    joint 4  along the forearm, 0.196 m beyond joint 3 and 0.025 m above it
+             at the zero pose. Rolls the wrist.
+    joint 5  bends the wrist, 0.319 m along the forearm from joint 4's origin.
+    joint 6  along the flange's axis, 0.0615 m beyond joint 5; the flange face
+             is 0.0285 m further.
+  The joint ranges are the vendor's and equal the data sheet's.
+-->
+<mujoco>
+  <default>
+    <default class="arm">
+      <!--
+        Sizes come from the vendor model; masses come from each body's
+        inertial element, so the geoms add no mass of their own.
+      -->
+      <geom type="mesh" density="0"/>
+      <!-- Drawn only. Never touches anything. -->
+      <default class="arm_visual">
+        <geom contype="0" conaffinity="0" group="2" material="arm_orange"/>
+      </default>
+      <!--
+        Used for contact only, not drawn by default (group 3 is hidden in
+        the viewer). MuJoCo collides the convex hull of a mesh, so these are
+        a little fatter than the real links.
+      -->
+      <default class="arm_collision">
+        <geom group="3"/>
+      </default>
+    </default>
+  </default>
+
+  <asset>
+    <material name="arm_orange" rgba="0.97 0.45 0.05 1" specular="0.3" shininess="0.4"/>
+    <material name="arm_dark" rgba="0.15 0.15 0.15 1" specular="0.3" shininess="0.4"/>
+
+    <!--
+      Vendor collision meshes, in metres, placed in each link's frame by the
+      geoms' own pos and rotation (the URDF's collision origins). They are
+      light: about 2,000 triangles at most.
+    -->
+    <mesh name="arm_base_mesh" file="kuka_kr10_r1100_2/collision/base_link.stl"/>
+    <mesh name="arm_link_1_mesh" file="kuka_kr10_r1100_2/collision/link_1.stl"/>
+    <mesh name="arm_link_2_mesh" file="kuka_kr10_r1100_2/collision/link_2.stl"/>
+    <mesh name="arm_link_3_mesh" file="kuka_kr10_r1100_2/collision/link_3.stl"/>
+    <mesh name="arm_link_4_mesh" file="kuka_kr10_r1100_2/collision/link_4.stl"/>
+    <mesh name="arm_link_5_mesh" file="kuka_kr10_r1100_2/collision/link_5.stl"/>
+    <mesh name="arm_link_6_mesh" file="kuka_kr10_r1100_2/collision/link_6.stl"/>
+  </asset>
+
+  <worldbody>
+    <!--
+      Bolted to the floor: no joint, so it does not move. The vendor's inertia
+      is given for it all the same.
+    -->
+    <body name="arm_base" childclass="arm">
+      <inertial pos="-0.0371334830929 2.66020335777e-05 0.108638507921" quat="0.402854163947 -0.408212003639 -0.584119539687 -0.574348192329"
+                mass="16.916" diaginertia="0.162092004156 0.108811815986 0.184615915059"/>
+      <geom name="arm_base_visual" class="arm_visual" mesh="arm_base_mesh" material="arm_dark"/>
+      <geom name="arm_base_collision" class="arm_collision" mesh="arm_base_mesh"/>
+      <!--
+        Joint 1 is 0.208 m above the base origin. The vendor flips link 1's
+        frame upside down (half a turn about x), which is why joint 1's axis,
+        +z of this frame, points down in the world.
+      -->
+      <body name="arm_link_1" pos="0 0 0.208" axisangle="1 0 0 3.141592653589793">
+        <inertial pos="0.00641040874525 -0.0162680537072 -0.106588937738" quat="0.716295024062 0.17400640112 -0.626440177722 -0.253408592216"
+                  mass="8.416" diaginertia="0.0740618385539 0.0890478351825 0.110395706628"/>
+        <joint name="arm_joint_1" axis="0 0 1" range="-2.967059725 2.967059725"/>
+        <geom name="arm_link_1_visual" class="arm_visual" mesh="arm_link_1_mesh" pos="0 0 0.208" axisangle="-1 0 0 3.141592653589793"/>
+        <geom name="arm_link_1_collision" class="arm_collision" mesh="arm_link_1_mesh" pos="0 0 0.208" axisangle="-1 0 0 3.141592653589793"/>
+        <!--
+          Joint 2, the shoulder: at (0.025, 0.0907, 0.400) in the world at the
+          zero pose.
+        -->
+        <body name="arm_link_2" pos="0.025 -0.0907 -0.192" axisangle="1 0 0 1.570796326794897">
+          <inertial pos="0.191160133768 -0.0046513441237 -0.0752054185425" quat="0.50601841355 0.507099546286 -0.49816520665 0.488494464849"
+                    mass="17.8369" diaginertia="0.875159505507 0.092150494462 0.915711776488"/>
+          <joint name="arm_joint_2" axis="0 0 1" range="-3.316125575 0.7853981625"/>
+          <geom name="arm_link_2_visual" class="arm_visual" mesh="arm_link_2_mesh" pos="-0.4 -0.025 -0.0907" quat="0.5 0.5 0.5 0.5"/>
+          <geom name="arm_link_2_collision" class="arm_collision" mesh="arm_link_2_mesh" pos="-0.4 -0.025 -0.0907" quat="0.5 0.5 0.5 0.5"/>
+          <!--
+            Joint 3, the elbow: 0.56 m along the upper arm from joint 2, at
+            (0.585, 0.0865, 0.400).
+          -->
+          <body name="arm_link_3" pos="0.56 0 -0.0042">
+            <inertial pos="0.0438610699588 -0.0125069958848 -0.0682514238683" quat="0.48458745776 -0.558030974279 -0.546544958565 -0.393782980579"
+                      mass="6.075" diaginertia="0.0446938111993 0.0189695089339 0.0498412586886"/>
+            <joint name="arm_joint_3" axis="0 0 1" range="-2.0943951 2.72271363"/>
+            <geom name="arm_link_3_visual" class="arm_visual" mesh="arm_link_3_mesh" pos="-0.025 0.96 -0.0865" axisangle="1 0 0 1.570796326794897"/>
+            <geom name="arm_link_3_collision" class="arm_collision" mesh="arm_link_3_mesh" pos="-0.025 0.96 -0.0865" axisangle="1 0 0 1.570796326794897"/>
+            <!--
+              Joint 4, on the forearm's axis, at (0.781, 0, 0.425).
+            -->
+            <body name="arm_link_4" pos="0.196 -0.025 -0.0865" quat="0.5 0.5 -0.5 -0.5">
+              <inertial pos="0.0013191433102 0.00860775762677 -0.140981619357" quat="0.698784329632 -0.0279583296343 -0.714759010745 -0.00619265892562"
+                        mass="5.162380706" diaginertia="0.0123014138845 0.0846961219332 0.0873983418675"/>
+              <joint name="arm_joint_4" axis="0 0 1" range="-3.2288591125 3.2288591125"/>
+              <geom name="arm_link_4_visual" class="arm_visual" mesh="arm_link_4_mesh" pos="-0.985 0 0.221" axisangle="0 1 0 1.570796326794897"/>
+              <geom name="arm_link_4_collision" class="arm_collision" mesh="arm_link_4_mesh" pos="-0.985 0 0.221" axisangle="0 1 0 1.570796326794897"/>
+              <!--
+                Joint 5, the wrist: joints 4, 5 and 6 cross at (1.100, 0,
+                0.425) at the zero pose. This frame's origin is 0.0505 m to
+                the side of that point, along joint 5's own axis.
+              -->
+              <body name="arm_link_5" pos="0 0.0505 -0.319" quat="0.5 -0.5 0.5 0.5">
+                <inertial pos="0.0093206969246 0.000783482142857 -0.0264625496032" quat="0.307949044655 -0.282260183637 -0.647599584528 -0.637268666065"
+                          mass="1.6128" diaginertia="0.00173177561331 0.00221950080544 0.00246709005544"/>
+                <joint name="arm_joint_5" axis="0 0 1" range="-2.0943951 2.0943951"/>
+                <geom name="arm_link_5_visual" class="arm_visual" mesh="arm_link_5_mesh" pos="-0.54 0.985 -0.0505" axisangle="1 0 0 1.570796326794897"/>
+                <geom name="arm_link_5_collision" class="arm_collision" mesh="arm_link_5_mesh" pos="-0.54 0.985 -0.0505" axisangle="1 0 0 1.570796326794897"/>
+                <!--
+                  Joint 6, 0.0615 m beyond the wrist centre, at (1.1615, 0,
+                  0.425).
+                -->
+                <body name="arm_link_6" pos="0.0615 0 -0.0505" quat="0.5 0.5 -0.5 -0.5">
+                  <inertial pos="0 0 -0.0117646049046" quat="0.818665152475 0 0 0.574271162539"
+                            mass="0.734" diaginertia="0.000183698267603 0.000182136217668 0.00029589"/>
+                  <joint name="arm_joint_6" axis="0 0 1" range="-6.108652375 6.108652375"/>
+                  <geom name="arm_link_6_visual" class="arm_visual" mesh="arm_link_6_mesh" pos="-0.985 0 0.6015" axisangle="0 1 0 1.570796326794897" material="arm_dark"/>
+                  <geom name="arm_link_6_collision" class="arm_collision" mesh="arm_link_6_mesh" pos="-0.985 0 0.6015" axisangle="0 1 0 1.570796326794897"/>
+                  <!--
+                    The flange face, 0.0285 m beyond joint 6's origin. This is
+                    the URDF's tool0 frame: origin at the centre of the face,
+                    +Z pointing out of the flange. The tool is bolted here.
+                  -->
+                  <body name="arm_flange" pos="0 0 -0.0285" axisangle="0 1 0 3.141592653589793">
+                    <include file="tool.xml"/>
+                  </body>
+                </body>
+              </body>
+            </body>
+          </body>
+        </body>
+      </body>
+    </body>
+  </worldbody>
+</mujoco>
