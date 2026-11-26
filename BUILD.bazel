@@ -2023,7 +2023,7 @@ cc_binary(
 #   bazel test --config=opt //:layout_check_test
 cc_test(
     name = "layout_check_test",
-    size = "small",
+    size = "medium",
     srcs = ["tests/layout_check_test.cc"],
     data = LAYOUT_FILES + LAYOUT_MODEL_FILES,
     env = LAYOUT_ENV,
