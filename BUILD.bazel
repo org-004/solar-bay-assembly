@@ -2407,7 +2407,8 @@ cc_binary(
 # they are (R5), every step of every plan maps to a kind of operation, and
 # the counting rules on the committed layouts.
 #   bazel test --config=opt //:scorecard_test
-# Size large: 126 s on the engineer's machine (run 022), about 233 s on CI at 1.84x, more than two thirds of medium's 300 s.
+# Size large: 126 s on the engineer's machine (run 022), about 233 s on CI at 1.84x, more than two thirds of medium's 300 s;
+# 184.8 s here with the balanced layout's scorecard (run 030), about 340 s on CI.
 cc_test(
     name = "scorecard_test",
     size = "large",
