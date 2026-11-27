@@ -262,11 +262,23 @@ TEST(LayoutScene, PairQueryAgreesWithLeastDistance) {
       }
       mj_kinematics(&m, ref.get());
       query.Place(d.get());
-      ASSERT_EQ(std::memcmp(ref->geom_xpos, d->geom_xpos, sizeof(mjtNum) * 3 * m.ngeom), 0);
-      ASSERT_EQ(std::memcmp(ref->geom_xmat, d->geom_xmat, sizeof(mjtNum) * 9 * m.ngeom), 0);
-      ASSERT_EQ(std::memcmp(ref->xpos, d->xpos, sizeof(mjtNum) * 3 * m.nbody), 0);
-      ASSERT_EQ(std::memcmp(ref->xipos, d->xipos, sizeof(mjtNum) * 3 * m.nbody), 0);
-      ASSERT_EQ(std::memcmp(ref->site_xpos, d->site_xpos, sizeof(mjtNum) * 3 * m.nsite), 0);
+      auto same = [&](const mjtNum* a, const mjtNum* b, int n) {
+        return std::memcmp(a, b, sizeof(mjtNum) * n) == 0;
+      };
+      ASSERT_TRUE(same(ref->xpos, d->xpos, 3 * m.nbody));
+      ASSERT_TRUE(same(ref->xquat, d->xquat, 4 * m.nbody));
+      ASSERT_TRUE(same(ref->xmat, d->xmat, 9 * m.nbody));
+      ASSERT_TRUE(same(ref->xipos, d->xipos, 3 * m.nbody));
+      ASSERT_TRUE(same(ref->xiquat, d->xiquat, 4 * m.nbody));
+      ASSERT_TRUE(same(ref->ximat, d->ximat, 9 * m.nbody));
+      ASSERT_TRUE(same(ref->xanchor, d->xanchor, 3 * m.njnt));
+      ASSERT_TRUE(same(ref->xaxis, d->xaxis, 3 * m.njnt));
+      ASSERT_TRUE(same(ref->geom_xpos, d->geom_xpos, 3 * m.ngeom));
+      ASSERT_TRUE(same(ref->geom_xquat, d->geom_xquat, 4 * m.ngeom));
+      ASSERT_TRUE(same(ref->geom_xmat, d->geom_xmat, 9 * m.ngeom));
+      ASSERT_TRUE(same(ref->site_xpos, d->site_xpos, 3 * m.nsite));
+      ASSERT_TRUE(same(ref->site_xquat, d->site_xquat, 4 * m.nsite));
+      ASSERT_TRUE(same(ref->site_xmat, d->site_xmat, 9 * m.nsite));
       for (double far : {0.0, 0.03, 0.1, kSceneFar}) {
         const Nearest want = scene->LeastDistance(ref.get(), moving, obstacles, far);
         const Nearest got = query.Least(d.get(), far);

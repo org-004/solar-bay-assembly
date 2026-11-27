@@ -1977,17 +1977,6 @@ cc_binary(
 # BEGIN layout_check
 # The checks on a layout (src/layout_check.h) and the program that prints
 # them.
-# MuJoCo's two passes of mj_kinematics, for PairQuery (src/layout_scene.h).
-# Static, so that MuJoCo's hidden functions can be reached from it in a
-# test linked against shared libraries.
-cc_library(
-    name = "mj_kinematics_parts",
-    srcs = ["src/mj_kinematics_parts.cc"],
-    hdrs = ["src/mj_kinematics_parts.h"],
-    linkstatic = True,
-    deps = ["@mujoco"],
-)
-
 cc_library(
     name = "layout_check",
     srcs = [
@@ -2013,7 +2002,6 @@ cc_library(
         ":layout",
         ":layout_model",
         ":mj_handles",
-        ":mj_kinematics_parts",
         ":portable_random",
         "@eigen",
         "@mujoco",

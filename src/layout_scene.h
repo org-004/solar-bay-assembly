@@ -333,10 +333,11 @@ class LayoutScene {
 // time. The rule it rests on: between two queries on one mjData nothing but
 // that arm's pose changes in it. So
 //   - Place runs the whole of mj_kinematics only on the first query on an
-//     mjData; after that it runs MuJoCo's bodies' pass (mj_kinematics1) and
-//     places again only the inertial frames, geoms and sites of the bodies
-//     that move with the arm (MovesWith), which are the only ones whose
-//     poses can differ, through the very function mj_kinematics uses;
+//     mjData; after that it places again only the bodies that move with the
+//     arm (MovesWith), the only ones whose poses can differ, with their
+//     inertial frames, geoms and sites, by mj_kinematics' own steps through
+//     MuJoCo's public functions (src/layout_scene.cc; a test compares every
+//     pose to the bit with mj_kinematics');
 //   - the world boxes of geoms that do not move with the arm are kept from
 //     the first query;
 //   - the pairs that are never measured (a geom against itself, or skipped
@@ -379,6 +380,7 @@ class PairQuery {
   std::vector<unsigned char> kind_;  // Per pair i * obstacles + j: 0, 1 or 2.
   std::unique_ptr<State> s_;
   std::vector<int> keep_;
+  bool partial_ = true;  // Whether Place may place the arm's bodies alone.
   const mjData* placed_ = nullptr;
   int last_i_ = -1, last_j_ = -1;  // The pair that last showed Closer.
 };
