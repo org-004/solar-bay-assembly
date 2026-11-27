@@ -27,6 +27,7 @@
 #include "src/layout_check.h"
 #include "src/layout_model.h"
 #include "src/layout_plan.h"
+#include "src/layout_plan_stages.h"
 #include "src/layout_rows.h"
 #include "src/physics_record.h"
 
@@ -368,6 +369,15 @@ std::optional<Scorecard> ComputeScorecard(
     const ModelPaths& paths, const std::string& layout_sha256,
     const std::string& plan_sha256, const std::string& rates_sha256,
     const PhysicsRecord* physics, std::string* error) {
+  return ComputeScorecardWithReport(layout, plan, rates, paths, layout_sha256, plan_sha256,
+                                    rates_sha256, physics, CheckLayout(layout, paths), error);
+}
+
+std::optional<Scorecard> ComputeScorecardWithReport(
+    const Layout& layout, const Plan& plan, const std::vector<Rate>& rates,
+    const ModelPaths& paths, const std::string& layout_sha256,
+    const std::string& plan_sha256, const std::string& rates_sha256,
+    const PhysicsRecord* physics, const CheckReport& report, std::string* error) {
   Scorecard card;
   card.layout = layout.name;
   card.layout_sha256 = layout_sha256;
@@ -377,12 +387,13 @@ std::optional<Scorecard> ComputeScorecard(
       CountOperations(plan, rates, error);
   if (!ops) return std::nullopt;
   card.operations = *ops;
-  const CheckReport report = CheckLayout(layout, paths);
   if (!report.error.empty()) {
     *error = "the model cannot be built: " + report.error;
     return std::nullopt;
   }
-  const VerifyReport verify = VerifyPlan(layout, paths, plan, layout_sha256);
+  // VerifyPlan with the report given: a plan of another version of the
+  // layout is refused before the report is looked at.
+  const VerifyReport verify = VerifyPlanWithReport(layout, paths, plan, layout_sha256, report, {});
   card.part_count = PartCount(layout);
   card.driven_axes = DrivenAxes(layout);
   card.mass_in_transit = MassInTransit(layout);

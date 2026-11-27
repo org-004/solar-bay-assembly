@@ -21,6 +21,7 @@
 #include "src/layout_bays.h"
 #include "src/layout_model.h"
 #include "src/layout_plan.h"
+#include "src/layout_report_file.h"
 #include "src/physics_record.h"
 
 namespace cell::layout {
@@ -81,10 +82,16 @@ std::optional<Scorecard> ComputeUncached(const std::string& name) {
   const std::optional<Inputs> in = Read(name);
   if (!in) return std::nullopt;
   std::string error;
-  auto card = ComputeScorecard(
+  // A one-posture layout's checker report is the file its check_report rule
+  // made once (src/layout_report_file.h, run 039); the others' are computed.
+  const std::optional<CheckReport> report = CheckReportOf(
+      in->layout, in->layout_sha, ModelPaths::FromEnvironment(), ReportDir(), &error);
+  EXPECT_TRUE(report.has_value()) << name << ": " << error;
+  if (!report) return std::nullopt;
+  auto card = ComputeScorecardWithReport(
       in->layout, in->plan, in->rates, ModelPaths::FromEnvironment(),
       in->layout_sha, in->plan_sha, in->rates_sha,
-      in->physics ? &*in->physics : nullptr, &error);
+      in->physics ? &*in->physics : nullptr, *report, &error);
   EXPECT_TRUE(card.has_value()) << name << ": " << error;
   if (card) card->physics_sha256 = in->physics_sha;
   return card;
