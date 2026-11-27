@@ -195,7 +195,8 @@ tests/plan_replay_test.cc (`Kr20.ThreeBaysOfTheSharedBeamLayoutPassTheVerifier` 
 chosen (every arm KUKA, the owner's rule of 2026-11-26), and v16 until run 043 made v17 chosen (run 041's module
 order and run 042's `path_tries` 8 together, three bays 529.20 / 529.80 / 523.92 s, cycle 527.64 s), and v17 until run
 046 made v18 chosen (run 044's three modules to each pin arm with `path_tries` 8, three bays 499.54 / 502.53 / 493.59 s,
-cycle 498.55 s).
+cycle 498.55 s), and v18 until run 048 made v19 chosen (v18 with `torque_limit_scale` 0.90, its
+module arm within 0.90 of its motors, three bays 502.55 / 507.79 / 496.04 s, cycle 502.13 s).
 
 | | v15 `flat_rack_3_kr20_pin_arms_shared_ordered` | v16 `..._fast_retreat` |
 |---|---:|---:|

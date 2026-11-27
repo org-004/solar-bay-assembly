@@ -14,9 +14,10 @@ The run is measured as the checker measures. Its committed record,
 `physics/flat_rack_3_pin_arms_ordered.json`, is what the scorecard's `physics_share`
 counts ([`scorecard.md`](scorecard.md)).
 
-Since run 046 the chosen layout is v18, `flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths`
-(all KUKA), so `run_physics` with no name runs v18's plan; its record is in
-"[v18's record (run 046)](#v18s-record-run-046)" below, after v17's, chosen from run 043 to run 046, in
+Since run 048 the chosen layout is v19, `flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque`
+(all KUKA, v18 with `torque_limit_scale` 0.90), so `run_physics` with no name runs v19's plan; its record is in
+"[v19's record (run 048)](#v19s-record-run-048)" below, after v18's, chosen from run 046 to run 048, in
+"[v18's record (run 046)](#v18s-record-run-046)", v17's, chosen from run 043 to run 046, in
 "[v17's record (run 043)](#v17s-record-run-043)", and v16's, chosen from run 040 to run 043, in
 "[v16's record (run 040)](#v16s-record-run-040)". The rest of this page is v10's
 run, made in run 019.
@@ -524,3 +525,37 @@ clearance 0.0160 m and arm to arm 0.0188 m (against 0.015), least joint margin 5
 (pin arms' joint 1, as `_ma_split`), the module arm's least 8.64°. In physics every one
 of its nine takes counts; joint 1 peaks at 0.991 (take 0, the set), the track at 0.929
 (take 3, the take).
+
+## v19's record (run 048)
+
+v19 is v18's layout with `torque_limit_scale` 0.90 and nothing else
+(`flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque`). `path_tries` keeps
+the quickest of its 8 paths as timed from the datasheet, unslowed (`QuickestPath` in
+`PlanMove`, `src/layout_plan.cc`); the torque bound then slows only the kept path. So v19's paths
+are v18's, and the two fields combine without a code change; a try that is quicker after slowing
+is not looked for. Three bays planned whole: 378 of 378 moves, 26 of the module arm's 117 slowed
+(14.30 s of motion), bays 502.55 / 507.79 / 496.04 s against v18's 499.54 / 502.53 / 493.59 s,
+`cycle_s` 502.13 s against 498.55 s (+3.58 s). `torque_demand` over the three bays: v18 18 moves
+over 1.0 (8 / 6 / 4, worst 1.249, joint 1, step 94), v19 none over 0.90 (worst 0.900).
+
+`bazel run --config=opt //:run_physics -- flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque --write`
+wrote `physics/flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque.json`. The
+record take is module 5's, as in v18 (module_take 7, plan steps 136 and 137).
+
+| Figure (derived) | v19, module 5 | v18, module 5 (run 046) |
+|---|---|---|
+| counted, of one bay | 20.727562 s of 502.553095 s | 20.205074 s of 499.542691 s |
+| `physics_share` | 0.041245 | 0.040447 |
+| peak torque over its limit, joints 1-6, take | 0.973 0.795 0.341 0.084 0.408 0.199 | 1.000 0.887 0.398 0.109 0.489 0.243 |
+| peak torque over its limit, joints 1-6, set | 0.420 0.597 0.315 0.124 0.335 0.200 | 0.420 0.597 0.315 0.124 0.335 0.200 |
+| peak track force over its limit, take / set | 0.540 / 0.579 | 0.664 / 0.579 |
+| least clearance in physics, take / set | 0.021487 m / 0.019261 m (plan 0.021487 / 0.019047), against 0.015 m | 0.021488 m / 0.021586 m |
+| largest joint tracking error, take / set | 0.6200 / 0.8641 mrad | 2.4907 / 0.8641 mrad |
+| largest Cartesian error, take / set | 0.6872 mm / 0.6994 mm | 5.8223 mm / 0.6994 mm |
+| set-down offset after settling | 0.2314 mm, yaw 0.0004 deg (gate 3.0 mm, 0.15 deg) | 0.2315 mm, yaw 0.0004 deg |
+
+Both steps count. The take's move (step 136) is slowed, and joint 1 no longer reaches its limit
+(0.973); the set's move is not slowed and is v18's. The set's least clearance falls to 0.019261 m
+(held module's flange to pin arm B's nose, during the set's work) because the slowed schedule
+moves pin arm B relative to the module arm; it is above the 0.015 m margin. v19 is chosen
+(run 048) for this record: its cycle time is one the arm can follow.

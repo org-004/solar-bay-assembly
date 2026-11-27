@@ -690,9 +690,9 @@
       "commit": "this",
       "title": "One 40 ft flat rack, three KR 20 pin arms on one shared beam, three modules to each pin arm in turns, each move the quickest of 8 paths: three bays planned",
       "direction": "one-40ft-flat-rack",
-      "status": "chosen",
+      "status": "superseded",
       "changed": "v17's cell (all KUKA, three KR 20 pin arms on one shared beam) with run 044's split and order in place of run 041's: module 3 moved from pin arm A to B and module 6 from B to C, three modules to each pin arm, order.modules 0, 3, 6, 1, 4, 7, 2, 5, 8, and B's wait/stow track 0.6; path_tries 8 as in v17 (each move searched from 8 seeds and the quickest timed path kept). Three bays are planned whole, 378 of 378 moves, verified and committed: 499.54 s for one bay (499.54 / 502.53 / 493.59 s) and a cycle time of 498.55 s over three.",
-      "why": "It is the measured step after v17 in the all-KUKA 40 ft cell: 498.55 s against v17's 527.64 s (-29.09 s). Registered as a candidate weighed against v17 and made the chosen version in the same run (run 046): the chosen cell is the best all-KUKA cell (the owner's rule), and v17 is superseded with its numbers kept.",
+      "why": "It is the measured step after v17 in the all-KUKA 40 ft cell: 498.55 s against v17's 527.64 s (-29.09 s). Registered as a candidate weighed against v17 and made the chosen version in the same run (run 046): the chosen cell is the best all-KUKA cell (the owner's rule), and v17 is superseded with its numbers kept. It was superseded on 2026-11-27 (run 048) by v19, the same layout timed within its motors: v18's moves exceed the motors (inverse dynamics asks up to 1.249 of joint 1's torque limit, 18 of its 117 module arm moves over 1.0, and physics saturates joint 1 at 1.000 on its record take), so its 498.55 s is not a cycle time the arm can follow; its numbers are kept.",
       "recording": "docs/evolution/v18.gif",
       "competed_with": "v17",
       "layout": {
@@ -704,6 +704,27 @@
         "sha256": "c5b467b3bc0ad3fd5b79862a54fcd27f34565069aa85bf75c115db9e8d107f8f"
       },
       "scores": "scores/flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths.json"
+    },
+    {
+      "id": "v19",
+      "date": "2026-11-27",
+      "commit": "this",
+      "title": "One 40 ft flat rack, three KR 20 pin arms on one shared beam, three modules to each pin arm in turns, each move the quickest of 8 paths, the module arm within 0.90 of its motors: three bays planned",
+      "direction": "one-40ft-flat-rack",
+      "status": "chosen",
+      "changed": "v18's cell and layout with one change and nothing else: torque_limit_scale 0.90 (runs 045 and 047), so each module arm move that inverse dynamics finds needing more than 0.90 of a motor's limit is played slower by uniform time scaling until it holds, and the bay is scheduled in the order and at the starts of its unslowed schedule. Three bays are planned whole, 378 of 378 moves, 26 of them slowed (14.30 s of motion added), verified and committed: 502.55 s for one bay (502.55 / 507.79 / 496.04 s) and a cycle time of 502.13 s over three.",
+      "why": "v18's cycle time of 498.55 s is one its module arm cannot follow: inverse dynamics asks up to 1.25 of joint 1's torque limit and physics saturates joint 1 at 1.000. v19 is v18 timed so that no module arm move needs more than 0.90 of a motor's limit, at 3.58 s a bay more (502.13 s against 498.55 s). Registered as a candidate weighed against v18 and made the chosen version in the same run (run 048): a cycle time the arm cannot follow is not an honest P0 figure, and in physics v19's record take keeps every module arm joint below its limit (joint 1 0.973 on the take, 0.420 on the set); v18 is superseded with its numbers kept.",
+      "recording": "docs/evolution/v19.gif",
+      "competed_with": "v18",
+      "layout": {
+        "path": "layouts/flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque.json",
+        "sha256": "adab4f88e41d1fa30ce06ba08e3156deaf724ab7506549915077762a23527a7e"
+      },
+      "plan": {
+        "path": "plans/flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque.json",
+        "sha256": "67fd7f192e69b3504ed440462f6bc1de0bdaf8b1fc08d6bdb6aff7cd0a5a9802"
+      },
+      "scores": "scores/flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque.json"
     }
   ]
 }

@@ -58,6 +58,8 @@ constexpr const char* kKr20 = "flat_rack_1_kr20_pin_arm_ordered";
 constexpr const char* kSplit = "flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split";
 constexpr const char* kSplitTorque =
     "flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_torque";
+constexpr const char* kV19 =
+    "flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque";
 
 // A committed plan with what it takes to measure its module arm.
 struct Measured {
@@ -314,7 +316,7 @@ TEST_P(CommittedTorquePlan, HoldsItsFraction) {
 }
 
 INSTANTIATE_TEST_SUITE_P(TorqueLimit, CommittedTorquePlan,
-                         ::testing::Values(kTorque, kSplitTorque));
+                         ::testing::Values(kTorque, kSplitTorque, kV19));
 
 // The seconds the slowed moves of the module arm add to its motion: each
 // slowed move's time without its settle, less the same at time scale 1.
