@@ -469,17 +469,11 @@ struct RetreatLegs {
 inline constexpr int kMaxPathTries = 16;
 
 // "torque_limit_scale" (optional, flat rack bases only; run 045): a fraction
-// in [kMinTorqueLimitScale, 1] of the module arm's motor limits. The planner
-// times each move of the module arm as before, then runs inverse dynamics
-// along it (src/layout_torque.h: the arm on its motors in the physics model,
-// with its tool and the module it holds), and a move whose peak demand on a
-// joint or the track exceeds this fraction of that motor's limit is played
-// slower by uniform time scaling: its time scale grows by the square root of
-// the worst ratio, again until the move holds (Segment::time_scale). Only
-// that move is slowed. Why: the datasheet's speeds and accelerations know
-// neither the payload nor the torques, and in physics joint 1 of the chosen
-// layout's module arm reaches its limit (docs/flat-rack-physics.md). Without
-// the field no move is slowed.
+// in [kMinTorqueLimitScale, 1] of the module arm's motor limits. A module arm
+// move whose inverse dynamics (src/layout_torque.h) demand more than this of a
+// joint's or the track's limit is played slower by uniform time scaling until
+// it holds (Segment::time_scale); only that move. Why: the datasheet timing
+// knows no payload or torque (docs/flat-rack-physics.md). Without it, none.
 inline constexpr double kMinTorqueLimitScale = 0.5;
 
 struct Layout {

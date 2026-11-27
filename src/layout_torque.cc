@@ -6,7 +6,6 @@
 #include <cmath>
 
 #include <Eigen/Core>
-#include <mujoco/mujoco.h>
 
 namespace cell::layout {
 

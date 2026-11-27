@@ -316,3 +316,113 @@ plan steps 77 and 78), on v16's track timing.
 
 Both steps count. Joint 1 reaches its torque limit in both: the planner times moves from
 datasheet joint speeds and knows no torque, as in run 019.
+
+## Torque-feasible timing (run 045)
+
+Item 1 of "The next step", measured and bounded. `src/layout_torque.h` runs inverse
+dynamics (`mj_inverse`) of the module arm along each timed move of a plan: the KR 210 in
+the physics model (`models/arm.xml`'s links, armature, damping and torque limits, the
+track's servo limit `kTrackForce`), with its tool and, while it holds one, the module
+(32.4 kg, rigid at the tool's working point), constraints and contacts off. The demand is
+|`qfrc_inverse`| over each motor's limit, sampled every 5 ms of the move with the
+trajectory's own speeds and accelerations; legs are sampled by central differences over
+1 ms, as the physics run follows them.
+
+`bazel run --config=opt //:torque_demand -- <name> [--bay B] [--all]` prints the table for
+a committed plan. For v16's bay 0 (columns j1 to track: peak demand over limit; "v16 s"
+is the segment's duration, settle included; the last three columns are the layout with
+`torque_limit_scale` 0.90 below):
+
+| step | move | held | v16 s | j1 | j2 | j3 | j4 | j5 | j6 | track | 0.90: scale | 0.90: s | 0.90: worst |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 3 | wait -> rail_take 0 approach | - | 4.330 | 0.247 | 0.281 | 0.178 | 0.049 | 0.102 | 0.013 | 0.579 | 1.0000 | 4.330 | 0.579 |
+| 4 | rail_take 0 retreat -> rail_set 0 approach | rail | 5.792 | 0.211 | 0.338 | 0.147 | 0.033 | 0.090 | 0.086 | 0.541 | 1.0000 | 5.792 | 0.541 |
+| 5 | rail_set 0 retreat -> rail_take 1 approach | - | 5.751 | 0.223 | 0.349 | 0.139 | 0.037 | 0.070 | 0.019 | 0.542 | 1.0000 | 5.751 | 0.542 |
+| 6 | rail_take 1 retreat -> rail_set 1 approach | rail | 5.217 | 0.191 | 0.356 | 0.146 | 0.037 | 0.082 | 0.030 | 0.549 | 1.0000 | 5.217 | 0.549 |
+| 7 | rail_set 1 retreat -> rail_take 2 approach | - | 4.664 | 0.214 | 0.345 | 0.130 | 0.039 | 0.082 | 0.012 | 0.536 | 1.0000 | 4.664 | 0.536 |
+| 8 | rail_take 2 retreat -> rail_set 2 approach | rail | 3.807 | 0.221 | 0.311 | 0.140 | 0.040 | 0.088 | 0.016 | 0.560 | 1.0000 | 3.807 | 0.560 |
+| 9 | rail_set 2 retreat -> rail_take 3 approach | - | 3.807 | 0.270 | 0.331 | 0.129 | 0.041 | 0.069 | 0.016 | 0.560 | 1.0000 | 3.807 | 0.560 |
+| 10 | rail_take 3 retreat -> rail_set 3 approach | rail | 3.044 | 0.286 | 0.395 | 0.148 | 0.049 | 0.129 | 0.023 | 0.597 | 1.0000 | 3.044 | 0.597 |
+| 11 | rail_set 3 retreat -> rail_take 4 approach | - | 3.044 | 0.367 | 0.415 | 0.136 | 0.054 | 0.090 | 0.023 | 0.598 | 1.0000 | 3.044 | 0.598 |
+| 12 | rail_take 4 retreat -> rail_set 4 approach | rail | 2.488 | 0.467 | 0.391 | 0.169 | 0.066 | 0.165 | 0.042 | 0.700 | 1.0000 | 2.488 | 0.700 |
+| 13 | rail_set 4 retreat -> rail_take 5 approach | - | 2.488 | 0.571 | 0.413 | 0.157 | 0.058 | 0.117 | 0.042 | 0.701 | 1.0000 | 2.488 | 0.701 |
+| 14 | rail_take 5 retreat -> rail_set 5 approach | rail | 2.200 | 0.824 | 0.393 | 0.213 | 0.101 | 0.249 | 0.078 | 0.559 | 1.0000 | 2.200 | 0.824 |
+| 15 | rail_set 5 retreat -> rail_take 6 approach | - | 2.200 | 0.872 | 0.398 | 0.199 | 0.100 | 0.199 | 0.078 | 0.562 | 1.0000 | 2.200 | 0.872 |
+| 16 | rail_take 6 retreat -> rail_set 6 approach | rail | 2.329 | 0.713 | 0.398 | 0.187 | 0.069 | 0.215 | 0.056 | 0.777 | 1.0000 | 2.329 | 0.777 |
+| 17 | rail_set 6 retreat -> rail_take 7 approach | - | 2.329 | 0.624 | 0.400 | 0.173 | 0.075 | 0.166 | 0.056 | 0.789 | 1.0000 | 2.329 | 0.789 |
+| 18 | rail_take 7 retreat -> rail_set 7 approach | rail | 2.838 | 0.426 | 0.427 | 0.154 | 0.054 | 0.179 | 0.027 | 0.616 | 1.0000 | 2.838 | 0.616 |
+| 19 | rail_set 7 retreat -> rail_take 8 approach | - | 2.838 | 0.321 | 0.430 | 0.140 | 0.059 | 0.130 | 0.027 | 0.620 | 1.0000 | 2.838 | 0.620 |
+| 20 | rail_take 8 retreat -> rail_set 8 approach | rail | 3.569 | 0.299 | 0.342 | 0.145 | 0.039 | 0.132 | 0.017 | 0.568 | 1.0000 | 3.569 | 0.568 |
+| 21 | rail_set 8 retreat -> rail_take 9 approach | - | 3.569 | 0.232 | 0.345 | 0.132 | 0.053 | 0.097 | 0.017 | 0.570 | 1.0000 | 3.569 | 0.570 |
+| 22 | rail_take 9 retreat -> rail_set 9 approach | rail | 3.900 | 0.256 | 0.367 | 0.148 | 0.036 | 0.122 | 0.017 | 0.551 | 1.0000 | 3.900 | 0.551 |
+| 33 | rail_set 9 retreat -> module_take 0 approach | - | 7.432 | **1.250** | 0.781 | 0.438 | 0.127 | 0.307 | 0.112 | **1.013** | 1.1814 | 8.726 | 0.900 |
+| 34 | module_take 0 retreat -> module_set 0 approach | module | 8.364 | 0.940 | 0.518 | 0.492 | 0.171 | 0.466 | 0.126 | 0.634 | 1.0220 | 8.541 | 0.900 |
+| 49 | module_set 0 retreat -> module_take 1 approach | - | 6.447 | **1.117** | 0.735 | 0.254 | 0.120 | 0.315 | 0.093 | 0.590 | 1.1156 | 7.158 | 0.900 |
+| 50 | module_take 1 retreat -> module_set 1 approach | module | 8.278 | 0.904 | 0.529 | 0.432 | 0.166 | 0.460 | 0.307 | 0.636 | 1.0023 | 8.297 | 0.900 |
+| 63 | module_set 1 retreat -> module_take 2 approach | - | 7.494 | **1.034** | 0.616 | 0.258 | 0.115 | 0.176 | 0.272 | 0.855 | 1.0729 | 8.018 | 0.900 |
+| 64 | module_take 2 retreat -> module_set 2 approach | module | 6.304 | 0.448 | 0.505 | 0.435 | 0.370 | 0.381 | 0.532 | 0.679 | 1.0000 | 6.304 | 0.679 |
+| 77 | module_set 2 retreat -> module_take 3 approach | - | 4.430 | 0.938 | 0.792 | 0.311 | 0.229 | 0.225 | 0.115 | 0.911 | 1.0215 | 4.519 | 0.900 |
+| 78 | module_take 3 retreat -> module_set 3 approach | module | 5.447 | **1.148** | 0.510 | 0.625 | 0.485 | 0.502 | 0.424 | 0.955 | 1.1313 | 6.123 | 0.900 |
+| 91 | module_set 3 retreat -> module_take 4 approach | - | 4.986 | **1.188** | 0.718 | 0.350 | 0.309 | 0.274 | 0.254 | 0.868 | 1.1509 | 5.693 | 0.900 |
+| 92 | module_take 4 retreat -> module_set 4 approach | module | 6.720 | 0.859 | 0.637 | 0.550 | 0.302 | 0.432 | 0.501 | 0.765 | 1.0000 | 6.720 | 0.859 |
+| 106 | module_set 4 retreat -> module_take 5 approach | - | 4.689 | **1.100** | 0.716 | 0.170 | 0.196 | 0.192 | 0.078 | 0.657 | 1.1082 | 5.164 | 0.900 |
+| 107 | module_take 5 retreat -> module_set 5 approach | module | 6.936 | 0.701 | 0.521 | 0.491 | 0.347 | 0.258 | 0.641 | 0.855 | 1.0000 | 6.936 | 0.855 |
+| 120 | module_set 5 retreat -> module_take 6 approach | - | 8.249 | 0.836 | 0.588 | 0.392 | 0.226 | 0.234 | 0.193 | 0.667 | 1.0000 | 8.249 | 0.836 |
+| 121 | module_take 6 retreat -> module_set 6 approach | module | 8.493 | 0.643 | 0.570 | 0.385 | 0.164 | 0.335 | 0.230 | 0.690 | 1.0000 | 8.493 | 0.690 |
+| 134 | module_set 6 retreat -> module_take 7 approach | - | 6.857 | **1.020** | 0.867 | 0.445 | 0.077 | 0.145 | 0.107 | 0.818 | 1.0649 | 7.283 | 0.900 |
+| 135 | module_take 7 retreat -> module_set 7 approach | module | 12.097 | 0.343 | 0.639 | 0.305 | 0.221 | 0.298 | 0.210 | 0.566 | 1.0000 | 12.097 | 0.639 |
+| 150 | module_set 7 retreat -> module_take 8 approach | - | 6.977 | **1.097** | 0.708 | 0.364 | 0.149 | 0.142 | 0.058 | 0.610 | 1.1060 | 7.685 | 0.900 |
+| 151 | module_take 8 retreat -> module_set 8 approach | module | 10.156 | 0.828 | 0.455 | 0.394 | 0.178 | 0.325 | 0.274 | 0.508 | 1.0000 | 10.156 | 0.828 |
+| 166 | module_set 8 retreat -> wait | - | 5.067 | 0.093 | 0.287 | 0.146 | 0.005 | 0.102 | 0.034 | 0.512 | 1.0000 | 5.067 | 0.512 |
+
+Of v16's 39 module arm moves, 8 demand more than joint 1 gives (bold), up to 1.250 on the
+move to module_take 0 (step 33); every other axis stays at or under 1.0 except the track
+on that move (1.013). Every move over the limit is an empty or loaded move between the
+pallet and the bay, where the track and joint 1 accelerate together.
+
+**The method against physics.** v16's record (module_take 3, steps 77 and 78), peak over
+the step, physics then inverse dynamics:
+
+| axis | take, physics | take, ID | set, physics | set, ID |
+|---|---|---|---|---|
+| joint 1 | 1.000 | 0.938 | 1.000 | 1.148 |
+| joint 2 | 0.815 | 0.792 | 0.513 | 0.510 |
+| joint 3 | 0.332 | 0.311 | 0.664 | 0.625 |
+| joint 4 | 0.241 | 0.229 | 0.491 | 0.485 |
+| joint 5 | 0.298 | 0.275 | 0.509 | 0.502 |
+| joint 6 | 0.122 | 0.115 | 0.450 | 0.424 |
+| track | 0.939 | 0.911 | 0.967 | 0.955 |
+
+On every axis that does not saturate the two agree within 0.04, inverse dynamics below
+physics by 1 to 7 %: physics adds the servos' feedback to what the planned motion asks.
+The set's joint 1 asks 1.148 and physics clips it at 1.000 (and falls 9.3 mrad behind);
+the take's asks 0.938 and physics still touches 1.000, in bursts of a few ms at the
+acceleration peaks. So a fraction of 0.95 is not enough: with it (8 moves slowed, one bay
+599.80 s) physics still reaches 1.000 on joint 1 in both steps.
+
+**The bound.** The optional layout field `torque_limit_scale` (`src/layout.h`, 0.5 to 1):
+after timing each module arm move the planner runs the same inverse dynamics, and a move
+whose worst ratio r exceeds the fraction f is played at time scale k·sqrt(r / f), again
+until it holds (rounded up to 1e-4; `Segment::time_scale`, written in the plan file only
+when not 1, with the figure only when set). Only that move is slowed; the schedule is
+placed again around it as any move. `TorqueLimit.*` in `//:plan_replay_test` tests it.
+
+`flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_torque` is v16 with
+`torque_limit_scale` 0.90, one bay planned whole and committed:
+
+| Figure | v16 | v16 + 0.90 |
+|---|---|---|
+| moves found | 126 of 126 | 126 of 126 |
+| module arm moves slowed | | 11, 5.80 s of motion added |
+| `bay_planned_s` | 574.73 s | 601.33 s (+26.60 s) |
+| modules phase | 316.04 s | 341.99 s |
+| module arm moves over 0.90 / over 1.0 (ID) | 11 / 8 | 0 / 0 |
+| physics, take 3: joint 1 peak, take / set | 1.000 / 1.000 | 0.984 / 0.971 |
+| physics: track peak, take / set | 0.939 / 0.967 | 0.900 / 0.773 |
+| physics: largest Cartesian error, take / set | 0.64 / 17.80 mm | 0.64 / 1.49 mm |
+| physics: least clearance, take / set | 0.020177 / 0.025272 m | 0.020195 / 0.025245 m (against 0.015) |
+
+The slowed moves add 5.80 s of motion but the bay 26.60 s, all of it in the modules
+phase: the rest is the schedule placing the pin arms' blocks around the later sets (not
+taken apart in this run). The price is honest in that the arm can now follow every move of
+the take and set in physics, with joint 1 at 0.984 its tightest margin.

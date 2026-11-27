@@ -25,6 +25,7 @@
 #include "src/layout_check.h"
 #include "src/layout_model.h"
 #include "src/layout_plan.h"
+#include "src/layout_plan_stages.h"
 #include "src/layout_scene.h"
 #include "src/layout_torque.h"
 
