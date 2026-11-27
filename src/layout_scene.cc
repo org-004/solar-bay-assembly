@@ -662,84 +662,6 @@ std::vector<bool> LayoutScene::MovesWith(int arm) const {
 
 namespace {
 
-// mj_kinematics1's work for body i (MuJoCo 4.0.0,
-// src/engine/engine_core_smooth.c, sleep off, a body with hinges and
-// slides only, not a mocap body): the same steps through MuJoCo's public
-// functions, which do the same arithmetic as the inline ones it uses there.
-void PlaceBody(const mjModel& m, mjData* d, int i) {
-  mjtNum xpos[3], xquat[4];
-  const int pid = m.body_parentid[i];
-  const mjtNum* bodypos = m.body_pos + 3 * i;
-  const mjtNum* bodyquat = m.body_quat + 4 * i;
-  if (pid) {
-    mju_mulMatVec3(xpos, d->xmat + 9 * pid, bodypos);
-    mju_addTo3(xpos, d->xpos + 3 * pid);
-    mju_mulQuat(xquat, d->xquat + 4 * pid, bodyquat);
-  } else {
-    mju_copy3(xpos, bodypos);
-    mju_copy4(xquat, bodyquat);
-  }
-  for (int j = 0; j < m.body_jntnum[i]; ++j) {
-    const int jid = m.body_jntadr[i] + j;
-    const int qadr = m.jnt_qposadr[jid];
-    mjtNum xanchor[3], xaxis[3];
-    mju_rotVecQuat(xaxis, m.jnt_axis + 3 * jid, xquat);
-    mju_rotVecQuat(xanchor, m.jnt_pos + 3 * jid, xquat);
-    mju_addTo3(xanchor, xpos);
-    if (m.jnt_type[jid] == mjJNT_SLIDE) {
-      mju_addToScl3(xpos, xaxis, d->qpos[qadr] - m.qpos0[qadr]);
-    } else {
-      mjtNum qloc[4];
-      mju_axisAngle2Quat(qloc, m.jnt_axis + 3 * jid, d->qpos[qadr] - m.qpos0[qadr]);
-      mju_mulQuat(xquat, xquat, qloc);
-      mjtNum vec[3];
-      mju_rotVecQuat(vec, m.jnt_pos + 3 * jid, xquat);
-      mju_sub3(xpos, xanchor, vec);
-    }
-    mju_copy3(d->xanchor + 3 * jid, xanchor);
-    mju_copy3(d->xaxis + 3 * jid, xaxis);
-  }
-  mju_normalize4(xquat);
-  mju_copy4(d->xquat + 4 * i, xquat);
-  mju_copy3(d->xpos + 3 * i, xpos);
-  mju_quat2Mat(d->xmat + 9 * i, xquat);
-}
-
-// mj_local2GlobalQuat (engine_core_util.c), which mj_kinematics2 uses for
-// inertial frames, geoms and sites: the position and matrix by the public
-// mj_local2Global, which calls it, and the quaternion as it makes it.
-void LocalToGlobal(mjData* d, mjtNum* xpos, mjtNum* xquat, mjtNum* xmat,
-                   const mjtNum* pos, const mjtNum* quat, int body,
-                   mjtByte sameframe) {
-  mj_local2Global(d, xpos, xmat, pos, quat, body, sameframe);
-  switch (sameframe) {
-    case mjSAMEFRAME_NONE:
-      mju_mulQuat(xquat, d->xquat + 4 * body, quat);
-      break;
-    case mjSAMEFRAME_BODY:
-    case mjSAMEFRAME_BODYROT:
-      mju_copy4(xquat, d->xquat + 4 * body);
-      break;
-    default:
-      mju_copy4(xquat, d->xiquat + 4 * body);
-      break;
-  }
-}
-
-// Whether PlaceBody does for body b what mj_kinematics1 does: hinges and
-// slides only, no mocap, and no joint whose position is a zero with a sign
-// (mju_rotVecQuat returns +0 for a zero vector, the inline one keeps -0).
-bool Placeable(const mjModel& m, int b) {
-  if (m.body_mocapid[b] >= 0) return false;
-  for (int j = m.body_jntadr[b]; j < m.body_jntadr[b] + m.body_jntnum[b]; ++j) {
-    if (m.jnt_type[j] != mjJNT_HINGE && m.jnt_type[j] != mjJNT_SLIDE) return false;
-    for (int k = 0; k < 3; ++k) {
-      if (m.jnt_pos[3 * j + k] == 0.0 && std::signbit(m.jnt_pos[3 * j + k])) return false;
-    }
-  }
-  return true;
-}
-
 // The margin against rounding when an obstacle is passed over whole: far
 // below any distance that matters, far above the rounding of coordinates
 // of some metres.
@@ -832,17 +754,17 @@ void PairQuery::Place(mjData* d) {
     // the bodies that moved, parents before children.
     for (int b : bodies_) PlaceBody(m, d, b);
     for (int b : bodies_) {
-      LocalToGlobal(d, d->xipos + 3 * b, d->xiquat + 4 * b, d->ximat + 9 * b,
+      PlaceFrame(d, d->xipos + 3 * b, d->xiquat + 4 * b, d->ximat + 9 * b,
                           m.body_ipos + 3 * b, m.body_iquat + 4 * b, b,
                           m.body_sameframe[b]);
     }
     for (int g : geoms_) {
-      LocalToGlobal(d, d->geom_xpos + 3 * g, d->geom_xquat + 4 * g,
+      PlaceFrame(d, d->geom_xpos + 3 * g, d->geom_xquat + 4 * g,
                           d->geom_xmat + 9 * g, m.geom_pos + 3 * g, m.geom_quat + 4 * g,
                           m.geom_bodyid[g], m.geom_sameframe[g]);
     }
     for (int i : sites_) {
-      LocalToGlobal(d, d->site_xpos + 3 * i, d->site_xquat + 4 * i,
+      PlaceFrame(d, d->site_xpos + 3 * i, d->site_xquat + 4 * i,
                           d->site_xmat + 9 * i, m.site_pos + 3 * i, m.site_quat + 4 * i,
                           m.site_bodyid[i], m.site_sameframe[i]);
     }

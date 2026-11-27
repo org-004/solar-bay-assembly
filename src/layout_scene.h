@@ -327,6 +327,18 @@ class LayoutScene {
   std::vector<SceneArm> arms_;
 };
 
+// mj_kinematics' steps for one body (mj_kinematics1's) and for one frame of
+// a body (mj_local2GlobalQuat, which mj_kinematics2 uses for inertial
+// frames, geoms and sites), as MuJoCo 4.0.0 takes them, through its public
+// functions; PlaceBody only where Placeable says so (hinges and slides, no
+// mocap). Parents before children. For PairQuery; defined in
+// src/layout_check.cc.
+void PlaceBody(const mjModel& m, mjData* d, int body);
+void PlaceFrame(mjData* d, mjtNum* xpos, mjtNum* xquat, mjtNum* xmat,
+                const mjtNum* pos, const mjtNum* quat, int body,
+                mjtByte sameframe);
+bool Placeable(const mjModel& m, int body);
+
 // (e) LeastDistance prepared for many queries of one arm's moving set
 // against one set of obstacles, as a move's planner asks them (MoveWorld,
 // src/layout_plan.h): the same answers, bit for bit, in a fraction of the
@@ -357,6 +369,8 @@ class PairQuery {
   ~PairQuery();
   PairQuery(const PairQuery&) = delete;
   PairQuery& operator=(const PairQuery&) = delete;
+  PairQuery(PairQuery&&) = delete;
+  PairQuery& operator=(PairQuery&&) = delete;
   // Forward kinematics after SetPose of the arm: geom poses as
   // mj_kinematics leaves them.
   void Place(mjData* d);
