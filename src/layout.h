@@ -457,6 +457,17 @@ struct RetreatLegs {
   std::string basis;
 };
 
+// "path_tries" (optional, flat rack bases only; run 042): each move is
+// searched from this many seeds, the move's own first, each path shortened,
+// and the one whose timed trajectory is quickest is kept (PlanFigures). An
+// integer from 2 to kMaxPathTries. Why: a short move whose straight line is
+// blocked (a pin arm going from hole to hole past the tube) gets whatever
+// way round the obstacle its one search found, and shortening only pulls
+// that way taut, never changes it; another seed often goes round closer,
+// with fewer pieces and fewer corners to slow at. Without the field every
+// move is searched once, as before.
+inline constexpr int kMaxPathTries = 16;
+
 struct Layout {
   std::string name;            // The file's stem.
   std::string title;
@@ -488,6 +499,7 @@ struct Layout {
   // Optional on a flat rack base; without it one stage, the whole bay at "tube".
   std::optional<Staging> staging;
   std::optional<RetreatLegs> retreat_legs;  // Optional on a flat rack base.
+  std::optional<int> path_tries;            // Optional on a flat rack base.
 };
 
 // Reads layouts/<name>.json. Returns nothing and sets *error on any fault.

@@ -2203,8 +2203,10 @@ cc_test(
 cc_test(
     name = "plan_replay_test",
     size = "large",
-    # tests/retreat_legs_test.cc: a layout's retreat_legs (run 036).
+    # tests/retreat_legs_test.cc: a layout's retreat_legs (run 036);
+    # tests/path_tries_test.cc: a layout's path_tries (run 042).
     srcs = [
+        "tests/path_tries_test.cc",
         "tests/plan_replay_test.cc",
         "tests/retreat_legs_test.cc",
     ],
@@ -2251,6 +2253,7 @@ ONE_POSTURE_LAYOUTS = [
     "two_flat_racks_2_pin_arms_balanced",
     "two_flat_racks_2_pin_arms_balanced_ordered",
     "two_flat_racks_2_pin_arms_balanced_ordered_fast_b",
+    "two_flat_racks_2_pin_arms_balanced_ordered_fast_b_paths",
     "two_flat_racks_2_pin_arms_balanced_ordered_fast_retreat",
 ]
 

@@ -253,6 +253,10 @@ struct PlanFigures {
   double max_deviation = 0.002;      // rad, Trajectory::Plan's blend limit.
   double edge_resolution = 0.010;    // m of weighted motion between checked points.
   int shorten_tries = 200;
+  // Seeds each move is searched from, the quickest timed path kept: the
+  // layout's path_tries (src/layout.h) when it has them, else 1. A plan
+  // file names it only when it is not 1.
+  int path_tries = 1;
   std::vector<int> budgets = {5000, 40000, 160000};  // RRT iterations, in turn.
   std::uint32_t seed = 1;            // Every move's seed is drawn from this.
   double sample_s = 0.05;            // The schedule is checked this often.
@@ -341,6 +345,11 @@ struct Plan {
 // duration through the waypoints. Negative if the path cannot be timed.
 double MoveDuration(const std::vector<Config>& path, const ArmMotion& motion,
                     const PlanFigures& f);
+// The index of the quickest of `paths` by MoveDuration, the first of those
+// equally quick; -1 if none can be timed. How a layout's path_tries choose
+// among a move's paths.
+int QuickestPath(const std::vector<std::vector<Config>>& paths, const ArmMotion& motion,
+                 const PlanFigures& f);
 // How long a leg takes. The arm runs through the leg's samples by straight
 // joint-space pieces, at the fraction s(u) = 3u^2 - 2u^3 of the path's
 // joint-space length, u = (t - t0) / T. T is the largest of

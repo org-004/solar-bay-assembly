@@ -764,6 +764,42 @@ void Planner::PlanOne(MoveJob& job, mjData* d, const std::vector<int>& budgets) 
   job.path.front() = job.from;
   job.path.back() = job.to;
   job.queries = queries;
+  // The layout's path_tries: the same search from more seeds, each path
+  // shortened as the first, and the quickest timed path of all kept (the
+  // first of equals, so the move's own path unless another is quicker). A
+  // seed that finds nothing within the budgets adds nothing.
+  if (f_.path_tries > 1) {
+    std::vector<std::vector<Config>> paths = {job.path};
+    std::vector<int> found_by = {job.budget};
+    for (int k = 1; k < f_.path_tries; ++k) {
+      RrtOptions rk = ro;
+      rk.seed = job.seed + 0x9e3779b9u * static_cast<std::uint32_t>(k);
+      std::vector<RrtReport> rk_reports;
+      std::optional<JointPath> other = PlanRrtConnectBudgets(
+          start, goal, lower, upper, is_free, rk, budgets, &rk_reports);
+      if (!other) continue;
+      ShortenOptions sk = so;
+      sk.seed = rk.seed;
+      if (std::optional<JointPath> s = ShortenPath(*other, is_free, sk)) other = s;
+      std::vector<Config> cp;
+      for (const Eigen::VectorXd& v : *other) cp.push_back(to_config(v));
+      cp.front() = job.from;
+      cp.back() = job.to;
+      paths.push_back(std::move(cp));
+      const RrtReport& last = rk_reports.back();
+      found_by.push_back(last.iterations == 0
+                             ? 0
+                             : budgets[std::min(rk_reports.size(), budgets.size()) - 1]);
+    }
+    const int best = QuickestPath(paths, m, f_);
+    if (best > 0) {
+      job.path = paths[best];
+      job.budget = found_by[best];
+      job.log.push_back(Fmt("path try %d of %d kept, the quickest", best + 1,
+                            f_.path_tries));
+    }
+    job.queries = queries;
+  }
   job.planned_s = MoveDuration(job.path, m, f_);
   if (job.planned_s < 0.0) {
     job.note = "the path cannot be timed";
@@ -1555,6 +1591,7 @@ PlanResult Planner::Run(bool plan, bool verify) {
     f_.retreat_speed = layout_.retreat_legs->speed;
     f_.retreat_accel = layout_.retreat_legs->accel;
   }
+  if (layout_.path_tries) f_.path_tries = *layout_.path_tries;
   for (int a = 0; a < scene_->ArmCount(); ++a) {
     motions_.push_back(MotionOf(*scene_, a, f_));
   }

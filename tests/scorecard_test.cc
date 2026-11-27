@@ -109,7 +109,8 @@ std::optional<Scorecard> Compute(const std::string& name) {
 // one bay (run 034's all-KUKA 40 ft layout, whose three bays and card are a
 // later spec's) is replayed by tests/plan_replay_test.cc and has none yet.
 std::vector<std::string> PlanNames() {
-  static const std::set<std::string> kOneBay = {"flat_rack_1_kr20_pin_arm_ordered"};
+  static const std::set<std::string> kOneBay = {
+      "flat_rack_1_kr20_pin_arm_ordered", "flat_rack_3_kr20_pin_arms_shared_ordered_fast_paths"};
   std::vector<std::string> out;
   for (const std::string& name : ListLayouts(Dir("PLAN_DIR", "plans"))) {
     if (kOneBay.count(name) == 0) out.push_back(name);

@@ -664,7 +664,7 @@ Layout ReadLayout(const Json& j) {
             two_racks ? "two_flat_racks" : "flat_rack", "margins", "ports", "approaches", "tube", "holder",
             "arms", "pallets", "stocks", "strap_bolts_from", "tube_in",
             "bay_out", "work", "rail_order", "items"},
-           {"order", "staging", "retreat_legs"});
+           {"order", "staging", "retreat_legs", "path_tries"});
   } else {
     throw LayoutError("base", "is \"container\", \"flat_rack\" or "
                               "\"two_flat_racks\", not \"" +
@@ -809,6 +809,13 @@ Layout ReadLayout(const Json& j) {
       throw LayoutError(Sub(rp, "accel"), "is not in (0, 3.0] m/s^2");
     }
     l.retreat_legs = legs;
+  }
+  if (j.contains("path_tries")) {
+    const int tries = Integer(j.at("path_tries"), "path_tries");
+    if (tries < 2 || tries > kMaxPathTries) {
+      throw LayoutError("path_tries", "is not an integer from 2 to 16");
+    }
+    l.path_tries = tries;
   }
   if (j.contains("order")) {
     const Json& o = j.at("order");
