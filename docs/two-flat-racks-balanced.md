@@ -127,3 +127,120 @@ committed plan are parameterized by the layout's name (`.../Balanced`).
   `check_rows_failed` 0 of 985 rows, `least_clearance_m` 0.018 >= 0.015, `mass_in_transit_kg`
   3,727 <= 13,608. `plan_replay_staged_test` is now `large`: the balanced layout's checker report takes about
   125 s in each shard.
+
+## Where the time goes (run 032)
+
+Bay 0 of the committed plan of v12 (`plans/two_flat_racks_2_pin_arms_balanced.json`, on `9d6efb2`)
+is 852.84 s against its time model's 611.07 s: 241.77 s more. The account is printed, without
+planning or building anything, by
+
+```
+python3 -B tools/time/account.py plans/two_flat_racks_2_pin_arms_balanced.json [--bay N]
+```
+
+**Per arm**, over the bay's 852.84 s (moving: the planned moves, settle included; model: the time
+model's figure for the same moves, settle included; legs: approaches and retreats, which the model
+does not time; process: the layout's process times; this layout has no tool change):
+
+| arm | moves | moving planned | model, same moves | excess | legs (approach+retreat) | process | tool changes | waiting | busy % |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| module_arm | 41 | 159.1 | 113.3 | +45.9 | 93.2 | 95.0 | 0.0 | 505.5 | 41 |
+| pin_arm_a | 40 | 89.3 | 61.2 | +28.1 | 61.3 | 164.0 | 0.0 | 538.3 | 37 |
+| pin_arm_b | 33 | 123.9 | 56.9 | +67.0 | 49.4 | 132.0 | 0.0 | 547.5 | 36 |
+| bolt_arm | 13 | 29.7 | 28.3 | +1.4 | 15.5 | 60.0 | 0.0 | 747.6 | 12 |
+
+**Waiting, by whom or what** (s; "bay out" is the wait from an arm's last step to the end of
+bay_out, "stage end" the module arm's wait for the tube to move on):
+
+| arm | bay out | bolt_arm | module_arm | pin_arm_a (passing) | pin_arm_b (passing) | stage end | transfer | tube in |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| module_arm | 200.5 | 25.8 | 0.0 | 0.0 | 0.0 | 174.2 | 60.0 | 45.0 |
+| pin_arm_a | 182.3 | 0.0 | 234.4 | 0.0 | 16.5 | 0.0 | 60.0 | 45.0 |
+| pin_arm_b | 61.8 | 0.0 | 376.3 | 4.5 | 0.0 | 0.0 | 60.0 | 45.0 |
+| bolt_arm | 259.8 | 0.0 | 382.8 | 0.0 | 0.0 | 0.0 | 60.0 | 45.0 |
+
+**The critical path**, walked back from bay_out through the waits (to the arm each wait names, or
+to the transfer), covers the 852.84 s without a gap:
+
+| from (s) | to (s) | s | the chain |
+|---|---|---:|---|
+| 0.00 | 45.00 | 45.00 | tube in, clamp |
+| 45.00 | 109.19 | 64.19 | module arm: rails 0-3 |
+| 109.19 | 118.66 | 9.47 | bolt arm: the stage's last bolt (rail 3) |
+| 118.66 | 139.26 | 20.60 | module arm: take and set module 0 |
+| 139.26 | 272.20 | 132.94 | **pin arm A: modules 0 and 1, back to back** |
+| 272.20 | 302.20 | 30.00 | transfer to stage 2 |
+| 302.20 | 348.97 | 46.78 | module arm: rails 4-6 |
+| 348.97 | 358.44 | 9.47 | bolt arm: rail 6 |
+| 358.44 | 377.69 | 19.25 | module arm: module 3 |
+| 377.69 | 508.19 | 130.49 | **pin arm A: modules 3 and 4** |
+| 508.19 | 538.19 | 30.00 | transfer to stage 3 |
+| 538.19 | 582.18 | 44.00 | module arm: rails 7-9 |
+| 582.18 | 591.95 | 9.76 | bolt arm: rail 9 |
+| 591.95 | 630.01 | 38.06 | module arm: modules 6 (pin arm A's) and 7 |
+| 630.01 | 787.84 | 157.83 | **pin arm B: modules 7 and 8** |
+| 787.84 | 852.84 | 65.00 | release, bay out |
+
+Every stage ends with the pin arm that has two of the stage's three modules: A at stages 1 and 2
+(P0 and P1), B at stage 3 (P2 and P3); that is 421.26 s of the path. A module's twelve hole steps
+follow each other, so the second pin arm cannot share them, and the other arm's one module is done
+long before (B at stage 1 by 249.9 s, A at stage 3 by 670.5 s). Along the path, by kind:
+
+# path covers 852.84 s of 852.84 s
+| on the path | moving planned | model, same moves | legs | process | tool changes | waiting/gaps | events | total |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| module_arm | 101.6 | 77.1 | 61.3 | 70.0 | 0.0 | 0.0 | 0.0 | 232.9 |
+| pin_arm_a | 71.4 | 47.4 | 47.5 | 128.0 | 0.0 | 16.5 | 0.0 | 263.4 |
+| pin_arm_b | 65.6 | 23.0 | 23.8 | 64.0 | 0.0 | 4.5 | 0.0 | 157.8 |
+| bolt_arm | 6.0 | 5.4 | 4.6 | 18.0 | 0.0 | 0.0 | 0.0 | 28.7 |
+| tube in | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 40.0 | 40.0 |
+| clamp | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 5.0 | 5.0 |
+| transfer | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 60.0 | 60.0 |
+| release | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 5.0 | 5.0 |
+| bay out | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 60.0 | 60.0 |
+| all | 244.7 | 153.0 | 137.2 | 280.0 | 0.0 | 21.0 | 170.0 | 852.8 |
+
+**The 241.77 s by cause along the path**: moves slower than their model +91.69 s (pin arm B
++42.6 on 8 hole steps, 65.6 s against 23.0: its swing from hole 2 to hole 3, the posture change
+that pin arm A no longer makes; the module arm +24.5; A +24.0); approach and retreat legs +137.19
+s (not timed by the model at all: 0.12 m at 0.25 m/s is 0.73 s a leg, 2 to 4 legs a step);
+waits on the path +21.00 s (A waiting 16.5 s for B to pass); the rest -8.11 s (the path's work at
+the model's figures, 602.96 s, against the model's 611.07 s: the stages' barriers cost about what
+the model's own one-after-another does).
+
+The shares that a layout can remove (the legs are the approach lengths, a design figure kept; the
+model simply does not time them):
+
+| share on the path | s | what removes it |
+|---|---:|---|
+| the stage's last strap bolt between the module arm's last rail and its first module, three stages | 28.70 | `modules_start: after_their_rails`: a module is taken once its own two rails are bolted |
+| pin arm A's module 6 taken and set before B's 7 at stage 3 | about 19 | order of modules 7, 8, 6 at stage 3 |
+| pin arm B's hole-to-hole moves at stage 3 beyond their model | 42.6 | `one_posture_per_module` for B, as for A in run 029 |
+
+The first two are one change, the order of work (layout field `order`), and the largest measured:
+**797.18 s** for one bay (-55.66 s). The staged verifier held each stage's first module take
+after the stage's last bolt even where the layout asks for `after_their_rails` (the planner already
+scheduled by it), so it now takes the plain rule for that field (`src/layout_plan_stages.cc`,
+`StagedFaults`); no committed layout has it. The third, alone on v12, gives **824.35 s** (-28.49 s); it shortens stages 1 and 2 as well, where pin arm A no longer waits for B to pass.
+
+### The changed layout: `two_flat_racks_2_pin_arms_balanced_ordered`
+
+`layouts/two_flat_racks_2_pin_arms_balanced_ordered.json` is v12's layout with `order` (modules
+0, 1, 2, 3, 4, 5, 7, 8, 6; `after_their_rails`; `just_in_time`) and pin arm B's
+`one_posture_per_module`. One bay, `bazel run --config=opt --config=agent //:plan_layout --
+two_flat_racks_2_pin_arms_balanced_ordered --bays 1 --summary`: 127 of 127 moves found,
+`complete: true`, **`bay_planned_s` 784.30 s** (-68.54 s, -8.0 %; time model 599.20 s, +30.9 %).
+
+| one bay of | bay_planned_s | stage 1 | stage 2 | stage 3 to bay out | complete |
+|---|---:|---:|---:|---:|---|
+| v12 `two_flat_racks_2_pin_arms_balanced` | 852.84 | 227.20 | 205.99 | 254.66 | yes |
+| order of work alone | 797.18 | 218.68 | 197.47 | 216.03 | yes |
+| B one posture per module alone | 824.35 | 218.45 | 198.99 | 241.91 | yes |
+| both: `..._balanced_ordered` | 784.30 | 209.93 | 190.47 | 218.89 | yes |
+
+Its path: module arm 85.74 s (rails 0-3 and module 0), pin arm A 124.19 s (modules 0, 1),
+transfer, module arm 66.98 s, A 123.49 s (modules 3, 4), transfer, module arm 63.54 s (rails 7-9,
+module 7), pin arm B 155.35 s (modules 7 and 8, then a 13.3 s move back to its wait pose that
+bay_out waits for), bay out. Still the heavy pin arm of each stage: the next share is the 0.73 s
+legs (130.14 s on the path) and A's hole-to-hole moves (+24.0 s on the path). The plan is not
+committed: three bays and a version are the next spec's.

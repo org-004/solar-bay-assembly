@@ -142,9 +142,14 @@ def main():
     path = []  # (arm or event, kind, t0, t1, segment or None)
     t = ev["bay_out"]["t1"]
     path.append(("bay out", "event", ev["bay_out"]["t0"], ev["bay_out"]["t1"], None))
-    path.append(("release", "event", ev["release"]["t0"], ev["release"]["t1"], None))
-    t = ev["release"]["t0"]
+    # bay_out starts when release has ended and every arm is back at its
+    # wait pose: whichever of the two ends last is on the path.
+    t = ev["bay_out"]["t0"]
     cur = latest_work_before(t)
+    if cur is None or arms[cur[0]][cur[1]]["t1"] <= ev["release"]["t1"] + EPS:
+        path.append(("release", "event", ev["release"]["t0"], ev["release"]["t1"], None))
+        t = ev["release"]["t0"]
+        cur = latest_work_before(t)
     guard = 0
     while cur is not None and guard < 100000:
         guard += 1
