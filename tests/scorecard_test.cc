@@ -177,16 +177,25 @@ TEST(Scorecard, TheCycleFiguresAreThePlans) {
 }
 
 // failures_per_bay counts one bay: bay 0's steps, one tube in and one bay out.
+// A staged layout's transfer of the tube counts as one more unclamp, tube_in
+// and clamp each.
 TEST(Scorecard, TheOperationsAreOneBays) {
   for (const std::string& name : PlanNames()) {
     const std::optional<Inputs> in = Read(name);
     ASSERT_TRUE(in.has_value()) << name;
+    int transfers = 0;
+    for (const StepTime& step : in->plan.steps) {
+      if (step.bay == 0 && step.what.rfind("move the tube to stage ", 0) == 0) {
+        ++transfers;
+      }
+    }
     std::string error;
     const auto counts = CountOperations(in->plan, in->rates, &error);
     ASSERT_TRUE(counts.has_value()) << name << ": " << error;
     for (const OperationCount& c : *counts) {
-      if (c.kind == "tube_in" || c.kind == "bay_out" || c.kind == "clamp") {
-        EXPECT_EQ(c.count, 1) << name << " " << c.kind;
+      if (c.kind == "bay_out") EXPECT_EQ(c.count, 1) << name << " " << c.kind;
+      if (c.kind == "tube_in" || c.kind == "clamp" || c.kind == "unclamp") {
+        EXPECT_EQ(c.count, 1 + transfers) << name << " " << c.kind;
       }
       if (c.kind == "locate") EXPECT_EQ(c.count, 36) << name;
     }
