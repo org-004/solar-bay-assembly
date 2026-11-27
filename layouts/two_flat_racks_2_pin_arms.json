@@ -903,7 +903,7 @@
       "kind": "locate",
       "arm": "pin_arm_a",
       "tool": "pin_tool",
-      "points": "0-4,12-16,24",
+      "points": "0-3,12-16,24",
       "process_s": 3.0,
       "note": "Tip up, once round the slot at most, nose in, nose out.",
       "basis": "ours"
@@ -912,7 +912,7 @@
       "kind": "locate",
       "arm": "pin_arm_b",
       "tool": "pin_tool",
-      "points": "5-11,17-23,25-35",
+      "points": "4-11,17-23,25-35",
       "process_s": 3.0,
       "note": "Tip up, once round the slot at most, nose in, nose out.",
       "basis": "ours"
@@ -921,7 +921,7 @@
       "kind": "pin",
       "arm": "pin_arm_a",
       "tool": "pin_tool",
-      "points": "0-4,12-16,24",
+      "points": "0-3,12-16,24",
       "process_s": 2.0,
       "note": "The finger puts the pin in from above.",
       "basis": "ours"
@@ -930,7 +930,7 @@
       "kind": "pin",
       "arm": "pin_arm_b",
       "tool": "pin_tool",
-      "points": "5-11,17-23,25-35",
+      "points": "4-11,17-23,25-35",
       "process_s": 2.0,
       "note": "The finger puts the pin in from above.",
       "basis": "ours"
@@ -939,7 +939,7 @@
       "kind": "swage",
       "arm": "pin_arm_a",
       "tool": "pin_tool",
-      "points": "0-4,12-16,24",
+      "points": "0-3,12-16,24",
       "process_s": 3.0,
       "note": "Collar on, swaged.",
       "basis": "ours"
@@ -948,7 +948,7 @@
       "kind": "swage",
       "arm": "pin_arm_b",
       "tool": "pin_tool",
-      "points": "5-11,17-23,25-35",
+      "points": "4-11,17-23,25-35",
       "process_s": 3.0,
       "note": "Collar on, swaged.",
       "basis": "ours"

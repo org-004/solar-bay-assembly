@@ -1157,6 +1157,7 @@ bool Planner::Schedule() {
       std::string reason;
     };
     std::vector<Candidate> ready;
+    std::string waits;  // Why each arm's next block may not start.
     bool left = false;
     for (int a = 0; a < n; ++a) {
       ArmState& st = state_[a];
@@ -1178,6 +1179,8 @@ bool Planner::Schedule() {
         reason = "for the tube to come in and be clamped";
       }
       bool can = b.after < 0 || blocks_[b.after].placed;
+      std::string why;
+      if (!can) why = "after another block, not yet placed";
       for (const Need& need : needs_of(b)) {
         auto it = block_of_step_.find(need.step);
         if (it == block_of_step_.end()) continue;
@@ -1185,6 +1188,8 @@ bool Planner::Schedule() {
         if (!nb.in_range) continue;
         if (!nb.placed) {
           can = false;
+          why = Fmt("for step %d (%s), not yet placed", report_.steps[nb.step_index].number,
+                    report_.steps[nb.step_index].what.c_str());
           break;
         }
         const double when = need.work_end ? nb.work_end : nb.end;
@@ -1204,7 +1209,10 @@ bool Planner::Schedule() {
       // Staged work: after the transfer to the block's stage, and a module
       // set after the stage's magazine takes and their parks.
       const double moved = b.stage > 0 ? TransferEnd(b.stage) : 0.0;
-      if (moved < 0.0) can = false;
+      if (moved < 0.0) {
+        can = false;
+        why = "for the tube's move to stage " + scopes_[b.stage].name;
+      }
       if (moved > r) {
         r = moved;
         reason = "for the tube to move to stage " + scopes_[b.stage].name;
@@ -1216,6 +1224,7 @@ bool Planner::Schedule() {
           continue;
         }
         const Block& mb = blocks_[j.block];
+        if (can && !mb.placed) why = Fmt("for the move to step %d, not yet placed", j.step);
         can = can && mb.placed;
         if (mb.placed && mb.start + mb.segs[j.segment].t1 > r) {
           r = mb.start + mb.segs[j.segment].t1;
@@ -1228,17 +1237,27 @@ bool Planner::Schedule() {
             report_.steps[b.step_index].kind != "module_set") {
           continue;
         }
+        if (can && !pb.placed) {
+          why = Fmt("for step %d (%s), not yet placed", report_.steps[pb.step_index].number,
+                    report_.steps[pb.step_index].what.c_str());
+        }
         can = can && pb.placed;
         if (pb.placed && pb.end > r) {
           r = pb.end;
           reason = "for " + scene_->arm(pb.arm).use->name + " to take its pin magazine and park";
         }
       }
-      if (can) ready.push_back({a, bi, r, reason});
+      if (can) {
+        ready.push_back({a, bi, r, reason});
+      } else {
+        waits += Fmt("; %s's step %d (%s) waits %s", scene_->arm(a).use->name.c_str(),
+                     report_.steps[b.step_index].number,
+                     report_.steps[b.step_index].what.c_str(), why.c_str());
+      }
     }
     if (!left) break;
     if (ready.empty()) {
-      Fault("the schedule is blocked: no arm's next step may start");
+      Fault("the schedule is blocked: no arm's next step may start" + waits);
       return false;
     }
     std::stable_sort(ready.begin(), ready.end(),
