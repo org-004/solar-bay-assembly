@@ -709,7 +709,7 @@ int Checker::Family(int arm) const {
   const mjModel& m = M();
   const mjData* d = data_.get();
   const ArmHandle& h = *arms_[arm].s->h;
-  int jid[6];
+  std::array<int, 6> jid{};
   for (int j = 0; j < 6; ++j) {
     jid[j] = -1;
     for (int k = 0; k < m.njnt; ++k) {
@@ -764,10 +764,10 @@ void Checker::PresetModule(const Job& first, int ai) {
   seeds.insert(seeds.end(), a.seeds.begin(), a.seeds.end());
   const Approach* rule = FindApproach(L_, first.point.kind);
   struct Option {
-    Q6 q;
-    double track;
-    double perr;
-    int family;
+    Q6 q{};
+    double track = 0.0;
+    double perr = 0.0;
+    int family = -1;
   };
   // Every pose of every hole that is inside the margin, clear and whose
   // legs pass, over the track candidates and, unless the kind has stops,
@@ -810,7 +810,7 @@ void Checker::PresetModule(const Job& first, int ai) {
           }
           if (seen) continue;
           found.push_back(q);
-          double margin;
+          double margin = 0.0;
           std::string joint;
           Margin(ai, q, &margin, &joint);
           if (margin < opt_.joint_margin_deg - 1e-9) continue;
@@ -852,6 +852,16 @@ void Checker::PresetModule(const Job& first, int ai) {
     double from_anchor = 1e18;
     std::vector<int> path;
   };
+  // The order of two choices: the larger of the move from the anchor and
+  // the largest move between holes first, then the largest move between
+  // holes, then the move from the anchor.
+  auto better = [](double w, double fa, double other_w, double other_fa) {
+    const double x = std::max(w, fa);
+    const double y = std::max(other_w, other_fa);
+    if (std::abs(x - y) > 1e-9) return x < y;
+    if (std::abs(w - other_w) > 1e-9) return w < other_w;
+    return fa < other_fa - 1e-9;
+  };
   Best best;
   int best_family = -1;
   for (int family = 0; family < 8; ++family) {
@@ -883,8 +893,7 @@ void Checker::PresetModule(const Job& first, int ai) {
           const double w = std::max(
               b.worst, move_s(from.q, from.track, options[h][k].q,
                               options[h][k].track));
-          if (w < nb.worst - 1e-12 ||
-              (w < nb.worst + 1e-12 && b.from_anchor < nb.from_anchor)) {
+          if (better(w, b.from_anchor, nb.worst, nb.from_anchor)) {
             nb.worst = w;
             nb.from_anchor = b.from_anchor;
             nb.path = b.path;
@@ -896,8 +905,7 @@ void Checker::PresetModule(const Job& first, int ai) {
       cur = next;
     }
     for (const Best& b : cur) {
-      if (b.worst < best.worst - 1e-12 ||
-          (b.worst < best.worst + 1e-12 && b.from_anchor < best.from_anchor - 1e-12)) {
+      if (better(b.worst, b.from_anchor, best.worst, best.from_anchor)) {
         best = b;
         best_family = family;
       }
@@ -950,8 +958,9 @@ void Checker::SolvePosture(
         }
       }
       std::mt19937 prng(29u);
-      for (int k = 0; k < std::atoi(wide); ++k) {
-        Q6 q;
+      const long extra = std::strtol(wide, nullptr, 10);
+      for (long k = 0; k < extra; ++k) {
+        Q6 q{};
         for (int j = 0; j < 6; ++j) {
           q[j] = a.s->lo[j] + UniformUnit(prng) * (a.s->hi[j] - a.s->lo[j]);
         }
@@ -982,7 +991,7 @@ void Checker::SolvePosture(
                          return x.first < y.first;
                        });
       for (const auto& [seconds, q] : found) {
-        double margin;
+        double margin = 0.0;
         std::string joint;
         Margin(ai, q, &margin, &joint);
         AllAtWait();
