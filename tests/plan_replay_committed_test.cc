@@ -222,43 +222,52 @@ TEST(Committed, BreakagesAreFound) {
   }
   {
     // A strap bolt started before its rail is set: the bolting arm's
-    // segments of the rail phase moved earlier together.
-    // The steps are found by their names in the plan's step times.
+    // segments of the rail phase moved earlier together, to 1 s before the
+    // set's end. The steps are found by their names in the plan's step times;
+    // the bolt is the first one whose wait before it is long enough for the
+    // move (run 043: in v17's plan the first bolt waits only 0.25 s).
     Plan p = c.plan;
     const StepTime* bolt = nullptr;
     int rail = -1;
-    for (const StepTime& s : p.steps) {
-      if (std::sscanf(s.what.c_str(), "bolt rail %d", &rail) == 1) {
-        bolt = &s;
-        break;
-      }
-    }
-    ASSERT_NE(bolt, nullptr);
-    int set_step = -1;
-    for (const StepTime& s : p.steps) {
-      if (set_step < 0 && s.what == "set rail " + std::to_string(rail)) set_step = s.number;
-    }
     int pa = -1;
-    for (size_t k = 0; k < p.arms.size(); ++k) {
-      if (p.arms[k].name == bolt->arm) pa = static_cast<int>(k);
-    }
-    ASSERT_GE(pa, 0);
-    double set_end = -1.0;
-    for (const ArmPlan& a : p.arms) {
-      for (const Segment& s : a.segments) {
-        if (s.step == set_step && s.kind == "work") set_end = s.t1;
-      }
-    }
-    ASSERT_GT(set_end, 0.0);
-    std::vector<Segment>& bs = p.arms[pa].segments;
     int first = -1;
-    for (size_t i = 0; i < bs.size() && first < 0; ++i) {
-      if (bs[i].step == bolt->number && bs[i].kind != "wait") first = static_cast<int>(i);
+    double shift = 0.0;
+    for (const StepTime& b : p.steps) {
+      int r = -1;
+      if (std::sscanf(b.what.c_str(), "bolt rail %d", &r) != 1) continue;
+      int set_step = -1;
+      for (const StepTime& s : p.steps) {
+        if (set_step < 0 && s.what == "set rail " + std::to_string(r)) set_step = s.number;
+      }
+      int arm_index = -1;
+      for (size_t k = 0; k < p.arms.size(); ++k) {
+        if (p.arms[k].name == b.arm) arm_index = static_cast<int>(k);
+      }
+      if (set_step < 0 || arm_index < 0) continue;
+      double set_end = -1.0;
+      for (const ArmPlan& a : p.arms) {
+        for (const Segment& s : a.segments) {
+          if (s.step == set_step && s.kind == "work") set_end = s.t1;
+        }
+      }
+      if (set_end <= 0.0) continue;
+      const std::vector<Segment>& segments = p.arms[arm_index].segments;
+      int f = -1;
+      for (size_t i = 0; i < segments.size() && f < 0; ++i) {
+        if (segments[i].step == b.number && segments[i].kind != "wait") f = static_cast<int>(i);
+      }
+      if (f <= 0 || segments[f - 1].kind != "wait") continue;
+      const double sh = segments[f].t0 - set_end + 1.0;
+      if (sh >= segments[f - 1].t1 - segments[f - 1].t0) continue;
+      bolt = &b;
+      rail = r;
+      pa = arm_index;
+      first = f;
+      shift = sh;
+      break;
     }
-    ASSERT_GT(first, 0);
-    ASSERT_EQ(bs[first - 1].kind, "wait");
-    const double shift = bs[first].t0 - set_end + 1.0;
-    ASSERT_LT(shift, bs[first - 1].t1 - bs[first - 1].t0) << "the wait before is too short";
+    ASSERT_NE(bolt, nullptr) << "no strap bolt with a wait before it long enough to move it before its rail's set ends";
+    std::vector<Segment>& bs = p.arms[pa].segments;
     bs[first - 1].t1 -= shift;
     int last = first;
     while (last < static_cast<int>(bs.size()) && bs[last].kind != "wait") {
