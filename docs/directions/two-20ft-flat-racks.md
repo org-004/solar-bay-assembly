@@ -18,6 +18,7 @@ Only candidates exist: no version of this direction is chosen or settled.
 |---|---|---|---|---|---|---|---|---|
 | v11 | 2026-11-27 | Two 20 ft flat racks, two pin arms: three bays planned (candidate) | 969.67 s per bay | 1003.47 s | 4 | 25 | 3727.0 kg | planned |
 | v12 | 2026-11-27 | Two 20 ft flat racks, pin arms balanced: three bays planned (candidate) | 819.11 s per bay | 852.84 s | 4 | 25 | 3727.0 kg | planned |
+| v13 | 2026-11-27 | Two 20 ft flat racks, pin arms balanced, work ordered: three bays planned (candidate) | 748.38 s per bay | 784.30 s | 4 | 25 | 3727.0 kg | planned |
 
 The cycle time of a version with a plan is the average bay of three bays planned back to back, (end of bay 2's bay out − start of bay 0's tube in) / 3; "One bay" is its bay 0 alone, from tube in to bay out. A version without a plan has the time of one bay, marked so ([the scorecard](../scorecard.md)).
 

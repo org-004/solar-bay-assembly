@@ -5,8 +5,8 @@
 // plan made up here (a transfer short, missing, a step across one, an arm
 // off its wait pose through one, a module set before the stage's magazine
 // is taken and parked). With each committed staged plan plans/<name>.json,
-// v11's and the balanced layout's (v12), once it exists (the tests of it are
-// skipped until then): the verifier over the whole plan, its schedule
+// v11's, the balanced layout's (v12) and the balanced layout with its order
+// of work (v13), once it exists (the tests of it are skipped until then): the verifier over the whole plan, its schedule
 // sampled in four pieces, and the same tampering on copies of it; these
 // tests are parameterized by the layout's name. The checker's report is made once and shared
 // (VerifyPlanWithReport).
@@ -37,10 +37,12 @@ namespace cell::layout {
 namespace {
 
 // The staged layouts with a committed plan: v11's, which the made-up plans
-// use too, and the balanced one (v12).
+// use too, the balanced one (v12) and the balanced one with an order of work
+// and one posture per module for pin arm B (v13).
 const std::vector<std::string>& StagedNames() {
-  static const std::vector<std::string> names = {"two_flat_racks_2_pin_arms",
-                                                 "two_flat_racks_2_pin_arms_balanced"};
+  static const std::vector<std::string> names = {
+      "two_flat_racks_2_pin_arms", "two_flat_racks_2_pin_arms_balanced",
+      "two_flat_racks_2_pin_arms_balanced_ordered"};
   return names;
 }
 
@@ -120,7 +122,10 @@ const Committed& TheCommitted(const std::string& name) {
 #define NEED_COMMITTED() NEED_COMMITTED_OF(StagedNames()[GetParam()])
 
 // A layout's index as a test's name.
-std::string Short(int index) { return index == 0 ? "TwoPinArms" : "Balanced"; }
+std::string Short(int index) {
+  static const char* const names[] = {"TwoPinArms", "Balanced", "BalancedOrdered"};
+  return names[index];
+}
 
 // The indices of StagedNames(), named.
 const auto kStagedIndices = ::testing::Range(0, static_cast<int>(StagedNames().size()));

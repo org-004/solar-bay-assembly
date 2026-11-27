@@ -107,29 +107,42 @@ StepTime Step(const std::string& what) {
   return s;
 }
 
-TEST(Scorecard, EveryCommittedFileIsWhatTheProgramComputes) {
+// One test per committed plan, so that the test's shards share the cards
+// out: the two-rack layouts with one posture per module take minutes each
+// (their checker reports). The parameter is the plan's index in PlanNames()
+// (::testing::ValuesIn over strings makes GCC 14.2 crash).
+class CommittedFile : public ::testing::TestWithParam<int> {};
+
+TEST_P(CommittedFile, IsWhatTheProgramComputes) {
   const std::vector<std::string> names = PlanNames();
-  ASSERT_FALSE(names.empty());
-  for (const std::string& name : names) {
-    const std::optional<Scorecard> card = Compute(name);
-    ASSERT_TRUE(card.has_value());
-    const std::string committed =
-        ReadFile(Dir("SCORES_DIR", "scores") + "/" + name + ".json");
-    std::string error;
-    const std::optional<Scorecard> recorded = ScorecardFromJson(committed, &error);
-    ASSERT_TRUE(recorded.has_value()) << "scores/" << name << ".json: " << error;
-    EXPECT_EQ(committed, ScorecardToJson(*card))
-        << "scores/" << name
-        << ".json is not what score_layout computes for layouts/" << name
-        << ".json and plans/" << name << ".json as they are (layout sha256 now "
-        << card->layout_sha256 << ", recorded " << recorded->layout_sha256
-        << "; plan sha256 now " << card->plan_sha256 << ", recorded "
-        << recorded->plan_sha256 << "; rates sha256 now " << card->rates_sha256
-        << ", recorded " << recorded->rates_sha256
-        << "). Run: bazel run --config=opt //:score_layout -- " << name
-        << " --write";
-  }
+  ASSERT_LT(static_cast<size_t>(GetParam()), names.size());
+  const std::string& name = names[GetParam()];
+  const std::optional<Scorecard> card = Compute(name);
+  ASSERT_TRUE(card.has_value());
+  const std::string committed =
+      ReadFile(Dir("SCORES_DIR", "scores") + "/" + name + ".json");
+  std::string error;
+  const std::optional<Scorecard> recorded = ScorecardFromJson(committed, &error);
+  ASSERT_TRUE(recorded.has_value()) << "scores/" << name << ".json: " << error;
+  EXPECT_EQ(committed, ScorecardToJson(*card))
+      << "scores/" << name
+      << ".json is not what score_layout computes for layouts/" << name
+      << ".json and plans/" << name << ".json as they are (layout sha256 now "
+      << card->layout_sha256 << ", recorded " << recorded->layout_sha256
+      << "; plan sha256 now " << card->plan_sha256 << ", recorded "
+      << recorded->plan_sha256 << "; rates sha256 now " << card->rates_sha256
+      << ", recorded " << recorded->rates_sha256
+      << "). Run: bazel run --config=opt //:score_layout -- " << name
+      << " --write";
 }
+
+INSTANTIATE_TEST_SUITE_P(EveryPlan, CommittedFile,
+                         ::testing::Range(0, static_cast<int>(PlanNames().size())),
+                         [](const ::testing::TestParamInfo<int>& i) {
+                           return PlanNames()[i.param];
+                         });
+
+TEST(Scorecard, ThereAreCommittedPlans) { EXPECT_FALSE(PlanNames().empty()); }
 
 TEST(Scorecard, EveryStepOfEveryPlanMaps) {
   for (const std::string& name : PlanNames()) {
