@@ -84,6 +84,8 @@ class ArmDynamics {
   ~ArmDynamics();
   ArmDynamics(const ArmDynamics&) = delete;
   ArmDynamics& operator=(const ArmDynamics&) = delete;
+  ArmDynamics(ArmDynamics&&) = delete;
+  ArmDynamics& operator=(ArmDynamics&&) = delete;
 
   // The limits: six joints in N m, then the track in N.
   const std::array<double, 7>& limits() const { return limits_; }
