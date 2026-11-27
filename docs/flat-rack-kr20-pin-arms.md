@@ -185,6 +185,72 @@ Every hole from -Y at 034's stops. What it took, each found by checker or planne
   bays: the test is now `Kr20.ThreeBaysOfTheSharedBeamLayoutPassTheVerifier` and the layout has a
   scorecard.
 
+## Run 042: each move the quickest of 8 searched paths (`path_tries`)
+
+Run 038 found the two-rack bay's short pin arm moves slow at their corners. On v16 the slow
+multi-piece pin arm moves are not corner cases: their straight line is blocked from its first
+centimetres (C's links 3 and 5 against `holder_stand_8_column`, the tool's nose against
+`bay_rail_8_strap_*`), and the one path the search found goes the long way round, 2 to 11 times
+the straight line in weighted length. Shortening (200 random shortcuts, then every waypoint whose
+neighbours see each other dropped) only pulls that way round taut; every waypoint it leaves is one
+whose neighbours cannot see each other at the planning clearance (0.018 m). Blending the corners
+looser buys little, and a looser blend strays farther than the 3 mm the plan keeps over the
+checker's clearance.
+
+The five slowest multi-piece pin arm moves on v16's bay-0 critical path (all pin arm C) and the
+two slowest of fast_b's (pin arm B), each timed as planned (corners blended within 0.002 rad), with
+every corner a stop, blended within 0.005 and 0.010 rad, and as the straight line (which is not
+free); the last column is the move in the plan with `path_tries` 8. Length is the planner's
+weighted joint-space length against the straight line's.
+
+| layout | step | move | pieces | length / straight | planned s | all stops s | blend 0.005 s | blend 0.010 s | straight s (blocked by) | model s | quickest of 8: pieces, s |
+|---|---:|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| v16 | 149 | swage 7/2 → swage 7/0 | 7 | 11.29 | 5.92 | 5.99 | 5.76 | 5.54 | 1.59 (0.203 m) | 1.78 | 7, 5.14 |
+| v16 | 152 | swage 7/0 → locate 8/0 | 7 | 4.06 | 4.88 | 4.89 | 4.70 | 4.49 | 1.45 (0.230 m) | 1.65 | 6, 4.05 |
+| v16 | 138 | pins_take 2 → locate 7/0 | 7 | 2.41 | 4.79 | 4.92 | 4.43 | 4.39 | 2.05 (0.129 m) | 2.25 | 3, 3.75 |
+| v16 | 140 | pin 7/0 → locate 7/2 | 7 | 4.78 | 4.43 | 4.94 | 3.88 | 3.76 | 1.59 (0.203 m) | 1.78 | 7, 4.43 |
+| v16 | 148 | swage 7/3 → swage 7/2 | 4 | 5.11 | 2.49 | 2.49 | 2.48 | 2.39 | 0.88 (0.059 m) | 1.25 | 3, 1.55 |
+| fast_b | 147 | pin 8/0 → locate 8/2 | 9 | 4.64 | 6.47 | 6.63 | 6.21 | 5.99 | 1.65 (0.209 m) | 1.85 | 5, 4.81 |
+| fast_b | 156 | swage 8/2 → swage 8/0 | 7 | 4.32 | 5.03 | 5.21 | 4.79 | 4.58 | 1.65 (0.209 m) | 1.85 | 5, 4.27 |
+
+Over all 67 multi-piece moves of v16's bay 0 (every arm), blending within 0.010 rad instead of
+0.002 rad would save 26.95 s of moving time in all (pin arms 12.5 s), little of it on the critical
+path, at up to five times the blend's deviation. The lever is the way round instead: search each
+move from more seeds and keep the quickest timed path. A probe with 8 seeds planned v16's bay 0 in
+556.74 s (expected gain 18.0 s); 4 seeds gave 567.35 s, 4 seeds with five times the shortening
+578.71 s (the schedule is not monotonic in the moves' times).
+
+`path_tries` (`src/layout.h`, an optional top-level integer from 2 to 16, flat rack bases): each
+move is searched from that many seeds (its own first), each path shortened as before, and the path
+with the quickest trajectory kept (`QuickestPath`, the first of equals). Every path is checked at
+the same planning clearance as before; the blend figure is unchanged. The plan file names
+`path_tries` only when it is not 1, so a layout without it plans byte-identically, and the
+verifier holds a plan to its layout's value (`tests/path_tries_test.cc`, in `//:plan_replay_test`).
+
+| | v16 | v16 + `path_tries` 8 | fast_b | fast_b + `path_tries` 8 |
+|---|---:|---:|---:|---:|
+| layout | `..._shared_ordered_fast_retreat` | `..._shared_ordered_fast_paths` | `..._ordered_fast_b` | `..._ordered_fast_b_paths` |
+| moves found | 126 of 126 | 126 of 126 | 127 of 127 | 127 of 127 |
+| planning (one bay) | 39.7 s | 119.6 s | 53.2 s | 100.8 s |
+| bay 0 planned | 574.73 s | **555.34 s** (-19.39 s) | 740.38 s | **717.97 s** (-22.41 s) |
+| moving, module arm / A / B / C | 205.6 / 110.0 / 71.9 / 60.9 s | 180.7 / 100.5 / 63.0 / 54.5 s | | |
+| critical path: moves, waits | 119.3 s, 175.1 s | 111.3 s, 163.6 s | | |
+
+The fast_paths plan is committed (one bay, `plans/flat_rack_3_kr20_pin_arms_shared_ordered_fast_paths.json`,
+replayed in `Kr20.OneBayOfTheSharedBeamLayoutWithPathTriesPassesTheVerifier`); fast_b_paths is
+committed as a layout with its checker report rule, its plan not (it needs three bays and the
+staged tests, as fast_b does).
+
+Run 041 landed beside this one: `..._fast_retreat_ma` (v16 with the modules set in turns of the pin
+arms, 543.96 s) removes C's wait for the module arm. The two levers are independent; `path_tries` on
+`_ma` has not been planned.
+
+Tightest margins of the fast_paths plan (`plan_layout -- flat_rack_3_kr20_pin_arms_shared_ordered_fast_paths --margins`):
+least clearance 0.0160 m against 0.015 m (C's link 3 to `holder_stand_8_saddle`, step 152, as in
+v16); arm to arm 0.0205 m (C and B); least joint margin 5.00° against 5° (A's joint 1, from the
+checker); track ends 0 slack (module arm -3.600 / 5.500, A -5.700); the largest blend deviation
+0.002 rad, at most 0.0150 m anywhere on an arm (the unchanged figure, reached by a blend in both plans).
+
 ## Run 034: one KR 20 along the whole bay, one bay planned whole
 
 ### Probes (`tools/kr20/probe.sh`: one pin arm over the whole track, every hole, every 0.1 m)

@@ -108,6 +108,10 @@ std::string FiguresText(const PlanFigures& f) {
          ",\"max_deviation\":" + Fig(f.max_deviation) +
          ",\"edge_resolution\":" + Fig(f.edge_resolution) +
          ",\"shorten_tries\":" + std::to_string(f.shorten_tries) +
+         // Only when not 1: a plan of a layout without path_tries is
+         // written as before it was a figure.
+         (f.path_tries == 1 ? std::string()
+                            : ",\"path_tries\":" + std::to_string(f.path_tries)) +
          ",\"budgets\":" + Ints(f.budgets) +
          ",\"seed\":" + std::to_string(f.seed) +
          ",\"sample_s\":" + Fig(f.sample_s) + "}";
@@ -234,6 +238,7 @@ std::optional<Plan> PlanFromJson(const std::string& text, std::string* error) {
     p.figures.max_deviation = Get<double>(f, "max_deviation");
     p.figures.edge_resolution = Get<double>(f, "edge_resolution");
     p.figures.shorten_tries = Get<int>(f, "shorten_tries");
+    p.figures.path_tries = f.contains("path_tries") ? Get<int>(f, "path_tries") : 1;
     p.figures.budgets = Get<std::vector<int>>(f, "budgets");
     p.figures.seed = Get<std::uint32_t>(f, "seed");
     p.figures.sample_s = Get<double>(f, "sample_s");

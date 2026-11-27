@@ -159,6 +159,21 @@ double MoveDuration(const std::vector<Config>& path, const ArmMotion& motion,
   return t->duration();
 }
 
+int QuickestPath(const std::vector<std::vector<Config>>& paths, const ArmMotion& motion,
+                 const PlanFigures& f) {
+  int best = -1;
+  double best_s = 0.0;
+  for (size_t i = 0; i < paths.size(); ++i) {
+    const double s = MoveDuration(paths[i], motion, f);
+    if (s < 0.0) continue;
+    if (best < 0 || s < best_s) {
+      best = static_cast<int>(i);
+      best_s = s;
+    }
+  }
+  return best;
+}
+
 namespace {
 
 double LegAt(const std::vector<Config>& path, double length_m, const ArmMotion& motion,
@@ -1657,6 +1672,11 @@ VerifyReport VerifyPlanWithReport(const Layout& layout, const ModelPaths& paths,
     if (f.shorten_tries != d.shorten_tries) {
       r.faults.push_back(Fmt("the plan's figure shorten_tries is %d, not ours, %d",
                              f.shorten_tries, d.shorten_tries));
+    }
+    const int tries = layout.path_tries ? *layout.path_tries : d.path_tries;
+    if (f.path_tries != tries) {
+      r.faults.push_back(Fmt("the plan's figure path_tries is %d, not ours, %d",
+                             f.path_tries, tries));
     }
     if (f.seed != d.seed) {
       r.faults.push_back(Fmt("the plan's figure seed is %u, not ours, %u", f.seed, d.seed));
