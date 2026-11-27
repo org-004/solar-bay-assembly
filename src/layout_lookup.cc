@@ -90,6 +90,18 @@ const ArmUse* FindArm(const Layout& layout, const std::string& name) {
   return nullptr;
 }
 
+int BeamArm(const Layout& layout, int arm) {
+  if (arm < 0 || arm >= static_cast<int>(layout.arms.size())) return arm;
+  const auto& track = layout.arms[arm].track;
+  if (!track || track->shares_beam_with.empty()) return arm;
+  for (size_t i = 0; i < layout.arms.size(); ++i) {
+    if (layout.arms[i].name == track->shares_beam_with) {
+      return static_cast<int>(i);
+    }
+  }
+  return arm;
+}
+
 const Tool* FindTool(const ArmUse& arm, const std::string& name) {
   for (const Tool& t : arm.tools) {
     if (t.name == name) return &t;

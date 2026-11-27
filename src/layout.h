@@ -266,6 +266,12 @@ struct Track {
   double mass_kg = 0.0;        // Beam and carriage together.
   Box beam;                    // Fixed, in the layout's frame.
   Box carriage;                // Moves with the base, in the base's frame.
+  // Optional: the arm whose beam this carriage also rides ("" when it rides
+  // its own only). The arms of one shared beam may stand on one line: each
+  // carriage counts as near by design to every beam of the group, as to its
+  // own; carriage to carriage and links to beams stay counted. The named arm
+  // has a track of the same direction and shares no beam itself.
+  std::string shares_beam_with;
   std::string basis;
   std::string source;
 };
@@ -523,6 +529,9 @@ std::vector<int> ParsePointList(const std::string& text, int count,
 
 // Small lookups. Each returns nullptr when there is none.
 const ArmUse* FindArm(const Layout& layout, const std::string& name);
+// The index of the arm whose beam arm `arm` rides: the arm its track's
+// shares_beam_with names, else `arm` itself.
+int BeamArm(const Layout& layout, int arm);
 const Tool* FindTool(const ArmUse& arm, const std::string& name);
 // The first entry of the kind: the only one where the kind is not divided.
 const Work* FindWork(const Layout& layout, const std::string& kind);

@@ -49,7 +49,10 @@
 //     tool, and the tool against the part it holds: the maker's ranges and
 //     the tool's mount are trusted;
 //   - the arm's carriage, and its base fixed to the carriage, against its
-//     own beam (it runs on it) and against its own tools that wait on it;
+//     own beam (it runs on it), against the beams of the arms it shares a
+//     beam with (src/layout.h, Track::shares_beam_with) and against its own
+//     tools that wait on it; its links count against every beam, and the
+//     other arms' carriages count as ever;
 //   - at a work point, a held part against what it is set on or taken from
 //     (DesignPairs::held_skip): a rail against the tube at rail_set, a taken
 //     rail against its stock's boxes, module m against rails m and m+1 at

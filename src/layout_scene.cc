@@ -272,7 +272,9 @@ std::vector<Obstacle> LayoutScene::Obstacles(
   for (int i = 0; i < ArmCount(); ++i) {
     const SceneArm& a = arms_[i];
     const bool me = i == active;
-    add(a.h->beam_geoms, me ? kCarriage : 0u);
+    // The arm's carriage runs on its own beam and on a beam it shares.
+    const bool rides = me || BeamArm(layout_, i) == BeamArm(layout_, active);
+    add(a.h->beam_geoms, rides ? kCarriage : 0u);
     std::string on = tool;
     if (!me) {
       auto o = options.tools.find(i);
