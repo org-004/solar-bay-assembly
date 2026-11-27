@@ -6,6 +6,9 @@
 #include <algorithm>
 #include <cctype>
 #include <cmath>
+#include <limits>
+#include <memory>
+#include <set>
 #include <numbers>
 #include <string>
 #include <utility>
@@ -29,7 +32,9 @@ struct Aabb {
   bool plane = false;
 };
 
-Aabb WorldAabb(const mjModel& m, const mjData& d, int g) {
+// Not inlined: LeastDistance and PairQuery run the very same code, so their
+// boxes and gaps agree to the bit.
+[[gnu::noinline]] Aabb WorldAabb(const mjModel& m, const mjData& d, int g) {
   Aabb box;
   if (m.geom_type[g] == mjGEOM_PLANE) {
     box.plane = true;
@@ -45,7 +50,7 @@ Aabb WorldAabb(const mjModel& m, const mjData& d, int g) {
   return box;
 }
 
-double AabbGap(const Aabb& a, const Aabb& b) {
+[[gnu::noinline]] double AabbGap(const Aabb& a, const Aabb& b) {
   if (a.plane || b.plane) return 0.0;
   const Vec gap = ((a.c - b.c).cwiseAbs() - a.h - b.h).cwiseMax(0.0);
   return gap.norm();
@@ -556,39 +561,19 @@ std::vector<Obstacle> LayoutScene::WayObstacles(WayKind way) const {
   return out;
 }
 
-Nearest LayoutScene::LeastDistance(mjData* d,
-                                   const std::vector<MovingGeom>& moving,
-                                   const std::vector<Obstacle>& obstacles,
-                                   double far) const {
-  const mjModel& m = *model_;
-  std::vector<Aabb> mb(moving.size()), ob(obstacles.size());
-  for (size_t i = 0; i < moving.size(); ++i) {
-    mb[i] = WorldAabb(m, *d, moving[i].geom);
-  }
-  for (size_t j = 0; j < obstacles.size(); ++j) {
-    ob[j] = WorldAabb(m, *d, obstacles[j].geom);
-  }
-  struct Pair {
-    double gap;
-    int i, j;
-  };
-  std::vector<Pair> pairs, near;
-  for (size_t i = 0; i < moving.size(); ++i) {
-    for (size_t j = 0; j < obstacles.size(); ++j) {
-      if (moving[i].geom == obstacles[j].geom) continue;
-      if (obstacles[j].skip & moving[i].group) {
-        if ((obstacles[j].near & moving[i].group) &&
-            AabbGap(mb[i], ob[j]) <= 0.0) {
-          near.push_back({0.0, static_cast<int>(i), static_cast<int>(j)});
-        }
-        continue;
-      }
-      const double gap = AabbGap(mb[i], ob[j]);
-      if (gap < far) {
-        pairs.push_back({gap, static_cast<int>(i), static_cast<int>(j)});
-      }
-    }
-  }
+namespace {
+
+struct Pair {
+  double gap;
+  int i, j;
+};
+
+// LeastDistance's measuring, given its pairs (box gap below `far`) and the
+// pairs near by design whose boxes touch, in the order they were found.
+Nearest Measure(const mjModel& m, mjData* d,
+                const std::vector<MovingGeom>& moving,
+                const std::vector<Obstacle>& obstacles, std::vector<Pair>& pairs,
+                const std::vector<Pair>& near, double far) {
   std::sort(pairs.begin(), pairs.end(), [](const Pair& a, const Pair& b) {
     if (a.gap != b.gap) return a.gap < b.gap;
     if (a.i != b.i) return a.i < b.i;
@@ -620,6 +605,249 @@ Nearest LayoutScene::LeastDistance(mjData* d,
     }
   }
   return best;
+}
+
+}  // namespace
+
+Nearest LayoutScene::LeastDistance(mjData* d,
+                                   const std::vector<MovingGeom>& moving,
+                                   const std::vector<Obstacle>& obstacles,
+                                   double far) const {
+  const mjModel& m = *model_;
+  std::vector<Aabb> mb(moving.size()), ob(obstacles.size());
+  for (size_t i = 0; i < moving.size(); ++i) {
+    mb[i] = WorldAabb(m, *d, moving[i].geom);
+  }
+  for (size_t j = 0; j < obstacles.size(); ++j) {
+    ob[j] = WorldAabb(m, *d, obstacles[j].geom);
+  }
+  std::vector<Pair> pairs, near;
+  for (size_t i = 0; i < moving.size(); ++i) {
+    for (size_t j = 0; j < obstacles.size(); ++j) {
+      if (moving[i].geom == obstacles[j].geom) continue;
+      if (obstacles[j].skip & moving[i].group) {
+        if ((obstacles[j].near & moving[i].group) &&
+            AabbGap(mb[i], ob[j]) <= 0.0) {
+          near.push_back({0.0, static_cast<int>(i), static_cast<int>(j)});
+        }
+        continue;
+      }
+      const double gap = AabbGap(mb[i], ob[j]);
+      if (gap < far) {
+        pairs.push_back({gap, static_cast<int>(i), static_cast<int>(j)});
+      }
+    }
+  }
+  return Measure(m, d, moving, obstacles, pairs, near, far);
+}
+
+std::vector<bool> LayoutScene::MovesWith(int arm) const {
+  const mjModel& m = *model_;
+  const SceneArm& a = arms_[arm];
+  std::set<int> qpos(a.h->qpos.begin(), a.h->qpos.end());
+  if (a.h->track_qpos >= 0) qpos.insert(a.h->track_qpos);
+  std::vector<bool> moves(m.nbody, false);
+  // A parent's id is below its children's.
+  for (int b = 1; b < m.nbody; ++b) {
+    bool own = false;
+    for (int k = 0; k < m.body_jntnum[b]; ++k) {
+      own = own || qpos.count(m.jnt_qposadr[m.body_jntadr[b] + k]) > 0;
+    }
+    moves[b] = own || moves[m.body_parentid[b]];
+  }
+  return moves;
+}
+
+// ------------------------------------------------------------- PairQuery
+
+}  // namespace cell::layout
+
+// MuJoCo's own passes of mj_kinematics (src/engine/engine_core_smooth.h and
+// engine_core_util.h of MuJoCo 4.0.0), not in its public header.
+extern "C" {
+void mj_kinematics1(const mjModel* m, mjData* d);
+void mj_local2GlobalQuat(mjData* d, mjtNum* xpos, mjtNum* xquat, mjtNum* xmat,
+                         const mjtNum pos[3], const mjtNum quat[4], int body,
+                         mjtByte sameframe);
+}
+
+namespace cell::layout {
+
+namespace {
+
+// The margin against rounding when an obstacle is passed over whole: far
+// below any distance that matters, far above the rounding of coordinates
+// of some metres.
+constexpr double kCullSlack = 1e-9;  // m
+
+// The largest separation, over the three axes, between box b and the box
+// [lo, hi]; no more than the separation of b from any box inside [lo, hi].
+double Separation(const Aabb& b, const Vec& lo, const Vec& hi) {
+  double sep = -std::numeric_limits<double>::infinity();
+  for (int k = 0; k < 3; ++k) {
+    sep = std::max(sep, lo[k] - (b.c[k] + b.h[k]));
+    sep = std::max(sep, (b.c[k] - b.h[k]) - hi[k]);
+  }
+  return sep;
+}
+
+}  // namespace
+
+struct PairQuery::State {
+  std::vector<Aabb> mb, ob;
+  std::vector<Pair> pairs, near;
+};
+
+PairQuery::PairQuery(const LayoutScene& scene, int arm,
+                     std::vector<MovingGeom> moving,
+                     std::vector<Obstacle> obstacles)
+    : scene_(scene),
+      moving_(std::move(moving)),
+      obstacles_(std::move(obstacles)),
+      s_(std::make_unique<State>()) {
+  const mjModel& m = scene_.model();
+  const std::vector<bool> moves = scene_.MovesWith(arm);
+  for (int b = 1; b < m.nbody; ++b) {
+    if (moves[b]) bodies_.push_back(b);
+  }
+  for (int b : bodies_) {
+    for (int g = m.body_geomadr[b]; g < m.body_geomadr[b] + m.body_geomnum[b]; ++g) {
+      geoms_.push_back(g);
+    }
+  }
+  for (int i = 0; i < m.nsite; ++i) {
+    if (moves[m.site_bodyid[i]]) sites_.push_back(i);
+  }
+  for (const MovingGeom& g : moving_) moving_moves_.push_back(moves[m.geom_bodyid[g.geom]]);
+  for (const Obstacle& o : obstacles_) obstacle_moves_.push_back(moves[m.geom_bodyid[o.geom]]);
+  const size_t n = obstacles_.size();
+  kind_.assign(moving_.size() * n, 0);
+  for (size_t i = 0; i < moving_.size(); ++i) {
+    for (size_t j = 0; j < n; ++j) {
+      if (moving_[i].geom == obstacles_[j].geom) continue;
+      if (obstacles_[j].skip & moving_[i].group) {
+        if (obstacles_[j].near & moving_[i].group) kind_[i * n + j] = 2;
+        continue;
+      }
+      kind_[i * n + j] = 1;
+    }
+  }
+  s_->mb.resize(moving_.size());
+  s_->ob.resize(n);
+}
+
+PairQuery::~PairQuery() = default;
+
+void PairQuery::Place(mjData* d) {
+  const mjModel& m = scene_.model();
+  const bool all = d != placed_ || (m.opt.enableflags & mjENBL_SLEEP) ||
+                   d->ntree_awake < m.ntree;
+  if (all) {
+    mj_kinematics(&m, d);
+    placed_ = d;
+  } else {
+    // mj_kinematics: the bodies' pass, then (mj_kinematics2) the inertial
+    // frames, geoms and sites, here only of the bodies that moved.
+    mj_kinematics1(&m, d);
+    for (int b : bodies_) {
+      mj_local2GlobalQuat(d, d->xipos + 3 * b, d->xiquat + 4 * b, d->ximat + 9 * b,
+                          m.body_ipos + 3 * b, m.body_iquat + 4 * b, b,
+                          m.body_sameframe[b]);
+    }
+    for (int g : geoms_) {
+      mj_local2GlobalQuat(d, d->geom_xpos + 3 * g, d->geom_xquat + 4 * g,
+                          d->geom_xmat + 9 * g, m.geom_pos + 3 * g, m.geom_quat + 4 * g,
+                          m.geom_bodyid[g], m.geom_sameframe[g]);
+    }
+    for (int i : sites_) {
+      mj_local2GlobalQuat(d, d->site_xpos + 3 * i, d->site_xquat + 4 * i,
+                          d->site_xmat + 9 * i, m.site_pos + 3 * i, m.site_quat + 4 * i,
+                          m.site_bodyid[i], m.site_sameframe[i]);
+    }
+  }
+  for (size_t i = 0; i < moving_.size(); ++i) {
+    if (all || moving_moves_[i]) s_->mb[i] = WorldAabb(m, *d, moving_[i].geom);
+  }
+  for (size_t j = 0; j < obstacles_.size(); ++j) {
+    if (all || obstacle_moves_[j]) s_->ob[j] = WorldAabb(m, *d, obstacles_[j].geom);
+  }
+}
+
+void PairQuery::Keep(double far) {
+  keep_.clear();
+  const std::vector<Aabb>& mb = s_->mb;
+  const std::vector<Aabb>& ob = s_->ob;
+  bool cull = far > 0.0 && std::isfinite(far) && !mb.empty();
+  Vec lo = Vec::Constant(std::numeric_limits<double>::infinity());
+  Vec hi = -lo;
+  for (const Aabb& b : mb) {
+    if (b.plane) cull = false;
+    lo = lo.cwiseMin(b.c - b.h);
+    hi = hi.cwiseMax(b.c + b.h);
+  }
+  for (size_t j = 0; j < ob.size(); ++j) {
+    if (cull && !ob[j].plane && Separation(ob[j], lo, hi) >= far + kCullSlack) continue;
+    keep_.push_back(static_cast<int>(j));
+  }
+}
+
+Nearest PairQuery::Least(mjData* d, double far) {
+  Keep(far);
+  std::vector<Pair>& pairs = s_->pairs;
+  std::vector<Pair>& near = s_->near;
+  pairs.clear();
+  near.clear();
+  const size_t n = obstacles_.size();
+  for (size_t i = 0; i < moving_.size(); ++i) {
+    const unsigned char* kind = kind_.data() + i * n;
+    for (int j : keep_) {
+      if (kind[j] == 0) continue;
+      const double gap = AabbGap(s_->mb[i], s_->ob[j]);
+      if (kind[j] == 2) {
+        if (gap <= 0.0) near.push_back({0.0, static_cast<int>(i), j});
+      } else if (gap < far) {
+        pairs.push_back({gap, static_cast<int>(i), j});
+      }
+    }
+  }
+  return Measure(scene_.model(), d, moving_, obstacles_, pairs, near, far);
+}
+
+bool PairQuery::Closer(mjData* d, double far) {
+  const mjModel& m = scene_.model();
+  const size_t n = obstacles_.size();
+  // One pair: whether it alone makes LeastDistance's answer nearer than far.
+  auto shows = [&](int i, int j) {
+    const unsigned char kind = kind_[static_cast<size_t>(i) * n + j];
+    if (kind == 0) return false;
+    const double gap = AabbGap(s_->mb[i], s_->ob[j]);
+    const int g = moving_[i].geom;
+    const int h = obstacles_[j].geom;
+    if (kind == 2) {
+      if (gap > 0.0) return false;
+      const double dist = mj_geomDistance(&m, d, g, h, 0.0, nullptr);
+      return dist < 0.0 && dist < far;
+    }
+    return gap < far && mj_geomDistance(&m, d, g, h, far, nullptr) < far;
+  };
+  // The pair that showed it last time first: a move's next configuration is
+  // usually stopped by the same pair.
+  if (last_i_ >= 0 && shows(last_i_, last_j_)) return true;
+  Keep(far);
+  for (int pass = 1; pass <= 2; ++pass) {  // Measured pairs first.
+    for (size_t i = 0; i < moving_.size(); ++i) {
+      const unsigned char* kind = kind_.data() + i * n;
+      for (int j : keep_) {
+        if (kind[j] != pass) continue;
+        if (shows(static_cast<int>(i), j)) {
+          last_i_ = static_cast<int>(i);
+          last_j_ = j;
+          return true;
+        }
+      }
+    }
+  }
+  return false;
 }
 
 std::string LayoutScene::GeomName(int g) const {

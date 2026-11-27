@@ -252,6 +252,9 @@ int PrintMargins(const Layout& layout, const ModelPaths& paths,
 }  // namespace
 
 int main(int argc, char** argv) {
+  // Each line as it is printed, also into a file or a pipe, so that a long
+  // probe shows its progress.
+  std::setvbuf(stdout, nullptr, _IOLBF, 0);
   std::string name, out;
   bool summary = false, pretty = false, margins = false;
   PlanOptions options;

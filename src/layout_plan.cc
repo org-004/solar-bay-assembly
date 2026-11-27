@@ -158,27 +158,39 @@ struct ArmEnd {
 
 // ------------------------------------------------------------- MoveWorld
 
-MoveWorld::MoveWorld(const LayoutScene& scene, int arm, const std::string& tool,
-                     const std::string& held, const Built& built,
-                     double clearance_m)
-    : scene_(scene), arm_(arm), clearance_m_(clearance_m) {
-  moving_ = scene.Moving(arm, tool, held);
+namespace {
+
+PairQuery MoveQuery(const LayoutScene& scene, int arm, const std::string& tool,
+                    const std::string& held, const Built& built) {
   // The other arms where the data has them (at their wait poses, with
   // their first tools), so that no move passes through an arm that stands
   // at its wait pose.
   ObstacleOptions options;
   options.other_arms = true;
-  obstacles_ = scene.Obstacles(arm, tool, built, DesignPairs{}, options);
+  return PairQuery(scene, arm, scene.Moving(arm, tool, held),
+                   scene.Obstacles(arm, tool, built, DesignPairs{}, options));
 }
+
+}  // namespace
+
+MoveWorld::MoveWorld(const LayoutScene& scene, int arm, const std::string& tool,
+                     const std::string& held, const Built& built,
+                     double clearance_m)
+    : scene_(scene),
+      arm_(arm),
+      clearance_m_(clearance_m),
+      query_(MoveQuery(scene, arm, tool, held, built)) {}
 
 Nearest MoveWorld::Least(mjData* d, const Config& c, double far) const {
   scene_.SetPose(d, arm_, ToPose(c));
-  mj_kinematics(&scene_.model(), d);
-  return scene_.LeastDistance(d, moving_, obstacles_, far);
+  query_.Place(d);
+  return query_.Least(d, far);
 }
 
 bool MoveWorld::Free(mjData* d, const Config& c) const {
-  return Least(d, c, clearance_m_).distance >= clearance_m_;
+  scene_.SetPose(d, arm_, ToPose(c));
+  query_.Place(d);
+  return !query_.Closer(d, clearance_m_);
 }
 
 // ------------------------------------------------------------ PlanLayout
@@ -701,11 +713,16 @@ void Planner::PlanOne(MoveJob& job, mjData* d, const std::vector<int>& budgets) 
   const Eigen::VectorXd lower = m.lower.head(dims), upper = m.upper.head(dims);
   std::optional<JointPath> path;
   // The queries the checks of start and goal made above are counted; the
-  // planner checks them once more and counts those too.
-  for (int budget : budgets) {
-    ro.max_iterations = budget;
-    RrtReport rr;
-    path = PlanRrtConnect(start, goal, lower, upper, is_free, ro, &rr);
+  // planner checks them once more and counts those too. The budgets are
+  // tried in turn in one run (PlanRrtConnectBudgets); the queries of each
+  // budget run out are counted as if it had been run on its own.
+  std::vector<RrtReport> reports;
+  path = PlanRrtConnectBudgets(start, goal, lower, upper, is_free, ro, budgets,
+                               &reports);
+  for (size_t k = 0; k < reports.size(); ++k) {
+    const int budget = budgets[k];
+    const RrtReport& rr = reports[k];
+    if (k + 1 < reports.size()) queries += rr.collision_queries;
     job.log.push_back(Fmt(
         "budget %d in %d coordinates: %s, %d iterations, trees of %d and %d "
         "nodes, %lld queries",
@@ -716,7 +733,7 @@ void Planner::PlanOne(MoveJob& job, mjData* d, const std::vector<int>& budgets) 
                    job.log.back().c_str(), ConfigText(job.from).c_str(),
                    ConfigText(job.to).c_str());
     }
-    if (path) {
+    if (k + 1 == reports.size() && path) {
       job.budget = rr.iterations == 0 ? 0 : budget;
       break;
     }
