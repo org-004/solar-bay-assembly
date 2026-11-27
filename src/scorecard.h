@@ -260,6 +260,16 @@ std::optional<Scorecard> ComputeScorecard(
     const std::string& plan_sha256, const std::string& rates_sha256,
     const PhysicsRecord* physics, std::string* error);
 
+// The same with the layout's checker report given, CheckLayout's for this
+// layout (made once, or read from its file, src/layout_report_file.h): used
+// for the checker's rows and for VerifyPlanWithReport, so nothing checks the
+// layout again. The scorecard is the one ComputeScorecard computes.
+std::optional<Scorecard> ComputeScorecardWithReport(
+    const Layout& layout, const Plan& plan, const std::vector<Rate>& rates,
+    const ModelPaths& paths, const std::string& layout_sha256,
+    const std::string& plan_sha256, const std::string& rates_sha256,
+    const PhysicsRecord* physics, const CheckReport& report, std::string* error);
+
 // scores/<name>.json and --json: the same text, 2-space indent, a final
 // newline. ScorecardFromJson reads it back.
 std::string ScorecardToJson(const Scorecard& card);

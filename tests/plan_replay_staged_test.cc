@@ -9,7 +9,9 @@
 // of work (v13), once it exists (the tests of it are skipped until then): the verifier over the whole plan, its schedule
 // sampled in four pieces, and the same tampering on copies of it; these
 // tests are parameterized by the layout's name. The checker's report is made once and shared
-// (VerifyPlanWithReport).
+// (VerifyPlanWithReport); a one-posture layout's is read from the file its
+// check_report rule in BUILD.bazel made once per layout and checker build
+// (src/layout_report_file.h, run 039), so no shard makes it again.
 
 #include <algorithm>
 #include <cstdio>
@@ -31,6 +33,7 @@
 #include "src/layout_model.h"
 #include "src/layout_plan.h"
 #include "src/layout_plan_stages.h"
+#include "src/layout_report_file.h"
 #include "src/layout_scene.h"
 
 namespace cell::layout {
@@ -80,7 +83,15 @@ Committed* Load(const std::string& name) {
   }
   c->layout = *l;
   c->sha256 = Sha256OfFile(layout_path);
-  c->report = CheckLayout(c->layout, ModelPaths::FromEnvironment());
+  // A one-posture layout's report is the file its check_report rule made
+  // once (src/layout_report_file.h); the others' are computed, in seconds.
+  std::optional<CheckReport> report =
+      CheckReportOf(c->layout, c->sha256, ModelPaths::FromEnvironment(), ReportDir(), &why);
+  if (!report) {
+    c->error = "no checker report: " + why;
+    return c;
+  }
+  c->report = *report;
   if (!c->report.pass) {
     c->error = "the layout does not pass the checker";
     return c;
