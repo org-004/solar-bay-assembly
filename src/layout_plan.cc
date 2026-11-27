@@ -227,6 +227,8 @@ class Planner {
   void PlanOne(MoveJob& job, mjData* d, const std::vector<int>& budgets);
   void PlanNarrowed(MoveJob& job, mjData* d);
   bool Schedule();
+  bool ScheduleSlowed();
+  void ResetSchedule();
   void FillPlan();
 
   // The schedule's pieces.
@@ -310,6 +312,14 @@ class Planner {
   bool scheduled_ = false;
   bool prepared_ = false;
   std::int64_t schedule_queries_ = 0;
+  // The torque bound (ScheduleSlowed): each block's segments as timed
+  // before any move was slowed, whether a move was, and, when not empty,
+  // each block's place in the order of placing that Schedule follows in
+  // place of the earliest start.
+  std::vector<std::vector<Segment>> plain_segs_;
+  bool slowed_ = false;
+  std::vector<int> rank_;
+  std::vector<double> release_;  // Each block's earliest start, when not empty.
 };
 
 const SolvedPoint* FindPoint(const CheckReport& r, const std::string& kind,
@@ -859,7 +869,11 @@ void Planner::PlanMoves() {
     for (int i = 0; i < threads; ++i) pool.emplace_back(worker);
     for (std::thread& t : pool) t.join();
   }
-  // Into the blocks, in order.
+  // Into the blocks, in order; with the torque bound also as timed unslowed.
+  if (dynamics_) {
+    plain_segs_.clear();
+    for (const Block& b : blocks_) plain_segs_.push_back(b.segs);
+  }
   for (MoveJob& job : moves_) {
     if (!job.in_range) continue;
     result_.queries += job.queries;
@@ -884,8 +898,10 @@ void Planner::PlanMoves() {
         time_scale = 1.0;
       } else if (time_scale > 1.0) {
         job.planned_s = MoveDuration(job.path, motions_[job.arm], f_) * time_scale;
+        slowed_ = true;
       }
     }
+
     row.time_scale = time_scale;
     row.from = job.from_label;
     row.to = job.to_label;
@@ -921,6 +937,21 @@ void Planner::PlanMoves() {
     for (size_t k = job.segment + 1; k < b.segs.size(); ++k) {
       b.segs[k].t0 += shift;
       b.segs[k].t1 += shift;
+    }
+    if (dynamics_) {
+      // The same move unslowed, for ScheduleSlowed's order of placing.
+      std::vector<Segment>& ps = plain_segs_[job.block];
+      Segment& p = ps[job.segment];
+      const double t0 = p.t0, t1 = p.t1;
+      p = s;
+      p.time_scale = 1.0;
+      p.planned_s = job.planned_s / time_scale;
+      p.t0 = t0;
+      p.t1 = t0 + (job.found ? p.planned_s + f_.settle_s : 0.0);
+      for (size_t k = job.segment + 1; k < ps.size(); ++k) {
+        ps[k].t0 += p.t1 - t1;
+        ps[k].t1 += p.t1 - t1;
+      }
     }
   }
 }
@@ -1327,6 +1358,10 @@ bool Planner::Schedule() {
           reason = "for " + scene_->arm(pb.arm).use->name + " to take its pin magazine and park";
         }
       }
+      if (!release_.empty() && release_[bi] > r) {
+        r = release_[bi];
+        reason = "to keep its place in the schedule without the torque bound";
+      }
       if (can) {
         ready.push_back({a, bi, r, reason});
       } else {
@@ -1340,8 +1375,10 @@ bool Planner::Schedule() {
       Fault("the schedule is blocked: no arm's next step may start" + waits);
       return false;
     }
+    // With a rank (ScheduleSlowed), in the order of placing it gives.
     std::stable_sort(ready.begin(), ready.end(),
-                     [](const Candidate& x, const Candidate& y) {
+                     [this](const Candidate& x, const Candidate& y) {
+                       if (!rank_.empty()) return rank_[x.block] < rank_[y.block];
                        return x.ready < y.ready;
                      });
     // The ready blocks are tried in order of their earliest start (ties by
@@ -1485,6 +1522,106 @@ bool Planner::Schedule() {
   }
   WaitsThroughTransfers(layout_, events_, &rows_);
   return true;
+}
+
+// Takes back every placed block, for another schedule.
+void Planner::ResetSchedule() {
+  for (Block& b : blocks_) {
+    b.placed = false;
+    b.after = -1;
+    b.start = b.end = b.work_end = 0.0;
+  }
+  placed_order_.clear();
+  undo_.clear();
+  yielded_.clear();
+}
+
+// The torque bound's schedule (run 047). Slowing a few of the module arm's
+// moves makes it later by the seconds they add, but the earliest-start
+// order of placing may then let one pin arm into a part of the bay before
+// another that went first without the bound, and the other waits for it to
+// pass: on v16 that turned 5.80 s of slower motion into 26.60 s of bay. So
+// the bay is scheduled three times: as Schedule places it; with every move
+// unslowed, which gives an order of placing; and slowed in that order (each
+// block still at its earliest start that its needs and the other arms
+// allow). The shorter of the first and the third is kept, the first on a
+// tie or when the third is blocked. The moves and their timing are the same
+// in both, so is what the arm's motors are asked; only the pin arms' blocks
+// (and the module arm's waits) move.
+bool Planner::ScheduleSlowed() {
+  const size_t faults = result_.faults.size();
+  auto bay_end = [&]() {
+    double e = 0.0;
+    for (const ArmState& st : state_) e = std::max(e, st.free);
+    return e;
+  };
+  // Swaps the blocks' segments with the unslowed ones (and back).
+  auto swap_segs = [&]() {
+    for (size_t k = 0; k < blocks_.size(); ++k) std::swap(blocks_[k].segs, plain_segs_[k]);
+  };
+  rank_.clear();
+  const bool first = Schedule();
+  const double first_end = bay_end();
+  struct Kept {
+    std::vector<ArmPlan> rows;
+    std::vector<ArmState> state;
+    std::vector<BayEvent> events;
+    std::vector<Block> blocks;
+    std::vector<int> order;
+    std::map<int, std::pair<size_t, ArmState>> undo;
+    std::set<std::pair<int, int>> yielded;
+    std::vector<std::string> faults;
+  };
+  const Kept kept{rows_, state_, events_, blocks_, placed_order_, undo_, yielded_, result_.faults};
+  // Unslowed, for the order.
+  swap_segs();
+  ResetSchedule();
+  const bool plain = Schedule();
+  std::vector<int> order = placed_order_;
+  // Each block's release: its unslowed start, plus what the slowed moves
+  // that started before it in the unslowed schedule added.
+  std::vector<std::pair<double, double>> added;  // (unslowed start, seconds added)
+  for (size_t k = 0; k < blocks_.size(); ++k) {
+    for (size_t g = 0; g < blocks_[k].segs.size(); ++g) {
+      const Segment& u = blocks_[k].segs[g];
+      const Segment& w = plain_segs_[k][g];
+      const double more = (w.t1 - w.t0) - (u.t1 - u.t0);
+      if (w.time_scale > 1.0 && more > 0.0) added.emplace_back(blocks_[k].start + u.t0, more);
+    }
+  }
+  std::vector<double> release(blocks_.size(), 0.0);
+  for (size_t k = 0; k < blocks_.size(); ++k) {
+    if (!blocks_[k].placed) continue;
+    release[k] = blocks_[k].start;
+    for (const auto& [t, more] : added) {
+      if (t < blocks_[k].start) release[k] += more;
+    }
+  }
+  swap_segs();
+  bool third = false;
+  if (plain && order.size() == kept.order.size()) {
+    rank_.assign(blocks_.size(), static_cast<int>(blocks_.size()));
+    for (size_t k = 0; k < order.size(); ++k) rank_[order[k]] = static_cast<int>(k);
+    ResetSchedule();
+    result_.faults.resize(faults);
+    release_ = release;
+    third = Schedule();
+    rank_.clear();
+    release_.clear();
+  }
+  if (third && (!first || bay_end() < first_end)) {
+    result_.faults.resize(faults);
+    return true;
+  }
+  rows_ = kept.rows;
+  state_ = kept.state;
+  events_ = kept.events;
+  blocks_ = kept.blocks;
+  placed_order_ = kept.order;
+  undo_ = kept.undo;
+  yielded_ = kept.yielded;
+  result_.faults = kept.faults;
+  return first;
 }
 
 double Planner::TransferEnd(int s) const {
@@ -1639,7 +1776,7 @@ PlanResult Planner::Run(bool plan, bool verify) {
   if (!plan) return done();
   PlanMoves();
   if (all_found_) {
-    scheduled_ = Schedule();
+    scheduled_ = slowed_ ? ScheduleSlowed() : Schedule();
   } else {
     Fault("the schedule was not built: not every move was found");
   }
