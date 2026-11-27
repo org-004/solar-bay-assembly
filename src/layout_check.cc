@@ -8,6 +8,7 @@
 #include <cmath>
 #include <cstdarg>
 #include <cstdio>
+#include <cstdlib>
 #include <limits>
 #include <map>
 #include <memory>
@@ -17,6 +18,7 @@
 #include <random>
 #include <set>
 #include <string>
+#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -110,6 +112,7 @@ struct ArmCtx {
   const SceneArm* s = nullptr;
   std::vector<Q6> seeds;
   std::optional<Q6> last;
+  double last_track = 0.0;  // The carriage at `last` (the posture choice).
 };
 
 std::array<double, 6> ToDeg(const Q6& q) {
@@ -237,6 +240,22 @@ class Checker {
   Q6 Unwind(int arm, const Q6& q, const Q6& anchor) const;
   // The largest over the joints of |change| / the datasheet's speed, s.
   double PostureSeconds(int arm, const Q6& from, const Q6& to) const;
+  // The pose family of the arm as it stands in data_ (after mj_kinematics):
+  // bit 0 the shoulder (the wrist centre behind joint 1's axis), bit 1 the
+  // elbow, bit 2 the wrist (joint 5's sign), from the joints' world axes.
+  int Family(int arm) const;
+  // One posture per module (ArmUse::one_posture_per_module): at the first of
+  // an arm's holes of a module, the poses of all of them, chosen together in
+  // one family, into presets_; nothing when no family has a pose at every
+  // hole.
+  void PresetModule(const Job& first, int arm);
+  struct Preset {
+    Q6 q{};
+    double track = 0.0;
+    double perr = 0.0;
+  };
+  std::map<std::pair<std::string, int>, Preset> presets_;  // (kind, index)
+  std::set<std::tuple<int, std::string, int>> presets_tried_;  // arm, kind, module
   // Walks one leg of the job's pose (job.result) into job.legs[leg].
   void WalkLeg(Job& job, int leg, const Approach& rule);
   bool LegPasses(const LegResult& r) const {
@@ -521,6 +540,25 @@ void Checker::Margin(int arm, const Q6& q, double* margin,
   }
 }
 
+// The targets of a work point: one, or two when the tool's x is given
+// either sign.
+std::vector<Target> TargetsOf(const WorkPoint& p) {
+  std::vector<Target> targets;
+  Target t;
+  t.p = p.pos;
+  t.z = p.z.normalized();
+  t.has_x = p.has_x;
+  if (t.has_x) {
+    t.x = (p.x - p.x.dot(t.z) * t.z).normalized();
+    targets.push_back(t);
+    t.x = -t.x;
+    targets.push_back(t);
+  } else {
+    targets.push_back(t);
+  }
+  return targets;
+}
+
 void Checker::SolveJob(Job& job, int count) {
   PointResult& r = job.result;
   r.solved = true;
@@ -540,19 +578,7 @@ void Checker::SolveJob(Job& job, int count) {
                       job.point.kind.c_str(), count);
     return;
   }
-  std::vector<Target> targets;
-  Target t;
-  t.p = job.point.pos;
-  t.z = job.point.z.normalized();
-  t.has_x = job.point.has_x;
-  if (t.has_x) {
-    t.x = (job.point.x - job.point.x.dot(t.z) * t.z).normalized();
-    targets.push_back(t);
-    t.x = -t.x;
-    targets.push_back(t);
-  } else {
-    targets.push_back(t);
-  }
+  const std::vector<Target> targets = TargetsOf(job.point);
   if (!L_.approaches.empty()) {
     SolvePosture(job, ai, site, tracks, targets);
     return;
@@ -679,6 +705,244 @@ double Checker::PostureSeconds(int arm, const Q6& from, const Q6& to) const {
   return t;
 }
 
+int Checker::Family(int arm) const {
+  const mjModel& m = M();
+  const mjData* d = data_.get();
+  const ArmHandle& h = *arms_[arm].s->h;
+  std::array<int, 6> jid{};
+  for (int j = 0; j < 6; ++j) {
+    jid[j] = -1;
+    for (int k = 0; k < m.njnt; ++k) {
+      if (m.jnt_qposadr[k] == h.qpos[j]) jid[j] = k;
+    }
+    if (jid[j] < 0) return -1;
+  }
+  auto anchor = [&](int j) {
+    return Vec(d->xanchor[3 * jid[j]], d->xanchor[3 * jid[j] + 1],
+               d->xanchor[3 * jid[j] + 2]);
+  };
+  auto axis = [&](int j) {
+    return Vec(d->xaxis[3 * jid[j]], d->xaxis[3 * jid[j] + 1],
+               d->xaxis[3 * jid[j] + 2]);
+  };
+  const Vec a1 = axis(0).normalized();
+  const Vec wc = anchor(4);
+  // Joint 2's axis is level and across the arm; the arm's forward direction
+  // is level and square to it, turned by joint 1 with the rest.
+  const Vec fwd = a1.cross(axis(1)).normalized();
+  const Vec rel = wc - anchor(0);
+  const int shoulder = rel.dot(fwd) < 0.0 ? 1 : 0;
+  const int elbow =
+      (anchor(2) - anchor(1)).cross(wc - anchor(2)).dot(axis(1)) < 0.0 ? 1 : 0;
+  const int wrist = axis(3).cross(axis(5)).dot(axis(4)) < 0.0 ? 1 : 0;
+  return shoulder | (elbow << 1) | (wrist << 2);
+}
+
+// One posture per module (an arm's "one_posture_per_module", layouts with
+// approach rules; run 029). Holes 0 and 2 of a module can come out of the
+// choice above in one pose family of an arm and holes 1 and 3 in the
+// other, a swing of the whole arm that the planner may not find with the
+// next module on. With the field set, at the first of the arm's holes of a
+// module to be solved (its locate, pin or swage kind), the checker solves
+// all of the arm's holes of that module of that kind together: for each
+// hole every pose of the seeds above, at the track candidates above and,
+// unless the kind has stops, at every 0.1 m of the track from its lo, kept
+// when inside the margin, clear and with both legs passing. A pose's family
+// is three bits from the joints' world axes: the wrist centre behind joint
+// 1's axis (the shoulder), the elbow's turn about joint 2's axis, the sign
+// of joint 5 (the wrist). For each family with a pose at every hole the
+// poses in hole order are chosen whose largest move from one hole to the
+// next is least (the time of a move: the joints' at the datasheet's speeds
+// or the carriage's at its speed, the longer), then whose move from the
+// anchor is least; the family with the least of these wins, the lower
+// number on a tie. The holes then take those poses, the windings brought
+// nearest the previous hole's; their reach rows say "(one posture per
+// module)" after the track. When no family has a pose at every hole the
+// choice above is kept. Layouts without the field are not changed.
+void Checker::PresetModule(const Job& first, int ai) {
+  if (!presets_tried_.insert({ai, first.point.kind, first.point.module})
+           .second) {
+    return;
+  }
+  ArmCtx& a = arms_[ai];
+  const ArmUse& use = Use(ai);
+  std::vector<Job>& list = jobs_[first.point.kind];
+  const int count = static_cast<int>(list.size());
+  std::vector<Job*> holes;
+  for (Job& j : list) {
+    if (j.point.module == first.point.module && j.point.hole >= 0 &&
+        j.sc.arm == ai && j.sc.error.empty() && j.in_scope &&
+        (&j == &first || !j.result.solved)) {
+      holes.push_back(&j);
+    }
+  }
+  std::stable_sort(holes.begin(), holes.end(), [](const Job* x, const Job* y) {
+    return x->point.hole < y->point.hole;
+  });
+  if (holes.empty()) return;
+  const Q6 anchor = a.last ? *a.last : a.s->wait;
+  std::vector<Q6> seeds = {anchor};
+  seeds.insert(seeds.end(), a.seeds.begin(), a.seeds.end());
+  const Approach* rule = FindApproach(L_, first.point.kind);
+  struct Option {
+    Q6 q{};
+    double track = 0.0;
+    double perr = 0.0;
+    int family = -1;
+  };
+  // Every pose of every hole that is inside the margin, clear and whose
+  // legs pass, over the track candidates and, unless the kind has stops,
+  // every 0.1 m of the track besides.
+  std::vector<std::vector<Option>> options(holes.size());
+  for (size_t h = 0; h < holes.size(); ++h) {
+    Job& hj = *holes[h];
+    std::string why;
+    auto tracks = TrackCandidates(ai, hj.point, count, &why);
+    if (tracks.empty()) return;
+    if (use.track && use.stops.find(hj.point.kind) == use.stops.end()) {
+      for (int k = 0;; ++k) {
+        const double v = use.track->lo + 0.1 * k;
+        if (v > use.track->hi + 1e-9) break;
+        bool seen = false;
+        for (const auto& c : tracks) seen |= std::abs(c.first - v) < 1e-9;
+        if (!seen) tracks.push_back({v, ""});
+      }
+    }
+    const int site = a.s->h->work_site.at(hj.sc.tool);
+    const std::vector<Target> targets = TargetsOf(hj.point);
+    const PointResult keep = hj.result;
+    const LegResult keep_legs[2] = {hj.legs[0], hj.legs[1]};
+    for (const auto& c : tracks) {
+      const double track = c.first;
+      std::vector<Q6> found;
+      for (const Q6& seed : seeds) {
+        for (const Target& tg : targets) {
+          AllAtWait();
+          const IkResult ik = Solve(ai, site, tg, track, seed);
+          if (!ik.ok) continue;
+          const Q6 q = Unwind(ai, ik.q, anchor);
+          bool seen = false;
+          for (const Q6& f : found) {
+            bool same = true;
+            for (int j = 0; j < 6; ++j) {
+              same = same && std::abs(f[j] - q[j]) < 0.5 * kDeg;
+            }
+            seen = seen || same;
+          }
+          if (seen) continue;
+          found.push_back(q);
+          double margin = 0.0;
+          std::string joint;
+          Margin(ai, q, &margin, &joint);
+          if (margin < opt_.joint_margin_deg - 1e-9) continue;
+          AllAtWait();
+          SetPose(ai, {q, track});
+          mj_kinematics(&M(), data_.get());
+          const int family = Family(ai);
+          if (PoseClearance(hj).distance < opt_.clearance_m) continue;
+          if (rule != nullptr) {
+            hj.result.reached = true;
+            hj.result.pose = {q, track};
+            WalkLeg(hj, 0, *rule);
+            WalkLeg(hj, 1, *rule);
+            if (!LegPasses(hj.legs[0]) || !LegPasses(hj.legs[1])) continue;
+          }
+          options[h].push_back({q, track, ik.perr, family});
+        }
+      }
+    }
+    hj.result = keep;
+    hj.legs[0] = keep_legs[0];
+    hj.legs[1] = keep_legs[1];
+  }
+  // For each family with a pose at every hole, the poses in hole order whose
+  // largest move from one hole to the next is least (the move's time: the
+  // joints' at the datasheet's speeds or the carriage's at its speed,
+  // whichever is longer), then whose move from the anchor is least; the
+  // family with the least of these wins, the lower number on a tie.
+  auto move_s = [&](const Q6& from, double from_track, const Q6& to,
+                    double to_track) {
+    double t = PostureSeconds(ai, from, Unwind(ai, to, from));
+    if (use.track && use.track->speed > 0.0) {
+      t = std::max(t, std::abs(to_track - from_track) / use.track->speed);
+    }
+    return t;
+  };
+  struct Best {
+    double worst = 1e18;
+    double from_anchor = 1e18;
+    std::vector<int> path;
+  };
+  // The order of two choices: the larger of the move from the anchor and
+  // the largest move between holes first, then the largest move between
+  // holes, then the move from the anchor.
+  auto better = [](double w, double fa, double other_w, double other_fa) {
+    const double x = std::max(w, fa);
+    const double y = std::max(other_w, other_fa);
+    if (std::abs(x - y) > 1e-9) return x < y;
+    if (std::abs(w - other_w) > 1e-9) return w < other_w;
+    return fa < other_fa - 1e-9;
+  };
+  Best best;
+  int best_family = -1;
+  for (int family = 0; family < 8; ++family) {
+    std::vector<std::vector<int>> in(holes.size());
+    for (size_t h = 0; h < holes.size(); ++h) {
+      for (size_t k = 0; k < options[h].size(); ++k) {
+        if (options[h][k].family == family) in[h].push_back(static_cast<int>(k));
+      }
+    }
+    bool every = true;
+    for (const auto& v : in) every = every && !v.empty();
+    if (!every) continue;
+    const double anchor_track = a.last ? a.last_track : a.s->wait_track;
+    std::vector<Best> cur;
+    for (int k : in[0]) {
+      Best b;
+      b.worst = 0.0;
+      b.from_anchor =
+          move_s(anchor, anchor_track, options[0][k].q, options[0][k].track);
+      b.path = {k};
+      cur.push_back(b);
+    }
+    for (size_t h = 1; h < holes.size(); ++h) {
+      std::vector<Best> next;
+      for (int k : in[h]) {
+        Best nb;
+        for (const Best& b : cur) {
+          const Option& from = options[h - 1][b.path.back()];
+          const double w = std::max(
+              b.worst, move_s(from.q, from.track, options[h][k].q,
+                              options[h][k].track));
+          if (better(w, b.from_anchor, nb.worst, nb.from_anchor)) {
+            nb.worst = w;
+            nb.from_anchor = b.from_anchor;
+            nb.path = b.path;
+          }
+        }
+        nb.path.push_back(k);
+        next.push_back(nb);
+      }
+      cur = next;
+    }
+    for (const Best& b : cur) {
+      if (better(b.worst, b.from_anchor, best.worst, best.from_anchor)) {
+        best = b;
+        best_family = family;
+      }
+    }
+  }
+  if (best_family < 0) return;
+  Q6 prev = anchor;
+  for (size_t h = 0; h < holes.size(); ++h) {
+    const Option& o = options[h][best.path[h]];
+    const Q6 q = Unwind(ai, o.q, prev);
+    presets_[{holes[h]->point.kind, holes[h]->point.index}] = {q, o.track,
+                                                               o.perr};
+    prev = q;
+  }
+}
+
 // The pose choice of a layout with approach rules: every seed's solution,
 // its windings brought nearest the arm's anchor, tried nearest first.
 void Checker::SolvePosture(
@@ -695,15 +959,128 @@ void Checker::SolvePosture(
   LegResult first_legs[2];
   bool have = false;
   double best_perr = 1e9;
+  // A diagnostic for probing (run 029), off unless the environment asks:
+  // LAYOUT_CHECK_PROBE=<arm> prints every candidate of every point of that
+  // arm, at every track value, to stderr, with its family, margin, clearance
+  // and legs. It changes nothing of the choice.
+  static const char* probe = std::getenv("LAYOUT_CHECK_PROBE");
+  if (probe != nullptr && Use(ai).name == probe) {
+    const PointResult keep_r = r;
+    const LegResult keep_legs[2] = {job.legs[0], job.legs[1]};
+    // LAYOUT_CHECK_PROBE_WIDE=<n>: also every 0.1 m of the track and n
+    // more seeds of a generator of the probe's own.
+    std::vector<std::pair<double, std::string>> probe_tracks = tracks;
+    std::vector<Q6> probe_seeds = seeds;
+    if (const char* wide = std::getenv("LAYOUT_CHECK_PROBE_WIDE")) {
+      if (Use(ai).track) {
+        for (int k = 0;; ++k) {
+          const double v = Use(ai).track->lo + 0.1 * k;
+          if (v > Use(ai).track->hi + 1e-9) break;
+          probe_tracks.push_back({v, "wide"});
+        }
+      }
+      std::mt19937 prng(29u);
+      const long extra = std::strtol(wide, nullptr, 10);
+      for (long k = 0; k < extra; ++k) {
+        Q6 q{};
+        for (int j = 0; j < 6; ++j) {
+          q[j] = a.s->lo[j] + UniformUnit(prng) * (a.s->hi[j] - a.s->lo[j]);
+        }
+        probe_seeds.push_back(q);
+      }
+    }
+    for (const auto& [track, note] : probe_tracks) {
+      std::vector<std::pair<double, Q6>> found;
+      for (const Q6& seed : probe_seeds) {
+        for (const Target& tg : targets) {
+          AllAtWait();
+          const IkResult ik = Solve(ai, site, tg, track, seed);
+          if (!ik.ok) continue;
+          const Q6 q = Unwind(ai, ik.q, anchor);
+          bool seen = false;
+          for (const auto& c : found) {
+            bool same = true;
+            for (int j = 0; j < 6; ++j) {
+              same = same && std::abs(c.second[j] - q[j]) < 0.5 * kDeg;
+            }
+            seen = seen || same;
+          }
+          if (!seen) found.push_back({PostureSeconds(ai, anchor, q), q});
+        }
+      }
+      std::stable_sort(found.begin(), found.end(),
+                       [](const auto& x, const auto& y) {
+                         return x.first < y.first;
+                       });
+      for (const auto& [seconds, q] : found) {
+        double margin = 0.0;
+        std::string joint;
+        Margin(ai, q, &margin, &joint);
+        AllAtWait();
+        SetPose(ai, {q, track});
+        mj_kinematics(&M(), data_.get());
+        const int fam = Family(ai);
+        const Nearest n = PoseClearance(job);
+        bool legs = false;
+        if (rule != nullptr) {
+          r.reached = true;
+          r.pose = {q, track};
+          WalkLeg(job, 0, *rule);
+          WalkLeg(job, 1, *rule);
+          legs = LegPasses(job.legs[0]) && LegPasses(job.legs[1]);
+        }
+        const std::array<double, 6> deg = ToDeg(q);
+        std::fprintf(stderr,
+                     "probe %p %s %s %s %s track %.3f fam %d sec %.2f margin %.2f "
+                     "%s clear %.4f legs %s q [%.1f %.1f %.1f %.1f %.1f "
+                     "%.1f]\n",
+                     static_cast<const void*>(this),
+                     opt_.stage ? opt_.stage->name.c_str() : "whole",
+                     Use(ai).name.c_str(), job.point.kind.c_str(),
+                     job.point.item.c_str(), track, fam, seconds, margin,
+                     joint.c_str(), n.distance,
+                     rule == nullptr ? "-" : legs ? "pass" : "fail", deg[0],
+                     deg[1], deg[2], deg[3], deg[4], deg[5]);
+      }
+    }
+    r = keep_r;
+    job.legs[0] = keep_legs[0];
+    job.legs[1] = keep_legs[1];
+  }
   auto settle = [&](const PointResult& chosen) {
     r = chosen;
     a.last = r.pose.q;
+    a.last_track = r.pose.track;
     AllAtWait();
     SetPose(ai, r.pose);
     mj_kinematics(&M(), data_.get());
     r.nearest = PoseClearance(job);
     Margin(ai, r.pose.q, &r.margin_deg, &r.margin_joint);
   };
+  if (Use(ai).one_posture_per_module && job.point.module >= 0 &&
+      job.point.hole >= 0) {
+    PresetModule(job, ai);
+    auto preset = presets_.find({job.point.kind, job.point.index});
+    if (preset != presets_.end()) {
+      const Preset& p = preset->second;
+      PointResult chosen = r;
+      chosen.reached = true;
+      chosen.clear = true;
+      chosen.pose = {Unwind(ai, p.q, anchor), p.track};
+      chosen.perr = p.perr;
+      chosen.track_note =
+          Fmt("track %.3f (one posture per module)", p.track);
+      chosen.why.clear();
+      if (rule != nullptr) {
+        r = chosen;
+        WalkLeg(job, 0, *rule);
+        WalkLeg(job, 1, *rule);
+        job.legs_done = true;
+      }
+      settle(chosen);
+      return;
+    }
+  }
   for (const auto& [track, note] : tracks) {
     struct Candidate {
       Q6 q;

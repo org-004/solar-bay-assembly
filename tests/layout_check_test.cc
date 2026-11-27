@@ -8,6 +8,7 @@
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
+#include <array>
 #include <map>
 #include <optional>
 #include <set>
@@ -1255,6 +1256,64 @@ TEST(LayoutCheck, PostureKeptAndPosesUnchanged) {
     EXPECT_FALSE(p.from.empty()) << p.arm;
     EXPECT_GT(p.largest_s, 0.0) << p.arm;
   }
+}
+
+// One posture per module (ArmUse::one_posture_per_module): the balanced
+// two-rack layout sets it for pin arm A, whose holes 0 and 2 of a module
+// otherwise come out in one pose family and holes 1 and 3 in the other
+// (run 028: joint 1 163 degrees from hole 2 to hole 3). With it every move
+// of A from one hole of a module to the next stays small and every row
+// passes; without it the crossing is there (over 150 degrees).
+TEST(LayoutCheck, OnePosturePerModule) {
+  std::string error;
+  const std::optional<Layout> layout =
+      LoadLayout(Dir() + "/two_flat_racks_2_pin_arms_balanced.json", &error);
+  ASSERT_TRUE(layout.has_value()) << error;
+  CheckOptions options;
+  options.checks = {"reach", "clearance", "approach"};
+  options.work_kinds = {"locate"};
+  // The largest change of one joint between consecutive holes of a module
+  // of pin arm A, degrees, over its modules.
+  auto largest = [](const CheckReport& report) {
+    std::map<int, std::map<int, std::array<double, 6>>> by_module;
+    for (const SolvedPoint& p : report.points) {
+      if (p.kind != "locate" || p.arm != "pin_arm_a" || !p.work_reached) {
+        continue;
+      }
+      by_module[p.index / 4][p.index % 4] = p.work_deg;
+    }
+    double worst = 0.0;
+    int holes = 0;
+    for (const auto& [module, holes_of] : by_module) {
+      for (int h = 1; h < 4; ++h) {
+        if (!holes_of.count(h) || !holes_of.count(h - 1)) continue;
+        for (int j = 0; j < 6; ++j) {
+          worst = std::max(worst, std::abs(holes_of.at(h)[j] -
+                                           holes_of.at(h - 1)[j]));
+        }
+      }
+      holes += static_cast<int>(holes_of.size());
+    }
+    EXPECT_EQ(holes, 20);  // Modules 0, 1, 3, 4 and 6.
+    return worst;
+  };
+  ASSERT_TRUE(layout->arms[1].one_posture_per_module);
+  const CheckReport with = CheckLayout(*layout, Paths(), options);
+  EXPECT_EQ(Failures(with), "");
+  // The move from the hole before (or the wait pose) counts in the choice
+  // too, so a move between holes may be up to about 70 degrees of one
+  // joint, never the swing of a family crossing.
+  EXPECT_LT(largest(with), 90.0);
+  int preset = 0;
+  for (const CheckRow& r : with.rows) {
+    preset += r.check == "reach" &&
+              r.detail.find("(one posture per module)") != std::string::npos;
+  }
+  EXPECT_EQ(preset, 20);
+  Layout without = *layout;
+  without.arms[1].one_posture_per_module = false;
+  const CheckReport plain = CheckLayout(without, Paths(), options);
+  EXPECT_GT(largest(plain), 150.0);
 }
 
 // A layout worked in stages, made in memory from a flat rack layout: each

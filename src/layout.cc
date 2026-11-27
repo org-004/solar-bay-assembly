@@ -450,7 +450,7 @@ ArmUse ReadArm(const Json& j, const std::string& path) {
          {"name", "model", "does", "base_pos", "base_rpy_deg", "tools",
           "first_tool", "stops", "wait_joints_deg", "wait_track",
           "stow_joints_deg", "stow_track", "stow_tool", "tool_change_s"},
-         {"track", "rack"});
+         {"track", "rack", "one_posture_per_module"});
   ArmUse a;
   a.name = String(FIELD(j, path, "name"));
   a.model = String(FIELD(j, path, "model"));
@@ -501,6 +501,9 @@ ArmUse ReadArm(const Json& j, const std::string& path) {
   }
   a.tool_change_s = Number(FIELD(j, path, "tool_change_s"));
   if (j.contains("rack")) a.rack = String(FIELD(j, path, "rack"));
+  if (j.contains("one_posture_per_module")) {
+    a.one_posture_per_module = Bool(FIELD(j, path, "one_posture_per_module"));
+  }
   return a;
 }
 
