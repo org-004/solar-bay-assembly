@@ -196,7 +196,7 @@ same machine before and after; every plan below is byte-identical before and aft
 | Command (`plan_layout -- two_flat_racks_2_pin_arms --bays 1 ...`) | `main` at `4bd8bea` | After run 026 |
 |---|---|---|
 | `--first-step 1 --last-step 62` (stage 1, 47 moves, 23,676,468 queries) | 301.8 s, 2.7 cores | 40.3 s, 2.8 cores |
-| `--first-step 93 --last-step 93` (one move not found, 49,191,898 queries) | S93_MAIN | 235.8 s |
+| `--first-step 93 --last-step 93` (one move not found, 49,191,898 queries) | more than 1,500 s (stopped at a 25 min cap) | 235.8 s |
 
 Where the time went before (a sampling profile, gperftools at 200 Hz, of the first row
 on `main`): 93% in the collision checks of the moves being planned, of which 30% was
