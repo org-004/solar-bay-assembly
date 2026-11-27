@@ -2243,6 +2243,7 @@ cc_test(
 ONE_POSTURE_LAYOUTS = [
     "two_flat_racks_2_pin_arms_balanced",
     "two_flat_racks_2_pin_arms_balanced_ordered",
+    "two_flat_racks_2_pin_arms_balanced_ordered_fast_b",
     "two_flat_racks_2_pin_arms_balanced_ordered_fast_retreat",
 ]
 
