@@ -62,7 +62,7 @@ rack a.
 |---|---|---|---|
 | Holder | a | two stands under the axis at y = 1.690 and 2.834; column 0.16 x 0.16 x 1.2775, saddle 0.22 x 0.30 x 0.04; 180 kg | see the staging: a stand cannot let a rail pass it |
 | Module arm, KR 210 R2700-2 | b | base (1.00, y, 1.10), yaw 90, track -2.37..2.37 on a raised beam 0.86 x 6.04 x 0.68 (1,600 kg) | 1.85 m across from the axis and 0.65 m below it, as on the 40 ft layouts, so its poses at the tube and the pallet are theirs |
-| Pin arms, KR 20 R1810-2 | a | base (-2.10, y, 0.52), yaw 90; tracks -2.6..-0.26 and 0.26..2.6 | 1.25 m from the axis, 1.23 m below it: the elbow stays under the modules |
+| Pin arms, KR 20 R1810-2 | a | base (-2.10, y, 0.52), yaw 90; tracks -2.6..-0.86 and -0.34..2.6 (run 024; until then -2.6..-0.26 and 0.26..2.6) | 1.25 m from the axis, 1.23 m below it: the elbow stays under the modules; the line divided 0.6 m toward -Y so that pin arm B reaches holes 0 and 1 of modules 1, 4 and 6 (its track clamped at -0.34 there) |
 | Bolt arm, KR 10 R1100-2 | a | base (-0.23, y, 0.52), yaw -90, track -2.6..2.5 | the bolts are driven along -X, so the arm stands on the tube's +X side, where there is room for a small arm only |
 | Pallet | outside b | (3.15, 0), yaw -90, deck 0.652 m above the ground | its nearest edge is at x 2.59 (0.12 m inside the -x face of the modules port's zone at 2.47; row `port,pallet 0 in a zone`), just outside rack b (edge at 2.4505) |
 | Rail rack | outside b | pick (2.80, 1.75, 1.43) | 1.80 m out so the body stands outside rack b |
@@ -73,9 +73,12 @@ Who does what:
 
 - module_arm: rail_take, rail_set, module_take and module_set, every point, with one
   combined gripper that is never changed.
-- pin_arm_a: locate, pin and swage of the holes of the modules set at y < 0 (modules
-  0, 1, 3, 4, 6: holes 0-7, 12-19, 24-27). pin_arm_b: those of the modules at y > 0
-  (modules 2, 5, 7, 8: holes 8-11, 20-23, 28-35). Each has its own magazine nest.
+- pin_arm_a: locate, pin and swage of every hole of modules 0 and 3 (holes 0-3,
+  12-15). pin_arm_b: every hole of modules 1, 2, 4, 5, 6, 7 and 8 (holes 4-11, 16-35).
+  Each has its own magazine nest. Until run 024 pin_arm_a had all of modules 0, 1, 3, 4
+  and 6 (0-7, 12-19, 24-27) and could not plan modules 4 and 6; run 024 gave B holes 1-3
+  of modules 1, 4 and 6, and run 025 hole 0 of those modules too, so that the two arms
+  share no module: see "Run 024" and "Run 025" below. B now has 28 holes and A 8.
 - bolt_arm: all ten strap bolts.
 - Loads (rows `load`): the module arm 68.4 kg of 210, the pin tool with its magazine
   8.5 kg of 20 on each KR 20, the nutrunner 3.0 kg of 5 on the KR 10.
@@ -301,7 +304,7 @@ the same time, and the time, which is a model without a limit.
 - A staged layout's moves get a fourth RRT budget of 640,000 iterations. A layout without
   staging keeps three budgets, and the three 40 ft plans re-plan byte-identical.
 
-**What blocks the plan of `two_flat_racks_2_pin_arms`.** Stage 1 plans whole. From
+**What blocked the plan of `two_flat_racks_2_pin_arms` (run 022; one bay plans whole since run 025, below).** Stage 1 plans whole. From
 `bazel run --config=opt //:plan_layout -- two_flat_racks_2_pin_arms --bays 1 --first-step 1
 --last-step 62 --summary`: 47 of 47 moves found, the clamp ends at 45.00 s, stage 1 runs
 45.00 to 283.33 s (238.33 s planned, against the time model's 203.9 s), and the first
@@ -322,16 +325,68 @@ What would fix it, each for a later run:
 
 - the checker solves all four holes of a module in one pose family of the arm;
 - the layout's `work` gives these holes to pin arm B, or places or tracks pin arm A
-  differently;
+  differently (done: runs 024 and 025);
 - a much larger search for these moves.
+
+**Run 024: what the layout's `work` and tracks change (on branch
+`org/024-pin-arm-a-s-four-blocked`, not on `main`).** Probes of bay 0 with
+`--budgets 5000,40000,160000`:
+
+- Holes 0 and 2 of a module are one pose family of pin arm A, holes 1 and 3 the other;
+  at the place of modules 4 and 6 every move of A between the families is not found:
+  2 to 3 (steps 93, 99, 135, 141 at `main`), 2 to 1 (holes 19 and 27 to pin arm B) and
+  0 to 1 (holes 18, 19, 26, 27 to B), each at 160,000 and without the next modules.
+- Pin arm B's moves between the families there (hole 2 to 3 and back) are found at
+  5,000 to 40,000 iterations, but B does not reach hole 1: 0.165 m short with its track
+  at its end, 0.26 m.
+- With the line of the two pin tracks divided 0.6 m toward -Y (A -2.6..-0.86, B
+  -0.34..2.6, beams to match) and holes 1-3 of modules 4 and 6 given to B, the checker
+  passes (985 rows) and a whole bay planned 123 of 125 moves in 1,874 s: every move of
+  stages 2 and 3 found, the four of `main` among them. The two not found were A's hole 2
+  to 3 moves of module 1 at stage 1 (steps 36 and 42), which need A's track up to
+  -0.26.
+- Giving holes 1-3 of module 1 to B as well (A `0-4,12-16,24`, B `5-11,17-23,25-35`,
+  the branch's layout): the checker passes and stage 1 (steps 1-62) finds 46 of 46
+  moves in 260 s, but its schedule is reported blocked ("no arm's next step may start").
+  Whether that comes of the partial plan or of the schedule itself, and a whole bay with
+  this layout, are for the next run.
+
+**Run 025: one bay plans whole.** What blocked, and what the layout now is:
+
+- The blocked schedule came of the schedule itself, not of the partial plan. With the
+  fault now naming each arm's next step: pin arm A's pin 1/0 waits "after another
+  block" and B's locate 1/2 waits for pin 1/0. A, parked at hole 0 of module 1 with its
+  swage 1/0 still to come, stood in B's way; giving way put pin 1/0 after B's locate
+  1/2, which itself needs pin 1/0 (a module's holes go in one order, whichever arm has
+  them). An arm that shares a module's holes with the other stands in its way between
+  its holes.
+- Every hole of module 1 to B (A `0-3,12-16,24`): stage 1 schedules, 47 of 47 moves in
+  260 s. A whole bay then found 125 of 125 moves in 942 s and blocked the same way at
+  module 4 (A's pin 4/0, B's locate 4/2).
+- Hole 0 of modules 4 and 6 to B as well (A `0-3,12-15`, B `4-11,16-35`, the layout
+  now): the checker passes 985 rows (B reaches hole 0 of modules 1, 4 and 6 with its
+  track clamped at -0.34, 43.2 deg of joint margin), 126 of 126 moves are found and the
+  schedule completes. The verifier then reported pin arm A's locate 0/0 and B's locate
+  1/0 started at 52 s, before their modules were set: the park after a magazine take
+  carries the number of the arm's next step, and R21's order counted the step from
+  that park. The verifier now counts a step's order from its own segments, after a
+  park before it (`src/layout_replay.cc`); the plan's step times are unchanged.
+- `plan_layout -- two_flat_racks_2_pin_arms --bays 1 --summary` exits 0: 126 of 126
+  moves found (module arm 41, pin arm A 18, pin arm B 54, bolt arm 13), `complete: true`,
+  the bay planned at 1003.47 s against the time model's 669.83 s (stages 261.86, 275.09
+  and 301.52 s; modules phase 637.15 s against 362.84 s), least clearance 0.0181 m, least
+  arm to arm 0.0191 m, least joint margin 8.64 deg, 998.6 s of planning. Three bays,
+  the plan file and the score are the next run's.
+
+The pin arms are no longer balanced: B has 28 holes, A 8 (modules 0 and 3).
 
 One staged bay took 29 minutes to plan with three budgets, so a plan of three bays would
 take more than an hour and a half.
 
 ## What the next run needs that this run did not build
 
-- A complete plan of staged work, and with it the scorecard and a version in this
-  direction: see above.
+- A plan of three bays of staged work, and with it the plan file, the scorecard and a
+  version in this direction: one bay plans whole (run 025, above).
 - A time model of the transfers: the 30 s of `transfer_s` is a figure of the layout, not
   the model of a move.
 - The units' own design: the infeed unit, the outfeed unit and the pin feeder are boxes

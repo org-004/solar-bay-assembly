@@ -1,7 +1,7 @@
 {
   "name": "two_flat_racks_2_pin_arms",
   "title": "Two 20 ft flat racks: a KR 210 on rack b sets rails and modules across the gap onto the tube on rack a, two KR 20 below the tube pin the modules, a KR 10 drives the strap bolts; the tube worked in three stages",
-  "summary": "The cell stands on two 20 ft flat racks set down side by side, long sides adjacent, 25 mm apart (0 to 50 mm, and +/-25 mm along). Rack a (-X) carries the tube's holder, two stands at its +Y end, and the arms below the tube: two KUKA KR 20 R1810-2 on one line of track, one for the -Y half and one for the +Y half of the work, on the tube's -X side, which locate, pin and swage the modules from below, and a KUKA KR 10 R1100-2 on a track on the tube's +X side, which drives the strap bolts. Rack b (+X) carries one KUKA KR 210 R2700-2 on a raised track, which takes the rails and the modules from the units at the +X side and sets them on the tube across the gap. Every arm is a KUKA. The 10.6 m tube is longer than a rack, so the bay is built in three stages: at each stage stand 1 grips the stretch just beyond the last rail of the stage (4, 7, 9), so no rail ever passes a stand; the infeed unit at the +Y end and the outfeed unit at the -Y end move the tube 3.432 m and then 2.288 m toward -Y, and pin its angle: the infeed at the neck while the neck is beyond the +Y end, the outfeed at the plain end at the last stage. Stages: rails 0-3 and modules 0-2, rails 4-6 and modules 3-5, rails 7-9 and modules 6-8, all set at the same few places along Y. A bare tube comes in over the +Y end; a finished bay leaves over the -Y end. Differs from two_flat_racks_1_pin_arm only in the number of pin arms.",
+  "summary": "The cell stands on two 20 ft flat racks set down side by side, long sides adjacent, 25 mm apart (0 to 50 mm, and +/-25 mm along). Rack a (-X) carries the tube's holder, two stands at its +Y end, and the arms below the tube: two KUKA KR 20 R1810-2 on one line of track, one for the -Y part and one for the +Y part of the work (the line divided 0.6 m toward -Y of the middle), on the tube's -X side, which locate, pin and swage the modules from below, and a KUKA KR 10 R1100-2 on a track on the tube's +X side, which drives the strap bolts. Rack b (+X) carries one KUKA KR 210 R2700-2 on a raised track, which takes the rails and the modules from the units at the +X side and sets them on the tube across the gap. Every arm is a KUKA. The 10.6 m tube is longer than a rack, so the bay is built in three stages: at each stage stand 1 grips the stretch just beyond the last rail of the stage (4, 7, 9), so no rail ever passes a stand; the infeed unit at the +Y end and the outfeed unit at the -Y end move the tube 3.432 m and then 2.288 m toward -Y, and pin its angle: the infeed at the neck while the neck is beyond the +Y end, the outfeed at the plain end at the last stage. Stages: rails 0-3 and modules 0-2, rails 4-6 and modules 3-5, rails 7-9 and modules 6-8, all set at the same few places along Y. A bare tube comes in over the +Y end; a finished bay leaves over the -Y end. Differs from two_flat_racks_1_pin_arm only in the number of pin arms.",
   "small_arms_stand": "below",
   "base": "two_flat_racks",
   "two_flat_racks": {
@@ -325,7 +325,7 @@
     {
       "name": "pin_arm_a",
       "model": "kr20_r1810_2",
-      "does": "Stands on rack a on the tube's -X side, 1.25 m from its axis and 1.23 m below it, and locates, pins and swages the holes of the modules set at y < 0 (modules 0, 1, 3, 4, 6) from below, reaching in under the modules; one tool, never changed. The tube stands this high so that the arm's wrist is about 0.6 m above its shoulder at a hole and its elbow stays under the modules. Its base is turned 90 degrees so that its long base lies along the track inside rack a. It waits folded low with its elbow out over the rack's -X side, clear of the bay as it moves between stages and out, and is stowed folded along the track.",
+      "does": "Stands on rack a on the tube's -X side, 1.25 m from its axis and 1.23 m below it, and locates, pins and swages from below every hole of modules 0 and 3 (points 0-3, 12-15); modules 1, 4 and 6 are pin arm B's: this arm cannot swing between the two pose families of one module's holes there once the module two places toward -Y is set (run 024), and an arm that shares a module's holes with the other stands in its way between its holes, so that the schedule is blocked (run 025), reaching in under the modules; one tool, never changed. The tube stands this high so that the arm's wrist is about 0.6 m above its shoulder at a hole and its elbow stays under the modules. Its base is turned 90 degrees so that its long base lies along the track inside rack a. It waits folded low with its elbow out over the rack's -X side, clear of the bay as it moves between stages and out, and is stowed folded along the track.",
       "base_pos": [
         -2.1,
         0.0,
@@ -343,7 +343,7 @@
           0
         ],
         "lo": -2.6,
-        "hi": -0.26,
+        "hi": -0.86,
         "speed": 1.5,
         "accel": 2.0,
         "mass_kg": 60.0,
@@ -351,12 +351,12 @@
           "name": "beam",
           "size": [
             0.3,
-            2.84,
+            2.24,
             0.1
           ],
           "pos": [
             -2.1,
-            -1.43,
+            -1.73,
             0.42
           ]
         },
@@ -374,7 +374,7 @@
           ]
         },
         "basis": "ours",
-        "source": "Designed here as an envelope; a belt-driven floor axis standing on the deck of rack a, one of two on one line, each over half of the work."
+        "source": "Designed here as an envelope; a belt-driven floor axis standing on the deck of rack a, one of two on one line, each over its part of the work."
       },
       "tools": [
         {
@@ -455,7 +455,7 @@
     {
       "name": "pin_arm_b",
       "model": "kr20_r1810_2",
-      "does": "Stands on rack a on the tube's -X side, 1.25 m from its axis and 1.23 m below it, and locates, pins and swages the holes of the modules set at y > 0 (modules 2, 5, 7, 8) from below, reaching in under the modules; one tool, never changed. The tube stands this high so that the arm's wrist is about 0.6 m above its shoulder at a hole and its elbow stays under the modules. Its base is turned 90 degrees so that its long base lies along the track inside rack a. It waits folded low with its elbow out over the rack's -X side, clear of the bay as it moves between stages and out, and is stowed folded along the track.",
+      "does": "Stands on rack a on the tube's -X side, 1.25 m from its axis and 1.23 m below it, and locates, pins and swages from below every hole of modules 1, 2, 4, 5, 6, 7 and 8 (points 4-11, 16-35); its track starts 0.34 m toward -Y of the racks' middle so that it reaches hole 1 of those modules (run 024), reaching in under the modules; one tool, never changed. The tube stands this high so that the arm's wrist is about 0.6 m above its shoulder at a hole and its elbow stays under the modules. Its base is turned 90 degrees so that its long base lies along the track inside rack a. It waits folded low with its elbow out over the rack's -X side, clear of the bay as it moves between stages and out, and is stowed folded along the track.",
       "base_pos": [
         -2.1,
         0.0,
@@ -472,7 +472,7 @@
           1,
           0
         ],
-        "lo": 0.26,
+        "lo": -0.34,
         "hi": 2.6,
         "speed": 1.5,
         "accel": 2.0,
@@ -481,12 +481,12 @@
           "name": "beam",
           "size": [
             0.3,
-            2.84,
+            3.44,
             0.1
           ],
           "pos": [
             -2.1,
-            1.43,
+            1.13,
             0.42
           ]
         },
@@ -504,7 +504,7 @@
           ]
         },
         "basis": "ours",
-        "source": "Designed here as an envelope; a belt-driven floor axis standing on the deck of rack a, one of two on one line, each over half of the work."
+        "source": "Designed here as an envelope; a belt-driven floor axis standing on the deck of rack a, one of two on one line, each over its part of the work."
       },
       "tools": [
         {
@@ -903,7 +903,7 @@
       "kind": "locate",
       "arm": "pin_arm_a",
       "tool": "pin_tool",
-      "points": "0-7,12-19,24-27",
+      "points": "0-3,12-15",
       "process_s": 3.0,
       "note": "Tip up, once round the slot at most, nose in, nose out.",
       "basis": "ours"
@@ -912,7 +912,7 @@
       "kind": "locate",
       "arm": "pin_arm_b",
       "tool": "pin_tool",
-      "points": "8-11,20-23,28-35",
+      "points": "4-11,16-35",
       "process_s": 3.0,
       "note": "Tip up, once round the slot at most, nose in, nose out.",
       "basis": "ours"
@@ -921,7 +921,7 @@
       "kind": "pin",
       "arm": "pin_arm_a",
       "tool": "pin_tool",
-      "points": "0-7,12-19,24-27",
+      "points": "0-3,12-15",
       "process_s": 2.0,
       "note": "The finger puts the pin in from above.",
       "basis": "ours"
@@ -930,7 +930,7 @@
       "kind": "pin",
       "arm": "pin_arm_b",
       "tool": "pin_tool",
-      "points": "8-11,20-23,28-35",
+      "points": "4-11,16-35",
       "process_s": 2.0,
       "note": "The finger puts the pin in from above.",
       "basis": "ours"
@@ -939,7 +939,7 @@
       "kind": "swage",
       "arm": "pin_arm_a",
       "tool": "pin_tool",
-      "points": "0-7,12-19,24-27",
+      "points": "0-3,12-15",
       "process_s": 3.0,
       "note": "Collar on, swaged.",
       "basis": "ours"
@@ -948,7 +948,7 @@
       "kind": "swage",
       "arm": "pin_arm_b",
       "tool": "pin_tool",
-      "points": "8-11,20-23,28-35",
+      "points": "4-11,16-35",
       "process_s": 3.0,
       "note": "Collar on, swaged.",
       "basis": "ours"
