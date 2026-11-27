@@ -746,6 +746,27 @@
         "sha256": "a822beba16bf618130e72e867a6f76e061e71646b1fae656fb7afd599b74534d"
       },
       "scores": "scores/flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque_clear_out.json"
+    },
+    {
+      "id": "v21",
+      "date": "2026-11-27",
+      "commit": "this",
+      "title": "One 40 ft flat rack, three KR 20 pin arms on one shared beam, three modules to each pin arm in turns, each move the quickest of 8 paths, the module arm within 0.90 of its motors, the bay out once it is clear, the next tube in over it from an infeed unit: three bays planned",
+      "direction": "one-40ft-flat-rack",
+      "status": "candidate",
+      "changed": "v20's cell and layout with one part added and nothing else: an infeed unit (item infeed_unit, a 1.2 x 10.0 x 1.8 m bed, 800 kg, basis ours) at a tubes_in port and zone of its own beyond the transfer cart at -X (run 053), so the next tube comes in 0.45 m above its place over the bay going out (5.10 m in 40 s) and is lowered into the saddles, and the cart only takes bays out. Bay b+1's tube_in starts once the holder is empty, so the two ways overlap 38.41 s at each boundary. Three bays are planned whole, 378 of 378 moves, 26 of them slowed (14.30 s of motion added), verified and committed: 496.59 s for one bay and a cycle time of 470.68 s over three (boundaries 496.59 / 463.54 / 451.90 s); the incoming tube passes 0.1140 m above the outgoing bay's lifted modules.",
+      "why": "Weighed against v20: 25.48 s a bay quicker (470.68 s against 496.16 s) by overlapping the next tube's way with the bay going out, at the price of one part (38 against 37); the paths, the order of work and the slowed moves are v20's, and torque_demand over the three bays finds no module arm move over 0.90 of a motor's limit. The infeed unit's carriage is not modelled (docs/infeed-unit.md).",
+      "recording": "docs/evolution/v21.gif",
+      "competed_with": "v20",
+      "layout": {
+        "path": "layouts/flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque_clear_out_infeed.json",
+        "sha256": "c4c9e88208844e3732f62ab28ac8b5f11b23ffa4c0545395251d71af44c7f2d5"
+      },
+      "plan": {
+        "path": "plans/flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque_clear_out_infeed.json",
+        "sha256": "d6c41bd7cca2989207cc1515c2cfea8bbc82ea0fdcaf9bd4e148827c04a32473"
+      },
+      "scores": "scores/flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque_clear_out_infeed.json"
     }
   ]
 }
