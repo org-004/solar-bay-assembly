@@ -2262,18 +2262,17 @@ CHECK_REPORT_ENV = {"CHECK_REPORT_DIR": "check_reports"}
 # The committed plans of the two-rack cell, v11's, the balanced
 # layout's (v12) and the balanced layout's with its order of work (v13), a
 # bay built in stages (src/layout_plan_stages.h): verified
-# in pieces, and tampered with between its stages. Large: the balanced
-# layout's checker report (one posture per module) takes about 125 s in
-# every shard here, v13's about 180 s, and CI's runner is slower.
+# in pieces, and tampered with between its stages; and the checker's
+# report as a file (tests/check_report_file_test.cc). The one-posture
+# layouts' reports are read from CHECK_REPORT_FILES, made once above, not in
+# every shard: the slowest of four shards took 616.6 s here before (run 039,
+# R1, with scorecard_test beside it at three jobs, the timeout eternal's) and
+# 160.3 s after, the shard that computes v12's report once to compare it with
+# its file (about 295 s on CI at 1.84x), so the size is large again, 900 s.
 #   bazel test --config=opt //:plan_replay_staged_test
 cc_test(
     name = "plan_replay_staged_test",
     size = "large",
-    # Each shard makes the checker report of both one-posture layouts (v12's
-    # and v13's), about 125 s and 180 s with three tests at once: the slowest
-    # of four shards took 371.4 s here (run 033), so the timeout is eternal's
-    # 3,600 s rather than large's 900 s, for CI's slower runner.
-    timeout = "eternal",
     srcs = [
         "tests/check_report_file_test.cc",
         "tests/plan_replay_staged_test.cc",
@@ -2455,6 +2454,9 @@ cc_binary(
 # 184.8 s here with the balanced layout's scorecard (run 030), about 340 s on CI;
 # 725.1 s here in one process with v13's (run 033), so the committed scorecards are one
 # test per plan (CommittedFile.IsWhatTheProgramComputes/<name>) over three shards.
+# The one-posture layouts' checker reports are read from CHECK_REPORT_FILES
+# (run 039): the slowest shard took 452.2 s before and 61.7 s after, about
+# 114 s on CI at 1.84x.
 cc_test(
     name = "scorecard_test",
     size = "large",

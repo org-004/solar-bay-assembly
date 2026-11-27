@@ -165,7 +165,7 @@ TEST(CheckReportFile, ReadBackEqualsWhatTheCheckerComputes) {
   std::string why;
   const std::optional<Layout> layout = LoadLayout(PathOf(kSmallest), &why);
   ASSERT_TRUE(layout.has_value()) << why;
-  ASSERT_TRUE(layout->one_posture_per_module);
+  ASSERT_TRUE(HasOnePosturePerModule(*layout));
   const std::string sha = Sha256OfFile(PathOf(kSmallest));
   const std::optional<CheckReport> read =
       ReadCheckReportFile(ReportDir() + "/" + kSmallest + ".json", kSmallest, sha, &why);
@@ -244,7 +244,7 @@ TEST(CheckReportFile, EveryOnePostureLayoutHasItsFile) {
     std::string why;
     const std::optional<Layout> layout = LoadLayout(PathOf(name), &why);
     ASSERT_TRUE(layout.has_value()) << name << ": " << why;
-    if (!layout->one_posture_per_module) continue;
+    if (!HasOnePosturePerModule(*layout)) continue;
     ++one_posture;
     const std::optional<CheckReport> r = ReadCheckReportFile(
         ReportDir() + "/" + name + ".json", name, Sha256OfFile(PathOf(name)), &why);

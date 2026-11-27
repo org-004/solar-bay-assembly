@@ -280,9 +280,16 @@ std::optional<CheckReport> CheckReportOf(const Layout& layout,
                                          const ModelPaths& paths,
                                          const std::string& report_dir,
                                          std::string* error) {
-  if (!layout.one_posture_per_module) return CheckLayout(layout, paths);
+  if (!HasOnePosturePerModule(layout)) return CheckLayout(layout, paths);
   return ReadCheckReportFile(report_dir + "/" + layout.name + ".json", layout.name,
                              layout_sha256, error);
+}
+
+bool HasOnePosturePerModule(const Layout& layout) {
+  for (const auto& arm : layout.arms) {
+    if (arm.one_posture_per_module) return true;
+  }
+  return false;
 }
 
 std::string ReportDir() {

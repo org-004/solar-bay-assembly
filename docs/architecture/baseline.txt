@@ -6,7 +6,7 @@ P1.listed 19 departures on the list of deps.json (a rule of deps.json; may not g
 P1.frozen_files 66 files in frozen groups (a rule of deps.json; may not grow)
 P1.frozen 4 of them in the stand-in cell's files, which a refactoring does not edit
 P2 6 files under src/ that no test and no captured program (programs.txt) depends on (bazel)
-P2.untested 26 files under src/ that no test target depends on (bazel)
+P2.untested 25 files under src/ that no test target depends on (bazel)
 P2.unrun 11 cc_binary targets that programs.txt does not capture
 P2.frozen 2 of them in the stand-in cell's files, which a refactoring does not edit (bazel)
 P3 5 files that read the simulation's truth and are not allowed to (deps.json truth)

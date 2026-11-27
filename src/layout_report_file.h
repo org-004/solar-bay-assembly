@@ -61,6 +61,10 @@ std::optional<CheckReport> ReadCheckReportFile(const std::string& path,
                                                const std::string& layout_sha256,
                                                std::string* error);
 
+// Some arm of the layout has "one_posture_per_module" (src/layout.h): its
+// checker report takes minutes.
+bool HasOnePosturePerModule(const Layout& layout);
+
 // The report a test uses for `layout`, whose file has SHA-256
 // `layout_sha256`: for a layout with one_posture_per_module, the file
 // <report_dir>/<layout.name>.json, read by ReadCheckReportFile (a missing
