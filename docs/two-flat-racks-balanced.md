@@ -5,7 +5,7 @@ holes, by whole modules, in a new layout file
 (`layouts/two_flat_racks_2_pin_arms_balanced.json`). No split it tried plans: every split
 that gives A more than modules 0 and 3 has a move of pin arm A that is not found. The file
 on this branch is the last candidate, kept for the follow-up named at the end; it passes
-the checker and does not plan. Nothing of this run is on `main`.
+the checker and did not plan. Run 029 made it plan (the last section).
 
 ## Where the holes are
 
@@ -60,3 +60,31 @@ plan if A's hole 2 to hole 3 move at modules 4 and 6 were found.
 - The checker solving all four holes of a module in one pose family of pin arm A (the
   alternative the spec of run 028 kept for later). S5 would then need no family crossing.
 - Or a second line of track for one pin arm, so that the tracks may overlap along Y.
+
+## One posture per module (run 029)
+
+Run 029 added the checker's opt-in `one_posture_per_module` (a field of an arm; `src/layout_check.h`,
+"One posture per module") and set it for pin arm A of this layout.
+
+- The probe (`LAYOUT_CHECK_PROBE=pin_arm_a`, every candidate of every hole with its family, three
+  bits from the joints' axes: shoulder, elbow, wrist): at modules 1, 4 and 6, at the track values
+  the checker searched (the point opposite, +-0.6 m), holes 0 and 2 pass only in families 3 and
+  7 and holes 1 and 3 only in family 2. Searching every 0.1 m of the track
+  (`LAYOUT_CHECK_PROBE_WIDE=0`), families 0, 2, 4 and 6 reach all four holes with A's base behind
+  them (toward -Y): for family 2 tracks -2.5, -2.1, -1.4, -1.0 m (holes 0 to 3), joint margin
+  53.9 to 58.2 deg, clearance 0.0187 to 0.0193 m, both legs passing, largest joint change between
+  holes 18.9 deg (it was 163 deg).
+- With the opt-in the checker passes, 999 rows, time model 611.07 s (S5 615.44 s). The moves
+  between A's holes are found at budget 5000 or less at every stage.
+- The moves of A between its wait pose and hole 0 of modules 4 and 6 were then not found at 640k
+  (stage 2 step 116, stage 3 steps 131 and 174): the wait pose, folded over the rack's -X side, is
+  in the other posture under the modules set before. A waits now at (40, -30, 150, 0, 60, 0) deg,
+  folded in the posture of its holes: step 174 is found in 20 iterations.
+- The verifier (R21) refused a wait of A that the schedule put between locate 4/2 and pin 4/2,
+  at the work pose, for pin arm B to pass (0.004 m to rail 5's top, near by design at that pose).
+  Such a wait now counts as part of that work.
+- One bay (`plan_layout -- two_flat_racks_2_pin_arms_balanced --bays 1 --summary`): exit 0, 127 of
+  127 moves, 852.84 s planned (stages 227.20, 205.99, 254.66 s), against 1003.47 s planned and
+  669.83 s modelled for two_flat_racks_2_pin_arms. Moves: module arm 41, pin arm A 40, pin arm B
+  33, bolt arm 13; holes A 20, B 16. Least clearance 0.0180 m, arm to arm 0.0188 m, joint margin
+  8.64 deg.
