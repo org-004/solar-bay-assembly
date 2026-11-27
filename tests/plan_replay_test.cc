@@ -567,6 +567,7 @@ TEST(Kr20, ThreeBaysOfTheSharedBeamLayoutWithTheModulesInTurnsAndPathTriesPassTh
   const VerifyReport r = VerifyPlan(o.layout, ModelPaths::FromEnvironment(), o.plan, o.sha256, VerifyOptions{});
   EXPECT_TRUE(r.ok) << Faults(r);
   EXPECT_NEAR(o.plan.bay_planned_s, 529.20, 0.005);
+}
 
 // Run 045: v16's layout with torque_limit_scale (src/layout_torque.h), one
 // bay planned whole, each module arm move slowed until its inverse dynamics
