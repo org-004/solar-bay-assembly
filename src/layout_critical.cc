@@ -243,7 +243,9 @@ class Walker {
     const double s0 = blk.s - back, s1 = blk.e - back;
     std::vector<double> ts;
     for (int k = 0; s0 + k * sample <= s1 + 1e-9; ++k) ts.push_back(s0 + k * sample);
-    for (double t = std::ceil(s0 / sample) * sample; t <= s1 + 1e-9; t += sample) ts.push_back(t);
+    for (auto k = static_cast<long long>(std::ceil(s0 / sample)); k * sample <= s1 + 1e-9; ++k) {
+      ts.push_back(static_cast<double>(k) * sample);
+    }
     std::sort(ts.begin(), ts.end());
     const std::string me = ArmName(blk.arm);
     if (!data_) data_ = scene_.MakeData();
@@ -305,7 +307,7 @@ class Walker {
       const double t = work_end ? blocks_[k].work_end : blocks_[k].e;
       cands.push_back({t, 0, "need",
                        (work_end ? "the work of " : "") + StepText(number) + " by " +
-                           ArmName(blocks_[k].arm) + (work_end ? " ends" : " ends"),
+                           ArmName(blocks_[k].arm) + " ends",
                        Node{k, "", 0, t}});
     }
     if (cands.empty()) {
