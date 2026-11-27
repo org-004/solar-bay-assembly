@@ -496,7 +496,7 @@ TEST(Kr20, ThreeBaysOfTheSharedBeamLayoutPassTheVerifier) {
   EXPECT_EQ(o.plan.bays, 3);
   const VerifyReport r = VerifyPlan(o.layout, ModelPaths::FromEnvironment(), o.plan, o.sha256, VerifyOptions{});
   EXPECT_TRUE(r.ok) << Faults(r);
-  EXPECT_NEAR(o.plan.bay_planned_s, BAY1_A, 0.005);
+  EXPECT_NEAR(o.plan.bay_planned_s, 626.32, 0.005);
 }
 
 // Run 037: the same layout with run 036's faster retreats (retreat_legs),
@@ -508,7 +508,7 @@ TEST(Kr20, ThreeBaysOfTheSharedBeamLayoutWithFastRetreatsPassTheVerifier) {
   EXPECT_EQ(o.plan.bays, 3);
   const VerifyReport r = VerifyPlan(o.layout, ModelPaths::FromEnvironment(), o.plan, o.sha256, VerifyOptions{});
   EXPECT_TRUE(r.ok) << Faults(r);
-  EXPECT_NEAR(o.plan.bay_planned_s, BAY1_B, 0.005);
+  EXPECT_NEAR(o.plan.bay_planned_s, 574.73, 0.005);
 }
 
 TEST(Ordered, PassesTheVerifierWithoutTheSchedule) {
