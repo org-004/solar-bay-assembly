@@ -1,11 +1,61 @@
-# KUKA KR 20 pin arms for the 40 ft cell (runs 031, 034 and 035)
+# KUKA KR 20 pin arms for the 40 ft cell (runs 031, 034, 035 and 037)
 
 Every arm KUKA (the owner, 2026-11-26). Run 031 replaced v10's three UR10e pin arms
 (`flat_rack_3_pin_arms_ordered`) with KUKA KR 20 R1810-2 and found that one bay does not plan.
 Run 034 found which change to the cell lets a KR 20 reach every hole of its modules from one
 side, and planned one bay of the layout `flat_rack_1_kr20_pin_arm_ordered` whole. Run 035 let
 several carriages ride one beam and split the holes over three KR 20 pin arms:
-`flat_rack_3_kr20_pin_arms_shared_ordered`, one bay planned whole in 626.32 s.
+`flat_rack_3_kr20_pin_arms_shared_ordered`, one bay planned whole in 626.32 s. Run 037 planned its
+three bays and scored it as v15 (`cycle_s` 612.40 s), and the same layout with run 036's faster
+retreats as v16 (572.56 s).
+
+## Three bays (run 037)
+
+`plan_layout -- <name> --bays 3 --out ...`, layouts unchanged, both plans committed and replayed by
+tests/plan_replay_test.cc (`Kr20.ThreeBaysOfTheSharedBeamLayoutPassTheVerifier` and
+`Kr20.ThreeBaysOfTheSharedBeamLayoutWithFastRetreatsPassTheVerifier`), scored by
+`score_layout --write` and registered with `tools/evolution/add.sh` as candidates; v10 stays chosen.
+
+| | v15 `flat_rack_3_kr20_pin_arms_shared_ordered` | v16 `..._fast_retreat` |
+|---|---:|---:|
+| moves found | 378 of 378 | 378 of 378 |
+| planning | 146.3 s | 121.9 s |
+| bay 0 / 1 / 2 planned | 626.32 / 618.65 / 592.22 s | 574.73 / 578.31 / 564.63 s |
+| `cycle_s` (three bays back to back / 3) | **612.40 s** | **572.56 s** |
+| against v10 (554.55 s, UR10e pin arms) | +57.85 s (+10.4 %) | +18.01 s (+3.2 %) |
+| against v14 (717.37 s, best all-KUKA before) | -104.97 s (-14.6 %) | -144.81 s (-20.2 %) |
+| time model of a bay | 416.75 s | 416.75 s |
+| gates | rows failed 0 of 944, clearance 0.016 m, mass 4,132.2 kg | the same |
+
+v16 is v15 plus `retreat_legs` {0.5 m/s, 3.0 m/s^2} (run 036): it is registered against v15. Each
+bay is one tube on the one rack, so bay 1's tube comes in only when bay 0 has gone out; bays 1
+and 2 are shorter than bay 0 in v15: rails 163.57 s against bay 0's 174.70 s, and bay 2's modules
+333.25 s against 355.65 s.
+
+`tools/time/account.py plans/flat_rack_3_kr20_pin_arms_shared_ordered.json` (bay 0, the first bay):
+
+| arm | moves | moving planned | model, same moves | excess | legs (approach+retreat) | process | tool changes | waiting | busy % |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| module_arm | 39 | 205.6 | 130.3 | +75.4 | 93.2 | 95.0 | 0.0 | 232.5 | 63 |
+| pin_arm_a | 39 | 110.0 | 69.4 | +40.7 | 57.2 | 162.0 | 16.0 | 281.1 | 55 |
+| pin_arm_c | 25 | 60.9 | 36.8 | +24.2 | 33.4 | 98.0 | 16.0 | 418.0 | 33 |
+| pin_arm_b | 23 | 71.9 | 39.5 | +32.4 | 37.5 | 100.0 | 0.0 | 416.9 | 33 |
+
+The excess of bay 0 over the time model, by cause along its critical path: waits +209.83 s, legs
++72.23 s, moves slower than modelled +23.50 s, serialized work -95.99 s (total +209.57 s). The
+largest remaining share is the waits on the path: pin arm C waits 209.8 s on it, 184.6 s of them
+for the module arm to set module 7 (step 135); the module arm (63 % busy, 205.6 s of moves) sets
+all ten rails (rails 174.70 s) and every module before C's two can start. The lever below v16 is
+the module arm and the rails, as run 035 found, not the pin arms. With v16's retreats the waits
+on bay 0's path are 175.09 s and the legs 55.37 s.
+
+Margins of v15's three bays (`plan_layout --margins` over the committed plan): least clearance
+0.0160 m against 0.015 (pin arm C link 3 to `holder_stand_8_saddle`, step 152); arm to arm
+0.0199 m (A link 3 to B link 1, step 413); joint margin 5.00 degrees against 5 (A joint 1 at
+step 36, B joint 1 at its wait pose); track ends 0 slack (A at -5.700, the module arm at -3.600
+and 5.500); carriages on the shared beam at least 0.495 m apart (B and C, centres 0.995 m, the
+carriages 0.5 m long; A and B 0.600 m). v16: clearance 0.0160 m, arm to arm 0.0184 m (module
+arm's cups to C link 3), joint 5.00 degrees, track ends 0 slack, B and C 0.495 m apart.
 
 ## Run 035: three KR 20 on one shared beam, one bay planned whole
 
@@ -57,7 +107,9 @@ Every hole from -Y at 034's stops. What it took, each found by checker or planne
   110.0, legs 57.2), B 33 % (209.4 s: 100.0, 71.9, 37.5), C 33 % (208.3 s: 114.0, 60.9, 33.4).
   The module arm is now the longest; the rail phase (174.70 s) is 034's.
 - Replayed by `Kr20.OneBayOfTheSharedBeamLayoutPassesTheVerifier` (tests/plan_replay_test.cc);
-  exempted from the scorecards by name until it has three bays, as 034's.
+  exempted from the scorecards by name until it has three bays, as 034's. Run 037 gave it three
+  bays: the test is now `Kr20.ThreeBaysOfTheSharedBeamLayoutPassTheVerifier` and the layout has a
+  scorecard.
 
 ## Run 034: one KR 20 along the whole bay, one bay planned whole
 
