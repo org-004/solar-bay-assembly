@@ -269,7 +269,40 @@ int PrintMargins(const Layout& layout, const ModelPaths& paths,
                      Num(g.t), g.b + " at step " + std::to_string(g.step_b) +
                      "; boxes " + Num(g.distance - g.contact, 4) + " m apart"});
   }
+  // Run 053: where the ways do not share their zone, at each boundary the
+  // least distance of the incoming tube to the outgoing bay (TubePassesBay,
+  // every sample, out to kSceneFar) and of the arms off their wait poses to
+  // the incoming tube (the verifier's), with the seconds the ways overlap.
+  std::vector<std::string> boundaries;
+  if (!WaysShareZone(layout)) {
+    cell::DataPtr d = scene->MakeData();
+    for (int b = 1; b < plan->bays; ++b) {
+      const BayEvent* out = nullptr;
+      const BayEvent* in = nullptr;
+      for (const BayEvent& e : plan->events) {
+        if (e.bay == b - 1 && e.kind == "bay_out") out = &e;
+        if (e.bay == b && e.kind == "tube_in") in = &e;
+      }
+      if (out == nullptr || in == nullptr) continue;
+      const WayPassing p =
+          TubePassesBay(*scene, d.get(), *out, in->t0, fig.sample_s, fig.clearance_m, kSceneFar);
+      all_pass = all_pass && p.clear;
+      table.push_back({"tube_bay", std::to_string(b), Num(p.least_m, 4), "m",
+                       Num(fig.clearance_m, 4), "tube_in " + std::to_string(b),
+                       "bay_out " + std::to_string(b - 1), "", std::to_string(in->step),
+                       Num(p.least_t), "the incoming tube to the outgoing bay's rails and modules"});
+      boundaries.push_back(
+          "# boundary " + std::to_string(b - 1) + "/" + std::to_string(b) + ": bay_out " +
+          Num(out->t0, 2) + " to " + Num(out->t1, 2) + " s, tube_in " + Num(in->t0, 2) + " to " +
+          Num(in->t1, 2) + " s, overlap " +
+          Num(std::max(0.0, std::min(out->t1, in->t1) - std::max(out->t0, in->t0)), 2) + " s");
+    }
+    table.push_back({"tube_arms", "1", Num(v.tube_in_least_m, 4), "m", Num(fig.clearance_m, 4),
+                     "", "", "", "", "",
+                     "arms off their wait poses to the tube coming in (the verifier's)"});
+  }
   PrintTable(table, pretty);
+  for (const std::string& line : boundaries) std::printf("%s\n", line.c_str());
   std::printf("# layout: %s\n", layout_path.c_str());
   std::printf("# plan sha256: %s\n", plan->layout_sha256.c_str());
   std::printf("# least_clearance_m %s\n", Num(v.least_clearance_m, 4).c_str());

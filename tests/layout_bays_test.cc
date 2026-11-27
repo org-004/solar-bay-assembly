@@ -4,6 +4,7 @@
 // on copies of it whose ways do not share their zone. No bay is planned:
 // that is //:plan_layout's work.
 
+#include <algorithm>
 #include <cstdlib>
 #include <memory>
 #include <optional>
@@ -361,6 +362,43 @@ TEST(NextTube, ATubeFromAboveComesInWhileTheBayGoesOut) {
   for (int i = 0; i < 3 * w.scene->model().ngeom; ++i) {
     ASSERT_EQ(d->geom_xpos[i], fresh->geom_xpos[i]) << i;
   }
+}
+
+// The layout with a separate infeed unit (run 053): its tube comes in over
+// the bay going out, 0.45 m above its place, from the moment the holder is
+// empty. Its bay_out is _clear_out's one bay's.
+const char* kInfeed =
+    "flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque_clear_out_infeed";
+
+Layout LoadNamed(const std::string& name) {
+  const char* dir = std::getenv("LAYOUT_DIR");
+  const std::string path = std::string(dir != nullptr ? dir : "layouts") + "/" + name + ".json";
+  std::string error;
+  std::optional<Layout> layout = LoadLayout(path, &error);
+  EXPECT_TRUE(layout.has_value()) << error;
+  return layout ? *layout : Layout{};
+}
+
+TEST(NextTube, TheInfeedBringsTheTubeInOverTheBayGoingOut) {
+  const Layout layout = LoadNamed(kInfeed);
+  EXPECT_FALSE(WaysShareZone(layout));
+  const Ways w = WaysOf(layout);
+  ASSERT_NE(w.scene, nullptr);
+  const BayEvent out{"bay_out", 173, 456.59, 496.59};
+  const double clear = layout.margins.clearance_m;
+  const double empty = HolderEmptyAt(layout, out);
+  EXPECT_DOUBLE_EQ(NextTubeStart(*w.scene, out, 0.05, clear), empty);
+  DataPtr d = w.scene->MakeData();
+  const WayPassing p = TubePassesBay(*w.scene, d.get(), out, empty, 0.05, clear);
+  EXPECT_TRUE(p.clear);
+  // Lowered 0.30 m less, the tube would meet the bay's modules on its way over.
+  Layout low = layout;
+  for (Vec3& v : low.tube_in.path) v[2] = std::max(0.0, v[2] - 0.30);
+  const Ways lw = WaysOf(low);
+  ASSERT_NE(lw.scene, nullptr);
+  DataPtr ld = lw.scene->MakeData();
+  EXPECT_FALSE(TubePassesBay(*lw.scene, ld.get(), out, empty, 0.05, clear).clear);
+  EXPECT_GT(NextTubeStart(*lw.scene, out, 0.05, clear), empty);
 }
 
 // ------------------------------------------------------------ checking

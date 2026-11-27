@@ -152,8 +152,9 @@ double HolderEmptyAt(const Layout& layout, const BayEvent& bay_out) {
 
 WayPassing TubePassesBay(const LayoutScene& scene, mjData* d,
                          const BayEvent& bay_out, double tube_start,
-                         double sample_s, double clearance_m) {
+                         double sample_s, double clearance_m, double far) {
   WayPassing out;
+  const bool all = far > clearance_m;
   if (!(sample_s > 0.0)) return out;
   const Layout& L = scene.layout();
   const LayoutHandles& H = scene.handles();
@@ -194,12 +195,16 @@ WayPassing TubePassesBay(const LayoutScene& scene, mjData* d,
   for (double t : times) {
     put(WayOffsetAt(L.tube_in.path, WayFraction(tube_start, L.tube_in.time_s, t)),
         WayOffsetAt(L.bay_out.path, WayFraction(bay_out.t0, bay_span, t)) + from);
-    const Nearest n = scene.LeastDistance(d, tube, obstacles, clearance_m);
-    if (n.distance < clearance_m) {
+    const Nearest n = scene.LeastDistance(d, tube, obstacles, all ? far : clearance_m);
+    if (n.distance < out.least_m) {
+      out.least_m = n.distance;
+      out.least_t = t;
+    }
+    if (n.distance < clearance_m && out.clear) {
       out.clear = false;
       out.t = t;
       out.nearest = n;
-      break;
+      if (!all) break;
     }
   }
   put(Eigen::Vector3d::Zero(), Eigen::Vector3d::Zero());

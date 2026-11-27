@@ -17,6 +17,7 @@
 #include <gtest/gtest.h>
 
 #include "src/layout.h"
+#include "src/layout_bays.h"
 #include "src/layout_check.h"
 #include "src/layout_model.h"
 #include "src/layout_plan.h"
@@ -730,6 +731,84 @@ TEST(Kr20, ABayOutThatStartsWhileAnArmIsTooCloseIsRefused) {
       VerifyPlan(o.layout, ModelPaths::FromEnvironment(), o.plan, o.sha256, Quick(false));
   EXPECT_FALSE(r.ok);
   EXPECT_TRUE(AnyFault(r, {"bay_out", "starts while an arm is too close", "arm pin_arm_c"})) << Faults(r);
+}
+
+// Run 053: _clear_out with a separate infeed unit, whose tube comes in over
+// the bay going out from the moment the holder is empty; three bays planned
+// whole. The verifier over the whole plan, its schedule included: each
+// boundary's ways overlap, and every arm still ending its work of the bay
+// before while the next tube comes in stays clear of that tube.
+constexpr const char* kInfeed =
+    "flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque_clear_out_infeed";
+
+const BayEvent* EventOfBay(const Plan& p, const std::string& kind, int bay) {
+  for (const BayEvent& e : p.events) {
+    if (e.kind == kind && e.bay == bay) return &e;
+  }
+  return nullptr;
+}
+
+TEST(Kr20, ThreeBaysWithTheInfeedOverlapTheWaysAndPassTheVerifier) {
+  const OrderedPlan o = NamedPlan(kInfeed);
+  ASSERT_TRUE(o.error.empty()) << o.error;
+  EXPECT_TRUE(o.layout.bay_out_when_clear);
+  EXPECT_TRUE(o.plan.complete);
+  EXPECT_EQ(o.plan.bays, 3);
+  EXPECT_EQ(o.plan.figures.path_tries, 8);
+  EXPECT_EQ(o.plan.figures.torque_limit_scale, 0.9);
+  const VerifyReport r =
+      VerifyPlan(o.layout, ModelPaths::FromEnvironment(), o.plan, o.sha256, VerifyOptions{});
+  EXPECT_TRUE(r.ok) << Faults(r);
+  EXPECT_GE(r.tube_in_least_m, o.plan.figures.clearance_m);
+  for (int b = 1; b < 3; ++b) {
+    const BayEvent* out = EventOfBay(o.plan, "bay_out", b - 1);
+    const BayEvent* in = EventOfBay(o.plan, "tube_in", b);
+    ASSERT_NE(out, nullptr);
+    ASSERT_NE(in, nullptr);
+    std::printf("boundary %d: bay_out %.2f to %.2f s, tube_in %.2f to %.2f s, overlap %.2f s\n",
+                b, out->t0, out->t1, in->t0, in->t1, out->t1 - in->t0);
+    // The tube starts once the holder is empty: 0.12 m of bay_out's 3.02 m.
+    EXPECT_NEAR(in->t0, out->t0 + 40.0 * 0.12 / 3.02, 1e-6);
+  }
+  const CycleFigures c = CycleFiguresOf(o.plan);
+  std::printf("cycle_s %.2f, one bay %.2f s, least arm to the tube coming in %.4f m\n", c.cycle_s,
+              c.one_bay_s, r.tube_in_least_m);
+  EXPECT_NEAR(c.cycle_s, 470.68, 0.005);
+  EXPECT_LE(c.cycle_s, 485.0);
+}
+
+// R3 of run 053: the same plan with bay 1's tube_in moved to end while the
+// module arm still sets bay 0's first rail on the tube is refused: the rail
+// it holds is too close to the tube coming in.
+TEST(Kr20, AnArmTooCloseToTheIncomingTubeIsRefused) {
+  OrderedPlan o = NamedPlan(kInfeed);
+  ASSERT_TRUE(o.error.empty()) << o.error;
+  const VerifyReport plain =
+      VerifyPlan(o.layout, ModelPaths::FromEnvironment(), o.plan, o.sha256, Quick(false));
+  EXPECT_TRUE(plain.ok) << Faults(plain);
+  EXPECT_FALSE(AnyFault(plain, {"too close to the tube coming in"}));
+  // The middle of the module arm's first rail set (its first work holding a rail).
+  double at = -1.0;
+  for (const ArmPlan& a : o.plan.arms) {
+    if (a.name != "module_arm") continue;
+    for (const Segment& s : a.segments) {
+      if (s.kind == "work" && s.held == "rail") {
+        at = (s.t0 + s.t1) / 2.0;
+        break;
+      }
+    }
+  }
+  ASSERT_GT(at, 0.0);
+  for (BayEvent& e : o.plan.events) {
+    if (e.kind != "tube_in" || e.bay != 1) continue;
+    const double span = e.t1 - e.t0;
+    e.t1 = at;
+    e.t0 = at - span;
+  }
+  const VerifyReport r =
+      VerifyPlan(o.layout, ModelPaths::FromEnvironment(), o.plan, o.sha256, Quick(false));
+  EXPECT_FALSE(r.ok);
+  EXPECT_TRUE(AnyFault(r, {"bay 1: arm module_arm", "too close to the tube coming in"})) << Faults(r);
 }
 
 TEST(Ordered, PassesTheVerifierWithoutTheSchedule) {
