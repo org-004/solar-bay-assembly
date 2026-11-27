@@ -159,12 +159,13 @@ double MoveDuration(const std::vector<Config>& path, const ArmMotion& motion,
   return t->duration();
 }
 
-double LegDuration(const std::vector<Config>& path, double length_m,
-                   const ArmMotion& motion, const PlanFigures& f) {
+namespace {
+
+double LegAt(const std::vector<Config>& path, double length_m, const ArmMotion& motion,
+             double speed, double accel) {
   if (path.empty() || !(length_m >= 0.0)) return -1.0;
   if (length_m == 0.0) return 0.0;
-  double t = std::max(1.5 * length_m / f.leg_speed,
-                      std::sqrt(6.0 * length_m / f.leg_accel));
+  double t = std::max(1.5 * length_m / speed, std::sqrt(6.0 * length_m / accel));
   const double total = PathLength(path);
   if (total > 0.0) {
     for (size_t i = 1; i < path.size(); ++i) {
@@ -177,6 +178,18 @@ double LegDuration(const std::vector<Config>& path, double length_m,
     }
   }
   return t;
+}
+
+}  // namespace
+
+double LegDuration(const std::vector<Config>& path, double length_m,
+                   const ArmMotion& motion, const PlanFigures& f) {
+  return LegAt(path, length_m, motion, f.leg_speed, f.leg_accel);
+}
+
+double RetreatDuration(const std::vector<Config>& path, double length_m,
+                       const ArmMotion& motion, const PlanFigures& f) {
+  return LegAt(path, length_m, motion, f.retreat_speed, f.retreat_accel);
 }
 
 Config ConfigAt(const Segment& segment, const ArmMotion& motion,
@@ -1275,8 +1288,8 @@ class Verifier {
         CheckPose(i, s, s.path.front(), work, "starts");
         CheckPose(i, s, s.path.back(), retreat, "ends");
         Timing(i, s,
-               LegDuration(s.path, p != nullptr ? p->retreat_length_m : 0.0, motion, f_),
-               "the leg's law");
+               RetreatDuration(s.path, p != nullptr ? p->retreat_length_m : 0.0, motion, f_),
+               "the retreat's law");
         *at = retreat;
       }
     }
@@ -1629,6 +1642,10 @@ VerifyReport VerifyPlanWithReport(const Layout& layout, const ModelPaths& paths,
         {"settle_s", f.settle_s, d.settle_s},
         {"leg_speed", f.leg_speed, d.leg_speed},
         {"leg_accel", f.leg_accel, d.leg_accel},
+        {"retreat_speed", f.retreat_speed,
+         layout.retreat_legs ? layout.retreat_legs->speed : d.leg_speed},
+        {"retreat_accel", f.retreat_accel,
+         layout.retreat_legs ? layout.retreat_legs->accel : d.leg_accel},
         {"max_deviation", f.max_deviation, d.max_deviation},
         {"edge_resolution", f.edge_resolution, d.edge_resolution},
         {"sample_s", f.sample_s, d.sample_s}};

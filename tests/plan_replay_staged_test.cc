@@ -38,11 +38,13 @@ namespace {
 
 // The staged layouts with a committed plan: v11's, which the made-up plans
 // use too, the balanced one (v12) and the balanced one with an order of work
-// and one posture per module for pin arm B (v13).
+// and one posture per module for pin arm B (v13), and that one with its
+// retreats at the layout's retreat_legs (v14, run 036).
 const std::vector<std::string>& StagedNames() {
   static const std::vector<std::string> names = {
       "two_flat_racks_2_pin_arms", "two_flat_racks_2_pin_arms_balanced",
-      "two_flat_racks_2_pin_arms_balanced_ordered"};
+      "two_flat_racks_2_pin_arms_balanced_ordered",
+      "two_flat_racks_2_pin_arms_balanced_ordered_fast_retreat"};
   return names;
 }
 
@@ -123,7 +125,8 @@ const Committed& TheCommitted(const std::string& name) {
 
 // A layout's index as a test's name.
 std::string Short(int index) {
-  static const char* const names[] = {"TwoPinArms", "Balanced", "BalancedOrdered"};
+  static const char* const names[] = {"TwoPinArms", "Balanced", "BalancedOrdered",
+                                        "BalancedOrderedFastRetreat"};
   return names[index];
 }
 

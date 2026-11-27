@@ -245,6 +245,11 @@ struct PlanFigures {
   double settle_s = 0.3;             // At rest after a planned move.
   double leg_speed = 0.25;           // m/s of the working point on a leg.
   double leg_accel = 1.0;            // m/s^2 of the working point on a leg.
+  // A retreat's (a leg out of contact into free air): the layout's
+  // retreat_legs (src/layout.h) when it has them, else leg_speed and
+  // leg_accel. A plan file names them only when they differ from those.
+  double retreat_speed = 0.25;
+  double retreat_accel = 1.0;
   double max_deviation = 0.002;      // rad, Trajectory::Plan's blend limit.
   double edge_resolution = 0.010;    // m of weighted motion between checked points.
   int shorten_tries = 200;
@@ -345,6 +350,10 @@ double MoveDuration(const std::vector<Config>& path, const ArmMotion& motion,
 // within its speed on every piece. A leg of zero length takes 0.
 double LegDuration(const std::vector<Config>& path, double length_m,
                    const ArmMotion& motion, const PlanFigures& f);
+// The same with retreat_speed and retreat_accel in place of leg_speed and
+// leg_accel: the duration of a retreat.
+double RetreatDuration(const std::vector<Config>& path, double length_m,
+                       const ArmMotion& motion, const PlanFigures& f);
 // Where the arm is at time t of a segment (t0 <= t <= t1; clamped).
 Config ConfigAt(const Segment& segment, const ArmMotion& motion,
                 const PlanFigures& f, double t);
