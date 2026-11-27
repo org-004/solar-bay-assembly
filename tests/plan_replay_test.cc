@@ -486,6 +486,17 @@ TEST(Kr20, OneBayOfTheKr20LayoutPassesTheVerifier) {
   EXPECT_NEAR(o.plan.bay_planned_s, 897.90, 0.005);
 }
 
+// Run 035: the same cell with three KR 20 pin arms on one shared beam
+// (Track::shares_beam_with), one bay planned whole; the verifier over the
+// whole plan, its schedule included.
+TEST(Kr20, OneBayOfTheSharedBeamLayoutPassesTheVerifier) {
+  const OrderedPlan o = NamedPlan("flat_rack_3_kr20_pin_arms_shared_ordered");
+  ASSERT_TRUE(o.error.empty()) << o.error;
+  const VerifyReport r = VerifyPlan(o.layout, ModelPaths::FromEnvironment(), o.plan, o.sha256, VerifyOptions{});
+  EXPECT_TRUE(r.ok) << Faults(r);
+  EXPECT_NEAR(o.plan.bay_planned_s, 626.32, 0.005);
+}
+
 TEST(Ordered, PassesTheVerifierWithoutTheSchedule) {
   const OrderedPlan& o = TheOrdered();
   ASSERT_TRUE(o.error.empty()) << o.error;

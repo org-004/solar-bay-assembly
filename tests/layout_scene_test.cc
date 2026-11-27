@@ -1,7 +1,9 @@
 // What moves and what is there (src/layout_scene.h): the one distance
 // function reports a capsule whose axis passes through a box as overlapping
-// (R15), the other arms can be left out, and the legs of a take and a set
-// change what is held and what is there.
+// (R15), the other arms can be left out, the legs of a take and a set
+// change what is held and what is there, and carriages on a shared beam
+// (Track::shares_beam_with) pass where carriage to carriage and links to the
+// beam still count.
 
 #include "src/layout_scene.h"
 
@@ -294,6 +296,102 @@ TEST(LayoutScene, PairQueryAgreesWithLeastDistance) {
   // Both answers were met often.
   EXPECT_GT(free, 50);
   EXPECT_GT(not_free, 50);
+}
+
+// The 034 layout with a second KR 20 pin arm, pin_arm_b, a copy of
+// pin_arm_a on the same line with a beam of its own drawn where a's is;
+// with `share` its track rides pin_arm_a's beam.
+Layout TwoOnOneLine(bool share) {
+  Layout layout = Named("flat_rack_1_kr20_pin_arm_ordered");
+  const ArmUse* a = FindArm(layout, "pin_arm_a");
+  EXPECT_NE(a, nullptr);
+  if (a == nullptr) return layout;
+  ArmUse b = *a;
+  b.name = "pin_arm_b";
+  if (share) b.track->shares_beam_with = "pin_arm_a";
+  layout.arms.push_back(b);
+  return layout;
+}
+
+// The least distance of arm b's carriage (group kCarriage) or links
+// (kLinks) to the beams and to arm a's carriage, with a at track ta and b
+// at tb, both at their wait joints.
+Nearest CarriageOrLinks(const LayoutScene& scene, int a, int b, double ta,
+                        double tb, unsigned group) {
+  DataPtr d = scene.MakeData();
+  scene.SetPose(d.get(), a, {scene.arm(a).wait, ta});
+  scene.SetPose(d.get(), b, {scene.arm(b).wait, tb});
+  mj_kinematics(&scene.model(), d.get());
+  std::set<int> keep;
+  for (int i : {a, b}) {
+    keep.insert(scene.arm(i).h->beam_geoms.begin(),
+                scene.arm(i).h->beam_geoms.end());
+  }
+  keep.insert(scene.arm(a).h->carriage_geoms.begin(),
+              scene.arm(a).h->carriage_geoms.end());
+  const std::string tool = scene.layout().arms[b].first_tool;
+  std::vector<Obstacle> obstacles;
+  for (const Obstacle& o :
+       scene.Obstacles(b, tool, Built(), DesignPairs())) {
+    if (keep.count(o.geom)) obstacles.push_back(o);
+  }
+  std::vector<MovingGeom> moving;
+  for (const MovingGeom& g : scene.Moving(b, tool, "")) {
+    if (g.group == group) moving.push_back(g);
+  }
+  return scene.LeastDistance(d.get(), moving, obstacles);
+}
+
+// R1 of run 035: two carriages on one shared beam pass; without the field
+// the second carriage counts against the first arm's beam (034's k3a);
+// carriages into each other fail, and a link against the shared beam
+// still fails. A layout without the field rides its own beam only.
+TEST(LayoutScene, CarriagesOnASharedBeam) {
+  const Layout plain = Named("flat_rack_1_kr20_pin_arm_ordered");
+  for (int i = 0; i < static_cast<int>(plain.arms.size()); ++i) {
+    EXPECT_EQ(BeamArm(plain, i), i);
+  }
+  const double kClearance = 0.015;
+  for (bool share : {false, true}) {
+    const Layout layout = TwoOnOneLine(share);
+    auto scene = Scene(layout);
+    ASSERT_NE(scene, nullptr);
+    const int a = scene->ArmIndex("pin_arm_a");
+    const int b = scene->ArmIndex("pin_arm_b");
+    ASSERT_GE(a, 0);
+    ASSERT_GE(b, 0);
+    EXPECT_EQ(BeamArm(layout, b), share ? a : b);
+    // Carriages 3 m apart along the beam.
+    const Nearest apart =
+        CarriageOrLinks(*scene, a, b, -3.0, 0.0, kCarriage);
+    const std::string text = scene->PairText(apart);
+    if (share) {
+      EXPECT_GT(apart.distance, kClearance) << text;
+    } else {
+      EXPECT_LT(apart.distance, kClearance) << text;
+      EXPECT_NE(text.find("pin_arm_a_beam"), std::string::npos) << text;
+    }
+    // Carriages 0.3 m apart: the 0.5 m carriages go into each other.
+    const Nearest into = CarriageOrLinks(*scene, a, b, -3.0, -2.7, kCarriage);
+    EXPECT_LT(into.distance, 0.0) << scene->PairText(into);
+  }
+  // A link against the shared beam: pin_arm_a's beam raised through
+  // pin_arm_b's first links still counts, while b's carriage passes it.
+  Layout high = TwoOnOneLine(true);
+  for (ArmUse& arm : high.arms) {
+    if (arm.name != "pin_arm_a") continue;
+    arm.track->beam.size[2] = 2.0;
+  }
+  auto scene = Scene(high);
+  ASSERT_NE(scene, nullptr);
+  const int a = scene->ArmIndex("pin_arm_a");
+  const int b = scene->ArmIndex("pin_arm_b");
+  const Nearest links = CarriageOrLinks(*scene, a, b, -3.0, 0.0, kLinks);
+  EXPECT_LT(links.distance, 0.0) << scene->PairText(links);
+  EXPECT_NE(scene->PairText(links).find("pin_arm_a_beam"), std::string::npos)
+      << scene->PairText(links);
+  const Nearest carriage = CarriageOrLinks(*scene, a, b, -3.0, 0.0, kCarriage);
+  EXPECT_GT(carriage.distance, kClearance) << scene->PairText(carriage);
 }
 
 }  // namespace

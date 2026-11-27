@@ -423,7 +423,8 @@ Tool ReadTool(const Json& j, const std::string& path) {
 Track ReadTrack(const Json& j, const std::string& path) {
   Fields(j, path,
          {"direction", "lo", "hi", "speed", "accel", "mass_kg", "beam",
-          "carriage", "basis", "source"});
+          "carriage", "basis", "source"},
+         {"shares_beam_with"});
   Track t;
   t.direction = Numbers<3>(FIELD(j, path, "direction"));
   const double norm2 = t.direction[0] * t.direction[0] +
@@ -442,6 +443,9 @@ Track ReadTrack(const Json& j, const std::string& path) {
   t.carriage = ReadBox(FIELD(j, path, "carriage"));
   t.basis = String(FIELD(j, path, "basis"));
   t.source = String(FIELD(j, path, "source"));
+  if (j.contains("shares_beam_with")) {
+    t.shares_beam_with = String(FIELD(j, path, "shares_beam_with"));
+  }
   return t;
 }
 
@@ -690,6 +694,21 @@ Layout ReadLayout(const Json& j) {
     l.arms.push_back(ReadArm(arms[i], At("arms", i)));
   }
   Unique(l.arms, "arms", "arm");
+  for (size_t i = 0; i < l.arms.size(); ++i) {
+    const ArmUse& a = l.arms[i];
+    if (!a.track || a.track->shares_beam_with.empty()) continue;
+    const std::string where = Sub(Sub(At("arms", i), "track"), "shares_beam_with");
+    const ArmUse* host = FindArm(l, a.track->shares_beam_with);
+    if (host == nullptr || host == &a || !host->track) {
+      throw LayoutError(where, "names no other arm with a track");
+    }
+    if (!host->track->shares_beam_with.empty()) {
+      throw LayoutError(where, "names an arm that rides another's beam");
+    }
+    if (host->track->direction != a.track->direction) {
+      throw LayoutError(where, "names a track of another direction");
+    }
+  }
   const Json& pallets = j.at("pallets");
   Array(pallets, "pallets");
   if (pallets.empty()) throw LayoutError("pallets", "no pallet place given");
