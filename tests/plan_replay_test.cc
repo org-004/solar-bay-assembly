@@ -684,6 +684,16 @@ TEST(Kr20, ThreeBaysOfTheChosenLayoutWithTheBayOutWhenClearPassTheVerifier) {
                 release->t1, out->t0, out->t1, last_free);
     EXPECT_GE(out->t0, release->t1 - 1e-9) << "bay " << b;
     EXPECT_LT(out->t0, last_free) << "bay " << b;
+    // The least distance of any arm to this bay going out: the same plan with
+    // only this bay's bay_out, measured by the verifier's bay_out_when_clear
+    // test (the copy's other faults do not matter here).
+    Plan one = o.plan;
+    std::erase_if(one.events,
+                  [&](const BayEvent& e) { return e.kind == "bay_out" && e.bay != b; });
+    const VerifyReport m =
+        VerifyPlan(o.layout, ModelPaths::FromEnvironment(), one, o.sha256, Quick(false));
+    std::printf("bay %d: least arm to the bay going out %.4f m\n", b, m.bay_out_least_m);
+    EXPECT_GE(m.bay_out_least_m, o.plan.figures.clearance_m) << "bay " << b;
   }
   EXPECT_NEAR(o.plan.bay_planned_s, 496.59, 0.005);
   EXPECT_LT(o.plan.bay_planned_s, 502.55);
