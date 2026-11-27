@@ -1451,9 +1451,11 @@ cc_test(
 # in the simulated cell, the carry followed under cycle_check and the
 # modules placed within camera_cycle_test's bounds.
 #   bazel test --config=opt //:planned_carry_test --test_output=all
+# Size large since 2026-11-27: 171 s in a full suite (run 039), about 315 s at
+# CI's 1.84 times, over medium's 300 s.
 cc_test(
     name = "planned_carry_test",
-    size = "medium",
+    size = "large",
     srcs = ["tests/planned_carry_test.cc"],
     data = CELL_FILES,
     env = {"MODEL_PATH": "$(rootpath %s)" % CELL_SCENE},
@@ -1495,9 +1497,11 @@ cc_test(
 # and is about two thirds of the time) in check_cycle_batch_test, and
 # everything else in check_cycle_test. A new suite lands in check_cycle_test.
 # Sharding instead would repeat that setup in every shard.
+# Size large since 2026-11-27: the batch half took 136 s in a full suite (run
+# 039), about 251 s at CI's 1.84 times, less than a third of medium's 300 s left.
 [cc_test(
     name = name,
-    size = "medium",
+    size = "large",
     args = ["--gtest_filter=" + gtest_filter],
     srcs = ["tests/check_cycle_test.cc"],
     data = CELL_FILES,
