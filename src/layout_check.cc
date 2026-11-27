@@ -29,6 +29,7 @@
 #include "src/arm_catalog.h"
 #include "src/bay_hardware.h"
 #include "src/container.h"
+#include "src/flat_rack.h"
 #include "src/layout_rows.h"
 #include "src/layout_scene.h"
 #include "src/layout_stage_rows.h"
@@ -1759,8 +1760,7 @@ std::vector<CheckRow> Checker::TransportRows(const ModelPaths& paths) {
                        Fmt("stow_track %.3f on the track's %.3f..%.3f",
                            a.stow_track, a.track->lo, a.track->hi)));
   }
-  // Mass.
-  double arms = 0.0, tracks = 0.0, tools = 0.0, items = 0.0;
+  double arms = 0.0, tracks = 0.0, tools = 0.0, items = 0.0;  // Mass.
   for (const ArmUse& a : L_.arms) {
     const ArmModel* c = FindArmModel(a.model);
     if (c != nullptr) arms += c->mass_kg;
@@ -1773,8 +1773,8 @@ std::vector<CheckRow> Checker::TransportRows(const ModelPaths& paths) {
   }
   const double total = arms + tracks + tools + holder + items;
   rows.push_back(Row("transport", "mass", "", "", total, "kg",
-                     container::kCellMassBudget,
-                     total <= container::kCellMassBudget,
+                     flat_rack::kTransitMassLimitKg,  // The owner's limit.
+                     total <= flat_rack::kTransitMassLimitKg,
                      Fmt("arms %.0f, tracks %.0f, tools %.1f, holder %.0f, "
                          "items inside %.0f",
                          arms, tracks, tools, holder, items)));

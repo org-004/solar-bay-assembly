@@ -179,8 +179,8 @@ TEST(TwentyFootRacks, FiguresAreTheSourcesAndTheDerivedOnes) {
   EXPECT_NEAR(tw::kDeckHeight, 0.370, kTol);
   EXPECT_NEAR(tw::kHeight, 2.896, kTol);
   EXPECT_NEAR(tw::kTareMass, 2900.0, kTol);
-  EXPECT_NEAR(tw::kTransitMassLimit, 13608.0, kTol);
-  EXPECT_NEAR(tw::kTransitMassLimit, 30000.0 * 0.45359237, 1.0);
+  EXPECT_NEAR(fr::kTransitMassLimitKg, 13608.0, kTol);
+  EXPECT_NEAR(fr::kTransitMassLimitKg, 30000.0 * 0.45359237, 1.0);
   EXPECT_NEAR(tw::PairHalfWidth(0.025), 2.4505, kTol);
 }
 

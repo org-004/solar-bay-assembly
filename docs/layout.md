@@ -831,9 +831,12 @@ that uses it, its results and its comparison are in
   detail.
 - **`allowed`.** There is no limit on the number of arms, as long as the cell works and
   the stowed cell keeps to the weight limit and the stow envelope. A row `maker <arm>`
-  is made for each arm (1 if KUKA, 0 if not). It has a limit of 1 on two racks only
-  (every arm is KUKA, the owner, 2026-11-26); on every other base it has no limit and
-  always passes, so the UR10e layouts above are not changed.
+  is made for each arm (1 if KUKA, 0 if not). It has a limit of 1 on every layout of
+  every base (every arm is KUKA, the owner, 2026-11-26), except the nine layouts that had
+  a UR10e at `9d6efb2` (the five closed-container layouts and the four `flat_rack_*` UR10e
+  layouts, v10 among them), listed by name in `src/layout_rows.cc` (`MakerUnlimited`):
+  on those it has no limit and always passes, until a later spec replaces them. A new
+  layout is never added to the list.
 
 ## Decisions
 

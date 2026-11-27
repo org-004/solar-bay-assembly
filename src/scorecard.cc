@@ -21,6 +21,7 @@
 
 #include <nlohmann/json.hpp>
 
+#include "src/flat_rack.h"
 #include "src/layout.h"
 #include "src/layout_bays.h"
 #include "src/layout_check.h"
@@ -481,7 +482,7 @@ std::optional<Scorecard> ComputeScorecard(
   Gate load;
   load.name = "mass_in_transit_kg";
   load.figure = mass;
-  load.limit = kMassInTransitLimitKg;
+  load.limit = flat_rack::kTransitMassLimitKg;
   load.unit = "kg";
   load.holds = "<=";
   load.pass = load.figure <= load.limit;

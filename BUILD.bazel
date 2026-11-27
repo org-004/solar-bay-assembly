@@ -2033,7 +2033,7 @@ cc_test(
     env = LAYOUT_ENV,
     deps = [
         ":bay_hardware",
-        ":container",
+        ":flat_rack",
         ":layout",
         ":layout_check",
         ":layout_model",
