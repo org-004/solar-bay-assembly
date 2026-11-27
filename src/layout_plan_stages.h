@@ -37,7 +37,10 @@
 //     the bay going out (src/layout_bays.h, TubePassesBay) with each at its
 //     place.
 //   - the first module take of each stage starts after the stage's last
-//     strap bolt (the plain rule within the stage).
+//     strap bolt (the plain rule within the stage), unless the layout's
+//     order has modules_start "after_their_rails": then each take waits
+//     for the bolts of its module's two rails, in the planner and the
+//     verifier alike (run 032).
 //   - the magazine (the planner's finding of run 022): in staged work an
 //     arm takes its pin magazine before its stage's first module set and
 //     then parks at its wait pose (a move of its next step, as the parking
