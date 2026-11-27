@@ -511,6 +511,19 @@ TEST(Kr20, ThreeBaysOfTheSharedBeamLayoutWithFastRetreatsPassTheVerifier) {
   EXPECT_NEAR(o.plan.bay_planned_s, 574.73, 0.005);
 }
 
+// Run 041: v16's layout with the modules set in turns of the three pin arms
+// (order.modules 0, 4, 7, 1, 5, 8, 2, 6, 3), so that pin arm C no longer waits
+// for the last two sets; one bay planned whole, the verifier over the whole
+// plan, its schedule included.
+TEST(Kr20, OneBayOfTheSharedBeamLayoutWithTheModulesInTurnsPassesTheVerifier) {
+  const OrderedPlan o = NamedPlan("flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma");
+  ASSERT_TRUE(o.error.empty()) << o.error;
+  EXPECT_TRUE(o.plan.complete);
+  const VerifyReport r = VerifyPlan(o.layout, ModelPaths::FromEnvironment(), o.plan, o.sha256, VerifyOptions{});
+  EXPECT_TRUE(r.ok) << Faults(r);
+  EXPECT_NEAR(o.plan.bay_planned_s, 543.96, 0.005);
+}
+
 // Run 042: v16's layout with path_tries 8 (src/layout.h), one bay planned
 // whole, each move the quickest of 8 searched paths; at least 8 s below
 // v16's 574.73 s. The verifier over the whole plan, its schedule included.
