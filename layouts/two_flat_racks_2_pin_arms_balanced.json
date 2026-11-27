@@ -450,7 +450,8 @@
       "stow_track": -2.0,
       "stow_tool": "",
       "tool_change_s": 0.0,
-      "rack": "a"
+      "rack": "a",
+      "one_posture_per_module": true
     },
     {
       "name": "pin_arm_b",

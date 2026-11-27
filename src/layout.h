@@ -290,6 +290,11 @@ struct ArmUse {
   std::string stow_tool;       // On the flange for transport; may be empty.
   double tool_change_s = 0.0;
   std::string rack;            // "a" or "b" on two_flat_racks, else "".
+  // "one_posture_per_module" (optional, false when absent): the checker
+  // gives all of this arm's holes of a module (locate, pin, swage) poses of
+  // one pose family, chosen together (src/layout_check.h, "One posture per
+  // module"). Only layouts with approach rules use it.
+  bool one_posture_per_module = false;
 };
 
 // The pallet's own frame: its origin at pos, x along the modules' long side,
