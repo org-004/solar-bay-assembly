@@ -43,6 +43,7 @@ The measures and gates are defined in [the scorecard](../scorecard.md).
 | v10 | 2026-11-26 | Three pin arms on the flat rack, the bay shortened by the order of work | 554.55 s per bay | 560.45 s | 4 | 39 | 3426.3 kg | planned |
 | v15 | 2026-11-27 | One 40 ft flat rack, three KR 20 pin arms on one shared beam, all KUKA: three bays planned (candidate) | 612.40 s per bay | 626.32 s | 4 | 37 | 4132.2 kg | planned |
 | v16 | 2026-11-27 | One 40 ft flat rack, three KR 20 pin arms on one shared beam, faster retreats: three bays planned | 572.56 s per bay | 574.73 s | 4 | 37 | 4132.2 kg | planned |
+| v17 | 2026-11-27 | One 40 ft flat rack, three KR 20 pin arms on one shared beam, the modules in turns of the pin arms, each move the quickest of 8 paths: three bays planned (candidate) | 527.64 s per bay | 529.20 s | 4 | 37 | 4132.2 kg | planned |
 
 The cycle time of a version with a plan is the average bay of three bays planned back to back, (end of bay 2's bay out − start of bay 0's tube in) / 3; "One bay" is its bay 0 alone, from tube in to bay out. A version without a plan has the time of one bay, marked so ([the scorecard](../scorecard.md)).
 
@@ -101,6 +102,13 @@ Each figure as the two versions' own sources report it; the conditions of a run 
 | physics_share | 0.0394 | 0.0322 | -0.00715 |
 | placement_mm | none | none | not comparable: not known |
 | plan_s | none | none | not comparable: not known |
+
+**Candidates it was chosen over.**
+
+| Version | Cycle time | One bay | Arms | Part count | Mass in transit | Failures per bay | Cycle time is | Recording | Layout | Commit | Status |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| v16 (this version) | 572.56 s per bay | 574.73 s | 4 | 37 | 4132.2 kg | 0.383 | planned | [v16.gif](../evolution/v16.gif) | [flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat.json](../../layouts/flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat.json) | the commit that added v16: `git log --format=%h -S '"id": "v16"' -- versions/versions.json \| tail -1` | chosen |
+| v17 | 527.64 s per bay | 529.20 s | 4 | 37 | 4132.2 kg | 0.383 | planned | [v17.gif](../evolution/v17.gif) | [flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_paths.json](../../layouts/flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_paths.json) | the commit that added v17: `git log --format=%h -S '"id": "v17"' -- versions/versions.json \| tail -1` | candidate |
 
 **Files.** [layout](../../layouts/flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat.json), [plan](../../plans/flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat.json), [scorecard](../../scores/flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat.json)
 
