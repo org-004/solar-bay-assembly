@@ -620,6 +620,27 @@
         "sha256": "e271e1b7a4809fe25ee5f3b447e37e51a25d20c77247860c9f4d767da8e1ff06"
       },
       "scores": "scores/two_flat_racks_2_pin_arms_balanced_ordered_fast_retreat.json"
+    },
+    {
+      "id": "v15",
+      "date": "2026-11-27",
+      "commit": "this",
+      "title": "One 40 ft flat rack, three KR 20 pin arms on one shared beam, all KUKA: three bays planned",
+      "direction": "one-40ft-flat-rack",
+      "status": "candidate",
+      "changed": "v10's 40 ft cell made all KUKA: its three UR10e pin arms replaced by three KUKA KR 20 R1810-2 that ride one shared beam (Track::shares_beam_with), every hole reached from -Y, the bay 1.0 m toward +Y and the end unit's column 0.7 m beyond the plain end (runs 034 and 035). Three bays are planned whole, 378 of 378 moves, verified and committed: 626.32 s for one bay and a cycle time of 612.40 s over three.",
+      "why": "Every arm of every cell must be KUKA (the owner, 2026-11-26). It is the best all-KUKA cell so far: 612.40 s against v14's 717.37 s, and it is weighed as a candidate against v10, whose 554.55 s with UR10e pin arms it trails by 57.85 s, so v10 stays chosen.",
+      "recording": "docs/evolution/v15.gif",
+      "competed_with": "v10",
+      "layout": {
+        "path": "layouts/flat_rack_3_kr20_pin_arms_shared_ordered.json",
+        "sha256": "254cb5cdf7a6511c993504e1af4647fd8909fc2873975af0d56f57aebfa64ade"
+      },
+      "plan": {
+        "path": "plans/flat_rack_3_kr20_pin_arms_shared_ordered.json",
+        "sha256": "0b3b3e303a8c47f7c2c5a342950eb34c6ca1c57915969301261d8140045bdc16"
+      },
+      "scores": "scores/flat_rack_3_kr20_pin_arms_shared_ordered.json"
     }
   ]
 }
