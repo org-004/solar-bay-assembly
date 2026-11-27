@@ -7,7 +7,9 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <cstdlib>
+#include <cstring>
 #include <optional>
 #include <set>
 #include <string>
@@ -214,6 +216,72 @@ TEST(LayoutScene, LegsOfATakeAndASet) {
   ASSERT_EQ(pin.built.size(), 2u);
   EXPECT_EQ(pin.built[0].modules.size(), 3u);
   EXPECT_EQ(pin.built[1].modules.size(), 4u);
+}
+
+// PairQuery gives LeastDistance's answers to the bit, and Closer its
+// answer to "nearer than far", over random poses of each arm of the 40 ft
+// cell, one pose after another on one mjData as a move's planner asks them;
+// and after Place every geom and body stands where mj_kinematics puts it.
+TEST(LayoutScene, PairQueryAgreesWithLeastDistance) {
+  const Layout layout = Named("flat_rack_3_pin_arms_ordered");
+  auto scene = Scene(layout);
+  ASSERT_NE(scene, nullptr);
+  const mjModel& m = scene->model();
+  Built built;
+  built.rails = {0, 1, 2};
+  built.modules = {0};
+  built.on_pallets = PointCount(layout, "module_take") - 1;
+  std::uint64_t state = 12345;
+  auto unit = [&]() {  // A fixed sequence in [0, 1).
+    state = state * 6364136223846793005ull + 1442695040888963407ull;
+    return static_cast<double>(state >> 11) / 9007199254740992.0;
+  };
+  int free = 0, not_free = 0;
+  for (int arm = 0; arm < scene->ArmCount(); ++arm) {
+    SCOPED_TRACE(testing::Message() << "arm " << arm);
+    const std::string tool = layout.arms[arm].first_tool;
+    const std::vector<MovingGeom> moving = scene->Moving(arm, tool, "");
+    const std::vector<Obstacle> obstacles =
+        scene->Obstacles(arm, tool, built, DesignPairs());
+    PairQuery query(*scene, arm, moving, obstacles);
+    DataPtr ref = scene->MakeData();
+    DataPtr d = scene->MakeData();
+    const auto& h = *scene->arm(arm).h;
+    std::vector<int> qpos(h.qpos.begin(), h.qpos.end());
+    if (h.track_qpos >= 0) qpos.push_back(h.track_qpos);
+    for (int k = 0; k < 300; ++k) {
+      for (int adr : qpos) {
+        double lo = -3.14, hi = 3.14;
+        for (int j = 0; j < m.njnt; ++j) {
+          if (m.jnt_qposadr[j] == adr && m.jnt_limited[j]) {
+            lo = m.jnt_range[2 * j];
+            hi = m.jnt_range[2 * j + 1];
+          }
+        }
+        ref->qpos[adr] = d->qpos[adr] = lo + unit() * (hi - lo);
+      }
+      mj_kinematics(&m, ref.get());
+      query.Place(d.get());
+      ASSERT_EQ(std::memcmp(ref->geom_xpos, d->geom_xpos, sizeof(mjtNum) * 3 * m.ngeom), 0);
+      ASSERT_EQ(std::memcmp(ref->geom_xmat, d->geom_xmat, sizeof(mjtNum) * 9 * m.ngeom), 0);
+      ASSERT_EQ(std::memcmp(ref->xpos, d->xpos, sizeof(mjtNum) * 3 * m.nbody), 0);
+      ASSERT_EQ(std::memcmp(ref->xipos, d->xipos, sizeof(mjtNum) * 3 * m.nbody), 0);
+      ASSERT_EQ(std::memcmp(ref->site_xpos, d->site_xpos, sizeof(mjtNum) * 3 * m.nsite), 0);
+      for (double far : {0.0, 0.03, 0.1, kSceneFar}) {
+        const Nearest want = scene->LeastDistance(ref.get(), moving, obstacles, far);
+        const Nearest got = query.Least(d.get(), far);
+        EXPECT_EQ(got.distance, want.distance);
+        EXPECT_EQ(got.moving, want.moving);
+        EXPECT_EQ(got.obstacle, want.obstacle);
+        EXPECT_EQ(got.near, want.near);
+        EXPECT_EQ(query.Closer(d.get(), far), want.distance < far);
+        if (far == 0.03) ++(want.distance < far ? not_free : free);
+      }
+    }
+  }
+  // Both answers were met often.
+  EXPECT_GT(free, 50);
+  EXPECT_GT(not_free, 50);
 }
 
 }  // namespace

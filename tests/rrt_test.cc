@@ -700,4 +700,76 @@ TEST(DeterminismTest, SameSeedSamePathDifferentSeedsDifferentPaths) {
   }
 }
 
+// Budgets in one run give what one run per budget gives: the same path, and
+// for each budget tried the same report (all but its seconds), whether the
+// path is found at the first budget, a later one or none. The queries made
+// are fewer: the smaller budgets' iterations are not made again.
+TEST(RrtBudgetsTest, OneRunGivesWhatOneRunPerBudgetGives) {
+  const ToyWorld world = cell::ArmLikeWorld();
+  const std::vector<int> budgets = {20, 80, 320};
+  int found_late = 0, not_found = 0;
+  std::int64_t one_run = 0, per_budget = 0;
+  for (std::uint32_t seed = 1; seed <= 40; ++seed) {
+    SCOPED_TRACE(testing::Message() << "seed " << seed);
+    RrtOptions options = Seeded(seed);
+    options.max_seconds = 1e9;
+    std::int64_t calls = 0;
+    const cell::IsFree counted = [&](const Eigen::VectorXd& q) {
+      ++calls;
+      return world.is_free(q);
+    };
+    std::vector<RrtReport> expected;
+    std::optional<JointPath> want;
+    for (int budget : budgets) {
+      options.max_iterations = budget;
+      RrtReport r;
+      want = PlanRrtConnect(world.start, world.goal, world.lower, world.upper,
+                            counted, options, &r);
+      expected.push_back(r);
+      if (want || r.status != cell::RrtStatus::kIterationLimit) break;
+    }
+    per_budget += calls;
+    calls = 0;
+    std::vector<RrtReport> got;
+    const std::optional<JointPath> path = cell::PlanRrtConnectBudgets(
+        world.start, world.goal, world.lower, world.upper, counted, options,
+        budgets, &got);
+    one_run += calls;
+    ASSERT_EQ(path.has_value(), want.has_value());
+    if (path) EXPECT_TRUE(*path == *want);
+    ASSERT_EQ(got.size(), expected.size());
+    std::int64_t reported = 0;
+    for (std::size_t k = 0; k < got.size(); ++k) {
+      EXPECT_EQ(got[k].status, expected[k].status);
+      EXPECT_EQ(got[k].iterations, expected[k].iterations);
+      EXPECT_EQ(got[k].collision_queries, expected[k].collision_queries);
+      EXPECT_EQ(got[k].start_tree_size, expected[k].start_tree_size);
+      EXPECT_EQ(got[k].goal_tree_size, expected[k].goal_tree_size);
+      EXPECT_EQ(got[k].path_length, expected[k].path_length);
+      reported += got[k].collision_queries;
+    }
+    // The one run's calls are its last report's.
+    EXPECT_EQ(calls, got.back().collision_queries);
+    EXPECT_LE(calls, reported);
+    if (path && got.size() > 1) ++found_late;
+    if (!path) ++not_found;
+  }
+  // Both cases were met.
+  EXPECT_GT(found_late, 0);
+  EXPECT_GT(not_found, 0);
+  EXPECT_LT(one_run, per_budget);
+}
+
+// Budgets that do not increase are run one by one.
+TEST(RrtBudgetsTest, BudgetsThatDoNotIncreaseAreRunOneByOne) {
+  const ToyWorld world = cell::ArmLikeWorld();
+  RrtOptions options = Seeded(3);
+  std::vector<RrtReport> got;
+  cell::PlanRrtConnectBudgets(world.start, world.goal, world.lower,
+                              world.upper, world.is_free, options, {5, 5, 2},
+                              &got);
+  ASSERT_FALSE(got.empty());
+  EXPECT_EQ(got.front().iterations, 5);
+}
+
 }  // namespace

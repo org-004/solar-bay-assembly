@@ -18,6 +18,7 @@
 
 #include "src/bay_hardware.h"
 #include "src/layout_check.h"
+#include "src/mj_kinematics_parts.h"
 
 namespace cell::layout {
 namespace {
@@ -660,19 +661,6 @@ std::vector<bool> LayoutScene::MovesWith(int arm) const {
 
 // ------------------------------------------------------------- PairQuery
 
-}  // namespace cell::layout
-
-// MuJoCo's own passes of mj_kinematics (src/engine/engine_core_smooth.h and
-// engine_core_util.h of MuJoCo 4.0.0), not in its public header.
-extern "C" {
-void mj_kinematics1(const mjModel* m, mjData* d);
-void mj_local2GlobalQuat(mjData* d, mjtNum* xpos, mjtNum* xquat, mjtNum* xmat,
-                         const mjtNum pos[3], const mjtNum quat[4], int body,
-                         mjtByte sameframe);
-}
-
-namespace cell::layout {
-
 namespace {
 
 // The margin against rounding when an obstacle is passed over whole: far
@@ -693,9 +681,17 @@ double Separation(const Aabb& b, const Vec& lo, const Vec& hi) {
 
 }  // namespace
 
+// Obstacles are passed over in runs of this many (consecutive in the list,
+// so mostly of one item), by the box around the run, before one by one.
+constexpr int kRun = 8;
+
 struct PairQuery::State {
   std::vector<Aabb> mb, ob;
   std::vector<Pair> pairs, near;
+  // Per run of kRun obstacles: whether none moves with the arm and none is
+  // a plane, and the box around them.
+  std::vector<bool> run_fixed;
+  std::vector<Vec> run_lo, run_hi;
 };
 
 PairQuery::PairQuery(const LayoutScene& scene, int arm,
@@ -734,6 +730,13 @@ PairQuery::PairQuery(const LayoutScene& scene, int arm,
   }
   s_->mb.resize(moving_.size());
   s_->ob.resize(n);
+  const size_t runs = (n + kRun - 1) / kRun;
+  s_->run_fixed.assign(runs, true);
+  s_->run_lo.assign(runs, Vec::Zero());
+  s_->run_hi.assign(runs, Vec::Zero());
+  for (size_t j = 0; j < n; ++j) {
+    if (obstacle_moves_[j]) s_->run_fixed[j / kRun] = false;
+  }
 }
 
 PairQuery::~PairQuery() = default;
@@ -748,19 +751,19 @@ void PairQuery::Place(mjData* d) {
   } else {
     // mj_kinematics: the bodies' pass, then (mj_kinematics2) the inertial
     // frames, geoms and sites, here only of the bodies that moved.
-    mj_kinematics1(&m, d);
+    KinematicsBodies(m, d);
     for (int b : bodies_) {
-      mj_local2GlobalQuat(d, d->xipos + 3 * b, d->xiquat + 4 * b, d->ximat + 9 * b,
+      LocalToGlobal(d, d->xipos + 3 * b, d->xiquat + 4 * b, d->ximat + 9 * b,
                           m.body_ipos + 3 * b, m.body_iquat + 4 * b, b,
                           m.body_sameframe[b]);
     }
     for (int g : geoms_) {
-      mj_local2GlobalQuat(d, d->geom_xpos + 3 * g, d->geom_xquat + 4 * g,
+      LocalToGlobal(d, d->geom_xpos + 3 * g, d->geom_xquat + 4 * g,
                           d->geom_xmat + 9 * g, m.geom_pos + 3 * g, m.geom_quat + 4 * g,
                           m.geom_bodyid[g], m.geom_sameframe[g]);
     }
     for (int i : sites_) {
-      mj_local2GlobalQuat(d, d->site_xpos + 3 * i, d->site_xquat + 4 * i,
+      LocalToGlobal(d, d->site_xpos + 3 * i, d->site_xquat + 4 * i,
                           d->site_xmat + 9 * i, m.site_pos + 3 * i, m.site_quat + 4 * i,
                           m.site_bodyid[i], m.site_sameframe[i]);
     }
@@ -770,6 +773,20 @@ void PairQuery::Place(mjData* d) {
   }
   for (size_t j = 0; j < obstacles_.size(); ++j) {
     if (all || obstacle_moves_[j]) s_->ob[j] = WorldAabb(m, *d, obstacles_[j].geom);
+  }
+  if (!all) return;
+  // The runs' boxes, fixed from here on.
+  for (size_t r = 0; r < s_->run_fixed.size(); ++r) {
+    Vec lo = Vec::Constant(std::numeric_limits<double>::infinity());
+    Vec hi = -lo;
+    for (size_t j = r * kRun; j < std::min(obstacles_.size(), (r + 1) * kRun); ++j) {
+      const Aabb& b = s_->ob[j];
+      if (b.plane) s_->run_fixed[r] = false;
+      lo = lo.cwiseMin(b.c - b.h);
+      hi = hi.cwiseMax(b.c + b.h);
+    }
+    s_->run_lo[r] = lo;
+    s_->run_hi[r] = hi;
   }
 }
 
@@ -785,9 +802,21 @@ void PairQuery::Keep(double far) {
     lo = lo.cwiseMin(b.c - b.h);
     hi = hi.cwiseMax(b.c + b.h);
   }
-  for (size_t j = 0; j < ob.size(); ++j) {
-    if (cull && !ob[j].plane && Separation(ob[j], lo, hi) >= far + kCullSlack) continue;
-    keep_.push_back(static_cast<int>(j));
+  const double beyond = far + kCullSlack;
+  for (size_t r = 0; r < s_->run_fixed.size(); ++r) {
+    const size_t end = std::min(ob.size(), (r + 1) * kRun);
+    if (cull && s_->run_fixed[r]) {
+      double sep = -std::numeric_limits<double>::infinity();
+      for (int k = 0; k < 3; ++k) {
+        sep = std::max(sep, lo[k] - s_->run_hi[r][k]);
+        sep = std::max(sep, s_->run_lo[r][k] - hi[k]);
+      }
+      if (sep >= beyond) continue;
+    }
+    for (size_t j = r * kRun; j < end; ++j) {
+      if (cull && !ob[j].plane && Separation(ob[j], lo, hi) >= beyond) continue;
+      keep_.push_back(static_cast<int>(j));
+    }
   }
 }
 
