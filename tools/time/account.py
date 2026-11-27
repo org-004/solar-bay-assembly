@@ -66,12 +66,12 @@ def main():
     args = ap.parse_args()
     p = json.load(open(args.plan))
     bay = args.bay
-    events = [e for e in p["events"] if e["bay"] == bay]
+    events = [e for e in p["events"] if e.get("bay", 0) == bay]
     ev = {e["kind"]: e for e in events if e["kind"] != "transfer"}
     transfers = [e for e in events if e["kind"] == "transfer"]
     b0, b1 = ev["tube_in"]["t0"], ev["bay_out"]["t1"]
-    steps = {s["number"]: s for s in p["steps"] if s["bay"] == bay}
-    phases = {ph["name"]: ph for ph in p["phases"] if ph["bay"] == bay}
+    steps = {s["number"]: s for s in p["steps"] if s.get("bay", 0) == bay}
+    phases = {ph["name"]: ph for ph in p["phases"] if ph.get("bay", 0) == bay}
     planned = b1 - b0
     model = sum(ph["model_s"] for ph in phases.values())
     print(f"# {p['layout']}, bay {bay}: planned {planned:.2f} s, "

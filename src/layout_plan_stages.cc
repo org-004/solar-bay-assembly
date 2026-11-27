@@ -346,7 +346,11 @@ std::vector<std::string> StagedFaults(const LayoutScene& scene, const CheckRepor
     for (const BayStep& s : report.steps) {
       const int k = stage_of[s.number];
       const int number = StepNumberInBay(s.number, b, n);
-      if (s.kind == "module_take" && !taken[k]) {
+      // With modules_start "after_their_rails" (src/layout.h, WorkOrder) the
+      // take of each module waits for its own two rails' bolts instead, as
+      // the planner schedules it; the verifier's plain rules hold that.
+      if (s.kind == "module_take" && !taken[k] &&
+          L.order.modules_start != "after_their_rails") {
         taken[k] = true;
         const double start = start_of(number);
         if (start >= 0.0 && start < last_bolt[k] - tol) {
