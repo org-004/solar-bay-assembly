@@ -208,6 +208,9 @@ TEST(Scorecard, OperationKindsOfSteps) {
   EXPECT_EQ(OperationKinds(Step("back to wait")), Kinds({"arm_move"}));
   EXPECT_EQ(OperationKinds(Step("release")), Kinds({"unclamp"}));
   EXPECT_EQ(OperationKinds(Step("bay out")), Kinds({"bay_out"}));
+  EXPECT_EQ(OperationKinds(Step("move the tube to stage 2")),
+            Kinds({"unclamp", "tube_in", "clamp"}));
+  EXPECT_TRUE(OperationKinds(Step("move the tube")).empty());
   EXPECT_TRUE(OperationKinds(Step("juggle 3")).empty());
   EXPECT_TRUE(OperationKinds(Step("")).empty());
 }

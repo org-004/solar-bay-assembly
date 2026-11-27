@@ -564,6 +564,12 @@ def results_block(reg):
         L += ["### " + d["title"], ""]
         link = "[%s: progress and versions](docs/directions/%s.md)" % (d["title"], d["id"])
         best, chosen = best_version(reg, d)
+        candidates = [v for v in reg.of_direction(d) if v["status"] == "candidate"]
+        if best is None and candidates:
+            # Only candidates: the newest one, said to be one, rather than none.
+            best = candidates[-1]
+            L += ["Only candidates exist; the newest, %s, is a candidate weighed against %s, not chosen."
+                  % (best["id"], best.get("competed_with") or "no version"), ""]
         if best is None:
             L += ["No version yet.", "", link, ""]
             continue
@@ -634,9 +640,10 @@ def do_add(args, root):
     direction = args.direction
     if not direction:
         layout = load_json(os.path.join(root, lpath))
-        if layout.get("base") != "flat_rack":
+        by_base = {"flat_rack": "one-40ft-flat-rack", "two_flat_racks": "two-20ft-flat-racks"}
+        if layout.get("base") not in by_base:
             raise Error("cannot tell the direction of %s (base %r): pass --direction" % (lpath, layout.get("base")))
-        direction = "one-40ft-flat-rack"
+        direction = by_base[layout["base"]]
     if direction not in [d["id"] for d in data["directions"]]:
         raise Error("unknown direction %s" % direction)
     if args.competed_with and args.competed_with not in [v["id"] for v in versions]:

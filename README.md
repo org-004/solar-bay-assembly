@@ -33,7 +33,13 @@ layout, and [`docs/scorecard.md`](docs/scorecard.md) defines each one.
 
 ### Two 20 ft flat racks side by side
 
-No version yet.
+Only candidates exist; the newest, v11, is a candidate weighed against v10, not chosen.
+
+![v11  2026-11-27  Two 20 ft flat racks, two pin arms: three bays planned; cycle 969.67 s per bay (planned), 4 arms](docs/evolution/v11.gif)
+
+| Version | Cycle time | One bay | Failures per bay | Arms | Part count | Placement error | Mass in transit | Gates |
+|---|---|---|---|---|---|---|---|---|
+| v11 | 969.67 s per bay (planned) | 1003.47 s | 0.382 | 4 | 25 | none | 3727.0 kg | all 3 pass |
 
 [Two 20 ft flat racks side by side: progress and versions](docs/directions/two-20ft-flat-racks.md)
 

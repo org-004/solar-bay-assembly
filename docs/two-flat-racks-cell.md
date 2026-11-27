@@ -383,10 +383,43 @@ The pin arms are no longer balanced: B has 28 holes, A 8 (modules 0 and 3).
 One staged bay took 29 minutes to plan with three budgets, so a plan of three bays would
 take more than an hour and a half.
 
+## Three bays (run 027)
+
+`bazel run --config=opt --config=agent //:plan_layout -- two_flat_racks_2_pin_arms --bays 3
+--out plans/two_flat_racks_2_pin_arms.json --summary` exits 0 with the layout of run 025
+unchanged (sha256 `a78976cc…af54f`): 378 of 378 moves found (module arm 123, pin arm A 54,
+pin arm B 162, bolt arm 39: three times bay 0's), `complete: true`, verified and committed. It is
+version v11, a `candidate` of this direction weighed against v10.
+
+| Bay | tube in to bay out (s) | Stage 1 | Stage 2 | Stage 3 |
+|---|---|---|---|---|
+| 0 | 0.00 to 1003.47 (1003.47) | 261.86 | 275.09 | 301.52 |
+| 1 | 956.29 to 1956.01 (999.72) | 262.07 | 273.11 | 299.54 |
+| 2 | 1908.83 to 2909.00 (1000.17) | 262.68 | 272.40 | 300.11 |
+
+- `cycle_s` 969.67 s ((2909.00 - 0.00) / 3), against v10's 554.55 s: 1.75 times as long.
+  `one_bay_s` 1003.47, `interval_s` 952.99. Bay n+1's tube comes in 47.19 s before bay n
+  is out, both times.
+- The time model: 669.83 s a bay against 1003.47 s planned (+49.8 %). Nearly all of the
+  difference is the modules phase, 637.15 s planned against 362.84 s; the rails phase is
+  183.66 against 129.89 s, the end 77.66 against 72.10 s. The two transfers are 60 s of
+  every bay in both.
+- Waits: 118 over the three bays, 8,319.15 s of arm waiting summed (module arm 1,884.1,
+  pin arm A 2,477.7, pin arm B 1,364.0, bolt arm 2,593.3).
+- The bottleneck is pin arm B. Busy (moving or working) over the 2,909 s of three bays:
+  B 1,545.0 s (515 s a bay, 53 %), module arm 1,024.9 s, A 431.3 s, bolt arm 315.6 s. B
+  has 28 of the 36 holes (A modules 0 and 3 only, see run 025), so each stage waits on
+  B's locates, pins and swages while A stands idle. Balancing the pin arms by whole
+  modules is spec 028's.
+- Tightest margins of the plan: least clearance 0.0180 m against 0.015 m, least arm to
+  arm 0.0189 m, least joint margin 8.64 deg against 5 deg.
+- Planning: `planning_s` 252.1 s and 229,189,398 collision queries; the whole command
+  took 319 s of wall time with a 41 s build. One bay took 998.6 s before run 026.
+- The scorecard maps the step `move the tube to stage ...` to `unclamp`, `tube_in` and
+  `clamp` (`docs/scorecard.md`); before this run no staged plan had been scored.
+
 ## What the next run needs that this run did not build
 
-- A plan of three bays of staged work, and with it the plan file, the scorecard and a
-  version in this direction: one bay plans whole (run 025, above).
 - A time model of the transfers: the 30 s of `transfer_s` is a figure of the layout, not
   the model of a move.
 - The units' own design: the infeed unit, the outfeed unit and the pin feeder are boxes
