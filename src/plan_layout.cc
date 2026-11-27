@@ -28,9 +28,13 @@
 // --margins plans nothing: it reads the committed plan PLAN_DIR/<name>.json,
 // refuses it (exit 1) when it was made for another version of the layout, runs
 // the verifier and the checker, and prints one CSV table of the tightest
-// margins (kinds distance, arm_pair, joint_margin, tool_fit, load, ways and
-// transport, tightest first within each) and then `#` lines. It exits 0 when
-// the plan verifies and every checker row passes.
+// margins (kinds distance, arm_pair, joint_margin, tool_fit, load, ways,
+// transport, track_end and carriage_gap, tightest first within each) and then
+// `#` lines. track_end is each tracked arm's least slack to its track's lo
+// and hi over the plan (limit 0); carriage_gap is, for each pair of arms on
+// one beam, the least distance between their carriages along it, against
+// the distance at which the carriage boxes touch (src/layout_margins.h). It
+// exits 0 when the plan verifies and every checker row passes.
 //
 // Exit status: 0 when the plan is complete; 1 when a move was not found,
 // the schedule is blocked or the verifier found a fault; 2 on a usage or
@@ -43,6 +47,7 @@
 #include <optional>
 #include <algorithm>
 #include <map>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -50,7 +55,9 @@
 #include "src/layout_bays.h"
 #include "src/layout_check.h"
 #include "src/layout_model.h"
+#include "src/layout_margins.h"
 #include "src/layout_plan.h"
+#include "src/layout_scene.h"
 
 namespace {
 
@@ -131,6 +138,9 @@ ArmSeconds SecondsOf(const ArmPlan& a) {
   }
   return s;
 }
+
+// How often --margins samples the tracks (src/layout_margins.h).
+constexpr double kTrackSampleS = 0.01;
 
 // --margins: reads the committed plan, verifies it and prints the tightest
 // margins of the plan and of the checker. Plans nothing.
@@ -233,6 +243,32 @@ int PrintMargins(const Layout& layout, const ModelPaths& paths,
   add_rows("load", "load", "");
   add_rows("ways", "ways", "");
   add_rows("transport", "transport", "");
+  // Track ends and carriage gaps (src/layout_margins.h), from the plan's
+  // timed paths.
+  std::string scene_error;
+  const std::unique_ptr<LayoutScene> scene =
+      LayoutScene::Load(layout, paths, check.joint_margin_deg, &scene_error);
+  if (!scene) {
+    std::fprintf(stderr, "plan_layout: %s\n", scene_error.c_str());
+    return 2;
+  }
+  const PlanPlayer player(*scene, check, *plan);
+  const TrackMargins tracks = TrackMarginsOf(layout, player, kTrackSampleS);
+  rank = 0;
+  for (const TrackEnd& e : tracks.ends) {
+    const ArmUse* arm = FindArm(layout, e.arm);
+    table.push_back({"track_end", std::to_string(++rank), Num(e.slack, 4), "m",
+                     Num(0.0, 4), e.end, "", e.arm, std::to_string(e.step),
+                     Num(e.t), "track " + Num(arm->track->lo, 3) + " to " +
+                     Num(arm->track->hi, 3) + ", least at " + Num(e.value, 3)});
+  }
+  rank = 0;
+  for (const CarriageGap& g : tracks.gaps) {
+    table.push_back({"carriage_gap", std::to_string(++rank), Num(g.distance, 4), "m",
+                     Num(g.contact, 4), g.a, g.b, g.a, std::to_string(g.step_a),
+                     Num(g.t), g.b + " at step " + std::to_string(g.step_b) +
+                     "; boxes " + Num(g.distance - g.contact, 4) + " m apart"});
+  }
   PrintTable(table, pretty);
   std::printf("# layout: %s\n", layout_path.c_str());
   std::printf("# plan sha256: %s\n", plan->layout_sha256.c_str());
@@ -245,6 +281,9 @@ int PrintMargins(const Layout& layout, const ModelPaths& paths,
   }
   std::printf("# schedule collision queries: %lld\n",
               static_cast<long long>(v.queries));
+  std::printf("# track_end and carriage_gap: %d instants, every %s s and at "
+              "every segment's ends\n",
+              tracks.samples, Num(kTrackSampleS, 3).c_str());
   for (const std::string& f : v.faults) std::printf("# fault: %s\n", f.c_str());
   return all_pass ? 0 : 1;
 }

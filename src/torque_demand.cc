@@ -2,6 +2,7 @@
 // motors (src/layout_torque.h), move by move.
 //
 //   torque_demand [<name>] [--bay B] [--all]
+//   torque_demand [<name>] --all-bays
 //
 // <name> is a layout with a committed plan, plans/<name>.json; without it,
 // the chosen layout (versions/versions.json). For every move of the module
@@ -12,6 +13,11 @@
 // torque_limit_scale, if it has one, and the peak of every module step over
 // all its segments (what the physics record measures, step by step). Exit 0
 // when the table was made, 1 when it could not be, 2 on a wrong argument.
+//
+// --all-bays prints no table: for each of the plan's bays and then for all
+// of them, the module arm's moves, how many exceed 1.0 and how many the
+// layout's torque_limit_scale (1.0 without it), and the worst fraction with
+// its axis and step (src/layout_margins.h, TorqueByBay).
 //
 //   bazel run --config=opt //:torque_demand
 //   bazel run --config=opt //:torque_demand -- flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat
@@ -28,6 +34,7 @@
 
 #include "src/layout.h"
 #include "src/layout_check.h"
+#include "src/layout_margins.h"
 #include "src/layout_model.h"
 #include "src/layout_plan.h"
 #include "src/layout_scene.h"
@@ -41,9 +48,12 @@ std::string Env(const char* name, const char* fallback) {
 }
 
 int Usage() {
-  std::fprintf(stderr, "usage: torque_demand [<name>] [--bay B] [--all]\n");
+  std::fprintf(stderr, "usage: torque_demand [<name>] [--bay B] [--all] | [<name>] --all-bays\n");
   return 2;
 }
+
+const char* const kAxes[] = {"joint 1", "joint 2", "joint 3", "joint 4",
+                             "joint 5", "joint 6", "track"};
 
 void Ratios(const std::array<double, 7>& r) {
   for (double x : r) std::printf(" %6.3f", x);
@@ -56,11 +66,13 @@ int main(int argc, char** argv) {
   const std::vector<std::string> args(argv + 1, argv + argc);
   std::string name;
   int bay = 0;
-  bool all = false;
+  bool all = false, all_bays = false;
   for (size_t i = 0; i < args.size(); ++i) {
     const std::string& a = args[i];
     if (a == "--all") {
       all = true;
+    } else if (a == "--all-bays") {
+      all_bays = true;
     } else if (a == "--bay" && i + 1 < args.size()) {
       const std::string& k = args[++i];
       char* end = nullptr;
@@ -126,6 +138,39 @@ int main(int argc, char** argv) {
     std::fprintf(stderr, "torque_demand: the plan has no arm %s\n", arm.c_str());
     return 1;
   }
+  if (all_bays) {
+    const double scale = plan->figures.torque_limit_scale > 0.0
+                             ? plan->figures.torque_limit_scale
+                             : 1.0;
+    std::vector<BayTorque> bays;
+    if (!TorqueByBay(*plan, dynamics.get(), motion, arm, scale, &bays, &error)) {
+      std::fprintf(stderr, "torque_demand: %s\n", error.c_str());
+      return 1;
+    }
+    std::printf("torque_demand: %s, all %d bays, arm %s\n", name.c_str(),
+                static_cast<int>(bays.size()), arm.c_str());
+    std::printf("torque_limit_scale: %s\n", plan->figures.torque_limit_scale > 0.0
+                                                 ? std::to_string(scale).c_str()
+                                                 : "none (counted against 1.0)");
+    BayTorque total;
+    auto line = [&](const std::string& what, const BayTorque& t) {
+      std::printf("%s: moves %d; over 1.0: %d; over %.3f: %d; worst %.3f (%s) in step %d\n",
+                  what.c_str(), t.moves, t.over_one, scale, t.over_scale, t.worst.Worst(),
+                  kAxes[t.worst.WorstAxis()], t.worst_step);
+    };
+    for (const BayTorque& t : bays) {
+      line("bay " + std::to_string(t.bay), t);
+      total.moves += t.moves;
+      total.over_one += t.over_one;
+      total.over_scale += t.over_scale;
+      if (t.worst.Worst() > total.worst.Worst()) {
+        total.worst = t.worst;
+        total.worst_step = t.worst_step;
+      }
+    }
+    line("total", total);
+    return 0;
+  }
   std::map<int, const StepTime*> steps;
   for (const StepTime& s : plan->steps) steps[s.number] = &s;
   const double fraction = plan->figures.torque_limit_scale;
@@ -174,8 +219,7 @@ int main(int argc, char** argv) {
   }
   std::printf("moves: %d; over 1.0: %d", moves, over_one);
   if (fraction > 0.0) std::printf("; over %.3f: %d", fraction, over_fraction);
-  const char* axes[] = {"joint 1", "joint 2", "joint 3", "joint 4", "joint 5", "joint 6", "track"};
-  std::printf("; worst %.3f (%s) in step %d\n", worst.Worst(), axes[worst.WorstAxis()],
+  std::printf("; worst %.3f (%s) in step %d\n", worst.Worst(), kAxes[worst.WorstAxis()],
               worst_step);
   std::printf("steps, every segment (as the physics record's steps):\n");
   for (const auto& [n, d] : by_step) {

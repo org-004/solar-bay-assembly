@@ -42,7 +42,7 @@
       "files": ["src/arm_catalog.h", "src/layout.*", "src/layout_lookup.*", "src/layout_racks.*", "src/layout_check.*", "src/layout_stages.*", "src/layout_stage_rows.*", "src/layout_sweep.*", "src/layout_model.*", "src/layout_plan.*",
                 "src/layout_replay.cc", "src/layout_plan_file.cc", "src/layout_report_file.*", "src/layout_bays.*", "src/layout_rows.*", "src/layout_scene.*", "src/scorecard.*",
                 "src/physics_record.*",
-                "src/layout_plan_stages.*", "src/layout_torque.*", "tests/plan_replay_staged_test.cc",
+                "src/layout_plan_stages.*", "src/layout_torque.*", "src/layout_margins.*", "tests/plan_replay_staged_test.cc",
                 "tests/layout_*_test.cc", "tests/plan_replay_test.cc", "tests/plan_replay_committed_test.cc",
                 "tests/retreat_legs_test.cc", "tests/path_tries_test.cc", "tests/torque_limit_test.cc", "tests/check_report_file_test.cc",
                 "tests/scorecard_test.cc", "tests/score_layout_test.cc", "tests/versions_test.cc",
