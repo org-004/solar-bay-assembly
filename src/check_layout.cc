@@ -1,5 +1,6 @@
 // Checks a layout and prints one row for each check (src/layout_check.h).
 //
+//   bazel run --config=opt //:check_layout
 //   bazel run --config=opt //:check_layout -- --list
 //   bazel run --config=opt //:check_layout -- below
 //   bazel run --config=opt //:check_layout -- below --summary
@@ -13,6 +14,9 @@
 // "flat_rack" or "two_flat_racks"). The chosen layout is the one versions/versions.json names
 // (VERSIONS_JSON; src/layout.h, ChosenLayout); exits 1 when that file names
 // none or a layout that is not under LAYOUT_DIR.
+// With no name (and no --list), the chosen layout: the one
+// versions/versions.json names (src/layout.h, ChosenLayout); exits 2 when that
+// file names none.
 // <name>: the rows as CSV (check,item,arm,tool,figure,unit,limit,result,
 // detail), then the bay's time, the time model and the margins used as #
 // lines, and for a layout worked in stages one # line per stage (its name,
@@ -183,8 +187,9 @@ void PrintStages(const cell::layout::Layout& layout, const CheckReport& report) 
 }
 
 const char kUsage[] =
-    "usage: check_layout --list | <name> [--summary|--steps] [--pretty] "
-    "[--checks kind,kind,...] | <name> --report-out PATH\n";
+    "usage: check_layout --list | [<name>] [--summary|--steps] [--pretty] "
+    "[--checks kind,kind,...] | <name> --report-out PATH\n"
+    "(without a name, the chosen layout of versions/versions.json)\n";
 
 }  // namespace
 
@@ -229,9 +234,20 @@ int main(int argc, char** argv) {
     }
   }
   if (list) return List();
-  if (name.empty()) {
-    std::fprintf(stderr, "%s", kUsage);
+  if (name.empty() && !report_out.empty()) {
+    std::fprintf(stderr, "%s--report-out needs a layout's name\n", kUsage);
     return 2;
+  }
+  if (name.empty()) {
+    std::string why;
+    const std::optional<std::string> chosen =
+        cell::layout::ChosenLayout(cell::layout::VersionsPath(), &why);
+    if (!chosen) {
+      std::fprintf(stderr, "%sno layout is chosen: %s\n", kUsage, why.c_str());
+      return 2;
+    }
+    name = *chosen;
+    std::fprintf(stderr, "check_layout: the chosen layout, %s\n", name.c_str());
   }
   if (!report_out.empty() && !options.checks.empty()) {
     std::fprintf(stderr, "%s--report-out writes the whole report, without --checks\n", kUsage);

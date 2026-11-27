@@ -2454,7 +2454,10 @@ cc_binary(
         "SCORES_DIR": "scores",
         "PHYSICS_DIR": "physics",
     },
-    deps = [":scorecard"],
+    deps = [
+        ":layout",
+        ":scorecard",
+    ],
 )
 
 # Every committed scorecard is what the program computes for the files as

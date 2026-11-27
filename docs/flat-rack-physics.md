@@ -14,6 +14,11 @@ The run is measured as the checker measures. Its committed record,
 `physics/flat_rack_3_pin_arms_ordered.json`, is what the scorecard's `physics_share`
 counts ([`scorecard.md`](scorecard.md)).
 
+Since run 040 the chosen layout is v16, `flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat`
+(all KUKA), so `run_physics` with no name runs v16's plan; its record is in
+"[v16's record (run 040)](#v16s-record-run-040)" below. The rest of this page is v10's
+run, made in run 019.
+
 Every figure below is printed by one of these commands, at the commit that added this
 page:
 
@@ -289,3 +294,25 @@ What this run learned for those steps:
    cell's. The set-down was 0.17 to 0.29 mm in all nine cycles, about a tenth of the
    gate's 3 mm. The locating nose's capture range (`bay-hardware.md`) starts from the
    gate's 3 mm, so a module laid down this way is well inside it.
+
+## v16's record (run 040)
+
+`bazel run --config=opt //:run_physics -- flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat --write`
+wrote `physics/flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat.json` the way run 019
+wrote v10's. The same KR 210 module arm, on the same servos; the three KR 20 pin arms are
+kinematic in the run. The take before the hardest carry is now module 3's (module_take 3,
+plan steps 77 and 78), on v16's track timing.
+
+| Figure (derived) | v16, module 3 | v10, module 4 (run 019) |
+|---|---|---|
+| counted, of one bay | 18.522716 s of 574.729769 s | 22.068854 s of 560.452329 s |
+| `physics_share` | 0.032229 | 0.039377 |
+| peak joint 1 torque over its limit, take / set | 1.000 / 1.000 | 0.975 at most |
+| peak track force over its limit, take / set | 0.939 / 0.967 | |
+| least clearance in physics, take / set | 0.020177 m / 0.025272 m (plan 0.020188 / 0.026289), against 0.015 m | 0.02025 m |
+| largest joint tracking error, take / set | 0.6206 / 9.2649 mrad | |
+| largest Cartesian error, take / set | 0.6419 mm / 17.7955 mm | |
+| set-down offset after settling | 0.2014 mm, yaw 0.0052 deg (gate 3.0 mm, 0.15 deg) | 0.17 to 0.29 mm |
+
+Both steps count. Joint 1 reaches its torque limit in both: the planner times moves from
+datasheet joint speeds and knows no torque, as in run 019.
