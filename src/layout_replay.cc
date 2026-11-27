@@ -688,6 +688,11 @@ class Verifier {
     if (L_.bay_out_when_clear) {
       for (int b = 0; b < bays_; ++b) ClearOut(b);
     }
+    // Run 053: where the ways do not share their zone, the next tube may come
+    // in while the bay before goes out and an arm still finishes its work.
+    if (!WaysShareZone(L_)) {
+      for (int b = 1; b < bays_; ++b) TubeComingIn(b);
+    }
     StepsAndPhases();
     for (int b = 0; b < bays_; ++b) Order(b);
     for (const std::string& f : BetweenBays(scene_, plan_, report_, o_.time_tolerance_s,
@@ -751,6 +756,59 @@ class Verifier {
       Fault(Of(b) + Fmt("bay_out (%.3f to %.3f s) starts while an arm is too close: %s, below "
                         "%.4f m",
                         out->t0, out->t1, ArmsPassingText(scene_, p).c_str(), f_.clearance_m));
+    }
+  }
+
+  // Run 053 (R3), where the ways do not share their zone: through bay b's
+  // tube_in every arm that does not stand at its wait pose (an arm still
+  // ending its work of bay b-1 while bay b-1 goes out, or an early step,
+  // R10) stays clearance_m (less the tolerance) from the tube coming in,
+  // where it is on its way, sampled as TubePassesBay samples: from the
+  // tube_in's start in steps of sample_s and at the plan clock's k sample_s.
+  // An arm at its wait pose is the checker's ways rows' to hold apart.
+  void TubeComingIn(int b) {
+    const BayEvent* in = Event(b, "tube_in");
+    if (in == nullptr || !(f_.sample_s > 0.0) || !(in->t1 > in->t0)) return;
+    std::vector<double> times;
+    for (int k = 0; in->t0 + k * f_.sample_s < in->t1; ++k) times.push_back(in->t0 + k * f_.sample_s);
+    for (long k = static_cast<long>(std::ceil(in->t0 / f_.sample_s)); k * f_.sample_s < in->t1;
+         ++k) {
+      times.push_back(static_cast<double>(k) * f_.sample_s);
+    }
+    std::sort(times.begin(), times.end());
+    const double limit = f_.clearance_m - o_.tolerance_m;
+    const mjModel& m = scene_.model();
+    DataPtr d = scene_.MakeData();
+    std::map<std::tuple<int, std::string, std::string>, std::vector<MovingGeom>> sets;
+    for (double t : times) {
+      const WorldAt w = player_.At(t);
+      const double u = WayFraction(in->t0, in->t1 - in->t0, t);
+      for (int i = 0; i < scene_.ArmCount() && i < static_cast<int>(w.arms.size()); ++i) {
+        const ArmAt& a = w.arms[i];
+        const SceneArm& sa = scene_.arm(i);
+        bool still = a.kind == "wait" && std::abs(a.config[6] - sa.wait_track) <= 1e-6;
+        for (int j = 0; j < 6; ++j) still = still && std::abs(a.config[j] - sa.wait[j]) <= 1e-6;
+        if (still) continue;
+        ArmPose p;
+        for (int j = 0; j < 6; ++j) p.q[j] = a.config[j];
+        p.track = a.config[6];
+        scene_.SetPose(d.get(), i, p);
+        mj_kinematics(&m, d.get());
+        auto key = std::make_tuple(i, a.tool, a.held);
+        auto it = sets.find(key);
+        if (it == sets.end()) it = sets.emplace(key, scene_.Moving(i, a.tool, a.held)).first;
+        const Nearest n = AgainstTheTubeComingIn(scene_, d.get(), it->second, u, kSceneFar);
+        r_->tube_in_least_m = std::min(r_->tube_in_least_m, n.distance);
+        if (n.distance < limit) {
+          Fault(Of(b) + Fmt("arm %s at %.2f s, its %s of %s, is too close to the tube coming in "
+                            "(tube_in %.3f to %.3f s): %s to %s at %.4f m, below %.4f m",
+                            Arm(i).c_str(), t, a.kind.c_str(),
+                            StepName(Step(a.step), a.step).c_str(), in->t0, in->t1,
+                            scene_.GeomName(n.moving).c_str(),
+                            scene_.GeomName(n.obstacle).c_str(), n.distance, f_.clearance_m));
+          return;
+        }
+      }
     }
   }
 
@@ -973,11 +1031,16 @@ class Verifier {
       // bay_out_when_clear: ClearOut measures the arms against the bay going
       // out in place of this rule.
       if (kind == "bay_out" && L_.bay_out_when_clear) continue;
+      // Run 053: where the ways do not share their zone, an arm may still end
+      // its work of an earlier bay during this bay's tube_in; TubeComingIn
+      // holds it apart from the tube coming in in place of this rule.
+      const bool ending = kind == "tube_in" && e.bay > 0 && !WaysShareZone(L_);
       const bool first = kind != "clamp";
       for (const Segment& s : segs) {
         if (s.path.empty() || s.t1 <= e.t0 + tol || s.t0 >= e.t1 - tol) continue;
         // R10: in a later bay, before its clamp ends, an arm may do a step
         // that touches neither the tube nor the bay, and wait after it.
+        if (ending && BayOfStep(s.step, n_) < e.bay) continue;
         const BayStep* own = Step(s.step);
         if (e.bay > 0 && kind != "bay_out" && own != nullptr && BayOfStep(s.step, n_) == e.bay &&
             (s.kind == "wait" || !TouchesTheBay(own->kind))) {

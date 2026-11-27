@@ -46,6 +46,24 @@ chosen layout's ways, one lane taken both ways, the tube cannot pass the bay: wi
 shared zone the start is still the end of `bay_out` (test
 `NextTube.WaysInOneLaneCannotPass`).
 
+**A second way for the tube (run 053).** Layout
+`flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque_clear_out_infeed`
+is `_clear_out` with a separate infeed unit at a `tubes_in` port and zone of its own,
+beyond the transfer cart at −X: the tube comes in 0.45 m above its place, over the bay
+going out (5.10 m in 40 s), and is lowered into the saddles. It passes the bay from the
+moment the holder is empty (`NextTube.TheInfeedBringsTheTubeInOverTheBayGoingOut`), so
+each boundary overlaps by `bay_out` less the lift. An arm may then still be ending its work
+of bay b (pin arm C's last tool change, B's return to its wait pose) while bay b+1's tube
+comes in. Where the ways do not share their zone the verifier excuses such an arm from
+the rule that every arm stands at its wait pose during `tube_in` and instead holds every
+arm off its wait pose `clearance_m` (less the tolerance) from the tube where it is on its
+way, at every sample from the `tube_in`'s start and on the plan's clock (`TubeComingIn`;
+`VerifyReport::tube_in_least_m`; `plan_layout --margins` prints it as `tube_arms`, and the
+incoming tube to the outgoing bay at each boundary as `tube_bay`). Layouts whose ways share
+their zone are verified as before. The other way tried, an axial slide in over the +Y end
+as on the two-rack cell, passes the checker too but takes 78 s (11.22 m at 0.144 m/s), so
+its arms start 38 s later; it was not kept.
+
 **Early steps (R10).** In bays after the first, a step that touches neither the tube nor
 the bay — a take from a stock or the pallet, a magazine take, a tool change
 (`TouchesTheBay`) — may start from that bay's `tube_in` on, not during the previous bay's

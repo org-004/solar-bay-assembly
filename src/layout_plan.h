@@ -535,8 +535,8 @@ struct VerifyReport {
   std::vector<Closest> least;
   // The least distance of each pair of arms.
   std::vector<Closest> arm_pairs;
-  double least_clearance_m = kSceneFar;   // least.front().distance.
-  double least_arm_to_arm_m = kSceneFar;
+  double least_clearance_m = kSceneFar, least_arm_to_arm_m = kSceneFar;  // least.front().distance.
+  double tube_in_least_m = kSceneFar;  // Arms off their wait poses to the tube coming in (run 053).
   double bay_out_least_m = kSceneFar;  // Arms to the bay going out (src/layout_clear_out.h).
   // The least joint margins over the schedule: degrees from a datasheet
   // limit, with the arm, the joint, the step and the time; five of them.

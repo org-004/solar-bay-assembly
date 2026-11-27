@@ -104,14 +104,19 @@ double HolderEmptyAt(const Layout& layout, const BayEvent& bay_out);
 // place (MakeData; mjData comes through src/layout_plan.h); its geoms are
 // put back. In staged work the scene is the first stage's, where the tube
 // comes in, and the bay goes out from the last stage's place.
+// With `far` above clearance_m every sample is measured, out to `far`, for
+// the least distance (the margins' tube_bay rows); otherwise the test ends
+// at the first sample that is not clear.
 struct WayPassing {
   bool clear = true;
   double t = 0.0;          // The first sample that is not clear.
   Nearest nearest;         // Its pair, measured out to clearance_m.
+  double least_m = kSceneFar;  // The least distance of the samples measured.
+  double least_t = 0.0;
 };
 WayPassing TubePassesBay(const LayoutScene& scene, mjData* d,
                          const BayEvent& bay_out, double tube_start,
-                         double sample_s, double clearance_m);
+                         double sample_s, double clearance_m, double far = 0.0);
 
 // When the next bay's tube_in starts, on the clock of `bay_out` (R2): the
 // end of bay_out where the ways share their zone; otherwise the first of
