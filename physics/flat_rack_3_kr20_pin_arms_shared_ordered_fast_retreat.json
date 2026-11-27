@@ -1,0 +1,53 @@
+{
+  "layout": "flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat",
+  "layout_sha256": "9a62818ea05a13ca1d97165fbc7757be7f5a95e2026559d8870662fdaed3140d",
+  "plan_sha256": "0109f7d0e6fe80231215b4c520ae920c7c9c0068438c45efdff2733f4a0413f2",
+  "command": "bazel run --config=opt //:run_physics -- flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat --write",
+  "module": 3,
+  "take": 3,
+  "clearance_m": 0.015,
+  "gate_offset_mm": 3.0,
+  "gate_yaw_deg": 0.15,
+  "steps": [
+    {
+      "number": 77,
+      "what": "take module 3",
+      "arm": "module_arm",
+      "start_s": 269.922264,
+      "end_s": 278.501229,
+      "planned_s": 8.578965,
+      "max_joint_error_mrad": 0.6206,
+      "max_frame_error_mm": 0.6419,
+      "max_frame_error_deg": 0.045,
+      "least_clearance_m": 0.020177,
+      "least_clearance_pair": "module_arm_tool_combined_gripper_plate to pallet_module_3_frame_long_b",
+      "least_clearance_t": 272.582264,
+      "plan_least_clearance_m": 0.020188,
+      "counted": true
+    },
+    {
+      "number": 78,
+      "what": "set module 3",
+      "arm": "module_arm",
+      "start_s": 278.501229,
+      "end_s": 288.44498,
+      "planned_s": 9.943751,
+      "max_joint_error_mrad": 9.2649,
+      "max_frame_error_mm": 17.7955,
+      "max_frame_error_deg": 0.6082,
+      "least_clearance_m": 0.025272,
+      "least_clearance_pair": "module_arm_held_module_frame_short_a to module_arm_beam",
+      "least_clearance_t": 281.302264,
+      "plan_least_clearance_m": 0.026289,
+      "counted": true
+    }
+  ],
+  "set_down": {
+    "offset_mm": 0.2014,
+    "across_mm": 0.0417,
+    "along_mm": -0.1971,
+    "yaw_deg": 0.0052,
+    "height_mm": -0.0001
+  },
+  "counted_s": 18.522716
+}
