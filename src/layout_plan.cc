@@ -24,6 +24,7 @@
 #include "src/layout_bays.h"
 #include "src/layout_plan_stages.h"
 #include "src/layout_stages.h"
+#include "src/layout_torque.h"
 #include "src/portable_random.h"
 #include "src/rrt.h"
 
@@ -282,6 +283,10 @@ class Planner {
   std::vector<int> staged_pos_;                       // Module to its place in the order.
   PlanFigures f_;
   std::vector<ArmMotion> motions_;
+  // The layout's torque_limit_scale (src/layout_torque.h): the module arm's
+  // dynamics, and its name; null without the field.
+  std::unique_ptr<ArmDynamics> dynamics_;
+  std::string torque_arm_;
   std::vector<MoveJob> moves_;
   std::vector<Block> blocks_;
   std::vector<std::vector<int>> arm_blocks_;   // Per arm, block indices.
@@ -861,6 +866,27 @@ void Planner::PlanMoves() {
     MoveRow row;
     row.step = job.step;
     row.arm = scene_->arm(job.arm).use->name;
+    // The torque bound: the module arm's move played slower until its
+    // inverse dynamics hold the fraction of every limit.
+    double time_scale = 1.0;
+    if (job.found && dynamics_ && row.arm == torque_arm_) {
+      Block& tb = blocks_[job.block];
+      const Segment& ts = tb.segs[job.segment];
+      const std::optional<Trajectory> traj = MoveTrajectory(job.path, motions_[job.arm], f_);
+      TorqueDemand demand;
+      std::string why = "the move cannot be timed";
+      time_scale = traj ? TorqueTimeScale(*dynamics_, *traj, ts.tool, ts.held,
+                                          f_.torque_limit_scale, &demand, &why)
+                        : -1.0;
+      if (time_scale < 0.0) {
+        Fault(Fmt("step %d %s: move from %s to %s: torque bound: %s", job.step, row.arm.c_str(),
+                  job.from_label.c_str(), job.to_label.c_str(), why.c_str()));
+        time_scale = 1.0;
+      } else if (time_scale > 1.0) {
+        job.planned_s = MoveDuration(job.path, motions_[job.arm], f_) * time_scale;
+      }
+    }
+    row.time_scale = time_scale;
     row.from = job.from_label;
     row.to = job.to_label;
     row.found = job.found;
@@ -883,6 +909,7 @@ void Planner::PlanMoves() {
     s.budget = job.budget;
     s.queries = job.queries;
     s.planned_s = job.planned_s;
+    s.time_scale = time_scale;
     s.model_s = job.model_s;
     s.seed = job.seed;
     s.built = job.built;
@@ -1592,6 +1619,13 @@ PlanResult Planner::Run(bool plan, bool verify) {
     f_.retreat_accel = layout_.retreat_legs->accel;
   }
   if (layout_.path_tries) f_.path_tries = *layout_.path_tries;
+  if (layout_.torque_limit_scale) {
+    f_.torque_limit_scale = *layout_.torque_limit_scale;
+    torque_arm_ = ModuleArm(layout_);
+    std::string why;
+    dynamics_ = ArmDynamics::Create(layout_, paths_, torque_arm_, &why);
+    if (!dynamics_) Fault("torque_limit_scale: " + why);
+  }
   for (int a = 0; a < scene_->ArmCount(); ++a) {
     motions_.push_back(MotionOf(*scene_, a, f_));
   }

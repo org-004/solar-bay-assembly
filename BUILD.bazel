@@ -2137,12 +2137,14 @@ cc_library(
         "src/layout_plan_stages.cc",
         "src/layout_replay.cc",
         "src/layout_report_file.cc",
+        "src/layout_torque.cc",
     ],
     hdrs = [
         "src/layout_bays.h",
         "src/layout_plan.h",
         "src/layout_plan_stages.h",
         "src/layout_report_file.h",
+        "src/layout_torque.h",
     ],
     deps = [
         ":bay_hardware",
@@ -2167,6 +2169,22 @@ cc_library(
 cc_binary(
     name = "plan_layout",
     srcs = ["src/plan_layout.cc"],
+    data = LAYOUT_FILES + LAYOUT_MODEL_FILES + PLAN_FILES,
+    env = LAYOUT_ENV | {"PLAN_DIR": "plans"},
+    deps = [
+        ":layout",
+        ":layout_check",
+        ":layout_model",
+        ":layout_plan",
+    ],
+)
+
+# What a committed plan asks of the module arm's motors, move by move:
+# inverse dynamics along the timed path (src/layout_torque.h, run 045).
+#   bazel run --config=opt //:torque_demand -- [<name>] [--bay B] [--all]
+cc_binary(
+    name = "torque_demand",
+    srcs = ["src/torque_demand.cc"],
     data = LAYOUT_FILES + LAYOUT_MODEL_FILES + PLAN_FILES,
     env = LAYOUT_ENV | {"PLAN_DIR": "plans"},
     deps = [
@@ -2204,11 +2222,13 @@ cc_test(
     name = "plan_replay_test",
     size = "large",
     # tests/retreat_legs_test.cc: a layout's retreat_legs (run 036);
-    # tests/path_tries_test.cc: a layout's path_tries (run 042).
+    # tests/path_tries_test.cc: a layout's path_tries (run 042);
+    # tests/torque_limit_test.cc: a layout's torque_limit_scale (run 045).
     srcs = [
         "tests/path_tries_test.cc",
         "tests/plan_replay_test.cc",
         "tests/retreat_legs_test.cc",
+        "tests/torque_limit_test.cc",
     ],
     data = LAYOUT_FILES + LAYOUT_MODEL_FILES + PLAN_FILES,
     env = LAYOUT_ENV | {"PLAN_DIR": "plans"},

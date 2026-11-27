@@ -213,7 +213,7 @@ Config ConfigAt(const Segment& segment, const ArmMotion& motion,
   if (segment.kind == "move") {
     const std::optional<Trajectory> traj = TrajectoryOf(segment.path, motion, f);
     if (!traj) return t >= segment.t1 ? segment.path.back() : segment.path.front();
-    return ToConfig(traj->At(std::max(0.0, t - segment.t0)).position);
+    return ToConfig(traj->At(std::max(0.0, t - segment.t0) / segment.time_scale).position);
   }
   if (segment.kind == "approach" || segment.kind == "retreat") {
     const double span = segment.t1 - segment.t0;
@@ -254,7 +254,7 @@ Config ConfigOn(const Segment& segment, const ArmMotion& motion,
     if (trajectory == nullptr) {
       return t >= segment.t1 ? segment.path.back() : segment.path.front();
     }
-    return ToConfig(trajectory->At(std::max(0.0, t - segment.t0)).position);
+    return ToConfig(trajectory->At(std::max(0.0, t - segment.t0) / segment.time_scale).position);
   }
   return ConfigAt(segment, motion, f, t);
 }
@@ -1178,6 +1178,18 @@ class Verifier {
     }
   }
 
+  // A move's duration at its time scale (src/layout_torque.h): at least 1,
+  // and other than 1 only in a plan made with a torque_limit_scale.
+  double ScaledDuration(int i, const Segment& s, const ArmMotion& motion) {
+    const double d = MoveDuration(s.path, motion, f_);
+    if (!(s.time_scale >= 1.0) || (s.time_scale != 1.0 && f_.torque_limit_scale == 0.0)) {
+      Fault(Fmt("arm %s, %s: its move from %.3f s has time_scale %g, which %s",
+                Arm(i).c_str(), StepName(Step(s.step), s.step).c_str(), s.t0, s.time_scale,
+                s.time_scale < 1.0 ? "is below 1" : "a plan without torque_limit_scale cannot have"));
+    }
+    return d < 0.0 ? d : d * s.time_scale;
+  }
+
   // `last`: the arm's last step of the bay. After its last tool change an
   // arm goes back to its wait pose, so that it stands there when the bay
   // goes out: that move is the tool change's.
@@ -1206,7 +1218,7 @@ class Verifier {
       if (!s.path.empty()) {
         CheckPose(i, s, s.path.front(), *at, "starts");
         CheckPose(i, s, s.path.back(), WaitPose(i), "ends");
-        const double d = MoveDuration(s.path, motion, f_);
+        const double d = ScaledDuration(i, s, motion);
         Timing(i, s, d < 0.0 ? d : d + f_.settle_s, "its path and settle_s");
         if (d >= 0.0 && std::abs(s.planned_s - d) > o_.time_tolerance_s) {
           Fault(Fmt("arm %s, %s: its move from %.3f s says planned_s %.4f s, its path gives "
@@ -1269,7 +1281,7 @@ class Verifier {
                             : step.kind == "tool_change"      ? work
                                                               : approach;
         CheckPose(i, s, s.path.back(), to, "ends");
-        const double d = MoveDuration(s.path, motion, f_);
+        const double d = ScaledDuration(i, s, motion);
         Timing(i, s, d < 0.0 ? d : d + f_.settle_s, "its path and settle_s");
         if (d >= 0.0 && std::abs(s.planned_s - d) > o_.time_tolerance_s) {
           Fault(Fmt("arm %s, %s: its move from %.3f s says planned_s %.4f s, its path gives "
@@ -1672,6 +1684,11 @@ VerifyReport VerifyPlanWithReport(const Layout& layout, const ModelPaths& paths,
     if (f.shorten_tries != d.shorten_tries) {
       r.faults.push_back(Fmt("the plan's figure shorten_tries is %d, not ours, %d",
                              f.shorten_tries, d.shorten_tries));
+    }
+    const double torque = layout.torque_limit_scale ? *layout.torque_limit_scale : d.torque_limit_scale;
+    if (f.torque_limit_scale != torque) {
+      r.faults.push_back(Fmt("the plan's figure torque_limit_scale is %g, not ours, %g",
+                             f.torque_limit_scale, torque));
     }
     const int tries = layout.path_tries ? *layout.path_tries : d.path_tries;
     if (f.path_tries != tries) {

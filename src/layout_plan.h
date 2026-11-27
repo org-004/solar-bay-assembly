@@ -254,6 +254,7 @@ struct PlanFigures {
   double edge_resolution = 0.010;    // m of weighted motion between checked points.
   int shorten_tries = 200;
   int path_tries = 1;                // The layout's path_tries (src/layout.h), else 1.
+  double torque_limit_scale = 0.0;   // The layout's (src/layout.h, src/layout_torque.h), else 0: none.
   std::vector<int> budgets = {5000, 40000, 160000};  // RRT iterations, in turn.
   std::uint32_t seed = 1;            // Every move's seed is drawn from this.
   double sample_s = 0.05;            // The schedule is checked this often.
@@ -272,8 +273,7 @@ ArmMotion MotionOf(const LayoutScene& scene, int arm, const PlanFigures& f);
 
 struct Segment {
   std::string kind;        // "wait", "move", "approach", "work", "retreat".
-  int step = 0;            // The BayStep::number it belongs to; a wait belongs
-                           // to the step it waits for.
+  int step = 0;            // The BayStep::number it belongs to; a wait, the step it waits for.
   double t0 = 0.0, t1 = 0.0;
   std::string tool;        // On the flange during the segment ("" bare).
   std::string held;        // "module", "rail", "pin magazine" or "".
@@ -284,6 +284,7 @@ struct Segment {
   int budget = 0;          // The budget that found it; 0: the straight line was free.
   std::int64_t queries = 0;  // Collision queries spent on it.
   double planned_s = 0.0;  // Its duration without the settle.
+  double time_scale = 1.0; // Its trajectory played this much slower (src/layout_torque.h).
   double model_s = 0.0;    // The time model's figure for the same two poses.
   std::uint32_t seed = 0;
   Built built;             // The bay it was planned in.
@@ -338,8 +339,7 @@ struct Plan {
 // ----------------------------------------------------------------- motion
 // (src/layout_replay.cc)
 
-// How long a planned move takes without its settle: Trajectory::Plan's
-// duration through the waypoints. Negative if the path cannot be timed.
+// How long a planned move takes without its settle (and at time scale 1): Trajectory::Plan's duration through the waypoints; negative if the path cannot be timed.
 double MoveDuration(const std::vector<Config>& path, const ArmMotion& motion,
                     const PlanFigures& f);
 // The index of the quickest of `paths` by MoveDuration (path_tries), the first of equals; -1: none.
@@ -357,7 +357,7 @@ double LegDuration(const std::vector<Config>& path, double length_m,
 // leg_accel: the duration of a retreat.
 double RetreatDuration(const std::vector<Config>& path, double length_m,
                        const ArmMotion& motion, const PlanFigures& f);
-// Where the arm is at time t of a segment (t0 <= t <= t1; clamped).
+// Where the arm is at time t of a segment (t0 <= t <= t1; clamped); a move at its time_scale.
 Config ConfigAt(const Segment& segment, const ArmMotion& motion,
                 const PlanFigures& f, double t);
 
@@ -393,8 +393,8 @@ struct MoveRow {
   int budget = 0;
   int waypoints = 0;
   std::int64_t queries = 0;
-  double planned_s = 0.0;
-  double model_s = 0.0;
+  double planned_s = 0.0, model_s = 0.0;
+  double time_scale = 1.0;  // Its segment's (src/layout_torque.h).
   std::string note;        // Why it was not found.
 };
 
