@@ -138,8 +138,8 @@
 
 namespace cell::layout {
 
-// The owner's limit for what one container carries, 30,000 lb.
-inline constexpr double kMassInTransitLimitKg = flat_rack::kTransitMassLimitKg;
+// The owner's limit for what one base carries, 30,000 lb, is
+// flat_rack::kTransitMassLimitKg: the checker's transport mass row takes it too.
 
 struct Measure {
   std::string name;              // "cycle_s"

@@ -23,7 +23,7 @@
 
 #include "src/arm_catalog.h"
 #include "src/bay_hardware.h"
-#include "src/container.h"
+#include "src/flat_rack.h"
 #include "src/layout.h"
 #include "src/layout_model.h"
 #include "src/layout_scene.h"
@@ -266,7 +266,7 @@ TEST(LayoutCheck, TransportFails) {
   EXPECT_LT(x->figure, x0->figure - 0.5) << x->detail;
   // A mass over the budget.
   Layout heavy = reference;
-  heavy.holder.mass_kg = container::kCellMassBudget;
+  heavy.holder.mass_kg = flat_rack::kTransitMassLimitKg;
   const CheckReport mass = RunChecks(heavy, {"transport"});
   const CheckRow* m = FindRow(mass, "transport", "mass");
   ASSERT_NE(m, nullptr);

@@ -269,6 +269,28 @@ bool StartsWith(const std::string& s, const std::string& prefix) {
   return s.rfind(prefix, 0) == 0;
 }
 
+// The one list of layouts whose "maker" rows have no limit: the committed
+// layouts that had an arm not made by KUKA (a UR10e) at 9d6efb2, the commit
+// before the owner's rule was applied to every base. Every arm is to be KUKA
+// (the owner, 2026-11-26), but these layouts were designed and scored before
+// that, and a later spec replaces them with all-KUKA layouts; until then
+// they keep the row that always passes. Every other layout, on every base,
+// gets a limit of 1.
+bool MakerUnlimited(const std::string& layout_name) {
+  static const std::set<std::string> kNames = {
+      "above",
+      "below",
+      "below_each_rail",
+      "below_rails_by_module_arm",
+      "beside",
+      "flat_rack_1_pin_arm",
+      "flat_rack_2_pin_arms",
+      "flat_rack_3_pin_arms",
+      "flat_rack_3_pin_arms_ordered",
+  };
+  return kNames.contains(layout_name);
+}
+
 }  // namespace
 
 std::vector<CheckRow> AllowedRows(const Layout& layout) {
@@ -290,7 +312,7 @@ std::vector<CheckRow> AllowedRows(const Layout& layout) {
                        "kg", 210, ok,
                        Fmt("%s, reach %.3f m", c->maker.c_str(), c->reach_m)));
   }
-  const bool limited = layout.base == "two_flat_racks";
+  const bool limited = !MakerUnlimited(layout.name);
   for (const ArmUse& a : layout.arms) {
     const ArmModel* c = FindArmModel(a.model);
     if (c == nullptr) {
@@ -735,8 +757,8 @@ void TwoRackMassRows(const Layout& layout, std::vector<CheckRow>* rows) {
       total += part.mass_kg;
     }
     rows->push_back(Row("transport", std::string("rack ") + rack + " mass", "",
-                        total, "kg", flat_rack::twenty::kTransitMassLimit,
-                        total <= flat_rack::twenty::kTransitMassLimit,
+                        total, "kg", flat_rack::kTransitMassLimitKg,
+                        total <= flat_rack::kTransitMassLimitKg,
                         Fmt("arms %.0f, tracks %.0f, tools %.1f, holder %.0f, "
                             "items inside %.0f; stocks inside left out as infed "
                             "parts, as docs/scorecard.md counts",

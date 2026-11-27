@@ -197,7 +197,7 @@
 // container::InsideEnvelope(), four rows (x, y, top, bottom), figure the
 // worst geom's distance inside (negative: outside), and one mass row: the
 // catalogue's arm masses, tracks, tools, holder and items that travel
-// inside, against container::kCellMassBudget.
+// inside, against flat_rack::kTransitMassLimitKg (30,000 lb, the owner).
 //
 // Load. For each arm and each of its tools: the tool's mass and the
 // heaviest part it holds in the layout's work (a module 32.4 kg, a rail

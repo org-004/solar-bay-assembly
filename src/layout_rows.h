@@ -14,11 +14,11 @@
 //              the cell works and the stowed cell keeps to the weight limit
 //              and the stow envelope. Since 2026-11-26, one row per arm, in
 //              the layout's order, "maker <arm>": the arm's maker, 1 if KUKA
-//              and 0 if not. On a layout whose base is "two_flat_racks" it is
-//              a limit of 1 (every arm is KUKA, the owner, 2026-11-26); on
-//              every other base it is a row without a limit that always
-//              passes, since a later spec replaces the UR10e pin arms of the
-//              40 ft layouts.
+//              and 0 if not. It is a limit of 1 on every layout, whatever
+//              its base (every arm is KUKA, the owner, 2026-11-26), except
+//              the layouts that had a UR10e at 9d6efb2, named in one list in
+//              layout_rows.cc (MakerUnlimited): there it is a row without a
+//              limit that always passes, until a later spec replaces them.
 //   port       a separate unit stands against the cell only at a port. Rows:
 //              that tubes and bays are two ports; for each port, that its
 //              frame is on the outline of the base's footprint (at the deck's

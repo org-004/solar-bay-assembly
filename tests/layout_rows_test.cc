@@ -109,6 +109,7 @@ TEST(AllowedRows, FlatRackLayoutPasses) {
 
 TEST(AllowedRows, KukaArmPassesOnTwoFlatRacks) {
   Layout l = FlatLayout();
+  l.name = "two_flat_racks_new";  // Not one of the layouts listed unlimited.
   l.base = "two_flat_racks";
   l.arms[0].model = "kr210_r2700_2";
   const std::vector<CheckRow> rows = AllowedRows(l);
@@ -121,6 +122,7 @@ TEST(AllowedRows, KukaArmPassesOnTwoFlatRacks) {
 
 TEST(AllowedRows, Ur10eFailsOnTwoFlatRacks) {
   Layout l = FlatLayout();
+  l.name = "two_flat_racks_new";  // Not one of the layouts listed unlimited.
   l.base = "two_flat_racks";
   l.arms[1].model = "ur10e";
   const std::vector<CheckRow> rows = AllowedRows(l);
@@ -139,6 +141,23 @@ TEST(AllowedRows, Ur10ePassesOnTheFlatRack) {
   EXPECT_EQ(r->figure, 0.0);
   EXPECT_EQ(r->limit, 0.0);
   EXPECT_NE(r->detail.find("no limit"), std::string::npos) << r->detail;
+}
+
+// A layout that is not on the list of the layouts that had a UR10e at
+// 9d6efb2 gets the limit on the 40 ft base too.
+TEST(AllowedRows, Ur10eFailsOnTheFlatRackInANewLayout) {
+  Layout l = FlatLayout();
+  l.name = "flat_rack_new";
+  l.arms[1].model = "ur10e";
+  const std::vector<CheckRow> rows = AllowedRows(l);
+  ExpectFails(rows, "maker " + l.arms[1].name);
+  const CheckRow* r = Find(rows, "maker " + l.arms[1].name);
+  EXPECT_EQ(r->figure, 0.0);
+  EXPECT_EQ(r->limit, 1.0);
+  const CheckRow* k = Find(rows, "maker " + l.arms[0].name);
+  ASSERT_NE(k, nullptr);
+  EXPECT_TRUE(k->pass) << k->detail;
+  EXPECT_EQ(k->limit, 1.0);
 }
 
 TEST(PortRows, ReferencePasses) {

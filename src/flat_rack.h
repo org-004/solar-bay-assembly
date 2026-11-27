@@ -158,8 +158,8 @@ inline constexpr double kDeckThickness = 0.115;
 
 // Masses, per rack.
 inline constexpr double kTareMass = 2900.0;  // Hapag-Lloyd's 20' flatrack.
-// What the robotics on one rack may weigh in transit: 30,000 lb (the owner).
-inline constexpr double kTransitMassLimit = kTransitMassLimitKg;
+// What the robotics on one rack may weigh in transit is kTransitMassLimitKg,
+// 30,000 lb (the owner), the one constant for every base.
 
 // The nominal gap between the two racks' long sides.
 inline constexpr double kNominalGap = 0.025;
