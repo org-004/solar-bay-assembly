@@ -6,6 +6,7 @@
 //   bazel run --config=opt //:check_layout -- below --steps
 //   bazel run --config=opt //:check_layout -- below --pretty
 //   bazel run --config=opt //:check_layout -- below --checks reach,clearance
+//   bazel run --config=opt //:check_layout -- below --report-out PATH
 //
 // --list: one line per layout under LAYOUT_DIR, tab-separated: its name,
 // "chosen" for the chosen one or "-", its title and its base ("container",
@@ -20,11 +21,17 @@
 // prints only the rows of those kinds (src/layout_check.h, CheckKinds) and
 // exits by them alone. --summary: one line per kind of check, then the bay's
 // time and the margins. --steps: the steps of one bay as CSV. --pretty:
-// aligned columns. An unknown name, option or kind of check exits 2.
+// aligned columns. --report-out PATH: prints nothing and writes the whole
+// report to PATH as src/layout_report_file.h's file, with the layout file's
+// SHA-256, and exits 0 when it is written, whether the rows pass or not (the
+// tests that read the file check that); the rule check_report of
+// BUILD.bazel makes each one-posture layout's report so. An unknown name,
+// option or kind of check exits 2.
 
 #include <algorithm>
 #include <cstdio>
 #include <cstdlib>
+#include <fstream>
 #include <map>
 #include <optional>
 #include <string>
@@ -33,6 +40,8 @@
 #include "src/layout.h"
 #include "src/layout_check.h"
 #include "src/layout_model.h"
+#include "src/layout_plan.h"
+#include "src/layout_report_file.h"
 
 namespace {
 
@@ -175,12 +184,12 @@ void PrintStages(const cell::layout::Layout& layout, const CheckReport& report) 
 
 const char kUsage[] =
     "usage: check_layout --list | <name> [--summary|--steps] [--pretty] "
-    "[--checks kind,kind,...]\n";
+    "[--checks kind,kind,...] | <name> --report-out PATH\n";
 
 }  // namespace
 
 int main(int argc, char** argv) {
-  std::string name;
+  std::string name, report_out;
   bool steps = false, summary = false, pretty = false, list = false;
   cell::layout::CheckOptions options;
   for (int i = 1; i < argc; ++i) {
@@ -198,6 +207,12 @@ int main(int argc, char** argv) {
         return 2;
       }
       ++i;
+    } else if (a == "--report-out") {
+      if (i + 1 >= argc) {
+        std::fprintf(stderr, "%s--report-out takes a path\n", kUsage);
+        return 2;
+      }
+      report_out = argv[++i];
     } else if (a == "--list") {
       list = true;
     } else if (a == "--steps") {
@@ -216,6 +231,10 @@ int main(int argc, char** argv) {
   if (list) return List();
   if (name.empty()) {
     std::fprintf(stderr, "%s", kUsage);
+    return 2;
+  }
+  if (!report_out.empty() && !options.checks.empty()) {
+    std::fprintf(stderr, "%s--report-out writes the whole report, without --checks\n", kUsage);
     return 2;
   }
   const std::string dir = LayoutDir();
@@ -238,6 +257,17 @@ int main(int argc, char** argv) {
       *layout, cell::layout::ModelPaths::FromEnvironment(), options);
   if (!report.error.empty()) {
     std::fprintf(stderr, "model: %s\n", report.error.c_str());
+  }
+  if (!report_out.empty()) {
+    const std::string sha256 = cell::layout::Sha256OfFile(dir + "/" + name + ".json");
+    std::ofstream out(report_out, std::ios::binary);
+    out << cell::layout::CheckReportToJson(report, name, sha256);
+    out.close();
+    if (!out) {
+      std::fprintf(stderr, "cannot write %s\n", report_out.c_str());
+      return 2;
+    }
+    return 0;
   }
   if (steps) {
     std::vector<std::vector<std::string>> rows = {

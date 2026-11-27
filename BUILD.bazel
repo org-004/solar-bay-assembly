@@ -1,6 +1,7 @@
 load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
 load("@rules_cc//cc:cc_test.bzl", "cc_test")
+load("//bazel:check_report.bzl", "check_report")
 
 # The arm used until the KUKA model exists: MuJoCo Menagerie's UR10e, fetched
 # as the external repository @menagerie_ur10e (declared in MODULE.bazel).
@@ -2020,6 +2021,7 @@ cc_binary(
         ":layout",
         ":layout_check",
         ":layout_model",
+        ":layout_plan",
     ],
 )
 
@@ -2130,11 +2132,13 @@ cc_library(
         "src/layout_plan_file.cc",
         "src/layout_plan_stages.cc",
         "src/layout_replay.cc",
+        "src/layout_report_file.cc",
     ],
     hdrs = [
         "src/layout_bays.h",
         "src/layout_plan.h",
         "src/layout_plan_stages.h",
+        "src/layout_report_file.h",
     ],
     deps = [
         ":bay_hardware",
@@ -2228,6 +2232,33 @@ cc_test(
     ],
 )
 
+# The layouts with "one_posture_per_module": their checker reports take 125
+# to 180 s each (run 039, R1), so each is made once per layout and checker
+# build by a check_report rule (bazel/check_report.bzl), whose action's inputs
+# are the layout's file, the model files and check_layout alone; the disk and
+# remote caches keep it across commits that change neither. The tests that
+# need them take CHECK_REPORT_FILES as data and read them
+# (src/layout_report_file.h). A layout with the field and no rule here fails
+# CheckReportFile.EveryOnePostureLayoutHasItsFile.
+ONE_POSTURE_LAYOUTS = [
+    "two_flat_racks_2_pin_arms_balanced",
+    "two_flat_racks_2_pin_arms_balanced_ordered",
+    "two_flat_racks_2_pin_arms_balanced_ordered_fast_retreat",
+]
+
+[check_report(
+    name = "check_report_" + n,
+    layout = "layouts/%s.json" % n,
+    layout_name = n,
+    models = LAYOUT_MODEL_FILES,
+    tool = ":check_layout",
+    ur10e = UR10E,
+) for n in ONE_POSTURE_LAYOUTS]
+
+CHECK_REPORT_FILES = [":check_report_" + n for n in ONE_POSTURE_LAYOUTS]
+
+CHECK_REPORT_ENV = {"CHECK_REPORT_DIR": "check_reports"}
+
 # The committed plans of the two-rack cell, v11's, the balanced
 # layout's (v12) and the balanced layout's with its order of work (v13), a
 # bay built in stages (src/layout_plan_stages.h): verified
@@ -2243,9 +2274,12 @@ cc_test(
     # of four shards took 371.4 s here (run 033), so the timeout is eternal's
     # 3,600 s rather than large's 900 s, for CI's slower runner.
     timeout = "eternal",
-    srcs = ["tests/plan_replay_staged_test.cc"],
-    data = LAYOUT_FILES + LAYOUT_MODEL_FILES + PLAN_FILES,
-    env = LAYOUT_ENV | {"PLAN_DIR": "plans"},
+    srcs = [
+        "tests/check_report_file_test.cc",
+        "tests/plan_replay_staged_test.cc",
+    ],
+    data = LAYOUT_FILES + LAYOUT_MODEL_FILES + PLAN_FILES + CHECK_REPORT_FILES,
+    env = LAYOUT_ENV | CHECK_REPORT_ENV | {"PLAN_DIR": "plans"},
     shard_count = 4,
     deps = [
         ":layout",
@@ -2425,8 +2459,8 @@ cc_test(
     name = "scorecard_test",
     size = "large",
     srcs = ["tests/scorecard_test.cc"],
-    data = LAYOUT_FILES + LAYOUT_MODEL_FILES + PLAN_FILES + SCORE_FILES + PHYSICS_FILES,
-    env = LAYOUT_ENV | {
+    data = LAYOUT_FILES + LAYOUT_MODEL_FILES + PLAN_FILES + SCORE_FILES + PHYSICS_FILES + CHECK_REPORT_FILES,
+    env = LAYOUT_ENV | CHECK_REPORT_ENV | {
         "PLAN_DIR": "plans",
         "SCORES_DIR": "scores",
         "PHYSICS_DIR": "physics",
