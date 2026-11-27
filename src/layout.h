@@ -468,6 +468,14 @@ struct RetreatLegs {
 // move is searched once, as before.
 inline constexpr int kMaxPathTries = 16;
 
+// "torque_limit_scale" (optional, flat rack bases only; run 045): a fraction
+// in [kMinTorqueLimitScale, 1] of the module arm's motor limits. A module arm
+// move whose inverse dynamics (src/layout_torque.h) demand more than this of a
+// joint's or the track's limit is played slower by uniform time scaling until
+// it holds (Segment::time_scale); only that move. Why: the datasheet timing
+// knows no payload or torque (docs/flat-rack-physics.md). Without it, none.
+inline constexpr double kMinTorqueLimitScale = 0.5;
+
 struct Layout {
   std::string name;            // The file's stem.
   std::string title;
@@ -500,6 +508,7 @@ struct Layout {
   std::optional<Staging> staging;
   std::optional<RetreatLegs> retreat_legs;  // Optional on a flat rack base.
   std::optional<int> path_tries;            // Optional on a flat rack base.
+  std::optional<double> torque_limit_scale; // Optional on a flat rack base.
 };
 
 // Reads layouts/<name>.json. Returns nothing and sets *error on any fault.

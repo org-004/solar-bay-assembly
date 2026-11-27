@@ -396,6 +396,19 @@ int main(int argc, char** argv) {
     std::printf("bay_planned_s: %s\n", Num(plan.bay_planned_s).c_str());
     std::printf("bay_model_s: %s\n", Num(plan.bay_model_s).c_str());
     std::printf("bays: %d\n", plan.bays);
+    // The torque bound (src/layout_torque.h), only when the layout has it.
+    if (plan.figures.torque_limit_scale > 0.0) {
+      int slowed = 0;
+      double added = 0.0;
+      for (const MoveRow& row : r.rows) {
+        if (row.time_scale <= 1.0) continue;
+        ++slowed;
+        added += (row.planned_s - plan.figures.settle_s) * (1.0 - 1.0 / row.time_scale);
+      }
+      std::printf("torque_limit_scale: %s\n", Num(plan.figures.torque_limit_scale, 3).c_str());
+      std::printf("moves_slowed: %d\n", slowed);
+      std::printf("moves_slowed_added_s: %s\n", Num(added).c_str());
+    }
     for (const BayEvent& e : plan.events) {
       const std::string kind =
           e.kind == "transfer" ? "transfer_" + std::to_string(e.from_stage) + "_to_" +

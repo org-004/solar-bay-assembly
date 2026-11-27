@@ -74,6 +74,9 @@ std::string SegmentText(const Segment& g) {
                   ",\"budget\":" + std::to_string(g.budget) +
                   ",\"queries\":" + std::to_string(g.queries) +
                   ",\"planned_s\":" + F6(g.planned_s) +
+                  // Only when not 1 (src/layout_torque.h): a plan of a layout
+                  // without torque_limit_scale is written as before.
+                  (g.time_scale == 1.0 ? std::string() : ",\"time_scale\":" + F6(g.time_scale)) +
                   ",\"model_s\":" + F6(g.model_s) +
                   ",\"seed\":" + std::to_string(g.seed) +
                   ",\"built\":{\"rails\":" + Ints(g.built.rails) +
@@ -112,6 +115,9 @@ std::string FiguresText(const PlanFigures& f) {
          // written as before it was a figure.
          (f.path_tries == 1 ? std::string()
                             : ",\"path_tries\":" + std::to_string(f.path_tries)) +
+         // Only when set, as path_tries.
+         (f.torque_limit_scale == 0.0 ? std::string()
+                                      : ",\"torque_limit_scale\":" + Fig(f.torque_limit_scale)) +
          ",\"budgets\":" + Ints(f.budgets) +
          ",\"seed\":" + std::to_string(f.seed) +
          ",\"sample_s\":" + Fig(f.sample_s) + "}";
@@ -147,6 +153,7 @@ Segment SegmentFrom(const json& j) {
   g.budget = Get<int>(j, "budget");
   g.queries = Get<std::int64_t>(j, "queries");
   g.planned_s = Get<double>(j, "planned_s");
+  g.time_scale = j.contains("time_scale") ? Get<double>(j, "time_scale") : 1.0;
   g.model_s = Get<double>(j, "model_s");
   g.seed = Get<std::uint32_t>(j, "seed");
   const json& b = j.at("built");
@@ -239,6 +246,8 @@ std::optional<Plan> PlanFromJson(const std::string& text, std::string* error) {
     p.figures.edge_resolution = Get<double>(f, "edge_resolution");
     p.figures.shorten_tries = Get<int>(f, "shorten_tries");
     p.figures.path_tries = f.contains("path_tries") ? Get<int>(f, "path_tries") : 1;
+    p.figures.torque_limit_scale =
+        f.contains("torque_limit_scale") ? Get<double>(f, "torque_limit_scale") : 0.0;
     p.figures.budgets = Get<std::vector<int>>(f, "budgets");
     p.figures.seed = Get<std::uint32_t>(f, "seed");
     p.figures.sample_s = Get<double>(f, "sample_s");
