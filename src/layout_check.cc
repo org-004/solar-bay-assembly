@@ -8,6 +8,7 @@
 #include <cmath>
 #include <cstdarg>
 #include <cstdio>
+#include <cstdlib>
 #include <limits>
 #include <map>
 #include <memory>
@@ -237,6 +238,10 @@ class Checker {
   Q6 Unwind(int arm, const Q6& q, const Q6& anchor) const;
   // The largest over the joints of |change| / the datasheet's speed, s.
   double PostureSeconds(int arm, const Q6& from, const Q6& to) const;
+  // The pose family of the arm as it stands in data_ (after mj_kinematics):
+  // bit 0 the shoulder (the wrist centre behind joint 1's axis), bit 1 the
+  // elbow, bit 2 the wrist (joint 5's sign), from the joints' world axes.
+  int Family(int arm) const;
   // Walks one leg of the job's pose (job.result) into job.legs[leg].
   void WalkLeg(Job& job, int leg, const Approach& rule);
   bool LegPasses(const LegResult& r) const {
@@ -679,6 +684,39 @@ double Checker::PostureSeconds(int arm, const Q6& from, const Q6& to) const {
   return t;
 }
 
+int Checker::Family(int arm) const {
+  const mjModel& m = M();
+  const mjData* d = data_.get();
+  const ArmHandle& h = *arms_[arm].s->h;
+  int jid[6];
+  for (int j = 0; j < 6; ++j) {
+    jid[j] = -1;
+    for (int k = 0; k < m.njnt; ++k) {
+      if (m.jnt_qposadr[k] == h.qpos[j]) jid[j] = k;
+    }
+    if (jid[j] < 0) return -1;
+  }
+  auto anchor = [&](int j) {
+    return Vec(d->xanchor[3 * jid[j]], d->xanchor[3 * jid[j] + 1],
+               d->xanchor[3 * jid[j] + 2]);
+  };
+  auto axis = [&](int j) {
+    return Vec(d->xaxis[3 * jid[j]], d->xaxis[3 * jid[j] + 1],
+               d->xaxis[3 * jid[j] + 2]);
+  };
+  const Vec a1 = axis(0).normalized();
+  const Vec wc = anchor(4);
+  // Joint 2's axis is level and across the arm; the arm's forward direction
+  // is level and square to it, turned by joint 1 with the rest.
+  const Vec fwd = a1.cross(axis(1)).normalized();
+  const Vec rel = wc - anchor(0);
+  const int shoulder = rel.dot(fwd) < 0.0 ? 1 : 0;
+  const int elbow =
+      (anchor(2) - anchor(1)).cross(wc - anchor(2)).dot(axis(1)) < 0.0 ? 1 : 0;
+  const int wrist = axis(3).cross(axis(5)).dot(axis(4)) < 0.0 ? 1 : 0;
+  return shoulder | (elbow << 1) | (wrist << 2);
+}
+
 // The pose choice of a layout with approach rules: every seed's solution,
 // its windings brought nearest the arm's anchor, tried nearest first.
 void Checker::SolvePosture(
@@ -695,6 +733,92 @@ void Checker::SolvePosture(
   LegResult first_legs[2];
   bool have = false;
   double best_perr = 1e9;
+  // A diagnostic for probing (run 029), off unless the environment asks:
+  // LAYOUT_CHECK_PROBE=<arm> prints every candidate of every point of that
+  // arm, at every track value, to stderr, with its family, margin, clearance
+  // and legs. It changes nothing of the choice.
+  static const char* probe = std::getenv("LAYOUT_CHECK_PROBE");
+  if (probe != nullptr && Use(ai).name == probe) {
+    const PointResult keep_r = r;
+    const LegResult keep_legs[2] = {job.legs[0], job.legs[1]};
+    // LAYOUT_CHECK_PROBE_WIDE=<n>: also every 0.1 m of the track and n
+    // more seeds of a generator of the probe's own.
+    std::vector<std::pair<double, std::string>> probe_tracks = tracks;
+    std::vector<Q6> probe_seeds = seeds;
+    if (const char* wide = std::getenv("LAYOUT_CHECK_PROBE_WIDE")) {
+      if (Use(ai).track) {
+        for (double v = Use(ai).track->lo; v <= Use(ai).track->hi + 1e-9;
+             v += 0.1) {
+          probe_tracks.push_back({v, "wide"});
+        }
+      }
+      std::mt19937 prng(29u);
+      for (int k = 0; k < std::atoi(wide); ++k) {
+        Q6 q;
+        for (int j = 0; j < 6; ++j) {
+          q[j] = a.s->lo[j] + UniformUnit(prng) * (a.s->hi[j] - a.s->lo[j]);
+        }
+        probe_seeds.push_back(q);
+      }
+    }
+    for (const auto& [track, note] : probe_tracks) {
+      std::vector<std::pair<double, Q6>> found;
+      for (const Q6& seed : probe_seeds) {
+        for (const Target& tg : targets) {
+          AllAtWait();
+          const IkResult ik = Solve(ai, site, tg, track, seed);
+          if (!ik.ok) continue;
+          const Q6 q = Unwind(ai, ik.q, anchor);
+          bool seen = false;
+          for (const auto& c : found) {
+            bool same = true;
+            for (int j = 0; j < 6; ++j) {
+              same = same && std::abs(c.second[j] - q[j]) < 0.5 * kDeg;
+            }
+            seen = seen || same;
+          }
+          if (!seen) found.push_back({PostureSeconds(ai, anchor, q), q});
+        }
+      }
+      std::stable_sort(found.begin(), found.end(),
+                       [](const auto& x, const auto& y) {
+                         return x.first < y.first;
+                       });
+      for (const auto& [seconds, q] : found) {
+        double margin;
+        std::string joint;
+        Margin(ai, q, &margin, &joint);
+        AllAtWait();
+        SetPose(ai, {q, track});
+        mj_kinematics(&M(), data_.get());
+        const int fam = Family(ai);
+        const Nearest n = PoseClearance(job);
+        bool legs = false;
+        if (rule != nullptr) {
+          r.reached = true;
+          r.pose = {q, track};
+          WalkLeg(job, 0, *rule);
+          WalkLeg(job, 1, *rule);
+          legs = LegPasses(job.legs[0]) && LegPasses(job.legs[1]);
+        }
+        const std::array<double, 6> deg = ToDeg(q);
+        std::fprintf(stderr,
+                     "probe %p %s %s %s %s track %.3f fam %d sec %.2f margin %.2f "
+                     "%s clear %.4f legs %s q [%.1f %.1f %.1f %.1f %.1f "
+                     "%.1f]\n",
+                     static_cast<const void*>(this),
+                     opt_.stage ? opt_.stage->name.c_str() : "whole",
+                     Use(ai).name.c_str(), job.point.kind.c_str(),
+                     job.point.item.c_str(), track, fam, seconds, margin,
+                     joint.c_str(), n.distance,
+                     rule == nullptr ? "-" : legs ? "pass" : "fail", deg[0],
+                     deg[1], deg[2], deg[3], deg[4], deg[5]);
+      }
+    }
+    r = keep_r;
+    job.legs[0] = keep_legs[0];
+    job.legs[1] = keep_legs[1];
+  }
   auto settle = [&](const PointResult& chosen) {
     r = chosen;
     a.last = r.pose.q;
