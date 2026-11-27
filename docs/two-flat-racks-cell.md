@@ -304,7 +304,7 @@ the same time, and the time, which is a model without a limit.
 - A staged layout's moves get a fourth RRT budget of 640,000 iterations. A layout without
   staging keeps three budgets, and the three 40 ft plans re-plan byte-identical.
 
-**What blocks the plan of `two_flat_racks_2_pin_arms`.** Stage 1 plans whole. From
+**What blocked the plan of `two_flat_racks_2_pin_arms` (run 022; one bay plans whole since run 025, below).** Stage 1 plans whole. From
 `bazel run --config=opt //:plan_layout -- two_flat_racks_2_pin_arms --bays 1 --first-step 1
 --last-step 62 --summary`: 47 of 47 moves found, the clamp ends at 45.00 s, stage 1 runs
 45.00 to 283.33 s (238.33 s planned, against the time model's 203.9 s), and the first
@@ -325,7 +325,7 @@ What would fix it, each for a later run:
 
 - the checker solves all four holes of a module in one pose family of the arm;
 - the layout's `work` gives these holes to pin arm B, or places or tracks pin arm A
-  differently;
+  differently (done: runs 024 and 025);
 - a much larger search for these moves.
 
 **Run 024: what the layout's `work` and tracks change (on branch
@@ -351,13 +351,42 @@ What would fix it, each for a later run:
   Whether that comes of the partial plan or of the schedule itself, and a whole bay with
   this layout, are for the next run.
 
+**Run 025: one bay plans whole.** What blocked, and what the layout now is:
+
+- The blocked schedule came of the schedule itself, not of the partial plan. With the
+  fault now naming each arm's next step: pin arm A's pin 1/0 waits "after another
+  block" and B's locate 1/2 waits for pin 1/0. A, parked at hole 0 of module 1 with its
+  swage 1/0 still to come, stood in B's way; giving way put pin 1/0 after B's locate
+  1/2, which itself needs pin 1/0 (a module's holes go in one order, whichever arm has
+  them). An arm that shares a module's holes with the other stands in its way between
+  its holes.
+- Every hole of module 1 to B (A `0-3,12-16,24`): stage 1 schedules, 47 of 47 moves in
+  260 s. A whole bay then found 125 of 125 moves in 942 s and blocked the same way at
+  module 4 (A's pin 4/0, B's locate 4/2).
+- Hole 0 of modules 4 and 6 to B as well (A `0-3,12-15`, B `4-11,16-35`, the layout
+  now): the checker passes 985 rows (B reaches hole 0 of modules 1, 4 and 6 with its
+  track clamped at -0.34, 43.2 deg of joint margin), 126 of 126 moves are found and the
+  schedule completes. The verifier then reported pin arm A's locate 0/0 and B's locate
+  1/0 started at 52 s, before their modules were set: the park after a magazine take
+  carries the number of the arm's next step, and R21's order counted the step from
+  that park. The verifier now counts a step's order from its own segments, after a
+  park before it (`src/layout_replay.cc`); the plan's step times are unchanged.
+- `plan_layout -- two_flat_racks_2_pin_arms --bays 1 --summary` exits 0: 126 of 126
+  moves found (module arm 41, pin arm A 18, pin arm B 54, bolt arm 13), `complete: true`,
+  the bay planned at 1003.47 s against the time model's 669.83 s (stages 261.86, 275.09
+  and 301.52 s; modules phase 637.15 s against 362.84 s), least clearance 0.0181 m, least
+  arm to arm 0.0191 m, least joint margin 8.64 deg, 998.6 s of planning. Three bays,
+  the plan file and the score are the next run's.
+
+The pin arms are no longer balanced: B has 28 holes, A 8 (modules 0 and 3).
+
 One staged bay took 29 minutes to plan with three budgets, so a plan of three bays would
 take more than an hour and a half.
 
 ## What the next run needs that this run did not build
 
-- A complete plan of staged work, and with it the scorecard and a version in this
-  direction: see above.
+- A plan of three bays of staged work, and with it the plan file, the scorecard and a
+  version in this direction: one bay plans whole (run 025, above).
 - A time model of the transfers: the 30 s of `transfer_s` is a figure of the layout, not
   the model of a move.
 - The units' own design: the infeed unit, the outfeed unit and the pin feeder are boxes
