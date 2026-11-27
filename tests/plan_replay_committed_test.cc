@@ -499,27 +499,56 @@ TEST(Bays, TheNextTubeBeforeTheBayIsOutIsFound) {
       << Faults(r);
 }
 
+// Without bay_out_when_clear every arm stands at its wait pose through bay
+// out, so an arm moved off it is found. With it (src/layout_clear_out.h, v20
+// since run 052) an arm may be off its wait pose while it keeps the clearance
+// from the bay going out, so the arm is put back at its last work in the bay
+// instead, and the verifier's clear-out test finds it too close.
 TEST(Bays, AnArmOffItsWaitPoseDuringABayOutIsFound) {
   const Committed& c = TheCommitted();
   ASSERT_TRUE(c.error.empty()) << c.error;
   if (c.plan.bays < 2) GTEST_SKIP() << "the committed plan has one bay";
   Plan p = c.plan;
   const BayEvent* out = EventOf(p, 0, "bay_out");
+  const BayEvent* release = EventOf(p, 0, "release");
   ASSERT_NE(out, nullptr);
+  ASSERT_NE(release, nullptr);
   const double mid = 0.5 * (out->t0 + out->t1);
   ArmPlan& a = p.arms.back();
+  const bool clear_out = c.layout.bay_out_when_clear;
+  // The arm's configuration at its last work in bay 0 before the release.
+  Config in_bay{};
+  bool worked = false;
+  for (const Segment& g : a.segments) {
+    if (g.kind == "work" && g.t1 <= release->t0 + 1e-9 && !g.path.empty()) {
+      in_bay = g.path.back();
+      worked = true;
+    }
+  }
+  if (clear_out) {
+    ASSERT_TRUE(worked) << a.name << " has no work in bay 0";
+  }
   bool moved = false;
   for (Segment& g : a.segments) {
     if (g.kind == "wait" && g.t0 < mid && mid < g.t1 && !g.path.empty()) {
-      g.path[0][0] += 0.2;
+      if (clear_out) {
+        for (auto& q : g.path) q = in_bay;
+      } else {
+        g.path[0][0] += 0.2;
+      }
       moved = true;
     }
   }
   ASSERT_TRUE(moved);
   const VerifyReport r = VerifyPlan(c.layout, ModelPaths::FromEnvironment(), p, c.sha256,
                                     Quick(false));
-  EXPECT_TRUE(AnyFault(r, {"bay 0: arm " + a.name, "is not at its wait pose", "during bay_out"}))
-      << Faults(r);
+  if (clear_out) {
+    EXPECT_TRUE(AnyFault(r, {"bay 0: bay_out", "starts while an arm is too close", "arm " + a.name}))
+        << Faults(r);
+  } else {
+    EXPECT_TRUE(AnyFault(r, {"bay 0: arm " + a.name, "is not at its wait pose", "during bay_out"}))
+        << Faults(r);
+  }
 }
 
 TEST(Bays, AnArmOfTheNextBayBeforeItsClampEndsIsFound) {

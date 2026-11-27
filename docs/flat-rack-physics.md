@@ -14,9 +14,10 @@ The run is measured as the checker measures. Its committed record,
 `physics/flat_rack_3_pin_arms_ordered.json`, is what the scorecard's `physics_share`
 counts ([`scorecard.md`](scorecard.md)).
 
-Since run 048 the chosen layout is v19, `flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque`
-(all KUKA, v18 with `torque_limit_scale` 0.90), so `run_physics` with no name runs v19's plan; its record is in
-"[v19's record (run 048)](#v19s-record-run-048)" below, after v18's, chosen from run 046 to run 048, in
+Since run 052 the chosen layout is v20, `flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque_clear_out`
+(all KUKA, v19 with `bay_out_when_clear`), so `run_physics` with no name runs v20's plan; its record is in
+"[v20's record (run 052)](#v20s-record-run-052)" below, after v19's, chosen from run 048 to run 052, in
+"[v19's record (run 048)](#v19s-record-run-048)", v18's, chosen from run 046 to run 048, in
 "[v18's record (run 046)](#v18s-record-run-046)", v17's, chosen from run 043 to run 046, in
 "[v17's record (run 043)](#v17s-record-run-043)", and v16's, chosen from run 040 to run 043, in
 "[v16's record (run 040)](#v16s-record-run-040)". The rest of this page is v10's
@@ -559,3 +560,37 @@ Both steps count. The take's move (step 136) is slowed, and joint 1 no longer re
 (held module's flange to pin arm B's nose, during the set's work) because the slowed schedule
 moves pin arm B relative to the module arm; it is above the 0.015 m margin. v19 is chosen
 (run 048) for this record: its cycle time is one the arm can follow.
+
+## v20's record (run 052)
+
+v20 is v19's layout with `bay_out_when_clear` (run 050) and nothing else
+(`flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque_clear_out`): a bay
+goes out once its release has ended and no arm comes within the clearance of it on its way, so pin
+arm C's last tool change runs while the bay goes out. Three bays planned whole, with no code
+change: 378 of 378 moves, 26 of the module arm's 117 slowed (14.30 s of motion, as in v19), bays
+496.59 / 501.82 / 490.08 s against v19's 502.55 / 507.79 / 496.04 s, `cycle_s` 496.16 s against
+502.13 s (-5.96 s). Each bay out starts at its release's end (456.59, 958.41 and 1448.49 s); the
+next `tube_in` starts at the end of bay out, after every arm is free (C is free 5.96 s into each
+bay out). The least distance of any arm to the bay going out is 0.2286 / 0.2115 / 0.2243 m.
+`torque_demand --all-bays`: none over 0.90 (worst 0.900, joint 1, step 94).
+
+`bazel run --config=opt //:run_physics -- flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque_clear_out --write`
+wrote `physics/flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque_clear_out.json`.
+The record take is module 5's, as in v19 (module_take 7, plan steps 136 and 137), at the same
+times (349.52 to 370.25 s): the bay out comes after it, so the take and set are v19's.
+
+| Figure (derived) | v20, module 5 | v19, module 5 (run 048) |
+|---|---|---|
+| counted, of one bay | 20.727562 s of 496.589754 s | 20.727562 s of 502.553095 s |
+| `physics_share` | 0.041740 | 0.041245 |
+| peak torque over its limit, joints 1-6, take | 0.973 0.795 0.341 0.084 0.408 0.199 | 0.973 0.795 0.341 0.084 0.408 0.199 |
+| peak torque over its limit, joints 1-6, set | 0.420 0.597 0.315 0.124 0.335 0.200 | 0.420 0.597 0.315 0.124 0.335 0.200 |
+| peak track force over its limit, take / set | 0.540 / 0.579 | 0.540 / 0.579 |
+| least clearance in physics, take / set | 0.021487 m / 0.019261 m (plan 0.021487 / 0.019047), against 0.015 m | 0.021487 m / 0.019261 m |
+| largest joint tracking error, take / set | 0.6200 / 0.8641 mrad | 0.6200 / 0.8641 mrad |
+| largest Cartesian error, take / set | 0.6872 mm / 0.6994 mm | 0.6872 mm / 0.6994 mm |
+| set-down offset after settling | 0.2314 mm, yaw 0.0004 deg (gate 3.0 mm, 0.15 deg) | 0.2314 mm, yaw 0.0004 deg |
+
+Both steps count. Only `physics_share` moves, because the same 20.73 s are counted against a
+shorter bay. v20 is chosen (run 052): it is v19 quicker by the bay out alone, and every module arm
+joint stays below its limit on the take and the set.

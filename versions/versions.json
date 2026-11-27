@@ -711,9 +711,9 @@
       "commit": "this",
       "title": "One 40 ft flat rack, three KR 20 pin arms on one shared beam, three modules to each pin arm in turns, each move the quickest of 8 paths, the module arm within 0.90 of its motors: three bays planned",
       "direction": "one-40ft-flat-rack",
-      "status": "chosen",
+      "status": "superseded",
       "changed": "v18's cell and layout with one change and nothing else: torque_limit_scale 0.90 (runs 045 and 047), so each module arm move that inverse dynamics finds needing more than 0.90 of a motor's limit is played slower by uniform time scaling until it holds, and the bay is scheduled in the order and at the starts of its unslowed schedule. Three bays are planned whole, 378 of 378 moves, 26 of them slowed (14.30 s of motion added), verified and committed: 502.55 s for one bay (502.55 / 507.79 / 496.04 s) and a cycle time of 502.13 s over three.",
-      "why": "v18's cycle time of 498.55 s is one its module arm cannot follow: inverse dynamics asks up to 1.25 of joint 1's torque limit and physics saturates joint 1 at 1.000. v19 is v18 timed so that no module arm move needs more than 0.90 of a motor's limit, at 3.58 s a bay more (502.13 s against 498.55 s). Registered as a candidate weighed against v18 and made the chosen version in the same run (run 048): a cycle time the arm cannot follow is not an honest P0 figure, and in physics v19's record take keeps every module arm joint below its limit (joint 1 0.973 on the take, 0.420 on the set); v18 is superseded with its numbers kept.",
+      "why": "v18's cycle time of 498.55 s is one its module arm cannot follow: inverse dynamics asks up to 1.25 of joint 1's torque limit and physics saturates joint 1 at 1.000. v19 is v18 timed so that no module arm move needs more than 0.90 of a motor's limit, at 3.58 s a bay more (502.13 s against 498.55 s). Registered as a candidate weighed against v18 and made the chosen version in the same run (run 048): a cycle time the arm cannot follow is not an honest P0 figure, and in physics v19's record take keeps every module arm joint below its limit (joint 1 0.973 on the take, 0.420 on the set); v18 is superseded with its numbers kept. Superseded by v20 (run 052): v20 is v19 with bay_out_when_clear and is quicker by the bay out alone, 496.16 s against 502.13 s (-5.96 s a bay), with v19's paths, order of work and slowed moves.",
       "recording": "docs/evolution/v19.gif",
       "competed_with": "v18",
       "layout": {
@@ -725,6 +725,27 @@
         "sha256": "67fd7f192e69b3504ed440462f6bc1de0bdaf8b1fc08d6bdb6aff7cd0a5a9802"
       },
       "scores": "scores/flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque.json"
+    },
+    {
+      "id": "v20",
+      "date": "2026-11-27",
+      "commit": "this",
+      "title": "One 40 ft flat rack, three KR 20 pin arms on one shared beam, three modules to each pin arm in turns, each move the quickest of 8 paths, the module arm within 0.90 of its motors, the bay out once it is clear: three bays planned",
+      "direction": "one-40ft-flat-rack",
+      "status": "chosen",
+      "changed": "v19's cell and layout with one change and nothing else: bay_out_when_clear (run 050), so a bay goes out once its release has ended and no arm comes within the clearance of it on its way, not when every arm is free; pin arm C's last tool change runs while the bay goes out. Three bays are planned whole, 378 of 378 moves, 26 of them slowed (14.30 s of motion added), verified and committed: 496.59 s for one bay (496.59 / 501.82 / 490.08 s) and a cycle time of 496.16 s over three; each bay out starts at its release's end, and no arm comes nearer the bay going out than 0.2115 m.",
+      "why": "Weighed against v19: 5.96 s a bay quicker (496.16 s against 502.13 s) by the bay out alone; the paths, the order of work and the slowed moves are v19's, and torque_demand over the three bays finds no module arm move over 0.90 of a motor's limit. Registered as a candidate weighed against v19 and made the chosen version in the same run (run 052): in physics v20's record take (module 5, the same take and set as v19's) keeps every module arm joint below its limit (joint 1 0.973 on the take, 0.597 at most on the set); v19 is superseded with its numbers kept.",
+      "recording": "docs/evolution/v20.gif",
+      "competed_with": "v19",
+      "layout": {
+        "path": "layouts/flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque_clear_out.json",
+        "sha256": "fd326810e0febd9123c5efbf53eda9b02090b1e2c9c685a9d37c0b30dad94e63"
+      },
+      "plan": {
+        "path": "plans/flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque_clear_out.json",
+        "sha256": "a822beba16bf618130e72e867a6f76e061e71646b1fae656fb7afd599b74534d"
+      },
+      "scores": "scores/flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque_clear_out.json"
     }
   ]
 }
