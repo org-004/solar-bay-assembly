@@ -62,7 +62,7 @@ rack a.
 |---|---|---|---|
 | Holder | a | two stands under the axis at y = 1.690 and 2.834; column 0.16 x 0.16 x 1.2775, saddle 0.22 x 0.30 x 0.04; 180 kg | see the staging: a stand cannot let a rail pass it |
 | Module arm, KR 210 R2700-2 | b | base (1.00, y, 1.10), yaw 90, track -2.37..2.37 on a raised beam 0.86 x 6.04 x 0.68 (1,600 kg) | 1.85 m across from the axis and 0.65 m below it, as on the 40 ft layouts, so its poses at the tube and the pallet are theirs |
-| Pin arms, KR 20 R1810-2 | a | base (-2.10, y, 0.52), yaw 90; tracks -2.6..-0.86 and -0.34..2.6 (run 024; until then -2.6..-0.26 and 0.26..2.6) | 1.25 m from the axis, 1.23 m below it: the elbow stays under the modules; the line divided 0.6 m toward -Y so that pin arm B reaches hole 1 of modules 4 and 6 |
+| Pin arms, KR 20 R1810-2 | a | base (-2.10, y, 0.52), yaw 90; tracks -2.6..-0.86 and -0.34..2.6 (run 024; until then -2.6..-0.26 and 0.26..2.6) | 1.25 m from the axis, 1.23 m below it: the elbow stays under the modules; the line divided 0.6 m toward -Y so that pin arm B reaches holes 0 and 1 of modules 1, 4 and 6 (its track clamped at -0.34 there) |
 | Bolt arm, KR 10 R1100-2 | a | base (-0.23, y, 0.52), yaw -90, track -2.6..2.5 | the bolts are driven along -X, so the arm stands on the tube's +X side, where there is room for a small arm only |
 | Pallet | outside b | (3.15, 0), yaw -90, deck 0.652 m above the ground | its nearest edge is at x 2.59 (0.12 m inside the -x face of the modules port's zone at 2.47; row `port,pallet 0 in a zone`), just outside rack b (edge at 2.4505) |
 | Rail rack | outside b | pick (2.80, 1.75, 1.43) | 1.80 m out so the body stands outside rack b |
@@ -73,13 +73,12 @@ Who does what:
 
 - module_arm: rail_take, rail_set, module_take and module_set, every point, with one
   combined gripper that is never changed.
-- pin_arm_a: locate, pin and swage of every hole of modules 0 and 3 and of hole 0 of
-  modules 4 and 6 (holes 0-3, 12-16, 24). pin_arm_b: every hole of modules 1, 2, 5, 7
-  and 8 and holes 1-3 of modules 4 and 6 (holes 4-11, 17-23, 25-35). Each has its
-  own magazine nest. Until run 024 pin_arm_a had all of modules 0, 1, 3, 4 and 6
-  (0-7, 12-19, 24-27) and could not plan modules 4 and 6; run 024 gave B holes 1-3 of
-  modules 1, 4 and 6, and run 025 the rest of module 1, so that the arms share no module
-  at stage 1: see "Run 024" and "Run 025" below.
+- pin_arm_a: locate, pin and swage of every hole of modules 0 and 3 (holes 0-3,
+  12-15). pin_arm_b: every hole of modules 1, 2, 4, 5, 6, 7 and 8 (holes 4-11, 16-35).
+  Each has its own magazine nest. Until run 024 pin_arm_a had all of modules 0, 1, 3, 4
+  and 6 (0-7, 12-19, 24-27) and could not plan modules 4 and 6; run 024 gave B holes 1-3
+  of modules 1, 4 and 6, and run 025 hole 0 of those modules too, so that the two arms
+  share no module: see "Run 024" and "Run 025" below. B now has 28 holes and A 8.
 - bolt_arm: all ten strap bolts.
 - Loads (rows `load`): the module arm 68.4 kg of 210, the pin tool with its magazine
   8.5 kg of 20 on each KR 20, the nutrunner 3.0 kg of 5 on the KR 10.

@@ -1251,6 +1251,9 @@ class Verifier {
     t.start = segs[idx.front()].t0;
     t.end = segs[idx.back()].t1;
     times_[step.number] = t;
+    // R21's order counts a step from its own segments, after a park before
+    // it: an arm that parks at its wait pose touches nothing of the bay.
+    own_start_[step.number] = segs[idx[std::min(own, idx.size() - 1)]].t0;
   }
 
   void StepsAndPhases() {
@@ -1361,6 +1364,8 @@ class Verifier {
       if (s.index >= 0) number[{s.kind, s.index}] = in_plan(s.number);
     }
     auto start_of = [&](int n) {
+      auto own = own_start_.find(n);
+      if (own != own_start_.end()) return own->second;
       auto it = times_.find(n);
       return it == times_.end() ? -1.0 : it->second.start;
     };
@@ -1442,6 +1447,7 @@ class Verifier {
   std::map<std::pair<std::string, int>, const SolvedPoint*> points_;
   std::vector<std::map<std::string, const BayEvent*>> events_;  // By bay, by kind.
   std::map<int, StepTime> times_;
+  std::map<int, double> own_start_;  // A step's start after a park before it.
   double bay_end_ = 0.0;
   // Each bay's end of its last strap bolt and of its last step of the modules.
   std::vector<double> last_strap_end_, last_modules_end_;
