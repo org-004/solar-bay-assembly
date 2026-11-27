@@ -2177,25 +2177,6 @@ cc_library(
     ],
 )
 
-# The margins of the chosen layout's committed plan, against the figures
-# run 051 reported.
-#   bazel test --config=opt //:layout_margins_test
-# Size small: 6.5 s on the engineer's machine (run 051).
-cc_test(
-    name = "layout_margins_test",
-    size = "small",
-    srcs = ["tests/layout_margins_test.cc"],
-    data = LAYOUT_FILES + LAYOUT_MODEL_FILES + PLAN_FILES,
-    env = LAYOUT_ENV | {"PLAN_DIR": "plans"},
-    deps = [
-        ":layout",
-        ":layout_check",
-        ":layout_margins",
-        ":layout_model",
-        ":layout_plan",
-        "@googletest//:gtest_main",
-    ],
-)
 # END layout_margins
 
 # Plans bays of a layout back to back (three unless --bays N says) and prints
@@ -2261,8 +2242,11 @@ cc_test(
     size = "large",
     # tests/retreat_legs_test.cc: a layout's retreat_legs (run 036);
     # tests/path_tries_test.cc: a layout's path_tries (run 042);
-    # tests/torque_limit_test.cc: a layout's torque_limit_scale (run 045).
+    # tests/torque_limit_test.cc: a layout's torque_limit_scale (run 045);
+    # tests/layout_margins_test.cc: v19's track ends, carriage gaps and
+    # torque by bay (run 051), about 7 s.
     srcs = [
+        "tests/layout_margins_test.cc",
         "tests/path_tries_test.cc",
         "tests/plan_replay_test.cc",
         "tests/retreat_legs_test.cc",
@@ -2273,6 +2257,7 @@ cc_test(
     deps = [
         ":layout",
         ":layout_check",
+        ":layout_margins",
         ":layout_model",
         ":layout_plan",
         "@googletest//:gtest_main",

@@ -3,7 +3,8 @@
 // three bays): every arm on a track has a track_end for lo and for hi, the
 // three pin arms of the shared beam have a carriage_gap for each pair, and
 // the module arm's torque by bay is what //:torque_demand prints one bay at
-// a time. The figures are the ones run 051's report gives, to 1e-6.
+// a time. The figures are the ones run 051's report gives, to 1e-6. Part
+// of //:plan_replay_test.
 
 #include <cstdio>
 #include <cstdlib>
