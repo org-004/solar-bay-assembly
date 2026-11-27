@@ -3,6 +3,7 @@
   "layout_sha256": "9a62818ea05a13ca1d97165fbc7757be7f5a95e2026559d8870662fdaed3140d",
   "plan_sha256": "0109f7d0e6fe80231215b4c520ae920c7c9c0068438c45efdff2733f4a0413f2",
   "rates_sha256": "92ab60e5a186cfa526dc292ba67cf3583391499d692475f143aaa1287ab63614",
+  "physics_sha256": "d05b873ab80885e3d6916a7c469a4d89cab59b72d36cac2abfd8ca2739a3346c",
   "measures": [
     {
       "name": "cycle_s",
@@ -25,11 +26,11 @@
     {
       "name": "physics_share",
       "rank": "P0",
-      "value": 0.0,
+      "value": 0.032229,
       "unit": "1",
       "better": "higher",
-      "known": "counted",
-      "basis": "no committed, repeatable run in physics of this layout's arms and parts"
+      "known": "measured",
+      "basis": "physics/flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat.json: steps 77, 78 of module 3 carried out in physics, 18.522716 s of one bay's 574.729769 s counted"
     },
     {
       "name": "part_count",

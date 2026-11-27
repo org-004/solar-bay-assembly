@@ -87,7 +87,8 @@ carriage to carriage on the shared beam at least 0.495 m (B to C, centres 0.995 
 `plan_layout -- <name> --bays 3 --out ...`, layouts unchanged, both plans committed and replayed by
 tests/plan_replay_test.cc (`Kr20.ThreeBaysOfTheSharedBeamLayoutPassTheVerifier` and
 `Kr20.ThreeBaysOfTheSharedBeamLayoutWithFastRetreatsPassTheVerifier`), scored by
-`score_layout --write` and registered with `tools/evolution/add.sh` as candidates; v10 stays chosen.
+`score_layout --write` and registered with `tools/evolution/add.sh` as candidates; v10 stayed chosen until run 040 made v16
+chosen (every arm KUKA, the owner's rule of 2026-11-26).
 
 | | v15 `flat_rack_3_kr20_pin_arms_shared_ordered` | v16 `..._fast_retreat` |
 |---|---:|---:|
