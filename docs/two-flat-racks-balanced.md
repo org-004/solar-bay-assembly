@@ -63,7 +63,7 @@ plan if A's hole 2 to hole 3 move at modules 4 and 6 were found.
 
 ## One posture per module (run 029)
 
-Run 029 added the checker's opt-in `one_posture_per_module` (a field of an arm; `src/layout_check.h`,
+Run 029 added the checker's opt-in `one_posture_per_module` (a field of an arm; `src/layout_check.cc`,
 "One posture per module") and set it for pin arm A of this layout.
 
 - The probe (`LAYOUT_CHECK_PROBE=pin_arm_a`, every candidate of every hole with its family, three

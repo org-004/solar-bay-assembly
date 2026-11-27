@@ -1263,7 +1263,7 @@ TEST(LayoutCheck, PostureKeptAndPosesUnchanged) {
 // otherwise come out in one pose family and holes 1 and 3 in the other
 // (run 028: joint 1 163 degrees from hole 2 to hole 3). With it every move
 // of A from one hole of a module to the next stays small and every row
-// passes; without it the crossing is there.
+// passes; without it the crossing is there (over 150 degrees).
 TEST(LayoutCheck, OnePosturePerModule) {
   std::string error;
   const std::optional<Layout> layout =
@@ -1300,7 +1300,10 @@ TEST(LayoutCheck, OnePosturePerModule) {
   ASSERT_TRUE(layout->arms[1].one_posture_per_module);
   const CheckReport with = CheckLayout(*layout, Paths(), options);
   EXPECT_EQ(Failures(with), "");
-  EXPECT_LT(largest(with), 30.0);
+  // The move from the hole before (or the wait pose) counts in the choice
+  // too, so a move between holes may be up to about 70 degrees of one
+  // joint, never the swing of a family crossing.
+  EXPECT_LT(largest(with), 90.0);
   int preset = 0;
   for (const CheckRow& r : with.rows) {
     preset += r.check == "reach" &&

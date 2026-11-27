@@ -136,28 +136,6 @@
 // consecutive poses in step order (its wait pose first and last, its
 // tool-change pose at each change of tool).
 //
-// One posture per module (an arm's "one_posture_per_module", layouts with
-// approach rules; run 029). Holes 0 and 2 of a module can come out of the
-// choice above in one pose family of an arm and holes 1 and 3 in the
-// other, a swing of the whole arm that the planner may not find with the
-// next module on. With the field set, at the first of the arm's holes of a
-// module to be solved (its locate, pin or swage kind), the checker solves
-// all of the arm's holes of that module of that kind together: for each
-// hole every pose of the seeds above, at the track candidates above and,
-// unless the kind has stops, at every 0.1 m of the track from its lo, kept
-// when inside the margin, clear and with both legs passing. A pose's family
-// is three bits from the joints' world axes: the wrist centre behind joint
-// 1's axis (the shoulder), the elbow's turn about joint 2's axis, the sign
-// of joint 5 (the wrist). For each family with a pose at every hole the
-// poses in hole order are chosen whose largest move from one hole to the
-// next is least (the time of a move: the joints' at the datasheet's speeds
-// or the carriage's at its speed, the longer), then whose move from the
-// anchor is least; the family with the least of these wins, the lower
-// number on a tie. The holes then take those poses, the windings brought
-// nearest the previous hole's; their reach rows say "(one posture per
-// module)" after the track. When no family has a pose at every hole the
-// choice above is kept. Layouts without the field are not changed.
-//
 // The wait poses (flat rack). "reach,wait pose <arm>": the least joint
 // margin of the wait pose against the datasheet's range, limit
 // joint_margin_deg (the planner starts every arm there). "clearance,wait
