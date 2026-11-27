@@ -476,6 +476,16 @@ TEST(Superseded, FlatRack3PinArmsPassesTheVerifierWithoutTheSchedule) {
   EXPECT_NEAR(o.plan.bay_planned_s, 644.28, 0.005);
 }
 
+// Run 034: the all-KUKA 40 ft layout, one KR 20 pin arm, one bay planned
+// whole; the verifier over the whole plan, its schedule included.
+TEST(Kr20, OneBayOfTheKr20LayoutPassesTheVerifier) {
+  const OrderedPlan o = NamedPlan("flat_rack_1_kr20_pin_arm_ordered");
+  ASSERT_TRUE(o.error.empty()) << o.error;
+  const VerifyReport r = VerifyPlan(o.layout, ModelPaths::FromEnvironment(), o.plan, o.sha256, VerifyOptions{});
+  EXPECT_TRUE(r.ok) << Faults(r);
+  EXPECT_NEAR(o.plan.bay_planned_s, 897.90, 0.005);
+}
+
 TEST(Ordered, PassesTheVerifierWithoutTheSchedule) {
   const OrderedPlan& o = TheOrdered();
   ASSERT_TRUE(o.error.empty()) << o.error;
