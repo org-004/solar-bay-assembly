@@ -198,7 +198,9 @@ order and run 042's `path_tries` 8 together, three bays 529.20 / 529.80 / 523.92
 cycle 498.55 s), and v18 until run 048 made v19 chosen (v18 with `torque_limit_scale` 0.90, its
 module arm within 0.90 of its motors, three bays 502.55 / 507.79 / 496.04 s, cycle 502.13 s), and v19 until
 run 052 made v20 chosen (v19 with `bay_out_when_clear`, the bay out once the release is done and no arm is near,
-three bays 496.59 / 501.82 / 490.08 s, cycle 496.16 s).
+three bays 496.59 / 501.82 / 490.08 s, cycle 496.16 s), and v20 until run 054 made v21 chosen (v20 with an
+infeed unit of its own whose tube comes in over the bay going out, run 053; bay ends 496.59 / 960.13 / 1412.03 s,
+cycle 470.68 s, part count 38; [`infeed-unit.md`](infeed-unit.md)).
 
 | | v15 `flat_rack_3_kr20_pin_arms_shared_ordered` | v16 `..._fast_retreat` |
 |---|---:|---:|

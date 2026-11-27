@@ -6,16 +6,16 @@ The cell is rebuilt on the real parts of a tracker bay, a round torque tube, rai
 
 ## Where it stands
 
-The chosen version is v20, "One 40 ft flat rack, three KR 20 pin arms on one shared beam, three modules to each pin arm in turns, each move the quickest of 8 paths, the module arm within 0.90 of its motors, the bay out once it is clear: three bays planned".
+The chosen version is v21, "One 40 ft flat rack, three KR 20 pin arms on one shared beam, three modules to each pin arm in turns, each move the quickest of 8 paths, the module arm within 0.90 of its motors, the bay out once it is clear, the next tube in over it from an infeed unit: three bays planned".
 
 | Rank | Measure | Value | Unit | Better | How known | Basis |
 |---|---|---|---|---|---|---|
-| P0 | cycle_s | 496.16 | s per bay | lower | planned | the committed plan's 3 bays back to back: (end of bay 2's bay_out - start of bay 0's tube_in) / 3; kinematic, on assumed speeds and process times |
+| P0 | cycle_s | 470.68 | s per bay | lower | planned | the committed plan's 3 bays back to back: (end of bay 2's bay_out - start of bay 0's tube_in) / 3; kinematic, on assumed speeds and process times |
 | not ranked | one_bay_s | 496.59 | s | - | planned | bay 0 of the committed plan alone, from the start of its tube_in to the end of its bay_out |
-| not ranked | interval_s | 490.08 | s | - | planned | from the end of bay 1's bay_out to the end of bay 2's |
+| not ranked | interval_s | 451.90 | s | - | planned | from the end of bay 1's bay_out to the end of bay 2's |
 | P0 | failures_per_bay | 0.383 | - | lower | modelled | count of operations by kind x rates of scores/rates.json; 100% of it on rates of basis ours |
-| P0 | physics_share | 0.0417 | - | higher | measured | physics/flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque_clear_out.json: steps 136, 137 of module 5 carried out in physics, 20.727562 s of one bay's 496.589754 s counted |
-| P1 | part_count | 37 | - | lower | counted | pieces of equipment by the rule of docs/scorecard.md |
+| P0 | physics_share | 0.0417 | - | higher | measured | physics/flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque_clear_out_infeed.json: steps 136, 137 of module 5 carried out in physics, 20.727562 s of one bay's 496.589754 s counted |
+| P1 | part_count | 38 | - | lower | counted | pieces of equipment by the rule of docs/scorecard.md |
 | P1 | arms | 4 | arms | lower | counted | arms of the layout |
 | P1 | driven_axes | 39 | - | lower | counted | arm joints, tracks, driven tools and grips by the rule of docs/scorecard.md |
 | P1 | placement_mm | none | mm | lower | none | nothing is held or sensed in this cell; the stand-in cell's figure is another cell's |
@@ -47,6 +47,7 @@ The measures and gates are defined in [the scorecard](../scorecard.md).
 | v18 | 2026-11-27 | One 40 ft flat rack, three KR 20 pin arms on one shared beam, three modules to each pin arm in turns, each move the quickest of 8 paths: three bays planned | 498.55 s per bay | 499.54 s | 4 | 37 | 4132.2 kg | planned |
 | v19 | 2026-11-27 | One 40 ft flat rack, three KR 20 pin arms on one shared beam, three modules to each pin arm in turns, each move the quickest of 8 paths, the module arm within 0.90 of its motors: three bays planned | 502.13 s per bay | 502.55 s | 4 | 37 | 4132.2 kg | planned |
 | v20 | 2026-11-27 | One 40 ft flat rack, three KR 20 pin arms on one shared beam, three modules to each pin arm in turns, each move the quickest of 8 paths, the module arm within 0.90 of its motors, the bay out once it is clear: three bays planned | 496.16 s per bay | 496.59 s | 4 | 37 | 4132.2 kg | planned |
+| v21 | 2026-11-27 | One 40 ft flat rack, three KR 20 pin arms on one shared beam, three modules to each pin arm in turns, each move the quickest of 8 paths, the module arm within 0.90 of its motors, the bay out once it is clear, the next tube in over it from an infeed unit: three bays planned | 470.68 s per bay | 496.59 s | 4 | 38 | 4132.2 kg | planned |
 
 The cycle time of a version with a plan is the average bay of three bays planned back to back, (end of bay 2's bay out − start of bay 0's tube in) / 3; "One bay" is its bay 0 alone, from tube in to bay out. A version without a plan has the time of one bay, marked so ([the scorecard](../scorecard.md)).
 
@@ -54,15 +55,69 @@ The cycle time of a version with a plan is the average bay of three bays planned
 
 A filled circle is a cycle time that is planned, a square one that is measured, a hollow circle one that is modelled; a lighter marker is a candidate that was not chosen. A value marked "1 bay" is one bay's; the others are the average of three bays back to back.
 
+## v21 One 40 ft flat rack, three KR 20 pin arms on one shared beam, three modules to each pin arm in turns, each move the quickest of 8 paths, the module arm within 0.90 of its motors, the bay out once it is clear, the next tube in over it from an infeed unit: three bays planned
+
+![v21  2026-11-27  One 40 ft flat rack, three KR 20 pin arms on one shared beam, three modules to each pin arm in turns, each move the quickest of 8 paths, the module arm within 0.90 of its motors, the bay out once it is clear, the next tube in over it from an infeed unit: three bays planned; cycle 470.68 s per bay (planned), 4 arms](../evolution/v21.gif)
+
+2026-11-27, chosen, commit the commit that added v21: `git log --format=%h -S '"id": "v21"' -- versions/versions.json | tail -1`
+
+**What changed.** v20's cell and layout with one part added and nothing else: an infeed unit (item infeed_unit, a 1.2 x 10.0 x 1.8 m bed, 800 kg, basis ours) at a tubes_in port and zone of its own beyond the transfer cart at -X (run 053), so the next tube comes in 0.45 m above its place over the bay going out (5.10 m in 40 s) and is lowered into the saddles, and the cart only takes bays out. Bay b+1's tube_in starts once the holder is empty, so the two ways overlap 38.41 s at each boundary. Three bays are planned whole, 378 of 378 moves, 26 of them slowed (14.30 s of motion added), verified and committed: 496.59 s for one bay and a cycle time of 470.68 s over three (boundaries 496.59 / 463.54 / 451.90 s); the incoming tube passes 0.1140 m above the outgoing bay's lifted modules.
+
+**Why.** Weighed against v20: 25.48 s a bay quicker (470.68 s against 496.16 s) by overlapping the next tube's way with the bay going out, at the price of one part (38 against 37); the paths, the order of work and the slowed moves are v20's, and torque_demand over the three bays finds no module arm move over 0.90 of a motor's limit. The infeed unit's carriage is not modelled (docs/infeed-unit.md). Registered as a candidate weighed against v20 and made the chosen version in the same run (run 054): in physics v21's record take (module 5, the same take and set as v20's, at the same times) keeps every module arm joint below its limit (joint 1 0.973 on the take, 0.597 at most on the set); v20 is superseded with its numbers kept.
+
+| Rank | Measure | Value | Unit | Better | How known | Basis |
+|---|---|---|---|---|---|---|
+| P0 | cycle_s | 470.68 | s per bay | lower | planned | the committed plan's 3 bays back to back: (end of bay 2's bay_out - start of bay 0's tube_in) / 3; kinematic, on assumed speeds and process times |
+| not ranked | one_bay_s | 496.59 | s | - | planned | bay 0 of the committed plan alone, from the start of its tube_in to the end of its bay_out |
+| not ranked | interval_s | 451.90 | s | - | planned | from the end of bay 1's bay_out to the end of bay 2's |
+| P0 | failures_per_bay | 0.383 | - | lower | modelled | count of operations by kind x rates of scores/rates.json; 100% of it on rates of basis ours |
+| P0 | physics_share | 0.0417 | - | higher | measured | physics/flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque_clear_out_infeed.json: steps 136, 137 of module 5 carried out in physics, 20.727562 s of one bay's 496.589754 s counted |
+| P1 | part_count | 38 | - | lower | counted | pieces of equipment by the rule of docs/scorecard.md |
+| P1 | arms | 4 | arms | lower | counted | arms of the layout |
+| P1 | driven_axes | 39 | - | lower | counted | arm joints, tracks, driven tools and grips by the rule of docs/scorecard.md |
+| P1 | placement_mm | none | mm | lower | none | nothing is held or sensed in this cell; the stand-in cell's figure is another cell's |
+| P2 | mass_in_transit_kg | 4132.2 | kg | lower | counted | the transport row's parts less infed parts (owner's definition) |
+| P2 | input_tolerance | none | mm | higher | none | nothing is sensed in this cell, so no error of the infed parts is measured or corrected |
+| P2 | plan_s | none | s | lower | none | the committed plan does not hold the time plan_layout took |
+
+| Gate | Figure | Limit | Result |
+|---|---|---|---|
+| check_rows_failed | 0 rows | <= 0 rows | pass |
+| least_clearance_m | 0.016 m | >= 0.015 m | pass |
+| mass_in_transit_kg | 4132.2 kg | <= 13608.0 kg | pass |
+
+The measures and gates are defined in [the scorecard](../scorecard.md).
+
+**Against v20.**
+
+Each figure as the two versions' own sources report it; the conditions of a run may differ between them (see each figure's source).
+
+| Measure | Before (v20) | Now (v21) | Difference |
+|---|---|---|---|
+| arms | 4 arms | 4 arms | 0 arms |
+| cycle_s | 496.16 s per bay | 470.68 s per bay | -25.48 s per bay |
+| driven_axes | 39 | 39 | 0 |
+| failures_per_bay | 0.383 | 0.383 | 0 |
+| input_tolerance | none | none | not comparable: not known |
+| interval_s | 490.08 s | 451.90 s | -38.18 s |
+| mass_in_transit_kg | 4132.2 kg | 4132.2 kg | 0.0 kg |
+| one_bay_s | 496.59 s | 496.59 s | 0.00 s |
+| part_count | 37 | 38 | +1 |
+| physics_share | 0.0417 | 0.0417 | 0 |
+| placement_mm | none | none | not comparable: not known |
+| plan_s | none | none | not comparable: not known |
+
+**Files.** [layout](../../layouts/flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque_clear_out_infeed.json), [plan](../../plans/flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque_clear_out_infeed.json), [scorecard](../../scores/flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque_clear_out_infeed.json)
+
 ## v20 One 40 ft flat rack, three KR 20 pin arms on one shared beam, three modules to each pin arm in turns, each move the quickest of 8 paths, the module arm within 0.90 of its motors, the bay out once it is clear: three bays planned
 
 ![v20  2026-11-27  One 40 ft flat rack, three KR 20 pin arms on one shared beam, three modules to each pin arm in turns, each move the quickest of 8 paths, the module arm within 0.90 of its motors, the bay out once it is clear: three bays planned; cycle 496.16 s per bay (planned), 4 arms](../evolution/v20.gif)
 
-2026-11-27, chosen, commit the commit that added v20: `git log --format=%h -S '"id": "v20"' -- versions/versions.json | tail -1`
+2026-11-27, superseded, commit the commit that added v20: `git log --format=%h -S '"id": "v20"' -- versions/versions.json | tail -1`
 
 **What changed.** v19's cell and layout with one change and nothing else: bay_out_when_clear (run 050), so a bay goes out once its release has ended and no arm comes within the clearance of it on its way, not when every arm is free; pin arm C's last tool change runs while the bay goes out. Three bays are planned whole, 378 of 378 moves, 26 of them slowed (14.30 s of motion added), verified and committed: 496.59 s for one bay (496.59 / 501.82 / 490.08 s) and a cycle time of 496.16 s over three; each bay out starts at its release's end, and no arm comes nearer the bay going out than 0.2115 m.
 
-**Why.** Weighed against v19: 5.96 s a bay quicker (496.16 s against 502.13 s) by the bay out alone; the paths, the order of work and the slowed moves are v19's, and torque_demand over the three bays finds no module arm move over 0.90 of a motor's limit. Registered as a candidate weighed against v19 and made the chosen version in the same run (run 052): in physics v20's record take (module 5, the same take and set as v19's) keeps every module arm joint below its limit (joint 1 0.973 on the take, 0.597 at most on the set); v19 is superseded with its numbers kept.
+**Why.** Weighed against v19: 5.96 s a bay quicker (496.16 s against 502.13 s) by the bay out alone; the paths, the order of work and the slowed moves are v19's, and torque_demand over the three bays finds no module arm move over 0.90 of a motor's limit. Registered as a candidate weighed against v19 and made the chosen version in the same run (run 052): in physics v20's record take (module 5, the same take and set as v19's) keeps every module arm joint below its limit (joint 1 0.973 on the take, 0.597 at most on the set); v19 is superseded with its numbers kept. Superseded by v21 (run 054): v21 overlaps the next tube's way with the bay going out, from an infeed unit of its own, and is 25.48 s a bay quicker (470.68 s against 496.16 s) at the price of one part (38 against 37), with v20's paths, order of work and slowed moves.
 
 | Rank | Measure | Value | Unit | Better | How known | Basis |
 |---|---|---|---|---|---|---|
@@ -105,6 +160,13 @@ Each figure as the two versions' own sources report it; the conditions of a run 
 | physics_share | 0.0412 | 0.0417 | +0.000495 |
 | placement_mm | none | none | not comparable: not known |
 | plan_s | none | none | not comparable: not known |
+
+**Candidates it was chosen over.**
+
+| Version | Cycle time | One bay | Arms | Part count | Mass in transit | Failures per bay | Cycle time is | Recording | Layout | Commit | Status |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| v20 (this version) | 496.16 s per bay | 496.59 s | 4 | 37 | 4132.2 kg | 0.383 | planned | [v20.gif](../evolution/v20.gif) | [flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque_clear_out.json](../../layouts/flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque_clear_out.json) | the commit that added v20: `git log --format=%h -S '"id": "v20"' -- versions/versions.json \| tail -1` | superseded |
+| v21 | 470.68 s per bay | 496.59 s | 4 | 38 | 4132.2 kg | 0.383 | planned | [v21.gif](../evolution/v21.gif) | [flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque_clear_out_infeed.json](../../layouts/flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque_clear_out_infeed.json) | the commit that added v21: `git log --format=%h -S '"id": "v21"' -- versions/versions.json \| tail -1` | chosen |
 
 **Files.** [layout](../../layouts/flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque_clear_out.json), [plan](../../plans/flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque_clear_out.json), [scorecard](../../scores/flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque_clear_out.json)
 
@@ -165,7 +227,7 @@ Each figure as the two versions' own sources report it; the conditions of a run 
 | Version | Cycle time | One bay | Arms | Part count | Mass in transit | Failures per bay | Cycle time is | Recording | Layout | Commit | Status |
 |---|---|---|---|---|---|---|---|---|---|---|---|
 | v19 (this version) | 502.13 s per bay | 502.55 s | 4 | 37 | 4132.2 kg | 0.383 | planned | [v19.gif](../evolution/v19.gif) | [flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque.json](../../layouts/flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque.json) | the commit that added v19: `git log --format=%h -S '"id": "v19"' -- versions/versions.json \| tail -1` | superseded |
-| v20 | 496.16 s per bay | 496.59 s | 4 | 37 | 4132.2 kg | 0.383 | planned | [v20.gif](../evolution/v20.gif) | [flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque_clear_out.json](../../layouts/flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque_clear_out.json) | the commit that added v20: `git log --format=%h -S '"id": "v20"' -- versions/versions.json \| tail -1` | chosen |
+| v20 | 496.16 s per bay | 496.59 s | 4 | 37 | 4132.2 kg | 0.383 | planned | [v20.gif](../evolution/v20.gif) | [flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque_clear_out.json](../../layouts/flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque_clear_out.json) | the commit that added v20: `git log --format=%h -S '"id": "v20"' -- versions/versions.json \| tail -1` | superseded |
 
 **Files.** [layout](../../layouts/flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque.json), [plan](../../plans/flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque.json), [scorecard](../../scores/flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque.json)
 
