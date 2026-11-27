@@ -36,7 +36,7 @@ two_flat_racks_2_pin_arms_balanced --bays 1 --first-step N --last-step M [--why 
 | S3 | as S1 | -2.6..-0.52 / 0.0..2.6 | 43 rows fail | 656.92 s | B does not reach hole 1 of modules 4 and 6 (0.055 m short) |
 | - | as S1 | -2.6..-0.67 / -0.15..2.6 | 55 rows fail | 656.73 s | B 0.001 m short of hole 1 of modules 4 and 6 |
 | S4 | as S1 | -2.6..-0.72 / -0.20..2.6 | 999 pass | 656.73 s | stage 1: 45 of 47; steps 36 and 42 not found at 640k (210 s). (At A -0.62, with B's P1 holes given to A to pass the checker, step 36 is not found at 40k.) |
-| S5 | 0, 1, 3, 4, 6 (20) | -2.6..-0.05 / 0.47..2.6 | 999 pass | 615.44 s | stage 3 (steps 119-200): 38 of 40; steps 135 and 141 (A, module 6) not found at 160k, nor 640k without the next modules (243 s). Step 93 (module 4) not found at 40k. Step 36 (module 1) found at 40k (35,422 iterations) |
+| S5 | 0, 1, 3, 4, 6 (20) | -2.6..-0.05 / 0.47..2.6 | 999 pass | 615.44 s | stage 3 (steps 119-200): 38 of 40; steps 135 and 141 (A, module 6) not found at 160k, nor 640k without the next modules (243 s). Step 93 (module 4) not found at 40k. Step 36 (module 1) found at 40k (35,422 iterations). Whole bay (`--bays 1 --summary`): exit 1, 123 of 127 moves found in 503.5 s; steps 93, 99, 135 and 141 not found |
 | S6 | as S5, A's base yaw -90 | as S5 | 999 pass | 613.84 s | step 135 not found at 40k |
 
 ## What follows
