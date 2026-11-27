@@ -488,6 +488,7 @@ int main(int argc, char** argv) {
         "# figures: clearance_m %s (planned at + plan_pad_m %s), "
         "joint_margin_deg %s, to_full_speed_s %s, "
         "jerk_rise_s %s, settle_s %s, leg_speed %s m/s, leg_accel %s m/s^2, "
+        "retreat_speed %s m/s, retreat_accel %s m/s^2, "
         "max_deviation %s rad, edge_resolution %s m, shorten_tries %d, "
         "budgets %s, seed %u, sample_s %s; planned_s and model_s include the "
         "settle\n",
@@ -495,7 +496,8 @@ int main(int argc, char** argv) {
         Num(f.joint_margin_deg, 1).c_str(),
         Num(f.to_full_speed_s).c_str(), Num(f.jerk_rise_s).c_str(),
         Num(f.settle_s).c_str(), Num(f.leg_speed).c_str(),
-        Num(f.leg_accel).c_str(), Num(f.max_deviation, 4).c_str(),
+        Num(f.leg_accel).c_str(), Num(f.retreat_speed).c_str(),
+        Num(f.retreat_accel).c_str(), Num(f.max_deviation, 4).c_str(),
         Num(f.edge_resolution, 4).c_str(), f.shorten_tries, budgets.c_str(),
         f.seed, Num(f.sample_s).c_str());
     for (const PhaseTime& p : plan.phases) {

@@ -2,7 +2,7 @@ P1 5 file-to-header pairs (a file and a project header it includes) against the 
 P1.cycles 0 header cycles
 P1.namespace 0 files under src/ that open a namespace their group does not allow (deps.json namespaces), and #define lines with the word namespace
 P1.allowed 31 pairs (group, group it may include) (a rule of deps.json; may not grow)
-P1.listed 20 departures on the list of deps.json (a rule of deps.json; may not grow)
+P1.listed 19 departures on the list of deps.json (a rule of deps.json; may not grow)
 P1.frozen_files 66 files in frozen groups (a rule of deps.json; may not grow)
 P1.frozen 4 of them in the stand-in cell's files, which a refactoring does not edit
 P2 6 files under src/ that no test and no captured program (programs.txt) depends on (bazel)
@@ -23,9 +23,9 @@ P4.glfw 1 targets that list @glfw directly (may not grow)
 P4.mujoco_files 71 files that include mujoco/ (may not grow)
 P4.group 0 #include lines of an outside library from a group that may not include it, and files that reach one through project headers
 P4.allowed 24 pairs (group, outside library) (a rule of deps.json; may not grow)
-P5 16 unused and missing deps of targets, and files in the srcs and hdrs of no target or of several
+P5 15 unused and missing deps of targets, and files in the srcs and hdrs of no target or of several
 P5.unused_project 10 targets' deps on project libraries none of whose headers the target includes
-P5.unused_outside 4 targets' deps on outside libraries none of whose headers the target includes
+P5.unused_outside 3 targets' deps on outside libraries none of whose headers the target includes
 P5.missing 1 targets that include a header of a library they do not list
 P5.files 1 files under src/ and tests/ in the srcs and hdrs of no target or of more than one
 P5.frozen 7 of them in the stand-in cell's files, which a refactoring does not edit
