@@ -1,6 +1,7 @@
 # A shorter bay by the order of work (run 018)
 
-The chosen layout, `flat_rack_3_pin_arms_ordered` (version v10), is the cell of
+The layout `flat_rack_3_pin_arms_ordered` (version v10, chosen until run 040 made the all-KUKA v16
+chosen), is the cell of
 [`flat_rack_3_pin_arms`](flat-rack-cell.md) with one field more, `order`. It has the same
 arms, tools, parts, process times, speeds, settle figures and margins (`clearance_m`
 0.015 m, `plan_pad_m` 0.003 m, `joint_margin_deg` 5.0), and the same division of work

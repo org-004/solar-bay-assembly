@@ -6,28 +6,28 @@ The cell is rebuilt on the real parts of a tracker bay, a round torque tube, rai
 
 ## Where it stands
 
-The chosen version is v10, "Three pin arms on the flat rack, the bay shortened by the order of work".
+The chosen version is v16, "One 40 ft flat rack, three KR 20 pin arms on one shared beam, faster retreats: three bays planned".
 
 | Rank | Measure | Value | Unit | Better | How known | Basis |
 |---|---|---|---|---|---|---|
-| P0 | cycle_s | 554.55 | s per bay | lower | planned | the committed plan's 3 bays back to back: (end of bay 2's bay_out - start of bay 0's tube_in) / 3; kinematic, on assumed speeds and process times |
-| not ranked | one_bay_s | 560.45 | s | - | planned | bay 0 of the committed plan alone, from the start of its tube_in to the end of its bay_out |
-| not ranked | interval_s | 554.49 | s | - | planned | from the end of bay 1's bay_out to the end of bay 2's |
-| P0 | failures_per_bay | 0.385 | - | lower | modelled | count of operations by kind x rates of scores/rates.json; 100% of it on rates of basis ours |
-| P0 | physics_share | 0.0394 | - | higher | measured | physics/flat_rack_3_pin_arms_ordered.json: steps 63, 64 of module 4 carried out in physics, 22.068854 s of one bay's 560.452329 s counted |
-| P1 | part_count | 39 | - | lower | counted | pieces of equipment by the rule of docs/scorecard.md |
+| P0 | cycle_s | 572.56 | s per bay | lower | planned | the committed plan's 3 bays back to back: (end of bay 2's bay_out - start of bay 0's tube_in) / 3; kinematic, on assumed speeds and process times |
+| not ranked | one_bay_s | 574.73 | s | - | planned | bay 0 of the committed plan alone, from the start of its tube_in to the end of its bay_out |
+| not ranked | interval_s | 564.63 | s | - | planned | from the end of bay 1's bay_out to the end of bay 2's |
+| P0 | failures_per_bay | 0.383 | - | lower | modelled | count of operations by kind x rates of scores/rates.json; 100% of it on rates of basis ours |
+| P0 | physics_share | 0.0322 | - | higher | measured | physics/flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat.json: steps 77, 78 of module 3 carried out in physics, 18.522716 s of one bay's 574.729769 s counted |
+| P1 | part_count | 37 | - | lower | counted | pieces of equipment by the rule of docs/scorecard.md |
 | P1 | arms | 4 | arms | lower | counted | arms of the layout |
-| P1 | driven_axes | 40 | - | lower | counted | arm joints, tracks, driven tools and grips by the rule of docs/scorecard.md |
+| P1 | driven_axes | 39 | - | lower | counted | arm joints, tracks, driven tools and grips by the rule of docs/scorecard.md |
 | P1 | placement_mm | none | mm | lower | none | nothing is held or sensed in this cell; the stand-in cell's figure is another cell's |
-| P2 | mass_in_transit_kg | 3426.3 | kg | lower | counted | the transport row's parts less infed parts (owner's definition) |
+| P2 | mass_in_transit_kg | 4132.2 | kg | lower | counted | the transport row's parts less infed parts (owner's definition) |
 | P2 | input_tolerance | none | mm | higher | none | nothing is sensed in this cell, so no error of the infed parts is measured or corrected |
 | P2 | plan_s | none | s | lower | none | the committed plan does not hold the time plan_layout took |
 
 | Gate | Figure | Limit | Result |
 |---|---|---|---|
 | check_rows_failed | 0 rows | <= 0 rows | pass |
-| least_clearance_m | 0.018 m | >= 0.015 m | pass |
-| mass_in_transit_kg | 3426.3 kg | <= 13608.0 kg | pass |
+| least_clearance_m | 0.016 m | >= 0.015 m | pass |
+| mass_in_transit_kg | 4132.2 kg | <= 13608.0 kg | pass |
 
 The measures and gates are defined in [the scorecard](../scorecard.md).
 
@@ -42,13 +42,67 @@ The measures and gates are defined in [the scorecard](../scorecard.md).
 | v09 | 2026-11-25 | Three pin arms on the flat rack: a whole bay planned | 622.31 s per bay | 644.28 s | 4 | 39 | 3426.3 kg | planned |
 | v10 | 2026-11-26 | Three pin arms on the flat rack, the bay shortened by the order of work | 554.55 s per bay | 560.45 s | 4 | 39 | 3426.3 kg | planned |
 | v15 | 2026-11-27 | One 40 ft flat rack, three KR 20 pin arms on one shared beam, all KUKA: three bays planned (candidate) | 612.40 s per bay | 626.32 s | 4 | 37 | 4132.2 kg | planned |
-| v16 | 2026-11-27 | One 40 ft flat rack, three KR 20 pin arms on one shared beam, faster retreats: three bays planned (candidate) | 572.56 s per bay | 574.73 s | 4 | 37 | 4132.2 kg | planned |
+| v16 | 2026-11-27 | One 40 ft flat rack, three KR 20 pin arms on one shared beam, faster retreats: three bays planned | 572.56 s per bay | 574.73 s | 4 | 37 | 4132.2 kg | planned |
 
 The cycle time of a version with a plan is the average bay of three bays planned back to back, (end of bay 2's bay out − start of bay 0's tube in) / 3; "One bay" is its bay 0 alone, from tube in to bay out. A version without a plan has the time of one bay, marked so ([the scorecard](../scorecard.md)).
 
 ![Cycle time of each version](one-40ft-flat-rack-cycle.svg)
 
 A filled circle is a cycle time that is planned, a square one that is measured, a hollow circle one that is modelled; a lighter marker is a candidate that was not chosen. A value marked "1 bay" is one bay's; the others are the average of three bays back to back.
+
+## v16 One 40 ft flat rack, three KR 20 pin arms on one shared beam, faster retreats: three bays planned
+
+![v16  2026-11-27  One 40 ft flat rack, three KR 20 pin arms on one shared beam, faster retreats: three bays planned; cycle 572.56 s per bay (planned), 4 arms](../evolution/v16.gif)
+
+2026-11-27, chosen, commit the commit that added v16: `git log --format=%h -S '"id": "v16"' -- versions/versions.json | tail -1`
+
+**What changed.** v15's cell with retreat_legs (run 036): a leg that leaves contact into free air (a retreat) runs at up to 0.5 m/s and 3.0 m/s^2 of the working point; approaches keep 0.25 m/s and 1.0 m/s^2. Three bays are planned whole, 378 of 378 moves, verified and committed: 574.73 s for one bay and a cycle time of 572.56 s over three.
+
+**Why.** It is the measured step after v15 in the all-KUKA 40 ft cell: 572.56 s against v15's 612.40 s. It was registered as a candidate against v15, 18.01 s above v10's 554.55 s. It became the chosen version on 2026-11-27 (run 040) because the owner decided on 2026-11-26 that every arm of every cell is KUKA, and v10's three pin arms are UR10e; v10 is superseded with its numbers kept.
+
+| Rank | Measure | Value | Unit | Better | How known | Basis |
+|---|---|---|---|---|---|---|
+| P0 | cycle_s | 572.56 | s per bay | lower | planned | the committed plan's 3 bays back to back: (end of bay 2's bay_out - start of bay 0's tube_in) / 3; kinematic, on assumed speeds and process times |
+| not ranked | one_bay_s | 574.73 | s | - | planned | bay 0 of the committed plan alone, from the start of its tube_in to the end of its bay_out |
+| not ranked | interval_s | 564.63 | s | - | planned | from the end of bay 1's bay_out to the end of bay 2's |
+| P0 | failures_per_bay | 0.383 | - | lower | modelled | count of operations by kind x rates of scores/rates.json; 100% of it on rates of basis ours |
+| P0 | physics_share | 0.0322 | - | higher | measured | physics/flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat.json: steps 77, 78 of module 3 carried out in physics, 18.522716 s of one bay's 574.729769 s counted |
+| P1 | part_count | 37 | - | lower | counted | pieces of equipment by the rule of docs/scorecard.md |
+| P1 | arms | 4 | arms | lower | counted | arms of the layout |
+| P1 | driven_axes | 39 | - | lower | counted | arm joints, tracks, driven tools and grips by the rule of docs/scorecard.md |
+| P1 | placement_mm | none | mm | lower | none | nothing is held or sensed in this cell; the stand-in cell's figure is another cell's |
+| P2 | mass_in_transit_kg | 4132.2 | kg | lower | counted | the transport row's parts less infed parts (owner's definition) |
+| P2 | input_tolerance | none | mm | higher | none | nothing is sensed in this cell, so no error of the infed parts is measured or corrected |
+| P2 | plan_s | none | s | lower | none | the committed plan does not hold the time plan_layout took |
+
+| Gate | Figure | Limit | Result |
+|---|---|---|---|
+| check_rows_failed | 0 rows | <= 0 rows | pass |
+| least_clearance_m | 0.016 m | >= 0.015 m | pass |
+| mass_in_transit_kg | 4132.2 kg | <= 13608.0 kg | pass |
+
+The measures and gates are defined in [the scorecard](../scorecard.md).
+
+**Against v10.**
+
+Each figure as the two versions' own sources report it; the conditions of a run may differ between them (see each figure's source).
+
+| Measure | Before (v10) | Now (v16) | Difference |
+|---|---|---|---|
+| arms | 4 arms | 4 arms | 0 arms |
+| cycle_s | 554.55 s per bay | 572.56 s per bay | +18.01 s per bay |
+| driven_axes | 40 | 39 | -1 |
+| failures_per_bay | 0.385 | 0.383 | -0.0022 |
+| input_tolerance | none | none | not comparable: not known |
+| interval_s | 554.49 s | 564.63 s | +10.14 s |
+| mass_in_transit_kg | 3426.3 kg | 4132.2 kg | +705.9 kg |
+| one_bay_s | 560.45 s | 574.73 s | +14.28 s |
+| part_count | 39 | 37 | -2 |
+| physics_share | 0.0394 | 0.0322 | -0.00715 |
+| placement_mm | none | none | not comparable: not known |
+| plan_s | none | none | not comparable: not known |
+
+**Files.** [layout](../../layouts/flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat.json), [plan](../../plans/flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat.json), [scorecard](../../scores/flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat.json)
 
 ## v10 Three pin arms on the flat rack, the bay shortened by the order of work
 
@@ -58,7 +112,7 @@ This recording shows the module arm's take and set of one module of v10 in physi
 
 ![v10 in physics: the module arm takes and sets one module](../evolution/v10-physics.gif)
 
-2026-11-26, chosen, commit the commit that added v10: `git log --format=%h -S '"id": "v10"' -- versions/versions.json | tail -1`
+2026-11-26, superseded, commit the commit that added v10: `git log --format=%h -S '"id": "v10"' -- versions/versions.json | tail -1`
 
 **What changed.** The same cell as v09, with no new part, arm or tool and no changed time, speed or margin: only the order of work changed. The modules are set in the order 0, 1, 4, 2, 5, 7, 6, 3, 8, so that the three pin arms' modules come in turn. A module is taken as soon as the strap bolts of its own two rails are driven, not after the last bolt. A pin arm changes to its pin tool and takes its magazine as soon as its bolts are done, not when its first module is set. The planned bay is 560.45 s, down from 644.28 s.
 
@@ -110,7 +164,7 @@ Each figure as the two versions' own sources report it; the conditions of a run 
 
 | Version | Cycle time | One bay | Arms | Part count | Mass in transit | Failures per bay | Cycle time is | Recording | Layout | Commit | Status |
 |---|---|---|---|---|---|---|---|---|---|---|---|
-| v10 (this version) | 554.55 s per bay | 560.45 s | 4 | 39 | 3426.3 kg | 0.385 | planned | [v10.gif](../evolution/v10.gif) | [flat_rack_3_pin_arms_ordered.json](../../layouts/flat_rack_3_pin_arms_ordered.json) | the commit that added v10: `git log --format=%h -S '"id": "v10"' -- versions/versions.json \| tail -1` | chosen |
+| v10 (this version) | 554.55 s per bay | 560.45 s | 4 | 39 | 3426.3 kg | 0.385 | planned | [v10.gif](../evolution/v10.gif) | [flat_rack_3_pin_arms_ordered.json](../../layouts/flat_rack_3_pin_arms_ordered.json) | the commit that added v10: `git log --format=%h -S '"id": "v10"' -- versions/versions.json \| tail -1` | superseded |
 | v15 | 612.40 s per bay | 626.32 s | 4 | 37 | 4132.2 kg | 0.383 | planned | [v15.gif](../evolution/v15.gif) | [flat_rack_3_kr20_pin_arms_shared_ordered.json](../../layouts/flat_rack_3_kr20_pin_arms_shared_ordered.json) | the commit that added v15: `git log --format=%h -S '"id": "v15"' -- versions/versions.json \| tail -1` | candidate |
 
 **Files.** [layout](../../layouts/flat_rack_3_pin_arms_ordered.json), [plan](../../plans/flat_rack_3_pin_arms_ordered.json), [scorecard](../../scores/flat_rack_3_pin_arms_ordered.json)
