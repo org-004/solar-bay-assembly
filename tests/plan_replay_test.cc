@@ -615,7 +615,7 @@ TEST(Kr20, OneBayOfTheSplitLayoutWithTheTorqueBoundPassesTheVerifier) {
   EXPECT_EQ(o.plan.figures.torque_limit_scale, 0.9);
   const VerifyReport r = VerifyPlan(o.layout, ModelPaths::FromEnvironment(), o.plan, o.sha256, VerifyOptions{});
   EXPECT_TRUE(r.ok) << Faults(r);
-  EXPECT_NEAR(o.plan.bay_planned_s, R3_BAY, 0.005);
+  EXPECT_NEAR(o.plan.bay_planned_s, 520.98, 0.005);
   EXPECT_GT(o.plan.bay_planned_s, 513.80);
 }
 

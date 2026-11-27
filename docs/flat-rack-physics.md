@@ -475,3 +475,52 @@ The slowed moves add 5.80 s of motion but the bay 26.60 s, all of it in the modu
 phase: the rest is the schedule placing the pin arms' blocks around the later sets (not
 taken apart in this run). The price is honest in that the arm can now follow every move of
 the take and set in physics, with joint 1 at 0.984 its tightest margin.
+
+## The price of torque-feasible timing (run 047)
+
+Run 045's 26.60 s, taken apart: a per-step diff of bay 0 of v16's committed plan and of
+the run 045 plan of `..._fast_retreat_torque` (both before this run's change), along the
+chain that ends the bay (pin arm C's last tool change, then bay out).
+
+| where | slowed move or wait | seconds | who then waits longer, and why |
+|---|---|---|---|
+| module arm, steps 33, 34, 49, 50, 63, 77, 78, 91, 106, 134 | ten slowed moves before set 7 | +5.10 | the module arm works back to back, so every later step of it; pin arm C's module 7 waits for set 7 (its tool change "just in time for locate 7/0") |
+| module arm, step 150 | the move to take 8 | +0.71 | set 8 and the module arm's end (+5.80 in all); no pin arm waits on it |
+| pin arm C, step 140 (locate 7/2) | new wait "for pin_arm_b to pass" | +17.75 | pin arm B is only +3.45 s late (tied to set 4, +4.20, and its wait for A at step 105 fell from 2.50 to 1.25 s), so B's move to hole 5/1 (step 114) now passes where C stands at 7/2; B was placed first and C waits until it has gone |
+| pin arm C, step 144 (locate 7/1) | new wait for pin arm B | +6.75 | B's swages of module 5 are now in C's way |
+| pin arm C, step 158 (locate 8/1) | v16's 3.00 s wait for pin arm B gone | −3.00 | B itself now waits 22.25 s for C at locate 6/0 (step 122), off the chain |
+| sum | | **26.60** | = 601.33 − 574.73 s |
+
+So 5.80 s is the arm's own; the other 20.80 s is the schedule's ordering. The
+schedule (`Planner::Schedule`) places one block at a time, the earliest-ready first,
+each later block steering clear of every block placed before it. The slowed moves
+shift the pin arms by different amounts (each is tied to a different module set), the
+relative timing of B and C near modules 5 and 7 changes, and the one that is placed
+first in the shared part of the bay holds it.
+
+**The change.** With `torque_limit_scale` and at least one move slowed,
+`Planner::ScheduleSlowed` schedules the bay three times: as before; with every move
+unslowed, which gives an order of placing and a start for each block; and slowed in that
+order, each block no earlier than its unslowed start plus the seconds that the slowed
+moves starting before it (in the unslowed schedule) add. It keeps the shorter of the
+first and the third. The moves, their paths and their time scales are the same, so the
+module arm's motion (and the physics run) is the same; only the waits move. A plan
+without the field is scheduled as before, byte for byte. Placing in the unslowed order
+alone gave 597.33 s: the conflict is about relative timing, not order only.
+
+| Figure | v16 | v16 + 0.90, run 045 | v16 + 0.90, run 047 | `_ma_split` | `_ma_split_torque` |
+|---|---|---|---|---|---|
+| `bay_planned_s` | 574.73 s | 601.33 s | **580.53 s** | 513.80 s | **520.98 s** |
+| slowed moves, motion added | | 11, 5.80 s | 11, 5.80 s | | 12, 7.18 s |
+| bay over the layout without the field | | +26.60 s (4.6x) | +5.80 s (1.0x) | | +7.18 s (1.0x) |
+| module arm moves over 0.90 / over 1.0 (ID) | 11 / 8 | 0 / 0 | 0 / 0 | 12 / 7 | 0 / 0 |
+| physics joint 1, worst take / set of the nine takes | 1.000 / 1.000 (take 3) | 0.984 / 0.971 (take 3) | 0.984 / 0.991 (0.984 / 0.971 on take 3) | | 0.971 / 0.991 |
+
+`TorqueLimit.TheBayCostsNoMoreThanTheSlowedMotion` (in `//:plan_replay_test`) holds
+both committed plans to the layout without the field plus the slowed motion.
+`flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_torque` is run 044's
+`_ma_split` with `torque_limit_scale` 0.90: one bay planned whole and committed, least
+clearance 0.0160 m and arm to arm 0.0188 m (against 0.015), least joint margin 5.00°
+(pin arms' joint 1, as `_ma_split`), the module arm's least 8.64°. In physics every one
+of its nine takes counts; joint 1 peaks at 0.991 (take 0, the set), the track at 0.929
+(take 3, the take).
