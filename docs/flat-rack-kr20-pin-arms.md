@@ -1,4 +1,4 @@
-# KUKA KR 20 pin arms for the 40 ft cell (runs 031, 034, 035, 037 and 041)
+# KUKA KR 20 pin arms for the 40 ft cell (runs 031, 034, 035, 037, 041 and 044)
 
 Every arm KUKA (the owner, 2026-11-26). Run 031 replaced v10's three UR10e pin arms
 (`flat_rack_3_pin_arms_ordered`) with KUKA KR 20 R1810-2 and found that one bay does not plan.
@@ -8,7 +8,111 @@ several carriages ride one beam and split the holes over three KR 20 pin arms:
 `flat_rack_3_kr20_pin_arms_shared_ordered`, one bay planned whole in 626.32 s. Run 037 planned its
 three bays and scored it as v15 (`cycle_s` 612.40 s), and the same layout with run 036's faster
 retreats as v16 (572.56 s). Run 041 set the modules in turns of the three pin arms:
-`flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma`, one bay planned whole in 543.96 s.
+`flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma`, one bay planned whole in 543.96 s. Run 044
+gave each pin arm three modules: `flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split`,
+one bay planned whole in 513.80 s.
+
+## Pin arm A's chain (run 044)
+
+Run 041's `_ma` planned one bay in 543.96 s, and its critical path ended in pin arm A's chain:
+four modules (0 to 3) and five bolts, A busy from 240.75 s to 503.96 s with no wait over 0.63 s.
+This run moves one module off A and one off B, three modules to each pin arm, in the layout
+`flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split`: one bay planned whole, 126 of
+126 moves, in **513.80 s** (`_ma` 543.96 s, v16 574.73 s, v10 560.45 s).
+
+### `_ma`'s bay 0 from the pin arms' first modules to bay out
+
+The module arm's sets end at (module: s) 0: 224.11, 4: 246.93, 7: 270.23, 1: 294.58, 5: 316.15,
+8: 342.41, 2: 365.89, 6: 388.34, **3: 409.35** (its last set, 398.18 to 409.35); bay out 503.96 to
+543.96. Bolts: A drove bolts 0 to 4 from 63.02 to 138.34 s (28.20 s of waits for the rails), C
+bolts 5 to 9 from 155.26 to 208.26 s; both then waited for their first module (A 79.26 s, C
+60.27 s) and changed to the pin tool (8 s) just in time. A module is its 12 steps (locate, pin and
+swage of four holes); its span runs from the end of the arm's step before it.
+
+| arm | work | start s | end s | span s | wait before it, s (for) |
+|---|---|---:|---:|---:|---|
+| A | take a pin magazine | 233.26 | 240.75 | 7.49 | 0 |
+| A | module 0 | 240.75 | 302.42 | 61.67 | 0 |
+| A | module 1 | 302.42 | 364.71 | 62.29 | 0 |
+| A | module 2 | 365.34 | 424.28 | 58.94 | 0.63 (the set of module 2) |
+| A | module 3 | 424.28 | 486.63 | 62.35 | 0 (set at 409.35: waits 14.93 s for A) |
+| A | back to wait | 486.63 | 492.56 | 5.92 | 0 |
+| A | tool change (to the nutrunner) | 492.56 | **503.96** | 11.40 | 0: bay out starts here |
+| B | take a pin magazine | 246.38 | 257.68 | 11.30 | 246.38 (the set of module 4) |
+| B | module 4 | 257.93 | 321.95 | 64.02 | 0.25 (the module arm to pass) |
+| B | module 5 | 321.95 | 387.26 | 65.31 | 0 |
+| B | module 6 | 387.79 | 448.39 | 60.60 | 0.53 (the set of module 6) |
+| B | back to wait | 450.39 | 455.34 | 4.95 | 2.00 (A to pass) |
+| C | take a pin magazine | 278.04 | 284.58 | 6.54 | 0 |
+| C | module 7 | 284.58 | 360.42 | 75.85 | 0 (11.25 s of waits inside) |
+| C | module 8 | 360.42 | 423.07 | 62.64 | 0 (4.50 s inside) |
+| C | back to wait, tool change | 423.07 | 434.39 | 11.32 | 0 |
+
+### Lower bounds
+
+A module takes a pin arm 58.94 to 65.31 s (`_ma`), whoever pins it. A pin arm's bound for its
+share: the start of its first module (its first set, then its pin tool and magazine) + its
+modules at the fastest 58.94 s + its way back (A and C also change back to the nutrunner) + bay
+out's 40 s.
+
+| arm | share in `_ma` | first module from s | bound for the bay s | as planned s |
+|---|---|---:|---:|---:|
+| A | modules 0-3, bolts 0-4 | 240.75 | 240.75 + 4 x 58.94 + 17.32 + 40 = **533.83** | 543.96 |
+| B | modules 4-6 | 257.68 | 257.68 + 3 x 58.94 + 4.95 + 40 = 479.45 | (455.34 + 40) |
+| C | modules 7-8, bolts 5-9 | 284.58 | 284.58 + 2 x 58.94 + 11.32 + 40 = 453.78 | (434.39 + 40) |
+| A with 3 modules (0-2) | | 240.75 | 240.75 + 3 x 58.94 + 17.32 + 40 = 474.89 | |
+| module arm | the last set | 409.35 | 409.35 + 58.94 + 4.95 + 40 = 513.24 | |
+
+With four modules A cannot plan below 533.83 s whatever the order: four modules need at least
+three sets between each two of them to keep A fed, and nine sets have no room for that. With
+three modules to each arm, set in turns, the bound is the module arm's last set plus one module.
+
+Which modules B and C can take from the shared beam, by the checker (`check_layout`, 944 rows, on
+copies of `_ma` with only the split, the order and B's wait track changed):
+
+| probe (A / B / C, B's wait track) | rows passed | what fails |
+|---|---:|---|
+| 0-1 / 2-5 / 6-8, 1.3 | 926 of 944 | C at module 6's holes 24-25 (stops 1.4, 1.2) against B's base at its wait (1.3) |
+| 0-2 / 3-5 / 6-8, 1.3 | 926 of 944 | the same |
+| 0-2 / 3-5 / 6-8, -0.3 | 943 of 944 | B's wait pose: link 3 to `holder_stand_4_column` |
+| 0-2 / 3-5 / 6-8, 0.3 | 942 of 944 | A's strap bolt 4 legs: link 5 to B's link 1 |
+| **0-2 / 3-5 / 6-8, 0.6** | **944 of 944** | nothing |
+| 0 / 1-5 / 6-8, 0.6 | 944 of 944 | nothing: B reaches modules 1 to 6 |
+| 0-2 / 3-4 / 5-8, 1.3 | 890 of 944 | C at modules 5 and 6 against B |
+| 0-2 / 3-4 / 5-8, -0.3 | 934 of 944 | C at hole 21 against B's base; B's wait pose |
+| 0-2 / 3 / 4-8, -0.3 and -0.8 | 898, 901 of 944 | C at module 4: link 2 to module 3's laminate (-0.016 m), B's carriage; A against B |
+
+So B reaches modules 1 to 6 and C modules 6 to 8 with every row passing (C's module 5 failed only
+against B's wait pose in the two waits tried, module 4 against module 3 too). The move that gains
+most: **module 3 from A to B and module 6 from B to C**, three modules to each pin arm, B waiting at
+track 0.6 (its stow track too) so that C can stand at module 6's stops.
+
+### The layout and its plan
+
+`_ma` with: A holes 0-11 (track -5.7 to -0.8), B holes 12-23 (track -2.7 to 1.9, wait and stow
+0.6), C holes 24-35 (track 0.8 to 5.0), bolts as before; `order.modules` 0, 3, 6, 1, 4, 7, 2, 5,
+8 (turns of A, B and C). The stops are run 034's per hole, as before; the beam, the arms' order in
+the file (A, C, B), `pin_tools: just_in_time` and `retreat_legs` are unchanged; no `path_tries`.
+944 of 944 checker rows. Probes, one bay each with `--summary`:
+
+| order.modules | bay_planned_s | path ends in |
+|---|---:|---|
+| 0, 6, 3, 1, 7, 4, 2, 8, 5 (turns of A, C, B) | 536.17 | B: module 3 waits 13.0 s for the module arm, back to wait 12.39 s |
+| **0, 3, 6, 1, 4, 7, 2, 5, 8** (turns of A, B, C) | **513.80** | the module arm (last set 405.46 s), then C's module 8 (57.58 s) and its tool change |
+| the same with `path_tries: 8` (probe, not committed; planning 172.1 s against 50.6 s) | 499.54 | 126 of 126 moves; least clearance 0.0160 m, arm to arm 0.0188 m, joint 5.00° |
+
+Sets end at 0: 224.11, 3: 244.92, 6: 265.49, 1: 290.15, 4: 309.86, 7: 334.34, 2: 358.67,
+5: 380.97, 8: 405.46. Pin arms busy: A 50 %, B 39 %, C 48 % (module arm 68 %); A ends at 440.39 s,
+B 472.35 s, C 473.80 s. The critical path is the module arm to 404.91 s, then pin arm C's module 8
+and its change back to the nutrunner (68.89 s), then bay out. The one-bay plan is committed and
+replayed by `Kr20.OneBayOfTheSharedBeamLayoutWithThreeModulesToEachPinArmPassesTheVerifier`.
+
+Margins of the one-bay plan (`plan_layout -- <name> --margins`, exit 0): least clearance 0.0160 m
+against 0.015 (C link 3 to `holder_stand_8_saddle`); arm to arm 0.0188 m (the module arm's held
+module to B's pin tool nose); least joint margin 5.00° against 5° (A joint 1 at its pin magazine
+take, step 36; B joint 1 at its wait pose); track ends 0 slack (module arm -3.600 / 5.500, A
+-5.700); carriage to carriage on the shared beam at least 0.898 m (A to B, centres 1.398 m apart
+less the 0.5 m carriage; B to C 1.132 m), from the plan's track samples.
 
 ## The module arm on the path (run 041)
 
