@@ -14,3 +14,10 @@ on branch `org/031-kuka-kr-20-pin-arms` (`layouts/flat_rack_3_kr20_pin_arms_orde
 - `gen.py`, `mk1.sh`: the layout from the probe (stops per hole), checked and planned (about
   1 min); `final.py` writes `layouts/flat_rack_1_kr20_pin_arm_ordered.json`.
 - `sumfail.py`: count a checker CSV's failing rows.
+- `shared.py out.json key=value...` (run 035): 034's layout with its holes and bolts split over pin
+  arms A, B and C on one shared beam. `layouts/flat_rack_3_kr20_pin_arms_shared_ordered.json` is
+  `python3 -I tools/kr20/shared.py layouts/flat_rack_3_kr20_pin_arms_shared_ordered.json mods.a=0-3
+  bolts.a=0-4 mods.b=4-6 bolts.b= mods.c=7-8 bolts.c=5-9 b5=2.3 b6=2.3 wait.b=1.3 ps.b=-1.0
+  nest.b=-2.6 wj.b=180,26.3,-45.9,180,-109.5,-81.1 ps.c=4.4 nest.c=6.0 stow.c=4.25 ts.c=1.6
+  wj.c=-81.1,26.3,-45.9,180,-109.5,-81.1 armorder=acb pintools=just_in_time` (run from the
+  repository's top). Two arms (`mods.b= mods.a=0-4 mods.c=5-8`, B left out) planned 663.65 s.

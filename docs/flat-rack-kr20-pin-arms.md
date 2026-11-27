@@ -1,9 +1,63 @@
-# KUKA KR 20 pin arms for the 40 ft cell (runs 031 and 034)
+# KUKA KR 20 pin arms for the 40 ft cell (runs 031, 034 and 035)
 
 Every arm KUKA (the owner, 2026-11-26). Run 031 replaced v10's three UR10e pin arms
 (`flat_rack_3_pin_arms_ordered`) with KUKA KR 20 R1810-2 and found that one bay does not plan.
 Run 034 found which change to the cell lets a KR 20 reach every hole of its modules from one
-side, and planned one bay of the layout `flat_rack_1_kr20_pin_arm_ordered` whole.
+side, and planned one bay of the layout `flat_rack_1_kr20_pin_arm_ordered` whole. Run 035 let
+several carriages ride one beam and split the holes over three KR 20 pin arms:
+`flat_rack_3_kr20_pin_arms_shared_ordered`, one bay planned whole in 626.32 s.
+
+## Run 035: three KR 20 on one shared beam, one bay planned whole
+
+### The shared-beam rule (`Track::shares_beam_with`, src/layout.h; src/layout_scene.cc)
+
+An arm's track may name another arm whose beam its carriage also rides (`"shares_beam_with":
+"pin_arm_a"`; the named arm has a track of the same direction and rides no other's beam). In
+`LayoutScene::Obstacles` the carriage (and the base fixed to it) is then skipped against the
+beams of every arm of its group, as against its own; carriage to carriage, every link to every
+beam, and waiting tools stay counted. Layouts without the field are unchanged (`BeamArm` of every
+arm is the arm itself). Test: `LayoutScene.CarriagesOnASharedBeam` in tests/layout_scene_test.cc
+(two carriages 3 m apart on one beam pass and, without the field, fail against the other arm's
+beam as 034's `k3a` did; carriages 0.3 m apart go into each other; a link of B against A's beam,
+raised through it, still counts). B and C draw the same beam box as A, one beam from y -6.0 to
+5.3; their `mass_kg` is their carriage only (21.94 kg/m over 1.1 m).
+
+### The layout (`tools/kr20/shared.py`; its arguments are in tools/kr20/README.md)
+
+| Arm | Holes (modules) | Strap bolts | Track | Wait | Tools wait | Magazine nest |
+|---|---|---|---|---|---|---|
+| pin_arm_a | 0-15 (0-3) | 0-4 | -5.7..-0.4 | -5.7, 034's pose | 1.3 m toward -Y | y -5.2, stop -5.2 |
+| pin_arm_b | 16-27 (4-6) | none: pin tool only | -1.5..2.9 | 1.3, stretched low toward -X | none | y -2.6, stop -1.0 |
+| pin_arm_c | 28-35 (7-8) | 5-9 (5 and 6 from +Y, stop 2.3) | 1.9..5.0 | 4.6, at its tool-change pose | 1.6 m toward +Y | y 6.0, stop 4.4 |
+
+Every hole from -Y at 034's stops. What it took, each found by checker or planner:
+- The middle arm cannot bolt: an arm parks at its wait pose after its last bolt in the planner's
+  world with all nine modules on, and every middle last-bolt pose tried (rails 3, 5 and 6, about 25 stops) has a
+  link up where a module will be. So B has the pin tool only (no tool change); A bolts 0-4 (its
+  bolt-4 pose is low) and C bolts 5-9, rails 5 and 6 from +Y of the rail so that C stays clear of
+  B's wait.
+- Wait poses under the bay must be low: 034's wait pose and the stow pose reach into the modules.
+  B waits stretched low toward -X; C waits at its tool-change pose, so its tool changes are short.
+- Pin magazine takes must be low and away from the module arm's corridors (it takes every module
+  at track 0 and every rail at 1.75): a nest beside the base puts link 2 into a module; B's nest is
+  1.6 m behind its stop, C's 1.6 m ahead. B takes its magazine just in time (`order.pin_tools`); taken
+  early, B stood at its retreat and blocked the module arm (schedule blocked).
+- Track room: the planner runs a carriage past its stops between two holes (034's move from 3/0 to
+  3/2 runs to -2.5), so B's and C's tracks reach 0.4 m beyond their stops.
+- Arm order in the file: a, c, b. With b listed before c the checker solved C's bolt-9 and magazine
+  poses in another branch, 0.0097 and 0.0143 m into modules 8 and 7 in the planner's world.
+
+### Figures
+
+- `check_layout`: 944 rows, 0 fail. Time model 416.75 s (034: 637.46 s; v10's 416.1 s).
+- `plan_layout --bays 1`: 126 of 126 moves, **626.32 s** (034: 897.90 s, -30.2 %; v10: 560.45 s,
+  +11.8 %). Rails 174.70 s, modules 355.65 s, end 50.97 s. Least clearance 0.0160 m, arm to arm
+  0.0206 m, joint margin 5.00 degrees. Mass in transit 4,135.2 kg against 13,608 kg.
+- Busy share of the bay: module arm 63 % (393.8 s), pin arm A 55 % (345.2 s: work 178.0, moves
+  110.0, legs 57.2), B 33 % (209.4 s: 100.0, 71.9, 37.5), C 33 % (208.3 s: 114.0, 60.9, 33.4).
+  The module arm is now the longest; the rail phase (174.70 s) is 034's.
+- Replayed by `Kr20.OneBayOfTheSharedBeamLayoutPassesTheVerifier` (tests/plan_replay_test.cc);
+  exempted from the scorecards by name until it has three bays, as 034's.
 
 ## Run 034: one KR 20 along the whole bay, one bay planned whole
 
