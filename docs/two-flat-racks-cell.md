@@ -74,10 +74,12 @@ Who does what:
 - module_arm: rail_take, rail_set, module_take and module_set, every point, with one
   combined gripper that is never changed.
 - pin_arm_a: locate, pin and swage of every hole of modules 0 and 3 and of hole 0 of
-  modules 1, 4 and 6 (holes 0-4, 12-16, 24). pin_arm_b: every hole of modules 2, 5, 7
-  and 8 and holes 1-3 of modules 1, 4 and 6 (holes 5-11, 17-23, 25-35). Each has its
+  modules 4 and 6 (holes 0-3, 12-16, 24). pin_arm_b: every hole of modules 1, 2, 5, 7
+  and 8 and holes 1-3 of modules 4 and 6 (holes 4-11, 17-23, 25-35). Each has its
   own magazine nest. Until run 024 pin_arm_a had all of modules 0, 1, 3, 4 and 6
-  (0-7, 12-19, 24-27) and could not plan modules 4 and 6: see "Run 024" below.
+  (0-7, 12-19, 24-27) and could not plan modules 4 and 6; run 024 gave B holes 1-3 of
+  modules 1, 4 and 6, and run 025 the rest of module 1, so that the arms share no module
+  at stage 1: see "Run 024" and "Run 025" below.
 - bolt_arm: all ten strap bolts.
 - Loads (rows `load`): the module arm 68.4 kg of 210, the pin tool with its magazine
   8.5 kg of 20 on each KR 20, the nutrunner 3.0 kg of 5 on the KR 10.
