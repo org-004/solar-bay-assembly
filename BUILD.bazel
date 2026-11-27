@@ -2168,13 +2168,21 @@ cc_library(
 # Margins of a committed plan the verifier does not report: track ends,
 # carriage gaps on a shared beam, and the module arm's torque bay by bay
 # (src/layout_margins.h, run 051), for plan_layout --margins and
-# torque_demand --all-bays.
+# torque_demand --all-bays; each bay's critical chain (src/layout_critical.h,
+# run 055), for plan_layout --margins.
 cc_library(
     name = "layout_margins",
-    srcs = ["src/layout_margins.cc"],
-    hdrs = ["src/layout_margins.h"],
+    srcs = [
+        "src/layout_critical.cc",
+        "src/layout_margins.cc",
+    ],
+    hdrs = [
+        "src/layout_critical.h",
+        "src/layout_margins.h",
+    ],
     deps = [
         ":layout",
+        ":layout_check",
         ":layout_plan",
     ],
 )
@@ -2246,8 +2254,11 @@ cc_test(
     # tests/path_tries_test.cc: a layout's path_tries (run 042);
     # tests/torque_limit_test.cc: a layout's torque_limit_scale (run 045);
     # tests/layout_margins_test.cc: v19's track ends, carriage gaps and
-    # torque by bay (run 051), about 7 s.
+    # torque by bay (run 051), about 7 s;
+    # tests/layout_critical_test.cc: the critical chains of a small plan and
+    # of the infeed layout's (run 055).
     srcs = [
+        "tests/layout_critical_test.cc",
         "tests/layout_margins_test.cc",
         "tests/path_tries_test.cc",
         "tests/plan_replay_test.cc",
