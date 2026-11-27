@@ -95,8 +95,8 @@ Run 029 added the checker's opt-in `one_posture_per_module` (a field of an arm; 
 --bays 3 --out plans/two_flat_racks_2_pin_arms_balanced.json` exits 0 with the layout of run 029
 unchanged (sha256 `fb44f3a4…`): 381 of 381 moves found (three times bay 0's 127), `complete: true`,
 verified and committed. It is version v12, a `candidate` of the direction of two 20 ft flat racks
-weighed against v11; v10 stays chosen. `tests/plan_replay_staged_test.cc` replays it as the target
-`plan_replay_staged_balanced_test` (`STAGED_LAYOUT`).
+weighed against v11; v10 stays chosen. `tests/plan_replay_staged_test.cc` replays it beside v11's plan: its tests of the
+committed plan are parameterized by the layout's name (`.../Balanced`).
 
 | Bay | tube in to bay out (s) | Stage 1 | Stage 2 | Stage 3 |
 |---|---|---|---|---|
@@ -120,4 +120,10 @@ weighed against v11; v10 stays chosen. `tests/plan_replay_staged_test.cc` replay
 - Planning: `planning_s` 119.1 s and 45,969,551 collision queries (v11: 252.1 s); the whole
   command took 219 s of wall time with a 44 s build. The costliest moves are pin arm B's from pin
   7/2 to locate 7/3 (4,228,547 queries in each bay).
-MARGINS_PLACEHOLDER
+- Tightest margins of the plan (the verifier over the schedule in four pieces): least clearance
+  0.0180 m against 0.015 m (pin arm A's nose to the tube), least arm to arm 0.0188 m, least joint
+  margin 8.64 deg against 5 deg. Pin arm A works at its track end -2.600 m and pin arm B at both
+  of its ends, 0.470 and 2.600 m (0 slack, inside the layout's limits). The scorecard's gates:
+  `check_rows_failed` 0 of 985 rows, `least_clearance_m` 0.018 >= 0.015, `mass_in_transit_kg`
+  3,727 <= 13,608. `plan_replay_staged_test` is now `large`: the balanced layout's checker report takes about
+  125 s in each shard.

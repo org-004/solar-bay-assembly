@@ -4,11 +4,11 @@
 // the waits of a staged bay, and the verifier's rules of staged work on a
 // plan made up here (a transfer short, missing, a step across one, an arm
 // off its wait pose through one, a module set before the stage's magazine
-// is taken and parked). With the committed plan plans/<name>.json, once it
-// exists (the tests of it are skipped until then; STAGED_LAYOUT names the
-// layout, so one target per committed staged plan): the verifier over the
-// whole plan, its schedule sampled in four pieces, and the same tampering
-// on copies of it. The checker's report is made once and shared
+// is taken and parked). With each committed staged plan plans/<name>.json,
+// v11's and the balanced layout's (v12), once it exists (the tests of it are
+// skipped until then): the verifier over the whole plan, its schedule
+// sampled in four pieces, and the same tampering on copies of it; these
+// tests are parameterized by the layout's name. The checker's report is made once and shared
 // (VerifyPlanWithReport).
 
 #include <algorithm>
@@ -16,6 +16,7 @@
 #include <cstdlib>
 #include <fstream>
 #include <functional>
+#include <map>
 #include <memory>
 #include <optional>
 #include <sstream>
@@ -35,16 +36,17 @@
 namespace cell::layout {
 namespace {
 
+// The staged layouts with a committed plan: v11's, which the made-up plans
+// use too, and the balanced one (v12).
+const std::vector<std::string>& StagedNames() {
+  static const std::vector<std::string> names = {"two_flat_racks_2_pin_arms",
+                                                 "two_flat_racks_2_pin_arms_balanced"};
+  return names;
+}
+
 std::string Dir(const char* variable, const char* fallback) {
   const char* dir = std::getenv(variable);
   return dir != nullptr ? dir : fallback;
-}
-
-// The staged layout whose committed plan is replayed: STAGED_LAYOUT names it
-// (BUILD.bazel has one target per committed staged plan), v11's by default.
-const std::string& Name() {
-  static const std::string name = Dir("STAGED_LAYOUT", "two_flat_racks_2_pin_arms");
-  return name;
 }
 
 std::string ReadFile(const std::string& path) {
@@ -63,49 +65,66 @@ struct Committed {
   CheckReport report;
 };
 
-const Committed& TheCommitted() {
-  static const Committed* c = [] {
-    auto* c = new Committed;
-    const std::string layout_path = Dir("LAYOUT_DIR", "layouts") + "/" + Name() + ".json";
-    std::string why;
-    std::optional<Layout> l = LoadLayout(layout_path, &why);
-    if (!l) {
-      c->error = "the layout does not load: " + why;
-      return c;
-    }
-    c->layout = *l;
-    c->sha256 = Sha256OfFile(layout_path);
-    c->report = CheckLayout(c->layout, ModelPaths::FromEnvironment());
-    if (!c->report.pass) {
-      c->error = "the layout does not pass the checker";
-      return c;
-    }
-    c->text = ReadFile(Dir("PLAN_DIR", "plans") + "/" + Name() + ".json");
-    if (c->text.empty()) {
-      c->no_plan = true;
-      return c;
-    }
-    std::optional<Plan> p = PlanFromJson(c->text, &why);
-    if (!p) {
-      c->error = "the plan does not read: " + why;
-      return c;
-    }
-    c->plan = *p;
+Committed* Load(const std::string& name) {
+  auto* c = new Committed;
+  const std::string layout_path = Dir("LAYOUT_DIR", "layouts") + "/" + name + ".json";
+  std::string why;
+  std::optional<Layout> l = LoadLayout(layout_path, &why);
+  if (!l) {
+    c->error = "the layout does not load: " + why;
     return c;
-  }();
+  }
+  c->layout = *l;
+  c->sha256 = Sha256OfFile(layout_path);
+  c->report = CheckLayout(c->layout, ModelPaths::FromEnvironment());
+  if (!c->report.pass) {
+    c->error = "the layout does not pass the checker";
+    return c;
+  }
+  c->text = ReadFile(Dir("PLAN_DIR", "plans") + "/" + name + ".json");
+  if (c->text.empty()) {
+    c->no_plan = true;
+    return c;
+  }
+  std::optional<Plan> p = PlanFromJson(c->text, &why);
+  if (!p) {
+    c->error = "the plan does not read: " + why;
+    return c;
+  }
+  c->plan = *p;
+  return c;
+}
+
+// Each layout and plan is loaded and checked once, when a test first needs it.
+const Committed& TheCommitted(const std::string& name) {
+  static std::map<std::string, const Committed*> loaded;
+  const Committed*& c = loaded[name];
+  if (c == nullptr) c = Load(name);
   return *c;
 }
 
-// The layout and its checker's report.
+// The layout and its checker's report: v11's, or the one named.
 // It names the test's Committed `c`.
-#define NEED_LAYOUT()                     \
-  const Committed& c = TheCommitted();    \
+#define NEED_LAYOUT_OF(name)                   \
+  const Committed& c = TheCommitted(name);     \
   if (!c.error.empty()) FAIL() << c.error;
+#define NEED_LAYOUT() NEED_LAYOUT_OF(StagedNames()[0])
 
 // And the committed plan, skipped while there is none.
-#define NEED_COMMITTED()                                                        \
-  NEED_LAYOUT();                                                               \
-  if (c.no_plan) GTEST_SKIP() << "no committed plan plans/" << Name() << ".json";
+#define NEED_COMMITTED_OF(name) \
+  NEED_LAYOUT_OF(name);         \
+  if (c.no_plan) GTEST_SKIP() << "no committed plan plans/" << (name) << ".json";
+// In a test of CommittedPlan or TamperedPlan: the layout its parameter
+// indexes in StagedNames(). The parameters are indices, not names:
+// ::testing::ValuesIn over strings makes GCC 14.2 crash.
+#define NEED_COMMITTED() NEED_COMMITTED_OF(StagedNames()[GetParam()])
+
+// A layout's index as a test's name.
+std::string Short(int index) { return index == 0 ? "TwoPinArms" : "Balanced"; }
+
+// The indices of StagedNames(), named.
+const auto kStagedIndices = ::testing::Range(0, static_cast<int>(StagedNames().size()));
+std::string ShortName(const ::testing::TestParamInfo<int>& i) { return Short(i.param); }
 
 std::string Faults(const VerifyReport& r) {
   std::string s;
@@ -452,7 +471,9 @@ TEST(MadeUp, TheNextTubeComesInWhileTheBayGoesOutFromTheLastStage) {
 
 // ----------------------------------------------------- the committed plan
 
-TEST(Committed, IsCompleteAndRoundTrips) {
+class CommittedPlan : public ::testing::TestWithParam<int> {};
+
+TEST_P(CommittedPlan, IsCompleteAndRoundTrips) {
   NEED_COMMITTED();
   EXPECT_TRUE(c.plan.complete);
   EXPECT_EQ(c.plan.bays, 3);
@@ -462,7 +483,7 @@ TEST(Committed, IsCompleteAndRoundTrips) {
 
 // AC4: each bay's events in time order are tube_in, clamp, transfer,
 // transfer, release, bay_out; each transfer takes transfer_s.
-TEST(Committed, EachBaysEventsAreInOrder) {
+TEST_P(CommittedPlan, EachBaysEventsAreInOrder) {
   NEED_COMMITTED();
   for (int b = 0; b < c.plan.bays; ++b) {
     std::vector<const BayEvent*> events;
@@ -493,7 +514,7 @@ TEST(Committed, EachBaysEventsAreInOrder) {
   }
 }
 
-TEST(Committed, PassesTheRulesOfTheSteps) {
+TEST_P(CommittedPlan, PassesTheRulesOfTheSteps) {
   NEED_COMMITTED();
   VerifyOptions o = Quick();
   o.edges = true;
@@ -503,19 +524,22 @@ TEST(Committed, PassesTheRulesOfTheSteps) {
 
 // The schedule's samples in pieces of the plan's time, which together cover
 // it: each piece is one test.
+// The parameter is the layout's index in StagedNames() times kPieces plus
+// the piece.
 class Schedule : public ::testing::TestWithParam<int> {};
 constexpr int kPieces = 4;
 
 TEST_P(Schedule, PassesTheVerifier) {
-  NEED_COMMITTED();
+  NEED_COMMITTED_OF(StagedNames()[GetParam() / kPieces]);
+  const int piece = GetParam() % kPieces;
   double end = 0.0;
   for (const ArmPlan& a : c.plan.arms) {
     if (!a.segments.empty()) end = std::max(end, a.segments.back().t1);
   }
   VerifyOptions o;
   o.edges = false;
-  o.from_s = end * GetParam() / kPieces;
-  o.to_s = GetParam() + 1 == kPieces ? -1.0 : end * (GetParam() + 1) / kPieces;
+  o.from_s = end * piece / kPieces;
+  o.to_s = piece + 1 == kPieces ? -1.0 : end * (piece + 1) / kPieces;
   const VerifyReport r = Verify(c, c.plan, o);
   EXPECT_TRUE(r.ok) << r.faults.size() << " faults:\n" << Faults(r);
   const double floor = c.plan.figures.clearance_m - VerifyOptions{}.tolerance_m;
@@ -528,11 +552,19 @@ TEST_P(Schedule, PassesTheVerifier) {
               r.least_joint_margin_deg);
 }
 
-INSTANTIATE_TEST_SUITE_P(Pieces, Schedule, ::testing::Range(0, kPieces));
+INSTANTIATE_TEST_SUITE_P(Pieces, CommittedPlan, kStagedIndices, ShortName);
+INSTANTIATE_TEST_SUITE_P(
+    Pieces, Schedule,
+    ::testing::Range(0, static_cast<int>(StagedNames().size()) * kPieces),
+    [](const ::testing::TestParamInfo<int>& i) {
+      return Short(i.param / kPieces) + "_" + std::to_string(i.param % kPieces);
+    });
 
 // --------------------------------------------------------------- tampering
 
-TEST(Tampered, AStepBeforeItsTransferEndsIsFound) {
+class TamperedPlan : public ::testing::TestWithParam<int> {};
+
+TEST_P(TamperedPlan, AStepBeforeItsTransferEndsIsFound) {
   NEED_COMMITTED();
   Plan p = c.plan;
   BayEvent* e = Transfer(p, 0, 2);
@@ -544,7 +576,7 @@ TEST(Tampered, AStepBeforeItsTransferEndsIsFound) {
       << Faults(r);
 }
 
-TEST(Tampered, AStepAfterItsTransferStartsIsFound) {
+TEST_P(TamperedPlan, AStepAfterItsTransferStartsIsFound) {
   NEED_COMMITTED();
   Plan p = c.plan;
   BayEvent* e = Transfer(p, 1, 3);
@@ -556,7 +588,7 @@ TEST(Tampered, AStepAfterItsTransferStartsIsFound) {
       << Faults(r);
 }
 
-TEST(Tampered, AnArmOffItsWaitPoseDuringATransferIsFound) {
+TEST_P(TamperedPlan, AnArmOffItsWaitPoseDuringATransferIsFound) {
   NEED_COMMITTED();
   Plan p = c.plan;
   const BayEvent* e = Transfer(p, 0, 2);
@@ -584,7 +616,7 @@ TEST(Tampered, AnArmOffItsWaitPoseDuringATransferIsFound) {
   EXPECT_FALSE(s.ok);
 }
 
-TEST(Tampered, AShortTransferIsFound) {
+TEST_P(TamperedPlan, AShortTransferIsFound) {
   NEED_COMMITTED();
   Plan p = c.plan;
   BayEvent* e = Transfer(p, 2, 2);
@@ -596,7 +628,7 @@ TEST(Tampered, AShortTransferIsFound) {
       << Faults(r);
 }
 
-TEST(Tampered, AMissingTransferIsFound) {
+TEST_P(TamperedPlan, AMissingTransferIsFound) {
   NEED_COMMITTED();
   Plan p = c.plan;
   const BayEvent* e = Transfer(p, 1, 3);
@@ -606,7 +638,7 @@ TEST(Tampered, AMissingTransferIsFound) {
   EXPECT_TRUE(AnyFault(r, {"bay 1: the plan has 1 transfers"})) << Faults(r);
 }
 
-TEST(Tampered, AModuleSetBeforeTheMagazineIsFound) {
+TEST_P(TamperedPlan, AModuleSetBeforeTheMagazineIsFound) {
   NEED_COMMITTED();
   Plan p = c.plan;
   // The first module set of bay 0: its start, as the plan says it, put
@@ -625,6 +657,8 @@ TEST(Tampered, AModuleSetBeforeTheMagazineIsFound) {
   const VerifyReport r = Verify(c, p, Quick());
   EXPECT_TRUE(AnyFault(r, {set->what, "before arm", "has taken its pin magazine"})) << Faults(r);
 }
+
+INSTANTIATE_TEST_SUITE_P(Pieces, TamperedPlan, kStagedIndices, ShortName);
 
 }  // namespace
 }  // namespace cell::layout
