@@ -250,3 +250,69 @@ Every committed plan re-plans byte-identically with the verifier's change in: `b
 plans/<name>.json` for all five (`two_flat_racks_2_pin_arms_balanced`, `two_flat_racks_2_pin_arms`,
 `flat_rack_3_pin_arms_ordered`, `flat_rack_3_pin_arms`, `flat_rack_2_pin_arms`). The new layout
 passes all 985 of `check_layout`'s rows.
+
+## Three bays (run 033)
+
+`bazel run --config=opt --config=agent //:plan_layout -- two_flat_racks_2_pin_arms_balanced_ordered
+--bays 3 --out plans/two_flat_racks_2_pin_arms_balanced_ordered.json` exits 0 with the layout of run
+032 unchanged (sha256 `d8b0934c…`): 381 of 381 moves found (three times bay 0's 127),
+`complete: true`, verified and committed. It is version v13, a `candidate` of the direction of two
+20 ft flat racks weighed against v12; v10 stays chosen, v11 and v12 stay candidates.
+`tests/plan_replay_staged_test.cc` replays it beside v11's and v12's plans (`.../BalancedOrdered`).
+
+| Bay | tube in to bay out (s) | Stage 1 | Stage 2 | Stage 3 to bay out |
+|---|---|---|---|---|
+| 0 | 0.00 to 784.30 (784.30) | 209.93 | 190.47 | 218.89 |
+| 1 | 737.11 to 1514.89 (777.78) | 210.10 | 187.63 | 215.04 |
+| 2 | 1467.70 to 2245.13 (777.43) | 210.79 | 187.21 | 214.43 |
+
+- `cycle_s` **748.38 s** ((2245.13 - 0.00) / 3), against v12's 819.11 s (-70.73 s, -8.6 %) and
+  v10's 554.55 s (1.35 times as long). `one_bay_s` 784.30, `interval_s` 730.24. Bay n+1's tube
+  comes in 47.19 s before bay n is out, both times, as in v12.
+- The time model: 599.20 s a bay against 784.30 s planned in bay 0 (+30.9 %; v12 +39.6 %). The
+  modules phase is 416.22 / 409.82 / 410.29 s planned against 292.20 s modelled (v12 493.02 s),
+  the rails 183.66 / 183.53 / 182.72 against 129.89 s, the end 79.42 against 72.10 s; the two
+  transfers are 60 s of every bay.
+- Waits: 116 over the three bays, 5,834.21 s of arm waiting summed (module arm 1,218.3, pin arm A
+  1,302.8, pin arm B 1,383.7, bolt arm 1,929.4), against 134 and 6,629.28 s for v12.
+- Busy (moving or working) over the 2,245.13 s of three bays: module arm 1,026.9 s (46 %), pin
+  arm A 942.3 s (42 %), pin arm B 861.4 s (38 %), bolt arm 315.7 s (14 %).
+- Planning: `planning_s` 145.8 s and 34,980,521 collision queries (v12: 119.1 s and 45,969,551).
+  The costliest moves are pin arm B's from swage 8/0's retreat back to its wait pose (5,469,484
+  queries in each bay).
+
+Bay 1, the middle bay, by `python3 tools/time/account.py
+plans/two_flat_racks_2_pin_arms_balanced_ordered.json --bay 1` (planned 777.78 s, model 599.20 s,
+excess 178.58 s):
+
+| cause along the critical path | s |
+|---|---:|
+| moves on the path slower than modelled (planned - model) | +80.85 |
+| approach and retreat legs on the path (not timed by the model) | +130.14 |
+| waits on the path | +0.00 |
+| serialized work: the path's modelled moves, process and events less the model's bay (564.60 - 599.20) | -34.60 |
+| total (planned - model) | +178.58 |
+
+| arm | moves | moving planned | model, same moves | excess | legs | process | waiting | busy % |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| module_arm | 41 | 151.4 | 113.3 | +38.1 | 93.2 | 95.0 | 438.2 | 44 |
+| pin_arm_a | 40 | 88.8 | 61.2 | +27.6 | 61.3 | 164.0 | 463.7 | 40 |
+| pin_arm_b | 33 | 105.7 | 50.4 | +55.3 | 49.4 | 132.0 | 490.6 | 37 |
+| bolt_arm | 13 | 29.7 | 28.3 | +1.4 | 15.5 | 60.0 | 672.5 | 14 |
+
+The largest remaining share is the approach and retreat legs the time model does not time,
++130.14 s on the path (pin arm A 47.5 s, the module arm 58.9 s, pin arm B 23.8 s), then the moves
+slower than modelled, +80.85 s (pin arm B +42.1 s on the path, its 13.3 s return to its wait pose
+after swage 8/0 among them; pin arm A +24.0 s). The path still runs module arm, then the pin arm
+that holds two of the stage's three modules (A, A, B).
+
+Tightest margins of the plan (the verifier over the schedule in four pieces,
+`plan_replay_staged_test`): least clearance 0.0176 m against 0.015 m (pin arm A's nose to the tube,
+in bays 1 and 2), least arm to arm 0.0188 m, least joint margin 8.64 deg against 5 deg (bay 0).
+Pin arm A waits at its track end -2.600 m, pin arm B at 2.600 m and the bolt arm at 2.500 m (0
+slack, inside the layout's limits); B now uses 0.719 to 2.600 m of its track, no longer its 0.470
+m end. The scorecard's gates: `check_rows_failed` 0 of 985 rows, `least_clearance_m` 0.0176 >=
+0.015, `mass_in_transit_kg` 3,727 <= 13,608. `scorecard_test` computes each committed scorecard in
+a test of its own over three shards (one process took 725.1 s with v13's card, of large's 900 s;
+three shards 276.7 s), and `plan_replay_staged_test` has the eternal timeout (slowest shard 371.4 s:
+each shard makes the checker reports of both one-posture layouts).

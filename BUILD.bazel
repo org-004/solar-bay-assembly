@@ -2229,11 +2229,16 @@ cc_test(
 # bay built in stages (src/layout_plan_stages.h): verified
 # in pieces, and tampered with between its stages. Large: the balanced
 # layout's checker report (one posture per module) takes about 125 s in
-# every shard here, and CI's runner is slower.
+# every shard here, v13's about 180 s, and CI's runner is slower.
 #   bazel test --config=opt //:plan_replay_staged_test
 cc_test(
     name = "plan_replay_staged_test",
     size = "large",
+    # Each shard makes the checker report of both one-posture layouts (v12's
+    # and v13's), about 125 s and 180 s with three tests at once: the slowest
+    # of four shards took 371.4 s here (run 033), so the timeout is eternal's
+    # 3,600 s rather than large's 900 s, for CI's slower runner.
+    timeout = "eternal",
     srcs = ["tests/plan_replay_staged_test.cc"],
     data = LAYOUT_FILES + LAYOUT_MODEL_FILES + PLAN_FILES,
     env = LAYOUT_ENV | {"PLAN_DIR": "plans"},
@@ -2409,7 +2414,9 @@ cc_binary(
 # the counting rules on the committed layouts.
 #   bazel test --config=opt //:scorecard_test
 # Size large: 126 s on the engineer's machine (run 022), about 233 s on CI at 1.84x, more than two thirds of medium's 300 s;
-# 184.8 s here with the balanced layout's scorecard (run 030), about 340 s on CI.
+# 184.8 s here with the balanced layout's scorecard (run 030), about 340 s on CI;
+# 725.1 s here in one process with v13's (run 033), so the committed scorecards are one
+# test per plan (CommittedFile.IsWhatTheProgramComputes/<name>) over three shards.
 cc_test(
     name = "scorecard_test",
     size = "large",
@@ -2420,6 +2427,7 @@ cc_test(
         "SCORES_DIR": "scores",
         "PHYSICS_DIR": "physics",
     },
+    shard_count = 3,
     deps = [
         ":layout",
         ":layout_model",
