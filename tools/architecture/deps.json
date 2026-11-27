@@ -129,10 +129,10 @@
   ],
 
   "build_attributes": {
-    "about": "The attributes that a cc_library, cc_binary, cc_test or alias of BUILD.bazel may use: exactly those it uses at the base commit. deps.py fails on any other (copts, includes, textual_hdrs, implementation_deps, defines, local_defines, features, include_prefix, strip_include_prefix ...), because it reads only srcs, hdrs, deps and actual and a flag or a define could bring in a header it does not see. A rule of another kind may not list a file under src/ or tests/ in srcs or hdrs.",
+    "about": "The attributes that a cc_library, cc_binary, cc_test or alias of BUILD.bazel may use: exactly those it uses at the base commit. deps.py fails on any other (copts, includes, textual_hdrs, implementation_deps, defines, local_defines, features, include_prefix, strip_include_prefix ...), because it reads only srcs, hdrs, deps and actual and a flag or a define could bring in a header it does not see. timeout was added for cc_test in run 033 (plan_replay_staged_test outgrew large's 900 s on CI's runner); like size it brings in no header. A rule of another kind may not list a file under src/ or tests/ in srcs or hdrs.",
     "cc_library": ["name", "srcs", "hdrs", "deps"],
     "cc_binary": ["name", "srcs", "deps", "data", "args", "env"],
-    "cc_test": ["name", "srcs", "deps", "data", "args", "env", "size", "shard_count", "tags"],
+    "cc_test": ["name", "srcs", "deps", "data", "args", "env", "size", "shard_count", "tags", "timeout"],
     "alias": ["name", "actual"]
   },
 
