@@ -73,11 +73,11 @@ Who does what:
 
 - module_arm: rail_take, rail_set, module_take and module_set, every point, with one
   combined gripper that is never changed.
-- pin_arm_a: locate, pin and swage of every hole of modules 0, 1 and 3 and of hole 0
-  of modules 4 and 6 (holes 0-7, 12-16, 24). pin_arm_b: every hole of modules 2, 5, 7
-  and 8 and holes 1-3 of modules 4 and 6 (holes 8-11, 17-23, 25-35). Each has its own
-  magazine nest. Until run 024 pin_arm_a had all of modules 4 and 6 (0-7, 12-19, 24-27)
-  and could not plan them: see "What blocked the plan" below.
+- pin_arm_a: locate, pin and swage of every hole of modules 0 and 3 and of hole 0 of
+  modules 1, 4 and 6 (holes 0-4, 12-16, 24). pin_arm_b: every hole of modules 2, 5, 7
+  and 8 and holes 1-3 of modules 1, 4 and 6 (holes 5-11, 17-23, 25-35). Each has its
+  own magazine nest. Until run 024 pin_arm_a had all of modules 0, 1, 3, 4 and 6
+  (0-7, 12-19, 24-27) and could not plan modules 4 and 6: see "Run 024" below.
 - bolt_arm: all ten strap bolts.
 - Loads (rows `load`): the module arm 68.4 kg of 210, the pin tool with its magazine
   8.5 kg of 20 on each KR 20, the nutrunner 3.0 kg of 5 on the KR 10.
@@ -326,6 +326,29 @@ What would fix it, each for a later run:
 - the layout's `work` gives these holes to pin arm B, or places or tracks pin arm A
   differently;
 - a much larger search for these moves.
+
+**Run 024: what the layout's `work` and tracks change (on branch
+`org/024-pin-arm-a-s-four-blocked`, not on `main`).** Probes of bay 0 with
+`--budgets 5000,40000,160000`:
+
+- Holes 0 and 2 of a module are one pose family of pin arm A, holes 1 and 3 the other;
+  at the place of modules 4 and 6 every move of A between the families is not found:
+  2 to 3 (steps 93, 99, 135, 141 at `main`), 2 to 1 (holes 19 and 27 to pin arm B) and
+  0 to 1 (holes 18, 19, 26, 27 to B), each at 160,000 and without the next modules.
+- Pin arm B's moves between the families there (hole 2 to 3 and back) are found at
+  5,000 to 40,000 iterations, but B does not reach hole 1: 0.165 m short with its track
+  at its end, 0.26 m.
+- With the line of the two pin tracks divided 0.6 m toward -Y (A -2.6..-0.86, B
+  -0.34..2.6, beams to match) and holes 1-3 of modules 4 and 6 given to B, the checker
+  passes (985 rows) and a whole bay planned 123 of 125 moves in 1,874 s: every move of
+  stages 2 and 3 found, the four of `main` among them. The two not found were A's hole 2
+  to 3 moves of module 1 at stage 1 (steps 36 and 42), which need A's track up to
+  -0.26.
+- Giving holes 1-3 of module 1 to B as well (A `0-4,12-16,24`, B `5-11,17-23,25-35`,
+  the branch's layout): the checker passes and stage 1 (steps 1-62) finds 46 of 46
+  moves in 260 s, but its schedule is reported blocked ("no arm's next step may start").
+  Whether that comes of the partial plan or of the schedule itself, and a whole bay with
+  this layout, are for the next run.
 
 One staged bay took 29 minutes to plan with three budgets, so a plan of three bays would
 take more than an hour and a half.

@@ -325,7 +325,7 @@
     {
       "name": "pin_arm_a",
       "model": "kr20_r1810_2",
-      "does": "Stands on rack a on the tube's -X side, 1.25 m from its axis and 1.23 m below it, and locates, pins and swages from below every hole of modules 0, 1 and 3 and hole 0 of modules 4 and 6 (points 0-7, 12-16, 24); holes 1-3 of modules 4 and 6 are pin arm B's, because this arm cannot swing between the two pose families of one module's holes there once the module two places toward -Y is set (run 024), reaching in under the modules; one tool, never changed. The tube stands this high so that the arm's wrist is about 0.6 m above its shoulder at a hole and its elbow stays under the modules. Its base is turned 90 degrees so that its long base lies along the track inside rack a. It waits folded low with its elbow out over the rack's -X side, clear of the bay as it moves between stages and out, and is stowed folded along the track.",
+      "does": "Stands on rack a on the tube's -X side, 1.25 m from its axis and 1.23 m below it, and locates, pins and swages from below every hole of modules 0 and 3 and hole 0 of modules 1, 4 and 6 (points 0-4, 12-16, 24); holes 1-3 of modules 1, 4 and 6 are pin arm B's, because this arm cannot swing between the two pose families of one module's holes there once the module two places toward -Y is set (run 024), reaching in under the modules; one tool, never changed. The tube stands this high so that the arm's wrist is about 0.6 m above its shoulder at a hole and its elbow stays under the modules. Its base is turned 90 degrees so that its long base lies along the track inside rack a. It waits folded low with its elbow out over the rack's -X side, clear of the bay as it moves between stages and out, and is stowed folded along the track.",
       "base_pos": [
         -2.1,
         0.0,
@@ -455,7 +455,7 @@
     {
       "name": "pin_arm_b",
       "model": "kr20_r1810_2",
-      "does": "Stands on rack a on the tube's -X side, 1.25 m from its axis and 1.23 m below it, and locates, pins and swages from below every hole of modules 2, 5, 7 and 8 and holes 1-3 of modules 4 and 6 (points 8-11, 17-23, 25-35); its track starts 0.34 m toward -Y of the racks' middle so that it reaches hole 1 of those modules (run 024), reaching in under the modules; one tool, never changed. The tube stands this high so that the arm's wrist is about 0.6 m above its shoulder at a hole and its elbow stays under the modules. Its base is turned 90 degrees so that its long base lies along the track inside rack a. It waits folded low with its elbow out over the rack's -X side, clear of the bay as it moves between stages and out, and is stowed folded along the track.",
+      "does": "Stands on rack a on the tube's -X side, 1.25 m from its axis and 1.23 m below it, and locates, pins and swages from below every hole of modules 2, 5, 7 and 8 and holes 1-3 of modules 1, 4 and 6 (points 5-11, 17-23, 25-35); its track starts 0.34 m toward -Y of the racks' middle so that it reaches hole 1 of those modules (run 024), reaching in under the modules; one tool, never changed. The tube stands this high so that the arm's wrist is about 0.6 m above its shoulder at a hole and its elbow stays under the modules. Its base is turned 90 degrees so that its long base lies along the track inside rack a. It waits folded low with its elbow out over the rack's -X side, clear of the bay as it moves between stages and out, and is stowed folded along the track.",
       "base_pos": [
         -2.1,
         0.0,
@@ -903,7 +903,7 @@
       "kind": "locate",
       "arm": "pin_arm_a",
       "tool": "pin_tool",
-      "points": "0-7,12-16,24",
+      "points": "0-4,12-16,24",
       "process_s": 3.0,
       "note": "Tip up, once round the slot at most, nose in, nose out.",
       "basis": "ours"
@@ -912,7 +912,7 @@
       "kind": "locate",
       "arm": "pin_arm_b",
       "tool": "pin_tool",
-      "points": "8-11,17-23,25-35",
+      "points": "5-11,17-23,25-35",
       "process_s": 3.0,
       "note": "Tip up, once round the slot at most, nose in, nose out.",
       "basis": "ours"
@@ -921,7 +921,7 @@
       "kind": "pin",
       "arm": "pin_arm_a",
       "tool": "pin_tool",
-      "points": "0-7,12-16,24",
+      "points": "0-4,12-16,24",
       "process_s": 2.0,
       "note": "The finger puts the pin in from above.",
       "basis": "ours"
@@ -930,7 +930,7 @@
       "kind": "pin",
       "arm": "pin_arm_b",
       "tool": "pin_tool",
-      "points": "8-11,17-23,25-35",
+      "points": "5-11,17-23,25-35",
       "process_s": 2.0,
       "note": "The finger puts the pin in from above.",
       "basis": "ours"
@@ -939,7 +939,7 @@
       "kind": "swage",
       "arm": "pin_arm_a",
       "tool": "pin_tool",
-      "points": "0-7,12-16,24",
+      "points": "0-4,12-16,24",
       "process_s": 3.0,
       "note": "Collar on, swaged.",
       "basis": "ours"
@@ -948,7 +948,7 @@
       "kind": "swage",
       "arm": "pin_arm_b",
       "tool": "pin_tool",
-      "points": "8-11,17-23,25-35",
+      "points": "5-11,17-23,25-35",
       "process_s": 3.0,
       "note": "Collar on, swaged.",
       "basis": "ours"
