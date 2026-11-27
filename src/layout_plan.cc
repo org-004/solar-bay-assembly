@@ -552,7 +552,7 @@ bool Planner::Assemble() {
     }
     const ArmMotion& m = motions_[a];
     const double ta = LegDuration(approach, p->approach_length_m, m, f_);
-    const double tr = LegDuration(retreat, p->retreat_length_m, m, f_);
+    const double tr = RetreatDuration(retreat, p->retreat_length_m, m, f_);
     if (ta < 0.0 || tr < 0.0) {
       Fault(Fmt("step %d (%s): a leg cannot be timed", st.number,
                 st.what.c_str()));
@@ -1551,6 +1551,10 @@ PlanResult Planner::Run(bool plan, bool verify) {
   if (options_.budgets.empty() && layout_.staging) f_.budgets.push_back(kStagedLastBudget);
   f_.clearance_m = report_.clearance_m;
   f_.joint_margin_deg = report_.joint_margin_deg;
+  if (layout_.retreat_legs) {
+    f_.retreat_speed = layout_.retreat_legs->speed;
+    f_.retreat_accel = layout_.retreat_legs->accel;
+  }
   for (int a = 0; a < scene_->ArmCount(); ++a) {
     motions_.push_back(MotionOf(*scene_, a, f_));
   }

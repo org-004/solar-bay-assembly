@@ -16,15 +16,18 @@
 <text x="66" y="48.00" text-anchor="end" fill="#444444">2000</text>
 <line x1="72" y1="244" x2="616" y2="244" stroke="#444444"/>
 <text transform="translate(16 144.00) rotate(-90)" text-anchor="middle" fill="#444444">cycle time (s per bay)</text>
-<text x="162.67" y="260" text-anchor="middle" fill="#444444">v11</text>
-<text x="344.00" y="260" text-anchor="middle" fill="#444444">v12</text>
-<text x="525.33" y="260" text-anchor="middle" fill="#444444">v13</text>
-<circle cx="162.67" cy="147.03" r="5" fill="#9aa5b1" stroke="#9aa5b1" stroke-width="2"/>
-<text x="162.67" y="137.03" text-anchor="middle" fill="#222222">969.67</text>
-<circle cx="344.00" cy="162.09" r="5" fill="#9aa5b1" stroke="#9aa5b1" stroke-width="2"/>
-<text x="344.00" y="152.09" text-anchor="middle" fill="#222222">819.11</text>
-<circle cx="525.33" cy="169.16" r="5" fill="#9aa5b1" stroke="#9aa5b1" stroke-width="2"/>
-<text x="525.33" y="159.16" text-anchor="middle" fill="#222222">748.38</text>
+<text x="140.00" y="260" text-anchor="middle" fill="#444444">v11</text>
+<text x="276.00" y="260" text-anchor="middle" fill="#444444">v12</text>
+<text x="412.00" y="260" text-anchor="middle" fill="#444444">v13</text>
+<text x="548.00" y="260" text-anchor="middle" fill="#444444">v14</text>
+<circle cx="140.00" cy="147.03" r="5" fill="#9aa5b1" stroke="#9aa5b1" stroke-width="2"/>
+<text x="140.00" y="137.03" text-anchor="middle" fill="#222222">969.67</text>
+<circle cx="276.00" cy="162.09" r="5" fill="#9aa5b1" stroke="#9aa5b1" stroke-width="2"/>
+<text x="276.00" y="152.09" text-anchor="middle" fill="#222222">819.11</text>
+<circle cx="412.00" cy="169.16" r="5" fill="#9aa5b1" stroke="#9aa5b1" stroke-width="2"/>
+<text x="412.00" y="159.16" text-anchor="middle" fill="#222222">748.38</text>
+<circle cx="548.00" cy="172.26" r="5" fill="#9aa5b1" stroke="#9aa5b1" stroke-width="2"/>
+<text x="548.00" y="162.26" text-anchor="middle" fill="#222222">717.37</text>
 <circle cx="72" cy="284" r="4" fill="#1f5fa8" stroke="#1f5fa8" stroke-width="2"/>
 <text x="82" y="288" fill="#444444">planned</text>
 <rect x="158" y="280" width="8" height="8" fill="#1f5fa8" stroke="#1f5fa8" stroke-width="2"/>

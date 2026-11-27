@@ -87,6 +87,14 @@ std::string SegmentText(const Segment& g) {
   return s + "]}";
 }
 
+// A plan's retreat figures, only when they are not the approach's: a plan of
+// a layout without retreat_legs is written as before they were figures.
+std::string RetreatText(const PlanFigures& f) {
+  if (f.retreat_speed == f.leg_speed && f.retreat_accel == f.leg_accel) return "";
+  return ",\"retreat_speed\":" + Fig(f.retreat_speed) +
+         ",\"retreat_accel\":" + Fig(f.retreat_accel);
+}
+
 std::string FiguresText(const PlanFigures& f) {
   return "{\"clearance_m\":" + Fig(f.clearance_m) +
          ",\"joint_margin_deg\":" + Fig(f.joint_margin_deg) +
@@ -96,6 +104,7 @@ std::string FiguresText(const PlanFigures& f) {
          ",\"settle_s\":" + Fig(f.settle_s) +
          ",\"leg_speed\":" + Fig(f.leg_speed) +
          ",\"leg_accel\":" + Fig(f.leg_accel) +
+         RetreatText(f) +
          ",\"max_deviation\":" + Fig(f.max_deviation) +
          ",\"edge_resolution\":" + Fig(f.edge_resolution) +
          ",\"shorten_tries\":" + std::to_string(f.shorten_tries) +
@@ -217,6 +226,11 @@ std::optional<Plan> PlanFromJson(const std::string& text, std::string* error) {
     p.figures.settle_s = Get<double>(f, "settle_s");
     p.figures.leg_speed = Get<double>(f, "leg_speed");
     p.figures.leg_accel = Get<double>(f, "leg_accel");
+    // Plans without retreat figures time a retreat as an approach.
+    p.figures.retreat_speed =
+        f.contains("retreat_speed") ? Get<double>(f, "retreat_speed") : p.figures.leg_speed;
+    p.figures.retreat_accel =
+        f.contains("retreat_accel") ? Get<double>(f, "retreat_accel") : p.figures.leg_accel;
     p.figures.max_deviation = Get<double>(f, "max_deviation");
     p.figures.edge_resolution = Get<double>(f, "edge_resolution");
     p.figures.shorten_tries = Get<int>(f, "shorten_tries");

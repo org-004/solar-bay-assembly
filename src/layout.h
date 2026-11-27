@@ -444,6 +444,19 @@ struct WorkOrder {
   std::string basis;
 };
 
+// "retreat_legs" (optional, flat rack bases only): the figures of a leg that
+// leaves contact into free air (a retreat), in place of the plan's leg_speed
+// and leg_accel, which approaches keep (src/layout_plan.h, PlanFigures).
+// At most kMaxRetreatSpeed and kMaxRetreatAccel; without it a retreat runs at
+// the approach's figures.
+inline constexpr double kMaxRetreatSpeed = 0.5;  // m/s of the working point.
+inline constexpr double kMaxRetreatAccel = 3.0;  // m/s^2 of the working point.
+struct RetreatLegs {
+  double speed = 0.0;
+  double accel = 0.0;
+  std::string basis;
+};
+
 struct Layout {
   std::string name;            // The file's stem.
   std::string title;
@@ -474,6 +487,7 @@ struct Layout {
   std::vector<Approach> approaches;   // Only with base "flat_rack"; one a kind.
   // Optional on a flat rack base; without it one stage, the whole bay at "tube".
   std::optional<Staging> staging;
+  std::optional<RetreatLegs> retreat_legs;  // Optional on a flat rack base.
 };
 
 // Reads layouts/<name>.json. Returns nothing and sets *error on any fault.

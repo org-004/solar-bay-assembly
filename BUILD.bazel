@@ -2192,7 +2192,11 @@ cc_test(
 cc_test(
     name = "plan_replay_test",
     size = "medium",
-    srcs = ["tests/plan_replay_test.cc"],
+    # tests/retreat_legs_test.cc: a layout's retreat_legs (run 036).
+    srcs = [
+        "tests/plan_replay_test.cc",
+        "tests/retreat_legs_test.cc",
+    ],
     data = LAYOUT_FILES + LAYOUT_MODEL_FILES + PLAN_FILES,
     env = LAYOUT_ENV | {"PLAN_DIR": "plans"},
     deps = [

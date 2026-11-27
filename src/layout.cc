@@ -664,7 +664,7 @@ Layout ReadLayout(const Json& j) {
             two_racks ? "two_flat_racks" : "flat_rack", "margins", "ports", "approaches", "tube", "holder",
             "arms", "pallets", "stocks", "strap_bolts_from", "tube_in",
             "bay_out", "work", "rail_order", "items"},
-           {"order", "staging"});
+           {"order", "staging", "retreat_legs"});
   } else {
     throw LayoutError("base", "is \"container\", \"flat_rack\" or "
                               "\"two_flat_racks\", not \"" +
@@ -794,6 +794,22 @@ Layout ReadLayout(const Json& j) {
   Unique(l.items, "items", "item");
   if (!flat_rack) return l;
 
+  if (j.contains("retreat_legs")) {
+    const Json& r = j.at("retreat_legs");
+    const std::string rp = "retreat_legs";
+    Fields(r, rp, {"speed", "accel", "basis"});
+    RetreatLegs legs;
+    legs.speed = Number(FIELD(r, rp, "speed"));
+    legs.accel = Number(FIELD(r, rp, "accel"));
+    legs.basis = String(FIELD(r, rp, "basis"));
+    if (!(legs.speed > 0.0 && legs.speed <= kMaxRetreatSpeed)) {
+      throw LayoutError(Sub(rp, "speed"), "is not in (0, 0.5] m/s");
+    }
+    if (!(legs.accel > 0.0 && legs.accel <= kMaxRetreatAccel)) {
+      throw LayoutError(Sub(rp, "accel"), "is not in (0, 3.0] m/s^2");
+    }
+    l.retreat_legs = legs;
+  }
   if (j.contains("order")) {
     const Json& o = j.at("order");
     const std::string op = "order";

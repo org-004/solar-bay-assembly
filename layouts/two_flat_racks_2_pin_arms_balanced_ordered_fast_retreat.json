@@ -1,0 +1,1576 @@
+{
+  "name": "two_flat_racks_2_pin_arms_balanced_ordered_fast_retreat",
+  "title": "Two 20 ft flat racks, the pin arms balanced, in an order of work: as two_flat_racks_2_pin_arms_balanced, but each module is taken once its own two rails are bolted, the third stage sets pin arm B's modules 7 and 8 before pin arm A's 6, and pin arm B too works one posture per module; its retreats, legs out of contact into free air, run at 0.5 m/s and 3.0 m/s^2",
+  "summary": "The cell stands on two 20 ft flat racks set down side by side, long sides adjacent, 25 mm apart (0 to 50 mm, and +/-25 mm along). Rack a (-X) carries the tube's holder, two stands at its +Y end, and the arms below the tube: two KUKA KR 20 R1810-2 on one line of track, one for the -Y part and one for the +Y part of the work (the line divided 0.21 m toward +Y of the middle, so that pin arm A stands under holes 2 and 3 of the modules at the second place), on the tube's -X side, which locate, pin and swage the modules from below, and a KUKA KR 10 R1100-2 on a track on the tube's +X side, which drives the strap bolts. Rack b (+X) carries one KUKA KR 210 R2700-2 on a raised track, which takes the rails and the modules from the units at the +X side and sets them on the tube across the gap. Every arm is a KUKA. The 10.6 m tube is longer than a rack, so the bay is built in three stages: at each stage stand 1 grips the stretch just beyond the last rail of the stage (4, 7, 9), so no rail ever passes a stand; the infeed unit at the +Y end and the outfeed unit at the -Y end move the tube 3.432 m and then 2.288 m toward -Y, and pin its angle: the infeed at the neck while the neck is beyond the +Y end, the outfeed at the plain end at the last stage. Stages: rails 0-3 and modules 0-2, rails 4-6 and modules 3-5, rails 7-9 and modules 6-8, all set at the same few places along Y. A bare tube comes in over the +Y end; a finished bay leaves over the -Y end. Differs from two_flat_racks_2_pin_arms in the pin arms' tracks and their share of the work (run 028) and in pin arm A's one posture per module and its wait pose (run 029): one bay plans whole, 127 of 127 moves, 852.84 s (docs/two-flat-racks-balanced.md). Differs from two_flat_racks_2_pin_arms_balanced (run 032, docs/two-flat-racks-balanced.md, \"Where the time goes (run 032)\") in its order of work and in pin arm B's one posture per module. Differs from two_flat_racks_2_pin_arms_balanced_ordered (v13, run 033) only in retreat_legs (run 036): a leg that leaves contact into free air runs at up to 0.5 m/s and 3.0 m/s^2 of the working point, where an approach, which ends in contact or insertion, keeps the plan's leg_speed 0.25 m/s and leg_accel 1.0 m/s^2.",
+  "small_arms_stand": "below",
+  "base": "two_flat_racks",
+  "two_flat_racks": {
+    "end_frames": "taken_off",
+    "gap_m": 0.025,
+    "gap_lo_m": 0.0,
+    "gap_hi_m": 0.05,
+    "misalign_m": 0.025,
+    "note": "Both bases alone while they work: end frames taken off or dropped, no post, side or roof. Set down 25 mm apart, 0 to 50 mm, and rack b up to 25 mm either way along Y; nothing is fixed across the gap. The arms on rack a and the holder on rack a work on the tube; the module arm on rack b reaches over the gap to it."
+  },
+  "margins": {
+    "clearance_m": 0.015,
+    "joint_margin_deg": 5.0,
+    "reason": "Clearance 0.015 m, half again over the floor of 0.010 m, as on the 40 ft layouts: the tightest pose that is not near by design, the pin tool's nose beside the next module's flange (stage 1: locate 2/0 and the same holes' pin and swage), has 0.0187 m, and with rack b at the ends of its tolerance the least row is 0.0172 m (stage 2: module_set 3 approach, the gap at 0 mm and rack b 25 mm toward +Y), so 0.020 m would not pass. Joint margin at the floor of 5 degrees: the least at a work pose is 17.5 degrees (stage 3: module_take 35, the module arm's joint 2), the least of the wait poses 10.0 degrees (the module arm's), and the least of all 8.6 degrees, along the retreat leg of stage 1: module_take 0 (the module arm's joint 3).",
+    "basis": "ours"
+  },
+  "tube": {
+    "axis_x": -0.85,
+    "axis_z": 1.75,
+    "plain_end_y": -2.474
+  },
+  "holder": {
+    "does": "Two stands on rack a at the cell's +Y end, under the tube's axis at y = 1.690 and 2.834 (one module pitch apart), carry the tube in saddles that grip its lower half on a stretch between rails: stretches 4 and 5 at stage 1, 7 and 8 at stage 2, 9 at stage 3 (stand 2 is then beyond the neck). They stand there because a box that grips the tube within its radius plus the clearance of the axis cannot let a rail pass (the strap and the rail's feet surround the tube), so the stands stand where no rail passes in any transfer: beyond the last rail set at each stage. The saddles let go while the units move the tube and close again. The holder does not pin the tube's angle: the infeed and the outfeed units do (staging). Columns 0.16 x 0.16, saddles 0.22 x 0.30 x 0.04 with cheeks, as on the 40 ft layouts, taller for the higher tube.",
+    "grips": [
+      {
+        "hold": 4,
+        "length": 0.3
+      },
+      {
+        "hold": 5,
+        "length": 0.3
+      }
+    ],
+    "angle_pin_hold": 10,
+    "resists_nm": 150.0,
+    "holds_within_deg": 0.8,
+    "clamp_s": 5.0,
+    "release_s": 5.0,
+    "mass_kg": 180.0,
+    "boxes": [
+      {
+        "name": "stand_1_column",
+        "size": [
+          0.16,
+          0.16,
+          1.2775
+        ],
+        "pos": [
+          -0.85,
+          1.69,
+          1.0088
+        ]
+      },
+      {
+        "name": "stand_1_saddle",
+        "size": [
+          0.22,
+          0.3,
+          0.04
+        ],
+        "pos": [
+          -0.85,
+          1.69,
+          1.6675
+        ]
+      },
+      {
+        "name": "stand_1_cheek_neg",
+        "size": [
+          0.03,
+          0.3,
+          0.065
+        ],
+        "pos": [
+          -0.93,
+          1.69,
+          1.72
+        ]
+      },
+      {
+        "name": "stand_1_cheek_pos",
+        "size": [
+          0.03,
+          0.3,
+          0.065
+        ],
+        "pos": [
+          -0.77,
+          1.69,
+          1.72
+        ]
+      },
+      {
+        "name": "stand_2_column",
+        "size": [
+          0.16,
+          0.16,
+          1.2775
+        ],
+        "pos": [
+          -0.85,
+          2.834,
+          1.0088
+        ]
+      },
+      {
+        "name": "stand_2_saddle",
+        "size": [
+          0.22,
+          0.3,
+          0.04
+        ],
+        "pos": [
+          -0.85,
+          2.834,
+          1.6675
+        ]
+      },
+      {
+        "name": "stand_2_cheek_neg",
+        "size": [
+          0.03,
+          0.3,
+          0.065
+        ],
+        "pos": [
+          -0.93,
+          2.834,
+          1.72
+        ]
+      },
+      {
+        "name": "stand_2_cheek_pos",
+        "size": [
+          0.03,
+          0.3,
+          0.065
+        ],
+        "pos": [
+          -0.77,
+          2.834,
+          1.72
+        ]
+      }
+    ],
+    "travels_inside": true,
+    "basis": "ours",
+    "source": "Designed here: envelope, mass and what it resists; docs/bay-hardware.md, Holding the tube, gives the stretches and the 150 N m.",
+    "rack": "a"
+  },
+  "arms": [
+    {
+      "name": "module_arm",
+      "model": "kr210_r2700_2",
+      "does": "Stands on rack b and reaches across the gap: takes each rail from the rail rack and sets it on the tube, then takes modules off the pallet and sets them on their rails from straight opposite, with one gripper for both. Its base is 1.85 m across from the tube's axis and 0.65 m below it, and the pallet 2.15 m beyond it, as on the 40 ft layouts, so its poses at the tube and the pallet are theirs.",
+      "base_pos": [
+        1.0,
+        0.0,
+        1.1
+      ],
+      "base_rpy_deg": [
+        0,
+        0,
+        90
+      ],
+      "track": {
+        "direction": [
+          0,
+          1,
+          0
+        ],
+        "lo": -2.37,
+        "hi": 2.37,
+        "speed": 1.5,
+        "accel": 1.5,
+        "mass_kg": 1600.0,
+        "beam": {
+          "name": "beam",
+          "size": [
+            0.86,
+            6.04,
+            0.68
+          ],
+          "pos": [
+            1.0,
+            0.0,
+            0.71
+          ]
+        },
+        "carriage": {
+          "name": "carriage",
+          "size": [
+            1.3,
+            0.86,
+            0.05
+          ],
+          "pos": [
+            0.0,
+            0.0,
+            -0.025
+          ]
+        },
+        "basis": "ours",
+        "source": "Designed here as an envelope; a floor-mounted linear unit of the KL 4000 kind on a raised beam 0.68 m high standing on the deck of rack b, so that the base stands 0.65 m below the tube's axis as on the 40 ft layouts."
+      },
+      "tools": [
+        {
+          "name": "combined_gripper",
+          "does": "Holds a module by its glass with suction cups, or a rail by its top with a clamp that sits between the cups and draws back behind them.",
+          "mass_kg": 36.0,
+          "length": 0.3,
+          "boxes": [
+            {
+              "name": "standoff",
+              "size": [
+                0.12,
+                0.12,
+                0.24
+              ],
+              "pos": [
+                0,
+                0,
+                0.12
+              ]
+            },
+            {
+              "name": "plate",
+              "size": [
+                1.2,
+                0.6,
+                0.04
+              ],
+              "pos": [
+                0,
+                0,
+                0.26
+              ]
+            },
+            {
+              "name": "cups",
+              "size": [
+                1.0,
+                0.44,
+                0.02
+              ],
+              "pos": [
+                0,
+                0,
+                0.289
+              ]
+            }
+          ],
+          "waits_at": [
+            0,
+            0,
+            0
+          ],
+          "wait_size": [
+            0,
+            0,
+            0
+          ],
+          "basis": "ours",
+          "source": "Designed here: envelope and mass."
+        }
+      ],
+      "first_tool": "combined_gripper",
+      "stops": {
+        "module_set": [
+          -1.742,
+          -0.598,
+          0.546,
+          -1.742,
+          -0.598,
+          0.546,
+          -0.598,
+          0.546,
+          1.69
+        ],
+        "module_take": [
+          0.0
+        ],
+        "rail_take": [
+          1.75
+        ],
+        "rail_set": [
+          -2.314,
+          -1.17,
+          -0.026,
+          1.118,
+          -1.17,
+          -0.026,
+          1.118,
+          -0.026,
+          1.118,
+          2.262
+        ]
+      },
+      "wait_joints_deg": [
+        170,
+        -130,
+        150,
+        0,
+        15,
+        0
+      ],
+      "wait_track": 0.0,
+      "stow_joints_deg": [
+        180,
+        -140,
+        150,
+        0,
+        15,
+        0
+      ],
+      "stow_track": 0.0,
+      "stow_tool": "combined_gripper",
+      "tool_change_s": 0.0,
+      "rack": "b"
+    },
+    {
+      "name": "pin_arm_a",
+      "model": "kr20_r1810_2",
+      "does": "Stands on rack a on the tube's -X side, 1.25 m from its axis and 1.23 m below it, and locates, pins and swages from below every hole of modules 0, 1, 3, 4 and 6 (points 0-7, 12-19, 24-27), the modules at the first two places along Y, so that no module's holes are shared with pin arm B (run 025); its track runs to -0.05 m so that it stands straight under holes 2 and 3 of the modules at the second place. Its holes of a module are given one posture (one_posture_per_module, run 029): at the second place it reaches them from behind, its base 0.75 to 1.35 m toward -Y of the hole, so it never swings between the two pose families of holes 0 and 2 and of holes 1 and 3 that stood in the way at stages 2 and 3 (runs 022 and 028). Reaching in under the modules; one tool, never changed. The tube stands this high so that the arm's wrist is about 0.6 m above its shoulder at a hole and its elbow stays under the modules. Its base is turned 90 degrees so that its long base lies along the track inside rack a. It waits folded low in the same posture, its upper arm turned toward +Y (run 029: from the old wait, folded over the rack's -X side, the moves to and from its holes at stages 2 and 3 were not found), clear of the bay as it moves between stages and out, and is stowed folded along the track.",
+      "base_pos": [
+        -2.1,
+        0.0,
+        0.52
+      ],
+      "base_rpy_deg": [
+        0,
+        0,
+        90
+      ],
+      "track": {
+        "direction": [
+          0,
+          1,
+          0
+        ],
+        "lo": -2.6,
+        "hi": -0.05,
+        "speed": 1.5,
+        "accel": 2.0,
+        "mass_kg": 60.0,
+        "beam": {
+          "name": "beam",
+          "size": [
+            0.3,
+            3.05,
+            0.1
+          ],
+          "pos": [
+            -2.1,
+            -1.325,
+            0.42
+          ]
+        },
+        "carriage": {
+          "name": "carriage",
+          "size": [
+            0.5,
+            0.5,
+            0.05
+          ],
+          "pos": [
+            0.0,
+            0.0,
+            -0.025
+          ]
+        },
+        "basis": "ours",
+        "source": "Designed here as an envelope; a belt-driven floor axis standing on the deck of rack a, one of two on one line, each over its part of the work. Run 028: runs to -0.05 m."
+      },
+      "tools": [
+        {
+          "name": "pin_tool",
+          "does": "Carries the locating nose, the finger that puts the pin in from above and the swaging nose, on the hole's axis from below.",
+          "mass_kg": 8.0,
+          "length": 0.25,
+          "boxes": [
+            {
+              "name": "body",
+              "size": [
+                0.09,
+                0.09,
+                0.155
+              ],
+              "pos": [
+                0,
+                0,
+                0.0775
+              ]
+            },
+            {
+              "name": "nose",
+              "size": [
+                0.016,
+                0.016,
+                0.095
+              ],
+              "pos": [
+                0,
+                0,
+                0.2025
+              ]
+            }
+          ],
+          "waits_at": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "wait_size": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "basis": "ours",
+          "source": "Designed here: envelope and mass; the nose, a box 16 mm square, is inside the 13 mm free radius of Fastenings."
+        }
+      ],
+      "first_tool": "pin_tool",
+      "stops": {
+        "pins_take": [
+          -2.6
+        ]
+      },
+      "wait_joints_deg": [
+        40,
+        -30,
+        150,
+        0,
+        60,
+        0
+      ],
+      "wait_track": -2.6,
+      "stow_joints_deg": [
+        0,
+        -170,
+        160,
+        0,
+        60,
+        0
+      ],
+      "stow_track": -2.0,
+      "stow_tool": "",
+      "tool_change_s": 0.0,
+      "rack": "a",
+      "one_posture_per_module": true
+    },
+    {
+      "name": "pin_arm_b",
+      "model": "kr20_r1810_2",
+      "does": "Stands on rack a on the tube's -X side, 1.25 m from its axis and 1.23 m below it, and locates, pins and swages from below every hole of modules 2, 5, 7 and 8 (points 8-11, 20-23, 28-35), the modules at the last two places along Y; its track starts 0.47 m toward +Y of the racks' middle, 0.52 m beyond pin arm A's, and from there it reaches holes 0 and 1 of the modules at the third place. Reaching in under the modules; one tool, never changed. The tube stands this high so that the arm's wrist is about 0.6 m above its shoulder at a hole and its elbow stays under the modules. Its base is turned 90 degrees so that its long base lies along the track inside rack a. It waits folded low with its elbow out over the rack's -X side, clear of the bay as it moves between stages and out, and is stowed folded along the track.",
+      "base_pos": [
+        -2.1,
+        0.0,
+        0.52
+      ],
+      "base_rpy_deg": [
+        0,
+        0,
+        90
+      ],
+      "track": {
+        "direction": [
+          0,
+          1,
+          0
+        ],
+        "lo": 0.47,
+        "hi": 2.6,
+        "speed": 1.5,
+        "accel": 2.0,
+        "mass_kg": 60.0,
+        "beam": {
+          "name": "beam",
+          "size": [
+            0.3,
+            2.63,
+            0.1
+          ],
+          "pos": [
+            -2.1,
+            1.535,
+            0.42
+          ]
+        },
+        "carriage": {
+          "name": "carriage",
+          "size": [
+            0.5,
+            0.5,
+            0.05
+          ],
+          "pos": [
+            0.0,
+            0.0,
+            -0.025
+          ]
+        },
+        "basis": "ours",
+        "source": "Designed here as an envelope; a belt-driven floor axis standing on the deck of rack a, one of two on one line, each over its part of the work. Run 028: starts at 0.47 m."
+      },
+      "tools": [
+        {
+          "name": "pin_tool",
+          "does": "Carries the locating nose, the finger that puts the pin in from above and the swaging nose, on the hole's axis from below.",
+          "mass_kg": 8.0,
+          "length": 0.25,
+          "boxes": [
+            {
+              "name": "body",
+              "size": [
+                0.09,
+                0.09,
+                0.155
+              ],
+              "pos": [
+                0,
+                0,
+                0.0775
+              ]
+            },
+            {
+              "name": "nose",
+              "size": [
+                0.016,
+                0.016,
+                0.095
+              ],
+              "pos": [
+                0,
+                0,
+                0.2025
+              ]
+            }
+          ],
+          "waits_at": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "wait_size": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "basis": "ours",
+          "source": "Designed here: envelope and mass; the nose, a box 16 mm square, is inside the 13 mm free radius of Fastenings."
+        }
+      ],
+      "first_tool": "pin_tool",
+      "stops": {
+        "pins_take": [
+          2.6
+        ]
+      },
+      "wait_joints_deg": [
+        90,
+        -170,
+        160,
+        0,
+        60,
+        0
+      ],
+      "wait_track": 2.6,
+      "stow_joints_deg": [
+        0,
+        -170,
+        160,
+        0,
+        60,
+        0
+      ],
+      "stow_track": 2.6,
+      "stow_tool": "",
+      "tool_change_s": 0.0,
+      "rack": "a",
+      "one_posture_per_module": true
+    },
+    {
+      "name": "bolt_arm",
+      "model": "kr10_r1100_2",
+      "does": "Stands on rack a on the tube's +X side, 0.62 m from its axis, between the tube and the gap, and drives every strap bolt along -X with the nutrunner; one tool, never changed. A KR 10, rated 5 kg, carries the 3 kg nutrunner within its payload diagram and is small enough to stand there under the modules. Its base is turned -90 degrees and joint 1 at 90 faces it to -X. It waits folded low at the +Y end of its track, beyond the bay.",
+      "base_pos": [
+        -0.23,
+        0.0,
+        0.52
+      ],
+      "base_rpy_deg": [
+        0,
+        0,
+        -90
+      ],
+      "track": {
+        "direction": [
+          0,
+          1,
+          0
+        ],
+        "lo": -2.6,
+        "hi": 2.5,
+        "speed": 1.5,
+        "accel": 2.0,
+        "mass_kg": 70.0,
+        "beam": {
+          "name": "beam",
+          "size": [
+            0.25,
+            5.5,
+            0.1
+          ],
+          "pos": [
+            -0.23,
+            -0.05,
+            0.42
+          ]
+        },
+        "carriage": {
+          "name": "carriage",
+          "size": [
+            0.4,
+            0.4,
+            0.05
+          ],
+          "pos": [
+            0.0,
+            0.0,
+            -0.025
+          ]
+        },
+        "basis": "ours",
+        "source": "Designed here as an envelope; a belt-driven floor axis standing on the deck of rack a."
+      },
+      "tools": [
+        {
+          "name": "nutrunner",
+          "does": "Drives the strap's M8 bolt to 17.6 N m and measures the torque.",
+          "mass_kg": 3.0,
+          "length": 0.25,
+          "boxes": [
+            {
+              "name": "body",
+              "size": [
+                0.07,
+                0.07,
+                0.145
+              ],
+              "pos": [
+                0,
+                0,
+                0.0725
+              ]
+            },
+            {
+              "name": "socket",
+              "size": [
+                0.016,
+                0.016,
+                0.105
+              ],
+              "pos": [
+                0,
+                0,
+                0.1975
+              ]
+            }
+          ],
+          "waits_at": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "wait_size": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "basis": "ours",
+          "source": "Designed here: envelope and mass; the socket and its extension, 105 long, are inside the 12 mm free radius of Fastenings over its 100 mm."
+        }
+      ],
+      "first_tool": "nutrunner",
+      "stops": {},
+      "wait_joints_deg": [
+        90,
+        -150,
+        140,
+        0,
+        60,
+        0
+      ],
+      "wait_track": 2.5,
+      "stow_joints_deg": [
+        0,
+        -150,
+        140,
+        0,
+        60,
+        0
+      ],
+      "stow_track": 1.5,
+      "stow_tool": "",
+      "tool_change_s": 0.0,
+      "rack": "a"
+    }
+  ],
+  "pallets": [
+    {
+      "pos": [
+        3.15,
+        0.0,
+        0.0
+      ],
+      "yaw_deg": -90.0,
+      "modules": 36,
+      "how": "As the maker packs them: 36 modules standing on their long edge side by side, the glass of each toward the cell, the pallet on a dock outside rack b's +X side that lifts its deck to 0.652 m above the ground (0.448 m below the module arm's base, as on the 40 ft layouts). The module arm takes the nearest one by its glass with the tool lying level, and turns it flat on the way.",
+      "base_height": 0.652,
+      "pitch": 0.03,
+      "outside": true,
+      "basis": "ours",
+      "source": "36 to a pallet is the maker's figure (docs/bay-hardware.md, Module). That they stand on their long edge is read from the maker's unpacking manual and a sibling datasheet's pallet size; which way the glass faces, the deck's height and the pitch of one frame thickness are ours.",
+      "stands": "on_long_edge"
+    }
+  ],
+  "stocks": [
+    {
+      "name": "rails",
+      "part": "rail",
+      "how": "Rails with their straps and bolts on, in a rack at the rails' port outside rack b's +X side beside the pallet, which presents one rail at a time on two pegs, top up, long side along X, its strap hanging open, its top 0.20 m above the rack's body and 0.33 m above the module arm's base.",
+      "pick_pos": [
+        2.8,
+        1.75,
+        1.43
+      ],
+      "pick_axis": [
+        0,
+        0,
+        -1
+      ],
+      "holds": 40,
+      "mass_kg": 150.0,
+      "boxes": [
+        {
+          "name": "rack",
+          "size": [
+            0.6,
+            0.4,
+            1.23
+          ],
+          "pos": [
+            2.8,
+            1.75,
+            0.615
+          ]
+        }
+      ],
+      "outside": true,
+      "basis": "ours",
+      "source": "Designed here."
+    },
+    {
+      "name": "pins",
+      "part": "pin magazine",
+      "how": "Magazines of 36 pins and collars come along a lane on the deck of rack a from the feeder at the +Y end and stop in a nest beside pin_arm_a; its pin tool takes one for each bay.",
+      "pick_pos": [
+        -1.38,
+        -2.6,
+        0.72
+      ],
+      "pick_axis": [
+        0,
+        0,
+        -1
+      ],
+      "holds": 2,
+      "mass_kg": 1.0,
+      "boxes": [],
+      "outside": false,
+      "basis": "ours",
+      "source": "Designed here: the pick point is 0.05 m above the nest's top; the lane and its nests are the item pin_lane.",
+      "rack": "a"
+    },
+    {
+      "name": "pins_1",
+      "part": "pin magazine",
+      "how": "Magazines of 36 pins and collars come along a lane on the deck of rack a from the feeder at the +Y end and stop in a nest beside pin_arm_b; its pin tool takes one for each bay.",
+      "pick_pos": [
+        -1.38,
+        2.6,
+        0.72
+      ],
+      "pick_axis": [
+        0,
+        0,
+        -1
+      ],
+      "holds": 2,
+      "mass_kg": 1.0,
+      "boxes": [],
+      "outside": false,
+      "basis": "ours",
+      "source": "Designed here: the pick point is 0.05 m above the nest's top; the lane and its nests are the item pin_lane.",
+      "rack": "a"
+    }
+  ],
+  "strap_bolts_from": "Each strap bolt comes with its rail, held in the strap's +X ear with its nut in the other, as docs/bay-hardware.md counts the rail's mass.",
+  "tube_in": {
+    "what": "On the infeed unit that stands against the +Y end of rack a: the bare tube lies wholly beyond the end, 0.12 m above its place, and slides toward -Y through the open saddles until it lies at its stage 1 place, then is lowered into them.",
+    "path": [
+      [
+        0,
+        5.624,
+        0.12
+      ],
+      [
+        0,
+        0,
+        0.12
+      ],
+      [
+        0,
+        0,
+        0
+      ]
+    ],
+    "time_s": 40.0,
+    "basis": "ours"
+  },
+  "bay_out": {
+    "what": "At the last stage the outfeed unit, which already carries the built part beyond the -Y end, lifts the finished bay 0.12 m out of stand 1's saddle and draws it toward -Y until it lies wholly beyond the end of rack a.",
+    "path": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0.12
+      ],
+      [
+        0,
+        -5.572,
+        0.12
+      ]
+    ],
+    "time_s": 60.0,
+    "basis": "ours"
+  },
+  "work": [
+    {
+      "kind": "rail_take",
+      "arm": "module_arm",
+      "tool": "combined_gripper",
+      "points": "all",
+      "process_s": 2.0,
+      "note": "Close on the rail's top.",
+      "basis": "ours"
+    },
+    {
+      "kind": "rail_set",
+      "arm": "module_arm",
+      "tool": "combined_gripper",
+      "points": "all",
+      "process_s": 3.0,
+      "note": "Lower over the tube until the tab is in its hole, level, let go.",
+      "basis": "ours"
+    },
+    {
+      "kind": "strap_bolt",
+      "arm": "bolt_arm",
+      "tool": "nutrunner",
+      "points": "all",
+      "process_s": 6.0,
+      "note": "Run down and tighten to 17.6 N m, measured; every bolt by the KR 10.",
+      "basis": "ours"
+    },
+    {
+      "kind": "module_take",
+      "arm": "module_arm",
+      "tool": "combined_gripper",
+      "points": "all",
+      "process_s": 2.0,
+      "note": "Suction on.",
+      "basis": "ours"
+    },
+    {
+      "kind": "module_set",
+      "arm": "module_arm",
+      "tool": "combined_gripper",
+      "points": "all",
+      "process_s": 3.0,
+      "note": "Lay down, suction off, lift clear.",
+      "basis": "ours"
+    },
+    {
+      "kind": "locate",
+      "arm": "pin_arm_a",
+      "tool": "pin_tool",
+      "points": "0-7,12-19,24-27",
+      "process_s": 3.0,
+      "note": "Tip up, once round the slot at most, nose in, nose out.",
+      "basis": "ours"
+    },
+    {
+      "kind": "locate",
+      "arm": "pin_arm_b",
+      "tool": "pin_tool",
+      "points": "8-11,20-23,28-35",
+      "process_s": 3.0,
+      "note": "Tip up, once round the slot at most, nose in, nose out.",
+      "basis": "ours"
+    },
+    {
+      "kind": "pin",
+      "arm": "pin_arm_a",
+      "tool": "pin_tool",
+      "points": "0-7,12-19,24-27",
+      "process_s": 2.0,
+      "note": "The finger puts the pin in from above.",
+      "basis": "ours"
+    },
+    {
+      "kind": "pin",
+      "arm": "pin_arm_b",
+      "tool": "pin_tool",
+      "points": "8-11,20-23,28-35",
+      "process_s": 2.0,
+      "note": "The finger puts the pin in from above.",
+      "basis": "ours"
+    },
+    {
+      "kind": "swage",
+      "arm": "pin_arm_a",
+      "tool": "pin_tool",
+      "points": "0-7,12-19,24-27",
+      "process_s": 3.0,
+      "note": "Collar on, swaged.",
+      "basis": "ours"
+    },
+    {
+      "kind": "swage",
+      "arm": "pin_arm_b",
+      "tool": "pin_tool",
+      "points": "8-11,20-23,28-35",
+      "process_s": 3.0,
+      "note": "Collar on, swaged.",
+      "basis": "ours"
+    },
+    {
+      "kind": "pins_take",
+      "arm": "pin_arm_a",
+      "tool": "pin_tool",
+      "points": "0",
+      "process_s": 4.0,
+      "note": "Change the magazine.",
+      "basis": "ours"
+    },
+    {
+      "kind": "pins_take",
+      "arm": "pin_arm_b",
+      "tool": "pin_tool",
+      "points": "1",
+      "process_s": 4.0,
+      "note": "Change the magazine.",
+      "basis": "ours"
+    }
+  ],
+  "rail_order": "all_rails_then_all_bolts",
+  "order": {
+    "modules": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      7,
+      8,
+      6
+    ],
+    "modules_start": "after_their_rails",
+    "pin_tools": "just_in_time",
+    "note": "Run 032 (tools/time/account.py): every stage ends with the pin arm that has two of its three modules, and the chain to it ran through the stage's last strap bolt and, at the third stage, through pin arm A's module 6, set before pin arm B's 7 and 8. Here a module is taken once the bolts of its own two rails are driven (the module arm is still setting the stage's last rail then), and the third stage sets 7, 8 and then 6, so pin arm B starts its two modules one set earlier. Stages 1 and 2 keep their order: pin arm A's two modules are set first there already.",
+    "basis": "ours"
+  },
+  "retreat_legs": {
+    "speed": 0.5,
+    "accel": 3.0,
+    "basis": "Run 036: a retreat leaves the hole, the rail or the module into free air, a plain point-to-point move with nothing to touch, so it may run faster than an approach, which ends in contact or insertion and keeps leg_speed and leg_accel. 0.5 m/s and 3.0 m/s^2 of the working point are the limits the owner set for such a leg (spec 036); every joint is still held within its datasheet speed by the leg's law (src/layout_plan.h, LegDuration)."
+  },
+  "items": [
+    {
+      "name": "infeed_unit",
+      "does": "A separate unit at the tubes_in port beyond the +Y end: a bed under the tube that brings a bare tube in and a carriage that holds the tube by its neck and moves it toward -Y from stage to stage. At stages 1 and 2 its jaws close on the neck's end stretch (bay_hold_10), beyond the +Y end, and pin the tube's angle there; the jaws are drawn at both places, where the carriage stands at each stage.",
+      "travels_inside": false,
+      "mass_kg": 800.0,
+      "boxes": [
+        {
+          "name": "bed",
+          "size": [
+            0.4,
+            10.0,
+            1.4
+          ],
+          "pos": [
+            -0.85,
+            8.1,
+            0.7
+          ]
+        },
+        {
+          "name": "jaw_s1_neg",
+          "size": [
+            0.08,
+            0.1,
+            0.1
+          ],
+          "pos": [
+            -0.954,
+            8.092,
+            1.75
+          ]
+        },
+        {
+          "name": "jaw_s1_pos",
+          "size": [
+            0.08,
+            0.1,
+            0.1
+          ],
+          "pos": [
+            -0.746,
+            8.092,
+            1.75
+          ]
+        },
+        {
+          "name": "jaw_s2_neg",
+          "size": [
+            0.08,
+            0.1,
+            0.1
+          ],
+          "pos": [
+            -0.954,
+            4.66,
+            1.75
+          ]
+        },
+        {
+          "name": "jaw_s2_pos",
+          "size": [
+            0.08,
+            0.1,
+            0.1
+          ],
+          "pos": [
+            -0.746,
+            4.66,
+            1.75
+          ]
+        }
+      ],
+      "basis": "ours",
+      "source": "Designed here as an envelope."
+    },
+    {
+      "name": "outfeed_unit",
+      "does": "A separate unit at the bays_out port beyond the -Y end: a bed and a carriage that carry the built part of the tube beyond the -Y end from stage 2 on, and take the finished bay out. At stage 3 its head stands against the plain end and pins the tube's angle at its end stretch (bay_hold_0).",
+      "travels_inside": false,
+      "mass_kg": 800.0,
+      "boxes": [
+        {
+          "name": "bed",
+          "size": [
+            0.4,
+            10.0,
+            1.3
+          ],
+          "pos": [
+            -0.85,
+            -8.1,
+            0.65
+          ]
+        },
+        {
+          "name": "head",
+          "size": [
+            0.2,
+            0.15,
+            0.2
+          ],
+          "pos": [
+            -0.85,
+            -8.279,
+            1.75
+          ]
+        }
+      ],
+      "basis": "ours",
+      "source": "Designed here as an envelope."
+    },
+    {
+      "name": "pin_feeder",
+      "does": "Puts pin magazines on the lane at the +Y end of rack a; a separate unit that stands at the port there.",
+      "travels_inside": false,
+      "mass_kg": 60.0,
+      "boxes": [
+        {
+          "name": "feeder",
+          "size": [
+            0.4,
+            0.5,
+            1.0
+          ],
+          "pos": [
+            -1.38,
+            3.5,
+            0.5
+          ]
+        }
+      ],
+      "basis": "ours",
+      "source": "Designed here as an envelope."
+    },
+    {
+      "name": "pin_lane",
+      "does": "Carries pin magazines along the deck of rack a from its +Y edge to the nest of each pin arm, between the pin arm's track and the tube; travels with the cell.",
+      "travels_inside": true,
+      "mass_kg": 60.0,
+      "rack": "a",
+      "boxes": [
+        {
+          "name": "lane",
+          "size": [
+            0.1,
+            5.723,
+            0.25
+          ],
+          "pos": [
+            -1.38,
+            0.1615,
+            0.495
+          ]
+        },
+        {
+          "name": "nest_0",
+          "size": [
+            0.1,
+            0.14,
+            0.05
+          ],
+          "pos": [
+            -1.38,
+            -2.6,
+            0.645
+          ]
+        },
+        {
+          "name": "nest_1",
+          "size": [
+            0.1,
+            0.14,
+            0.05
+          ],
+          "pos": [
+            -1.38,
+            2.6,
+            0.645
+          ]
+        }
+      ],
+      "basis": "ours",
+      "source": "Designed here as an envelope: a lane 0.10 m wide and 0.25 m high standing on the deck, and a nest 0.05 m high on it at each pick point."
+    }
+  ],
+  "ports": [
+    {
+      "name": "tubes_in",
+      "crosses": "tubes",
+      "unit": "The infeed unit: it carries one bare tube at a time, neck last, in over the +Y end of rack a, holds the neck and pins the tube's angle at stages 1 and 2, and moves it toward -Y from stage to stage.",
+      "frame_pos": [
+        -0.85,
+        3.029,
+        0.37
+      ],
+      "frame_yaw_deg": 90.0,
+      "zone": {
+        "size": [
+          0.5,
+          12.0,
+          2.4
+        ],
+        "pos": [
+          -0.85,
+          9.05,
+          1.2
+        ]
+      },
+      "hands_over": [
+        "item:infeed_unit",
+        "way:tube_in"
+      ],
+      "shares_zone_with": "",
+      "presents": "The tube level and parallel to Y, its locating holes straight up, its plain end toward -Y, wholly beyond the +Y end and 0.12 m above its place in the holder.",
+      "per_bay": 1.0,
+      "basis": "ours"
+    },
+    {
+      "name": "bays_out",
+      "crosses": "bays",
+      "unit": "The outfeed unit: it carries the built part of the tube beyond the -Y end from stage 2, pins the tube's angle at the plain end at stage 3, lifts the finished bay 0.12 m out of the saddle and takes it out.",
+      "frame_pos": [
+        -0.85,
+        -3.029,
+        0.37
+      ],
+      "frame_yaw_deg": -90.0,
+      "zone": {
+        "size": [
+          2.6,
+          12.0,
+          2.6
+        ],
+        "pos": [
+          -0.85,
+          -9.05,
+          1.3
+        ]
+      },
+      "hands_over": [
+        "item:outfeed_unit",
+        "way:bay_out"
+      ],
+      "shares_zone_with": "",
+      "presents": "The finished bay is taken as it lies at the last stage: level, modules up, the plain end first.",
+      "per_bay": 1.0,
+      "basis": "ours"
+    },
+    {
+      "name": "modules",
+      "crosses": "modules",
+      "unit": "A pallet dock outside rack b's +X side: one maker's pallet of 36 modules standing on their long edge, exchanged when empty.",
+      "frame_pos": [
+        2.4505,
+        0.0,
+        0.37
+      ],
+      "frame_yaw_deg": 0.0,
+      "zone": {
+        "size": [
+          3.0,
+          2.9,
+          2.4
+        ],
+        "pos": [
+          3.97,
+          0.0,
+          1.2
+        ]
+      },
+      "hands_over": [
+        "pallet:0"
+      ],
+      "shares_zone_with": "",
+      "presents": "Modules upright on their long edge, glass toward the cell, the nearest one first; the pallet's deck 0.652 m above the ground.",
+      "per_bay": 9.0,
+      "basis": "ours"
+    },
+    {
+      "name": "rails",
+      "crosses": "rails",
+      "unit": "A rail rack that presents one rail at a time, with its strap and bolt on.",
+      "frame_pos": [
+        2.4505,
+        1.75,
+        0.37
+      ],
+      "frame_yaw_deg": 0.0,
+      "zone": {
+        "size": [
+          1.9,
+          0.55,
+          2.4
+        ],
+        "pos": [
+          3.42,
+          1.76,
+          1.2
+        ]
+      },
+      "hands_over": [
+        "stock:rails"
+      ],
+      "shares_zone_with": "",
+      "presents": "One rail, top up, long side along X, its top face 1.430 m above the ground.",
+      "per_bay": 10.0,
+      "basis": "ours"
+    },
+    {
+      "name": "pin_magazines",
+      "crosses": "pin_magazines",
+      "unit": "A feeder that stands against the +Y end of rack a and puts magazines of 36 pins and collars on the lane's outer end, at the rack's edge.",
+      "frame_pos": [
+        -1.38,
+        3.029,
+        0.37
+      ],
+      "frame_yaw_deg": 90.0,
+      "zone": {
+        "size": [
+          0.5,
+          0.9,
+          2.4
+        ],
+        "pos": [
+          -1.38,
+          3.5,
+          1.2
+        ]
+      },
+      "hands_over": [
+        "item:pin_feeder"
+      ],
+      "shares_zone_with": "",
+      "presents": "A magazine set upright on the lane's outer end, which ends 6 mm inside the rack's +Y edge, 0.25 m above the deck.",
+      "per_bay": 2.0,
+      "basis": "ours"
+    }
+  ],
+  "approaches": [
+    {
+      "kind": "rail_take",
+      "approach_frame": "world",
+      "approach_dir": [
+        0,
+        0,
+        1
+      ],
+      "approach_m": 0.15,
+      "retreat_frame": "world",
+      "retreat_dir": [
+        0,
+        0,
+        1
+      ],
+      "retreat_m": 0.25,
+      "note": "Down onto the rail's top in the rack; the rail is lifted straight up out of it.",
+      "basis": "ours"
+    },
+    {
+      "kind": "rail_set",
+      "approach_frame": "world",
+      "approach_dir": [
+        0,
+        0,
+        1
+      ],
+      "approach_m": 0.2,
+      "retreat_frame": "world",
+      "retreat_dir": [
+        0,
+        0,
+        1
+      ],
+      "retreat_m": 0.15,
+      "note": "The rail is lowered straight over the tube until its tab is in its hole; the gripper leaves straight up.",
+      "basis": "ours"
+    },
+    {
+      "kind": "strap_bolt",
+      "approach_frame": "tool",
+      "approach_dir": [
+        0,
+        0,
+        -1
+      ],
+      "approach_m": 0.1,
+      "retreat_frame": "tool",
+      "retreat_dir": [
+        0,
+        0,
+        -1
+      ],
+      "retreat_m": 0.1,
+      "note": "Along the bolt's axis: the socket comes onto the head from +X and draws back the same way.",
+      "basis": "ours"
+    },
+    {
+      "kind": "module_take",
+      "approach_frame": "tool",
+      "approach_dir": [
+        0,
+        0,
+        -1
+      ],
+      "approach_m": 0.15,
+      "retreat_frame": "world",
+      "retreat_dir": [
+        -0.7071067811865476,
+        0,
+        0.7071067811865476
+      ],
+      "retreat_m": 0.4,
+      "note": "Onto the glass along the tool's axis; the module is drawn out of the pack toward the cell and up at 45 degrees, clear of the deck and of the module behind it.",
+      "basis": "ours"
+    },
+    {
+      "kind": "module_set",
+      "approach_frame": "world",
+      "approach_dir": [
+        0,
+        0,
+        1
+      ],
+      "approach_m": 0.15,
+      "retreat_frame": "world",
+      "retreat_dir": [
+        0,
+        0,
+        1
+      ],
+      "retreat_m": 0.15,
+      "note": "The module is lowered flat onto its two rails beside its neighbour; the gripper leaves straight up.",
+      "basis": "ours"
+    },
+    {
+      "kind": "locate",
+      "approach_frame": "tool",
+      "approach_dir": [
+        0,
+        0,
+        -1
+      ],
+      "approach_m": 0.12,
+      "retreat_frame": "tool",
+      "retreat_dir": [
+        0,
+        0,
+        -1
+      ],
+      "retreat_m": 0.12,
+      "note": "Along the hole's axis from below: the nose rises into the rail's hat and comes down out of it.",
+      "basis": "ours"
+    },
+    {
+      "kind": "pin",
+      "approach_frame": "tool",
+      "approach_dir": [
+        0,
+        0,
+        -1
+      ],
+      "approach_m": 0.12,
+      "retreat_frame": "tool",
+      "retreat_dir": [
+        0,
+        0,
+        -1
+      ],
+      "retreat_m": 0.12,
+      "note": "As locate.",
+      "basis": "ours"
+    },
+    {
+      "kind": "swage",
+      "approach_frame": "tool",
+      "approach_dir": [
+        0,
+        0,
+        -1
+      ],
+      "approach_m": 0.12,
+      "retreat_frame": "tool",
+      "retreat_dir": [
+        0,
+        0,
+        -1
+      ],
+      "retreat_m": 0.12,
+      "note": "As locate.",
+      "basis": "ours"
+    },
+    {
+      "kind": "pins_take",
+      "approach_frame": "world",
+      "approach_dir": [
+        0,
+        0,
+        1
+      ],
+      "approach_m": 0.15,
+      "retreat_frame": "world",
+      "retreat_dir": [
+        0,
+        0,
+        1
+      ],
+      "retreat_m": 0.15,
+      "note": "Down onto the magazine in its nest and straight up with it.",
+      "basis": "ours"
+    }
+  ],
+  "staging": {
+    "why": "The tube is 10.6 m and a rack 6.058 m long, so the bay is built in sections. A stand that grips the tube cannot let a rail pass it (strap and feet surround the tube), so the stands stand at the +Y end and at each stage stand 1 grips the stretch just beyond that stage's last rail: stretch 4, 7, then 9. That fixes the offsets: 0, then three pitches (3.432 m), then two more (5.720 m in all) toward -Y; rails 0-3, 4-6 and 7-9 and modules 0-2, 3-5 and 6-8, three modules a stage. Every rail is then set at one of five places (y = -2.314, -1.170, -0.026, 1.118, and 2.262 for rail 9) and every module at one of four (-1.742, -0.598, 0.546, and 1.690 for module 8), within +/-2.4 m of the racks' middle, so the arms' tracks fit on the racks. Three stages, not two: with two (stretches 5 and 9) the second stage's work would span 5.8 m, from module 4 to rail 9, more than tracks on a 6.058 m rack can cover. The work itself lies within the racks' length at every stage; the built part overhangs the -Y end from stage 2 on, carried by the outfeed unit.",
+    "transfer_s": 30.0,
+    "stages": [
+      {
+        "name": "1",
+        "tube_offset_m": 0.0,
+        "rails": "0-3",
+        "modules": "0-2",
+        "grips": [
+          {
+            "hold": 4,
+            "length": 0.3
+          },
+          {
+            "hold": 5,
+            "length": 0.3
+          }
+        ],
+        "angle_pin_hold": 10,
+        "angle_pin_by": "item:infeed_unit",
+        "held_by": "The infeed unit holds the 5.1 m of the tube beyond the +Y end by its neck and pins its angle; stands 1 and 2 carry the rest on rack a.",
+        "note": "The tube's plain end at y = -2.474, on rack a; its neck end at 8.142, beyond the +Y end, in the infeed unit's jaws, which pin the angle there. Stands 1 and 2 grip stretches 4 and 5."
+      },
+      {
+        "name": "2",
+        "tube_offset_m": -3.432,
+        "rails": "4-6",
+        "modules": "3-5",
+        "grips": [
+          {
+            "hold": 7,
+            "length": 0.3
+          },
+          {
+            "hold": 8,
+            "length": 0.3
+          }
+        ],
+        "angle_pin_hold": 10,
+        "angle_pin_by": "item:infeed_unit",
+        "held_by": "The infeed unit holds the neck beyond the +Y end and pins the angle; the outfeed unit carries the built part beyond the -Y end.",
+        "note": "Moved 3.432 m toward -Y: the plain end at -5.906 and the built part (rails 0-3, modules 0-2) beyond the -Y end; the neck end at 4.710, still in the infeed unit's jaws. Stands 1 and 2 grip stretches 7 and 8."
+      },
+      {
+        "name": "3",
+        "tube_offset_m": -5.72,
+        "rails": "7-9",
+        "modules": "6-8",
+        "grips": [
+          {
+            "hold": 9,
+            "length": 0.3
+          }
+        ],
+        "angle_pin_hold": 0,
+        "angle_pin_by": "item:outfeed_unit",
+        "held_by": "The outfeed unit carries the built part beyond the -Y end and pins the angle at the plain end; the infeed unit has let go of the neck.",
+        "note": "Moved 2.288 m more: the plain end at -8.194 against the outfeed unit's head, which pins the angle; the neck end at 2.422, on rack a, beyond stand 1 (stand 2 is clear of it). Stand 1 grips stretch 9. Rail 9 is set beyond stand 1; no transfer follows, and the bay is lifted out of the saddle before it leaves."
+      }
+    ],
+    "basis": "ours"
+  }
+}

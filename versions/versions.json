@@ -599,6 +599,27 @@
         "sha256": "f27f7085f63b57347690561a3948116ba7ee473851e429d61066b3c9524c93df"
       },
       "scores": "scores/two_flat_racks_2_pin_arms_balanced_ordered.json"
+    },
+    {
+      "id": "v14",
+      "date": "2026-11-27",
+      "commit": "this",
+      "title": "Two 20 ft flat racks, pin arms balanced, work ordered, faster retreats: three bays planned",
+      "direction": "two-20ft-flat-racks",
+      "status": "candidate",
+      "changed": "v13's cell with retreat_legs: a leg that leaves contact into free air (a retreat) runs at up to 0.5 m/s and 3.0 m/s^2 of the working point; approaches keep 0.25 m/s and 1.0 m/s^2. Three bays are planned whole, 381 of 381 moves, verified and committed: 751.62 s for one bay and a cycle time of 717.37 s over three.",
+      "why": "It is the measured step of the direction of two 20 ft flat racks after v13: 717.37 s against v13's 748.38 s, so a candidate weighed against v13. It is still 1.29 times v10's 554.55 s, so v10 stays chosen.",
+      "recording": "docs/evolution/v14.gif",
+      "competed_with": "v13",
+      "layout": {
+        "path": "layouts/two_flat_racks_2_pin_arms_balanced_ordered_fast_retreat.json",
+        "sha256": "bf4985aa0167d26a86dccb4027cf2ff422d217c9cddd5e84d92b8224070039e7"
+      },
+      "plan": {
+        "path": "plans/two_flat_racks_2_pin_arms_balanced_ordered_fast_retreat.json",
+        "sha256": "e271e1b7a4809fe25ee5f3b447e37e51a25d20c77247860c9f4d767da8e1ff06"
+      },
+      "scores": "scores/two_flat_racks_2_pin_arms_balanced_ordered_fast_retreat.json"
     }
   ]
 }
