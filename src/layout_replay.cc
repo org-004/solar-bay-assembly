@@ -385,6 +385,27 @@ void Merge(DesignPairs* into, const DesignPairs& p) {
 
 // Measures the cell at instants, keeping the moving sets and the obstacle
 // lists while nothing they depend on changes.
+// R21 (run 029): the wait segs[g] stands at the pose of the work just
+// before it and just after it, between two work steps at one pose (the
+// locate, pin and swage of one hole): it is part of that work.
+bool WaitAtItsWork(const std::vector<Segment>& segs, int g) {
+  auto same = [](const Config& a, const Config& b) {
+    double d = 0.0;
+    for (size_t j = 0; j < a.size(); ++j) d = std::max(d, std::abs(a[j] - b[j]));
+    return d <= 1e-6;
+  };
+  const int n = static_cast<int>(segs.size());
+  if (g < 0 || g >= n || segs[g].kind != "wait" || segs[g].path.empty()) return false;
+  int before = g - 1;
+  while (before >= 0 && segs[before].kind == "wait") --before;
+  int after = g + 1;
+  while (after < n && segs[after].kind == "wait") ++after;
+  return before >= 0 && after < n && segs[before].kind == "work" &&
+         segs[after].kind == "work" && !segs[before].path.empty() &&
+         !segs[after].path.empty() && same(segs[before].path.back(), segs[g].path.front()) &&
+         same(segs[after].path.front(), segs[g].path.back());
+}
+
 class Measurer {
  public:
   Measurer(const LayoutScene& scene, const PlanPlayer& player)
@@ -432,7 +453,7 @@ class Measurer {
       if (key != c.key) {
         c.key = key;
         c.moving = scene_.Moving(i, a.tool, a.held);
-        c.obstacles = scene_.Obstacles(i, a.tool, built, PairsOf(a), options);
+        c.obstacles = scene_.Obstacles(i, a.tool, built, PairsOf(i, a), options);
         if (way && !against) {
           std::vector<Obstacle> kept;
           for (const Obstacle& o : c.obstacles) {
@@ -497,9 +518,22 @@ class Measurer {
     return c;
   }
 
-  DesignPairs PairsOf(const ArmAt& a) {
+  bool WaitAtWork(int i, int g) const {
+    const std::string name = scene_.arm(i).use->name;
+    for (const ArmPlan& a : player_.plan().arms) {
+      if (a.name == name) return WaitAtItsWork(a.segments, g);
+    }
+    return false;
+  }
+
+  // The pairs near by design of arm i as it stands in a (a wait at its work,
+  // WaitAtWork, has the work's).
+  DesignPairs PairsOf(int i, const ArmAt& a) {
     DesignPairs pairs;
-    if (a.kind != "approach" && a.kind != "retreat" && a.kind != "work") return pairs;
+    const bool at_work = a.kind == "wait" && WaitAtWork(i, a.segment);
+    if (a.kind != "approach" && a.kind != "retreat" && a.kind != "work" && !at_work) {
+      return pairs;
+    }
     // A later bay's step is bay 0's, but for a take at its own pallet point
     // (src/layout_bays.h): a take's pairs are the pallet's only.
     const BayStep* step = player_.Step(a.step);
@@ -826,7 +860,8 @@ class Verifier {
       if (s.kind == "wait") {
         if (s.reason.empty()) Fault(where + " is a wait with no reason");
         // R21: an arm waits at its wait pose, where its last retreat ended,
-        // or at the tool-change pose where it has just changed its tool.
+        // or at the tool-change pose where it has just changed its tool, or
+        // (run 029) at its work pose between two work steps there.
         int before = static_cast<int>(g) - 1;
         while (before >= 0 && segs[before].kind == "wait") --before;
         const bool after_retreat = before >= 0 && segs[before].kind == "retreat" &&
@@ -837,7 +872,7 @@ class Verifier {
                                        by != nullptr && by->kind == "tool_change" &&
                                        !segs[before].path.empty() &&
                                        MaxDiff(segs[before].path.back(), s.path.front()) <= kSameConfig;
-        if (!after_retreat && !after_tool_change &&
+        if (!after_retreat && !after_tool_change && !WaitAtItsWork(segs, static_cast<int>(g)) &&
             !Off(i, s.tool, s.path.front(), WaitPose(i)).empty()) {
           Fault(where + " stands neither at the arm's wait pose, where a retreat just before "
                         "it ended, nor where a tool change just before it ended");

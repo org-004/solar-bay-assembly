@@ -462,6 +462,7 @@ class PlanPlayer {
   void SetPoses(const WorldAt& w, mjData* d) const;
   // The bay as built at the instant, for LayoutScene::Obstacles.
   Built BuiltAt(const WorldAt& w) const;
+  const Plan& plan() const { return plan_; }
 
  private:
   const LayoutScene& scene_;
