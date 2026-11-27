@@ -316,3 +316,52 @@ m end. The scorecard's gates: `check_rows_failed` 0 of 985 rows, `least_clearanc
 a test of its own over three shards (one process took 725.1 s with v13's card, of large's 900 s;
 three shards 276.7 s), and `plan_replay_staged_test` has the eternal timeout (slowest shard 371.4 s:
 each shard makes the checker reports of both one-posture layouts).
+
+## Faster retreats (run 036)
+
+Every leg used to be timed at the planner's one pair of figures, `leg_speed` 0.25 m/s and
+`leg_accel` 1.0 m/s^2 (`src/layout_plan.h`, `PlanFigures`). A layout may now opt in to
+`retreat_legs` (`src/layout.h`): a leg that leaves contact into free air (a retreat) runs at its
+`speed` (at most 0.5 m/s) and `accel` (at most 3.0 m/s^2), by the same law
+(`RetreatDuration`, which also keeps every joint within its datasheet speed); an approach, which
+ends in contact or insertion, keeps `leg_speed` and `leg_accel`. The plan file names
+`retreat_speed` and `retreat_accel` among its figures only when they differ from the approach's,
+so a layout without the field plans, writes and replays as before; the verifier holds a plan's
+retreat figures to its layout's (`tests/retreat_legs_test.cc`).
+
+Before any code, the critical path of v13's bay 1 (`tools/time/account.py`, its legs split by
+kind; each retreat's length read back from its time and the rule's `retreat_m`):
+
+| arm | approaches (s, n) | retreats (s, n) | gain at 0.5 m/s, 3.0 m/s^2 (s) | retreat lengths |
+|---|---:|---:|---:|---|
+| module arm | 27.18 (26) | 31.69 (23) | 15.11 | 0.15 m x10, 0.25 m x10, 0.40 m x3 |
+| pin arm A | 23.76 (28) | 23.76 (28) | 10.04 | 0.12 m x28 |
+| pin arm B | 11.88 (14) | 11.88 (14) | 5.02 | 0.12 m x14 |
+| all | 62.82 (68) | 67.33 (65) | 30.17 | |
+
+A 0.12 m retreat goes from 0.85 s (by acceleration) to 0.49 s, a 0.15 m one from 0.95 to 0.55 s,
+a 0.25 m one from 1.50 (by speed) to 0.75 s and a 0.40 m one from 2.40 to 1.20 s.
+
+`layouts/two_flat_racks_2_pin_arms_balanced_ordered_fast_retreat.json` is v13's layout and
+`retreat_legs` {0.5, 3.0}, nothing else. `plan_layout -- two_flat_racks_2_pin_arms_balanced_ordered_fast_retreat
+--bays 3` finds 381 of 381 moves, verified, in 145.7 s; it is v14, a `candidate` against v13.
+
+| Bay | tube in to bay out (s) | Stage 1 | Stage 2 | Stage 3 to bay out |
+|---|---|---|---|---|
+| 0 | 0.00 to 751.62 (751.62) | 199.11 | 180.05 | 207.47 |
+| 1 | 704.44 to 1452.04 (747.60) | 199.28 | 177.96 | 205.37 |
+| 2 | 1404.86 to 2152.12 (747.26) | 199.97 | 177.54 | 204.75 |
+
+- `cycle_s` **717.37 s** against v13's 748.38 s (-31.01 s, -4.1 %); `one_bay_s` 751.62 against
+  784.30 s (-32.68 s); `interval_s` 700.07.
+- Bay 0 against v13's bay 0 along the critical path: legs +130.14 to +99.97 s (-30.17 s, all of
+  it the retreats: module arm 31.69 to 16.58 s, pin arm A 23.76 to 13.72 s, B 11.88 to 6.86 s;
+  approaches unchanged at 62.82 s), waits +3.00 to +0.50 s; moves slower than modelled unchanged
+  (+86.55 s). The path is the same chain: module arm, then pin arm A, A, B.
+- The fastest retreat is the module arm's 0.40 m one at step 15, 1.20 s: joint 2 peaks at 0.514
+  rad/s, 25.6 % of its datasheet's 2.007 rad/s.
+- Margins: least clearance 0.0175 m against 0.015 m, arm to arm 0.0186 m, joint margin 8.64 deg
+  against 5 deg; the track ends are v13's (A -2.600, B 2.600, bolt arm 2.500 m, 0 slack).
+- Next: the moves slower than modelled (+80.85 s on bay 1's path: pin arm B +42.1 s with its
+  13.3 s return after swage 8/0, A +24.0 s) are now the largest share; then the approaches
+  (62.82 s), which this change leaves as they were.
