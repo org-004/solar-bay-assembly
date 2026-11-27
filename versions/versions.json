@@ -557,6 +557,27 @@
         "sha256": "d199087e3f681892015f0f5737b291ffc1eeb488269ea5516e42e62434a17474"
       },
       "scores": "scores/two_flat_racks_2_pin_arms.json"
+    },
+    {
+      "id": "v12",
+      "date": "2026-11-27",
+      "commit": "this",
+      "title": "Two 20 ft flat racks, pin arms balanced: three bays planned",
+      "direction": "two-20ft-flat-racks",
+      "status": "candidate",
+      "changed": "Pin arms A and B of v11's cell share the holes by whole modules, A 20 holes and B 16 (before 8 and 28), and pin arm A works each module in one posture and waits in it. Three bays are planned whole, 381 of 381 moves, verified and committed: 852.84 s for one bay and a cycle time of 819.11 s over three.",
+      "why": "It is the measured step of the direction of two 20 ft flat racks after v11: 819.11 s against v11's 969.67 s, so a candidate weighed against v11. It is still 1.48 times v10's 554.55 s, so v10 stays chosen; the module arm is now the busiest arm, with pin arm A close behind.",
+      "recording": "docs/evolution/v12.gif",
+      "competed_with": "v11",
+      "layout": {
+        "path": "layouts/two_flat_racks_2_pin_arms_balanced.json",
+        "sha256": "fb44f3a450df3727fe919be55f3daa43e28e5df58b85f8cd2e2ef78b91c39a05"
+      },
+      "plan": {
+        "path": "plans/two_flat_racks_2_pin_arms_balanced.json",
+        "sha256": "34e183b13023ee20693570a14a3aaf6eed3d8c0e07094e8037c7046cfd6abf95"
+      },
+      "scores": "scores/two_flat_racks_2_pin_arms_balanced.json"
     }
   ]
 }
