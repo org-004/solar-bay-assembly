@@ -484,19 +484,32 @@ BayEvent* EventOf(Plan& p, int bay, const std::string& kind) {
   return nullptr;
 }
 
+// Where the ways share their zone, bay 1's tube comes in once bay 0's bay out
+// has ended, so a tube_in moved 10 s earlier starts before it ends. Where they
+// do not (an infeed unit of its own, v21 since run 054), the committed tube_in
+// already overlaps bay 0's bay out and starts when the holder is empty, so the
+// same move starts it before the holder is empty.
 TEST(Bays, TheNextTubeBeforeTheBayIsOutIsFound) {
   const Committed& c = TheCommitted();
   ASSERT_TRUE(c.error.empty()) << c.error;
   if (c.plan.bays < 2) GTEST_SKIP() << "the committed plan has one bay";
   Plan p = c.plan;
   BayEvent* in = EventOf(p, 1, "tube_in");
+  const BayEvent* out = EventOf(p, 0, "bay_out");
   ASSERT_NE(in, nullptr);
+  ASSERT_NE(out, nullptr);
+  const bool overlapped = in->t0 < out->t1;
   in->t0 -= 10.0;
   in->t1 -= 10.0;
   const VerifyReport r = VerifyPlan(c.layout, ModelPaths::FromEnvironment(), p, c.sha256,
                                     Quick(false));
-  EXPECT_TRUE(AnyFault(r, {"bay 1: tube_in starts", "before bay 0's bay_out ends"}))
-      << Faults(r);
+  if (overlapped) {
+    EXPECT_TRUE(AnyFault(r, {"bay 1: tube_in starts", "before the holder is empty"}))
+        << Faults(r);
+  } else {
+    EXPECT_TRUE(AnyFault(r, {"bay 1: tube_in starts", "before bay 0's bay_out ends"}))
+        << Faults(r);
+  }
 }
 
 // Without bay_out_when_clear every arm stands at its wait pose through bay

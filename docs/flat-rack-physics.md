@@ -14,9 +14,10 @@ The run is measured as the checker measures. Its committed record,
 `physics/flat_rack_3_pin_arms_ordered.json`, is what the scorecard's `physics_share`
 counts ([`scorecard.md`](scorecard.md)).
 
-Since run 052 the chosen layout is v20, `flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque_clear_out`
-(all KUKA, v19 with `bay_out_when_clear`), so `run_physics` with no name runs v20's plan; its record is in
-"[v20's record (run 052)](#v20s-record-run-052)" below, after v19's, chosen from run 048 to run 052, in
+Since run 054 the chosen layout is v21, `flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque_clear_out_infeed`
+(all KUKA, v20 with an infeed unit of its own), so `run_physics` with no name runs v21's plan; its record is in
+"[v21's record (run 054)](#v21s-record-run-054)" below, after v20's, chosen from run 052 to run 054, in
+"[v20's record (run 052)](#v20s-record-run-052)", v19's, chosen from run 048 to run 052, in
 "[v19's record (run 048)](#v19s-record-run-048)", v18's, chosen from run 046 to run 048, in
 "[v18's record (run 046)](#v18s-record-run-046)", v17's, chosen from run 043 to run 046, in
 "[v17's record (run 043)](#v17s-record-run-043)", and v16's, chosen from run 040 to run 043, in
@@ -594,3 +595,36 @@ times (349.52 to 370.25 s): the bay out comes after it, so the take and set are 
 Both steps count. Only `physics_share` moves, because the same 20.73 s are counted against a
 shorter bay. v20 is chosen (run 052): it is v19 quicker by the bay out alone, and every module arm
 joint stays below its limit on the take and the set.
+
+## v21's record (run 054)
+
+v21 is v20's layout with an infeed unit of its own (run 053) and nothing else
+(`flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque_clear_out_infeed`): the
+`tubes_in` port names the item `infeed_unit` and a zone that no longer shares with `bays_out`, so bay
+b+1's tube comes in 0.45 m above its place over bay b going out, from the moment the holder is
+empty. The ways overlap 38.41 s at each boundary; bay ends 496.59 / 960.13 / 1412.03 s, `cycle_s`
+470.68 s against v20's 496.16 s (-25.48 s), `one_bay_s` 496.59 s as v20's. 378 of 378 moves, 26 of
+the module arm's 117 slowed (14.30 s), as in v20. The unit and its carriage are described in
+[`infeed-unit.md`](infeed-unit.md).
+
+`bazel run --config=opt //:run_physics -- flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque_clear_out_infeed --write`
+wrote `physics/flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque_clear_out_infeed.json`.
+The record take is module 5's, as in v20 (module_take 7, plan steps 136 and 137), at the same
+times (349.52 to 370.25 s): bay 0 up to its bay out is v20's, and the first overlap starts at
+458.18 s, after the set.
+
+| Figure (derived) | v21, module 5 | v20, module 5 (run 052) |
+|---|---|---|
+| counted, of one bay | 20.727562 s of 496.589754 s | 20.727562 s of 496.589754 s |
+| `physics_share` | 0.041740 | 0.041740 |
+| peak torque over its limit, joints 1-6, take | 0.973 0.795 0.341 0.084 0.408 0.199 | 0.973 0.795 0.341 0.084 0.408 0.199 |
+| peak torque over its limit, joints 1-6, set | 0.420 0.597 0.315 0.124 0.335 0.200 | 0.420 0.597 0.315 0.124 0.335 0.200 |
+| peak track force over its limit, take / set | 0.540 / 0.579 | 0.540 / 0.579 |
+| least clearance in physics, take / set | 0.021487 m / 0.019261 m (plan 0.021487 / 0.019047), against 0.015 m | 0.021487 m / 0.019261 m |
+| largest joint tracking error, take / set | 0.6200 / 0.8641 mrad | 0.6200 / 0.8641 mrad |
+| largest Cartesian error, take / set | 0.6872 mm / 0.6994 mm | 0.6872 mm / 0.6994 mm |
+| set-down offset after settling | 0.2314 mm, yaw 0.0004 deg (gate 3.0 mm, 0.15 deg) | 0.2314 mm, yaw 0.0004 deg |
+
+Both steps count, and every figure is v20's: `physics_share` is counted against `one_bay_s`, which
+the overlap does not change (it shortens the cycle, not bay 0). v21 is chosen (run 054): every
+module arm joint stays below its limit on the take and the set.
