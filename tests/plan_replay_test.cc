@@ -487,14 +487,28 @@ TEST(Kr20, OneBayOfTheKr20LayoutPassesTheVerifier) {
 }
 
 // Run 035: the same cell with three KR 20 pin arms on one shared beam
-// (Track::shares_beam_with), one bay planned whole; the verifier over the
-// whole plan, its schedule included.
-TEST(Kr20, OneBayOfTheSharedBeamLayoutPassesTheVerifier) {
+// (Track::shares_beam_with); run 037 planned its three bays (v15). The
+// verifier over the whole plan, its schedule included.
+TEST(Kr20, ThreeBaysOfTheSharedBeamLayoutPassTheVerifier) {
   const OrderedPlan o = NamedPlan("flat_rack_3_kr20_pin_arms_shared_ordered");
   ASSERT_TRUE(o.error.empty()) << o.error;
+  EXPECT_TRUE(o.plan.complete);
+  EXPECT_EQ(o.plan.bays, 3);
   const VerifyReport r = VerifyPlan(o.layout, ModelPaths::FromEnvironment(), o.plan, o.sha256, VerifyOptions{});
   EXPECT_TRUE(r.ok) << Faults(r);
   EXPECT_NEAR(o.plan.bay_planned_s, 626.32, 0.005);
+}
+
+// Run 037: the same layout with run 036's faster retreats (retreat_legs),
+// three bays (v16); the verifier over the whole plan, its schedule included.
+TEST(Kr20, ThreeBaysOfTheSharedBeamLayoutWithFastRetreatsPassTheVerifier) {
+  const OrderedPlan o = NamedPlan("flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat");
+  ASSERT_TRUE(o.error.empty()) << o.error;
+  EXPECT_TRUE(o.plan.complete);
+  EXPECT_EQ(o.plan.bays, 3);
+  const VerifyReport r = VerifyPlan(o.layout, ModelPaths::FromEnvironment(), o.plan, o.sha256, VerifyOptions{});
+  EXPECT_TRUE(r.ok) << Faults(r);
+  EXPECT_NEAR(o.plan.bay_planned_s, 574.73, 0.005);
 }
 
 TEST(Ordered, PassesTheVerifierWithoutTheSchedule) {
