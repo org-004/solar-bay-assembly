@@ -685,8 +685,8 @@ TEST(Kr20, OneBayOfTheChosenLayoutWithTheBayOutWhenClearPassesTheVerifier) {
   EXPECT_LT(o.plan.bay_planned_s, 502.55);
 }
 
-// R2 of run 050: the same plan with its bay_out moved to start when the
-// release starts, while pin arm C still stands at its last swage in the bay,
+// R2 of run 050: the same plan with its bay_out moved to start with pin arm
+// C's last swage, while C's tool is in the bay,
 // is refused by the verifier's bay_out_when_clear test.
 TEST(Kr20, ABayOutThatStartsWhileAnArmIsTooCloseIsRefused) {
   OrderedPlan o = NamedPlan(kClearOut);
@@ -697,7 +697,15 @@ TEST(Kr20, ABayOutThatStartsWhileAnArmIsTooCloseIsRefused) {
   EXPECT_FALSE(AnyFault(plain, {"starts while an arm is too close"}));
   const BayEvent* release = EventOf(o.plan, "release");
   ASSERT_NE(release, nullptr);
-  const double early = release->t0;
+  // The start of pin arm C's last work in the bay before the release.
+  double early = -1.0;
+  for (const ArmPlan& a : o.plan.arms) {
+    if (a.name != "pin_arm_c") continue;
+    for (const Segment& s : a.segments) {
+      if (s.kind == "work" && s.t1 <= release->t0 + 1e-9) early = s.t0;
+    }
+  }
+  ASSERT_GT(early, 0.0);
   for (BayEvent& e : o.plan.events) {
     if (e.kind != "bay_out") continue;
     const double span = e.t1 - e.t0;
