@@ -641,6 +641,27 @@
         "sha256": "0b3b3e303a8c47f7c2c5a342950eb34c6ca1c57915969301261d8140045bdc16"
       },
       "scores": "scores/flat_rack_3_kr20_pin_arms_shared_ordered.json"
+    },
+    {
+      "id": "v16",
+      "date": "2026-11-27",
+      "commit": "this",
+      "title": "One 40 ft flat rack, three KR 20 pin arms on one shared beam, faster retreats: three bays planned",
+      "direction": "one-40ft-flat-rack",
+      "status": "candidate",
+      "changed": "v15's cell with retreat_legs (run 036): a leg that leaves contact into free air (a retreat) runs at up to 0.5 m/s and 3.0 m/s^2 of the working point; approaches keep 0.25 m/s and 1.0 m/s^2. Three bays are planned whole, 378 of 378 moves, verified and committed: 574.73 s for one bay and a cycle time of 572.56 s over three.",
+      "why": "It is the measured step after v15 in the all-KUKA 40 ft cell: 572.56 s against v15's 612.40 s, so a candidate weighed against v15. It is still 18.01 s above v10's 554.55 s, so v10 stays chosen.",
+      "recording": "docs/evolution/v16.gif",
+      "competed_with": "v15",
+      "layout": {
+        "path": "layouts/flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat.json",
+        "sha256": "9a62818ea05a13ca1d97165fbc7757be7f5a95e2026559d8870662fdaed3140d"
+      },
+      "plan": {
+        "path": "plans/flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat.json",
+        "sha256": "0109f7d0e6fe80231215b4c520ae920c7c9c0068438c45efdff2733f4a0413f2"
+      },
+      "scores": "scores/flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat.json"
     }
   ]
 }
