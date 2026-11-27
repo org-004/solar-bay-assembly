@@ -1,4 +1,4 @@
-# KUKA KR 20 pin arms for the 40 ft cell (runs 031, 034, 035 and 037)
+# KUKA KR 20 pin arms for the 40 ft cell (runs 031, 034, 035, 037 and 041)
 
 Every arm KUKA (the owner, 2026-11-26). Run 031 replaced v10's three UR10e pin arms
 (`flat_rack_3_pin_arms_ordered`) with KUKA KR 20 R1810-2 and found that one bay does not plan.
@@ -7,7 +7,80 @@ side, and planned one bay of the layout `flat_rack_1_kr20_pin_arm_ordered` whole
 several carriages ride one beam and split the holes over three KR 20 pin arms:
 `flat_rack_3_kr20_pin_arms_shared_ordered`, one bay planned whole in 626.32 s. Run 037 planned its
 three bays and scored it as v15 (`cycle_s` 612.40 s), and the same layout with run 036's faster
-retreats as v16 (572.56 s).
+retreats as v16 (572.56 s). Run 041 set the modules in turns of the three pin arms:
+`flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma`, one bay planned whole in 543.96 s.
+
+## The module arm on the path (run 041)
+
+v16's bay 0 (`plans/flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat.json`, 574.73 s) has on
+its critical path the module arm's ten rails (45.00 to 199.12 s), then pin arm C, which waits
+172.1 s (209.41 to 381.50 s) for the module arm's set of module 7, then works modules 7 and 8
+(396.40 to 523.41 s) and bay out. The module arm's steps from the end of the rails to the set of
+module 7, from the committed plan (planned: the step's span; model: the time model's move plus
+the work; legs are not timed by the model):
+
+| step | what | start s | end s | planned s | model s | move planned / model s | legs s | work s | waits for | planned - model |
+|---:|---|---:|---:|---:|---:|---:|---:|---:|---|---:|
+| 22 | set rail 9 | 199.12 | 199.67 | 0.55 | 0.00 | 0.00 / 0.00 | 0.55 | 0.00 | nothing | +0.55 |
+| 33 | take module 0 | 199.67 | 211.25 | 11.58 | 6.97 | 7.43 / 4.97 | 2.15 | 2.00 | nothing | +4.61 |
+| 34 | set module 0 | 211.25 | 224.11 | 12.86 | 6.68 | 8.36 / 3.68 | 1.50 | 3.00 | nothing | +6.18 |
+| 49 | take module 1 | 224.11 | 234.70 | 10.60 | 5.68 | 6.45 / 3.68 | 2.15 | 2.00 | nothing | +4.91 |
+| 50 | set module 1 | 234.70 | 247.48 | 12.77 | 5.92 | 8.28 / 2.92 | 1.50 | 3.00 | nothing | +6.85 |
+| 63 | take module 2 | 247.48 | 259.12 | 11.64 | 4.92 | 7.49 / 2.92 | 2.15 | 2.00 | nothing | +6.72 |
+| 64 | set module 2 | 259.12 | 269.92 | 10.80 | 5.55 | 6.30 / 2.55 | 1.50 | 3.00 | nothing | +5.25 |
+| 77 | take module 3 | 269.92 | 278.50 | 8.58 | 4.55 | 4.43 / 2.55 | 2.15 | 2.00 | nothing | +4.03 |
+| 78 | set module 3 | 278.50 | 288.44 | 9.94 | 5.55 | 5.45 / 2.55 | 1.50 | 3.00 | nothing | +4.39 |
+| 91 | take module 4 | 288.44 | 297.58 | 9.13 | 4.55 | 4.99 / 2.55 | 2.15 | 2.00 | nothing | +4.58 |
+| 92 | set module 4 | 297.58 | 308.80 | 11.22 | 5.55 | 6.72 / 2.55 | 1.50 | 3.00 | nothing | +5.67 |
+| 106 | take module 5 | 308.80 | 317.63 | 8.84 | 4.55 | 4.69 / 2.55 | 2.15 | 2.00 | nothing | +4.29 |
+| 107 | set module 5 | 317.63 | 329.07 | 11.43 | 5.73 | 6.94 / 2.73 | 1.50 | 3.00 | nothing | +5.70 |
+| 120 | take module 6 | 329.07 | 341.46 | 12.40 | 4.73 | 8.25 / 2.73 | 2.15 | 2.00 | nothing | +7.67 |
+| 121 | set module 6 | 341.46 | 354.45 | 12.99 | 6.49 | 8.49 / 3.49 | 1.50 | 3.00 | nothing | +6.50 |
+| 134 | take module 7 | 354.45 | 365.46 | 11.01 | 5.49 | 6.86 / 3.49 | 2.15 | 2.00 | nothing | +5.51 |
+| 135 | set module 7 | 365.46 | 382.05 | 16.59 | 7.25 | 12.10 / 4.25 | 1.50 | 3.00 | nothing | +9.34 |
+| | all | 199.12 | 382.06 | 182.93 | 90.17 | 113.22 / 50.17 | 29.71 | 40.00 | waits 0.00 | +92.76 |
+
+The module arm waits for nothing in this stretch: it is busy from the last rail to module 8's set
+(412.90 s), and every step is slower than its model by the same three causes: its moves (113.22 s
+against 50.17 s, +63.05 s; paths with corners around the pallet and the bay, the planner's timing,
+run 042's lever), its approach and retreat legs (29.71 s, not in the model; retreats already at
+run 036's 0.5 m/s), and the settle of 0.30 s per move inside the span. None of these is a layout
+field. What a layout field does govern is *which* modules come last: `order.modules` was 0 to 8,
+so pin arm C's two modules (7 and 8, holes 28-35) were the last two sets, C idled from its last
+bolt to 381.50 s, and its two modules (about 66 s each) ran after the module arm was done. That
+wait, 175.1 s on the path, is the largest cause a layout field removes.
+
+The module arm's own lower bound for a bay is its moves, legs and process summed: 205.6 + 67.3 +
+95.0 = 367.9 s (452.9 s with tube in, clamp and bay out), against 574.73 s. A pin arm's work on
+its last module comes after the last set, so a bay cannot end before about 413 + 62 + 17 + 40 ≈
+532 s with this arm and this split of holes.
+
+Probes (v16's file with `order.modules` changed, one bay, `check_layout` 944 of 944 rows each):
+
+| order.modules | pin_tools | moves found | bay_planned_s | path after the module arm |
+|---|---|---:|---:|---|
+| 0, 1, 2, 3, 4, 5, 6, 7, 8 (v16) | just_in_time | 126 / 126 | 574.73 | C, modules 7 and 8 |
+| 0, 7, 4, 1, 8, 5, 2, 6, 3 | just_in_time | 126 / 126 | 546.44 | A, modules 2 and 3 |
+| 0, 7, 4, 1, 8, 5, 2, 6, 3 | early | blocked | - | schedule blocked at set rail 0 (B's magazine take, as in run 035) |
+| 0, 7, 4, 1, 2, 8, 5, 6, 3 | just_in_time | 126 / 126 | 544.11 | A |
+| 0, 7, 1, 4, 8, 2, 5, 3, 6 | just_in_time | 126 / 126 | 557.59 | B |
+| **0, 4, 7, 1, 5, 8, 2, 6, 3** | just_in_time | 126 / 126 | **543.96** | A, modules 2 and 3 |
+
+The last is `layouts/flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma.json` (v16's file
+otherwise unchanged; its plan of one bay is `plans/` of the same name, replayed by
+`Kr20.OneBayOfTheSharedBeamLayoutWithTheModulesInTurnsPassesTheVerifier`). One bay: 126 of 126
+moves, **543.96 s** (v16 574.73 s, v10 560.45 s), time model 416.75 s; planning 36 s. Pin arm C
+now waits 60.3 s for its first module and is back at its wait pose with its first tool at 434.4 s; pin arm A, with four modules
+and five bolts, is busy without a wait longer than 0.63 s from 240.75 s to 503.96 s and is the
+path's tail. Below this the lever is A's share: four modules after the rails (about 62 s each), or
+the module arm taking a module before the last rail.
+
+Margins of the one-bay plan (`plan_layout -- <name> --margins`, exit 0): least clearance 0.0160 m
+against 0.015 (C link 3 to `holder_stand_8_saddle`); arm to arm 0.0194 m (the module arm's held
+module to A's pin tool nose); least joint margin 5.00° against 5° (A joint 1 at its first pin
+magazine take; B at its wait pose); track ends 0 slack (module arm −3.600 / 5.500, A −5.700);
+carriage to carriage on the shared beam at least 0.495 m (B to C, centres 0.995 m apart less the
+0.5 m carriage).
 
 ## Three bays (run 037)
 
