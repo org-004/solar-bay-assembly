@@ -365,3 +365,50 @@ a 0.25 m one from 1.50 (by speed) to 0.75 s and a 0.40 m one from 2.40 to 1.20 s
 - Next: the moves slower than modelled (+80.85 s on bay 1's path: pin arm B +42.1 s with its
   13.3 s return after swage 8/0, A +24.0 s) are now the largest share; then the approaches
   (62.82 s), which this change leaves as they were.
+
+## Pin arm B's slow moves (run 038)
+
+On v14's bay 1 critical path pin arm B moves for 65.35 s where the time model gives the same moves
+23.16 s (+42.18 s). Each move from the plan file, with its path length in seconds at the datasheet
+speeds (per piece the largest of each joint's change over its speed and the carriage's over
+1.5 m/s, summed) against the straight line's, and `plan_layout --why` for the slow ones (bay 0's
+steps 131, 147, 151, 156, 175):
+
+| step (bay 1) | move | planned s | model s | excess s | path / straight | cause |
+|---|---|---:|---:|---:|---|---|
+| 307 | wait to locate 7/0 | 8.23 | 1.87 | +6.36 | 3.67 / 1.00 | far wait pose: joints 2 and 3 unfold 175 and 180 deg under the bay |
+| 323 | pin 8/0 to locate 8/2 | 9.47 | 1.85 | +7.62 | 3.11 / 0.80 | around holder stand 1's column |
+| 327 | pin 8/3 to locate 8/1 | 5.76 | 1.07 | +4.68 | 2.66 / 0.21 | around the column (link 3 meets it on the straight line) |
+| 330 | swage 8/1 to swage 8/3 | 4.77 | 1.07 | +3.70 | 1.83 / 0.21 | around the column |
+| 332 | swage 8/2 to swage 8/0 | 5.23 | 1.85 | +3.38 | 1.90 / 0.80 | around the column |
+| 351 | swage 8/0 to wait | 13.26 | 1.98 | +11.28 | 5.78 / 1.12 | far wait pose: joints 2, 3 turn 191 and 213 deg, the carriage wanders |
+| 311, 317, 325, 331 | same-rail moves | 10.59 | 5.80 | +4.79 | 1.00-1.25 x | corners of a path of 3 to 7 pieces |
+| 309, 313, 316, 318, 321 | one-piece moves | 8.05 | 7.69 | +0.36 | 1.00 x | none |
+
+Holder stand 1 stands at y = 1.690 m, under module 8 between rails 8 and 9 at stage 3; module 8's
+holes 0 and 1 are reached from +Y of the column and 2 and 3 from -Y of it, and the locate order
+0, 2, 3, 1 and swage order 1, 3, 2, 0 cross it four times (+19.38 s, 46 %). The same moves on pin
+arm A's modules are straight (1.00 to 1.06 x). The stand is fixed by the staging and the locate
+order by the locating move's design; postures straight under module 8's holes fail 20 checker
+rows (the pin lane). The far wait pose is the second share (+17.64 s, 42 %), and a layout field
+removes it.
+
+`layouts/two_flat_racks_2_pin_arms_balanced_ordered_fast_b.json` is v14's layout with pin arm B's
+wait pose (125, -30, 150, 0, 60, 0 deg; was 90, -170, 160, 0, 60, 0) and its stops for locate,
+pin and swage at the carriage positions of v14's plan, so that its postures stay v14's.
+`plan_layout -- two_flat_racks_2_pin_arms_balanced_ordered_fast_b --bays 1` finds 127 of 127
+moves, verified: bay 0 **740.38 s** against v14's 751.62 s (-11.24 s).
+
+- B's two wait moves: 8.23 to 3.51 s and 13.26 to 3.59 s. B's return after swage 8/0 is off the
+  critical path now; the path ends with B's swage 8/0, the release and bay out, and B waits 5.25 s
+  for module 8 to be set.
+- `account.py --bay 0`, B on the path: locate 34.0 to 26.1 s (model 12.4), swage 18.1 to 18.3 s
+  (model 8.8), back to wait 13.3 s to off the path.
+- Margins as v14's: least clearance 0.0176 m, arm to arm 0.0188 m, joint margin 8.64 deg; the
+  track ends as v14's (0 slack).
+- Wait poses tried: joint 2 at -30 deg with joint 1 at 40, 90 or 100 deg meets the pin feeder
+  (checker); at 115, 125 or 140 deg without the stops modules 2 and 5 take a posture 0.0153 m
+  from stand 1's column and four moves are not found; 115 and 140 deg with the stops plan
+  740.36 and 743.27 s. Setting module 8 before module 7 (`order`) planned 758.92 s.
+- Next: the column crossings (+19.4 s): an opt-in swage order per arm (1, 0, 3, 2) would save one
+  of the four; then three bays of this layout as a version.
