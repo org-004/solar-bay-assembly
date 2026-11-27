@@ -639,48 +639,52 @@ TEST(Kr20, ThreeBaysOfTheChosenLayoutWithTheTorqueBoundPassTheVerifier) {
   EXPECT_GT(o.plan.bay_planned_s, 499.54);
 }
 
-// Run 050: v19's layout with bay_out_when_clear (src/layout_clear_out.h), one
-// bay: the bay goes out once the release has ended and no arm comes within
-// the clearance of it on its way, so pin arm C's last tool change runs while
-// it goes out. The verifier over the whole plan, its schedule included.
+// Run 050: v19's layout with bay_out_when_clear (src/layout_clear_out.h): the
+// bay goes out once the release has ended and no arm comes within the
+// clearance of it on its way, so pin arm C's last tool change runs while it
+// goes out. Run 052 (v20): three bays planned whole; the next tube_in starts
+// at the end of bay out, after every arm is free. The verifier over the whole
+// plan, its schedule included.
 constexpr const char* kClearOut =
     "flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque_clear_out";
 
-const BayEvent* EventOf(const Plan& p, const std::string& kind) {
+const BayEvent* EventOf(const Plan& p, const std::string& kind, int bay = 0) {
   for (const BayEvent& e : p.events) {
-    if (e.kind == kind) return &e;
+    if (e.kind == kind && e.bay == bay) return &e;
   }
   return nullptr;
 }
 
-TEST(Kr20, OneBayOfTheChosenLayoutWithTheBayOutWhenClearPassesTheVerifier) {
+TEST(Kr20, ThreeBaysOfTheChosenLayoutWithTheBayOutWhenClearPassTheVerifier) {
   const OrderedPlan o = NamedPlan(kClearOut);
   ASSERT_TRUE(o.error.empty()) << o.error;
   EXPECT_TRUE(o.layout.bay_out_when_clear);
   EXPECT_TRUE(o.plan.complete);
-  EXPECT_EQ(o.plan.bays, 1);
+  EXPECT_EQ(o.plan.bays, 3);
   EXPECT_EQ(o.plan.figures.path_tries, 8);
   EXPECT_EQ(o.plan.figures.torque_limit_scale, 0.9);
   const VerifyReport r =
       VerifyPlan(o.layout, ModelPaths::FromEnvironment(), o.plan, o.sha256, VerifyOptions{});
   EXPECT_TRUE(r.ok) << Faults(r);
   EXPECT_GE(r.bay_out_least_m, o.plan.figures.clearance_m);
-  const BayEvent* release = EventOf(o.plan, "release");
-  const BayEvent* out = EventOf(o.plan, "bay_out");
-  ASSERT_NE(release, nullptr);
-  ASSERT_NE(out, nullptr);
-  // The bay goes out before the last arm is free, and not before the release ends.
-  double last_free = 0.0;
-  for (const ArmPlan& a : o.plan.arms) {
-    for (const Segment& s : a.segments) {
-      if (s.kind != "wait") last_free = std::max(last_free, s.t1);
+  std::printf("least arm to a bay going out %.4f m\n", r.bay_out_least_m);
+  for (int b = 0; b < o.plan.bays; ++b) {
+    const BayEvent* release = EventOf(o.plan, "release", b);
+    const BayEvent* out = EventOf(o.plan, "bay_out", b);
+    ASSERT_NE(release, nullptr) << "bay " << b;
+    ASSERT_NE(out, nullptr) << "bay " << b;
+    // Each bay goes out before the last arm is free, and not before its release ends.
+    double last_free = 0.0;
+    for (const ArmPlan& a : o.plan.arms) {
+      for (const Segment& s : a.segments) {
+        if (s.kind != "wait" && s.t0 < out->t1) last_free = std::max(last_free, s.t1);
+      }
     }
+    std::printf("bay %d: release ends %.2f s, bay_out %.2f to %.2f s, last arm free %.2f s\n", b,
+                release->t1, out->t0, out->t1, last_free);
+    EXPECT_GE(out->t0, release->t1 - 1e-9) << "bay " << b;
+    EXPECT_LT(out->t0, last_free) << "bay " << b;
   }
-  std::printf("release ends %.2f s, bay_out %.2f to %.2f s, last arm free %.2f s, least arm to "
-              "the bay going out %.4f m\n",
-              release->t1, out->t0, out->t1, last_free, r.bay_out_least_m);
-  EXPECT_GE(out->t0, release->t1 - 1e-9);
-  EXPECT_LT(out->t0, last_free);
   EXPECT_NEAR(o.plan.bay_planned_s, 496.59, 0.005);
   EXPECT_LT(o.plan.bay_planned_s, 502.55);
 }
@@ -707,7 +711,7 @@ TEST(Kr20, ABayOutThatStartsWhileAnArmIsTooCloseIsRefused) {
   }
   ASSERT_GT(early, 0.0);
   for (BayEvent& e : o.plan.events) {
-    if (e.kind != "bay_out") continue;
+    if (e.kind != "bay_out" || e.bay != 0) continue;
     const double span = e.t1 - e.t0;
     e.t0 = early;
     e.t1 = early + span;
