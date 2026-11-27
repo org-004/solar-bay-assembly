@@ -55,6 +55,9 @@ std::string PlanPath(const std::string& name) {
 constexpr const char* kV16 = "flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat";
 constexpr const char* kTorque = "flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_torque";
 constexpr const char* kKr20 = "flat_rack_1_kr20_pin_arm_ordered";
+constexpr const char* kSplit = "flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split";
+constexpr const char* kSplitTorque =
+    "flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_torque";
 
 // A committed plan with what it takes to measure its module arm.
 struct Measured {
@@ -286,10 +289,12 @@ TEST(TorqueLimit, TheVerifierHoldsThePlanToTheLayout) {
   }
 }
 
-// The committed plan of the layout with the field, R1's table run on it:
-// every module arm move within the fraction, and some slowed.
-TEST(TorqueLimit, TheCommittedPlanHoldsItsFraction) {
-  std::unique_ptr<Measured> m = Measure(kTorque);
+// The committed plans of the layouts with the field, R1's table run on
+// them: every module arm move within the fraction, and some slowed.
+class CommittedTorquePlan : public ::testing::TestWithParam<const char*> {};
+
+TEST_P(CommittedTorquePlan, HoldsItsFraction) {
+  std::unique_ptr<Measured> m = Measure(GetParam());
   ASSERT_TRUE(m->error.empty()) << m->error;
   const double fraction = m->plan->figures.torque_limit_scale;
   ASSERT_GT(fraction, 0.0);
@@ -306,6 +311,45 @@ TEST(TorqueLimit, TheCommittedPlanHoldsItsFraction) {
   }
   EXPECT_GT(moves, 30);
   EXPECT_GT(slowed, 0);
+}
+
+INSTANTIATE_TEST_SUITE_P(TorqueLimit, CommittedTorquePlan,
+                         ::testing::Values(kTorque, kSplitTorque));
+
+// The seconds the slowed moves of the module arm add to its motion: each
+// slowed move's time without its settle, less the same at time scale 1.
+double AddedBySlowing(const ArmPlan& arm, double settle_s) {
+  double added = 0.0;
+  for (const Segment& s : arm.segments) {
+    if (s.kind != "move" || s.time_scale <= 1.0) continue;
+    const double motion = s.t1 - s.t0 - settle_s;
+    added += motion - motion / s.time_scale;
+  }
+  return added;
+}
+
+// Run 047: the schedule of a plan with slowed moves keeps the order and the
+// starts of the plan without them (ScheduleSlowed in src/layout_plan.cc), so
+// the bay costs no more than the layout without the field plus the motion
+// the slowed moves add; before run 047 v16's bay grew 26.60 s for 5.80 s.
+TEST(TorqueLimit, TheBayCostsNoMoreThanTheSlowedMotion) {
+  const std::pair<const char*, const char*> pairs[] = {{kV16, kTorque}, {kSplit, kSplitTorque}};
+  for (const auto& [without, with] : pairs) {
+    std::string error;
+    const std::optional<Plan> base = PlanFromJson(ReadFile(PlanPath(without)), &error);
+    ASSERT_TRUE(base) << error;
+    std::unique_ptr<Measured> m = Measure(with);
+    ASSERT_TRUE(m->error.empty()) << m->error;
+    const double added = AddedBySlowing(*m->arm, m->plan->figures.settle_s);
+    double base_bay0 = 0.0;
+    for (const StepTime& st : base->steps) {
+      if (st.bay == 0) base_bay0 = std::max(base_bay0, st.end);
+    }
+    EXPECT_GT(added, 1.0) << with;
+    EXPECT_GT(m->plan->bay_planned_s, base_bay0) << with;
+    EXPECT_LE(m->plan->bay_planned_s, base_bay0 + added + 0.01) << with << ": " << base_bay0
+                                                                 << " + " << added;
+  }
 }
 
 }  // namespace

@@ -587,8 +587,9 @@ TEST(Kr20, ThreeBaysOfTheSharedBeamLayoutWithThreeModulesToEachPinArmAndPathTrie
 // Run 045: v16's layout with torque_limit_scale (src/layout_torque.h), one
 // bay planned whole, each module arm move slowed until its inverse dynamics
 // hold that fraction of every motor's limit; slower than v16's 574.73 s by
-// the price of the slowed moves. The verifier over the whole plan, its
-// schedule included.
+// the price of the slowed moves (601.33 s in run 045; 580.53 s since run
+// 047 schedules it in the order of the unslowed plan). The verifier over the
+// whole plan, its schedule included.
 TEST(Kr20, OneBayOfTheSharedBeamLayoutWithTheTorqueBoundPassesTheVerifier) {
   const OrderedPlan o = NamedPlan("flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_torque");
   ASSERT_TRUE(o.error.empty()) << o.error;
@@ -597,8 +598,25 @@ TEST(Kr20, OneBayOfTheSharedBeamLayoutWithTheTorqueBoundPassesTheVerifier) {
   EXPECT_EQ(o.plan.figures.torque_limit_scale, 0.9);
   const VerifyReport r = VerifyPlan(o.layout, ModelPaths::FromEnvironment(), o.plan, o.sha256, VerifyOptions{});
   EXPECT_TRUE(r.ok) << Faults(r);
-  EXPECT_NEAR(o.plan.bay_planned_s, 601.33, 0.005);
+  EXPECT_NEAR(o.plan.bay_planned_s, 580.53, 0.005);
   EXPECT_GT(o.plan.bay_planned_s, 574.73);
+}
+
+// Run 047: run 044's layout (modules split three to each pin arm) with
+// torque_limit_scale 0.90, one bay planned whole; slower than its 513.80 s by
+// the motion its slowed moves add. The verifier over the whole plan, its
+// schedule included.
+TEST(Kr20, OneBayOfTheSplitLayoutWithTheTorqueBoundPassesTheVerifier) {
+  const OrderedPlan o =
+      NamedPlan("flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_torque");
+  ASSERT_TRUE(o.error.empty()) << o.error;
+  EXPECT_TRUE(o.plan.complete);
+  EXPECT_EQ(o.plan.bays, 1);
+  EXPECT_EQ(o.plan.figures.torque_limit_scale, 0.9);
+  const VerifyReport r = VerifyPlan(o.layout, ModelPaths::FromEnvironment(), o.plan, o.sha256, VerifyOptions{});
+  EXPECT_TRUE(r.ok) << Faults(r);
+  EXPECT_NEAR(o.plan.bay_planned_s, 520.98, 0.005);
+  EXPECT_GT(o.plan.bay_planned_s, 513.80);
 }
 
 TEST(Ordered, PassesTheVerifierWithoutTheSchedule) {
