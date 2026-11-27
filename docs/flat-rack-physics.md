@@ -14,9 +14,10 @@ The run is measured as the checker measures. Its committed record,
 `physics/flat_rack_3_pin_arms_ordered.json`, is what the scorecard's `physics_share`
 counts ([`scorecard.md`](scorecard.md)).
 
-Since run 043 the chosen layout is v17, `flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_paths`
-(all KUKA), so `run_physics` with no name runs v17's plan; its record is in
-"[v17's record (run 043)](#v17s-record-run-043)" below, after v16's, chosen from run 040 to run 043, in
+Since run 046 the chosen layout is v18, `flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths`
+(all KUKA), so `run_physics` with no name runs v18's plan; its record is in
+"[v18's record (run 046)](#v18s-record-run-046)" below, after v17's, chosen from run 043 to run 046, in
+"[v17's record (run 043)](#v17s-record-run-043)", and v16's, chosen from run 040 to run 043, in
 "[v16's record (run 040)](#v16s-record-run-040)". The rest of this page is v10's
 run, made in run 019.
 
@@ -340,6 +341,30 @@ module 6 is the eighth set.
 
 Both steps count. Joint 1 reaches its torque limit in both, as in v16's: the planner times moves
 from datasheet joint speeds and knows no torque.
+
+## v18's record (run 046)
+
+`bazel run --config=opt //:run_physics -- flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths --write`
+wrote `physics/flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths.json` the way run 043
+wrote v17's. The take before the hardest carry, as the tool chooses it, is now module 5's
+(module_take 7, plan steps 136 and 137): with three modules to each pin arm, set in turns
+(0, 3, 6, 1, 4, 7, 2, 5, 8), module 5 is the eighth set.
+
+| Figure (derived) | v18, module 5 | v17, module 6 (run 043) |
+|---|---|---|
+| counted, of one bay | 20.205074 s of 499.542691 s | 20.725585 s of 529.197537 s |
+| `physics_share` | 0.040447 | 0.039164 |
+| peak torque over its limit, joints 1-6, take | 1.000 0.887 0.398 0.109 0.489 0.243 | 1.000 0.814 0.251 0.079 0.348 0.163 |
+| peak torque over its limit, joints 1-6, set | 0.420 0.597 0.315 0.124 0.335 0.200 | 1.000 0.932 0.712 0.150 0.516 0.459 |
+| peak track force over its limit, take / set | 0.664 / 0.579 | 0.811 / 0.820 |
+| least clearance in physics, take / set | 0.021488 m / 0.021586 m (plan 0.021488 / 0.021591), against 0.015 m | 0.020108 m / 0.018916 m |
+| largest joint tracking error, take / set | 2.4907 / 0.8641 mrad | 7.6382 / 2.1291 mrad |
+| largest Cartesian error, take / set | 5.8223 mm / 0.6994 mm | 13.9240 mm / 1.0381 mm |
+| set-down offset after settling | 0.2315 mm, yaw 0.0004 deg (gate 3.0 mm, 0.15 deg) | 0.2434 mm, yaw -0.0013 deg |
+
+Both steps count. Joint 1 still reaches its torque limit on the take, as in v17's (the planner
+times moves from datasheet joint speeds and knows no torque); on the set it stays at 0.420, where
+v17's reached 1.000.
 
 ## Torque-feasible timing (run 045)
 

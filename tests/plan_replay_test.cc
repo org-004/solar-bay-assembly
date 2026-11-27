@@ -569,6 +569,21 @@ TEST(Kr20, ThreeBaysOfTheSharedBeamLayoutWithTheModulesInTurnsAndPathTriesPassTh
   EXPECT_NEAR(o.plan.bay_planned_s, 529.20, 0.005);
 }
 
+// Run 046: run 044's layout with three modules to each pin arm and run 042's
+// path_tries 8 on one layout (v18), three bays planned whole; the verifier
+// over the whole plan, its schedule included.
+TEST(Kr20, ThreeBaysOfTheSharedBeamLayoutWithThreeModulesToEachPinArmAndPathTriesPassTheVerifier) {
+  const OrderedPlan o = NamedPlan("flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths");
+  ASSERT_TRUE(o.error.empty()) << o.error;
+  EXPECT_TRUE(o.plan.complete);
+  EXPECT_EQ(o.plan.bays, 3);
+  EXPECT_EQ(o.plan.figures.path_tries, 8);
+  const VerifyReport r = VerifyPlan(o.layout, ModelPaths::FromEnvironment(), o.plan, o.sha256, VerifyOptions{});
+  EXPECT_TRUE(r.ok) << Faults(r);
+  EXPECT_NEAR(o.plan.bay_planned_s, 499.54, 0.005);
+  EXPECT_LT(o.plan.bay_planned_s, 513.80);
+}
+
 // Run 045: v16's layout with torque_limit_scale (src/layout_torque.h), one
 // bay planned whole, each module arm move slowed until its inverse dynamics
 // hold that fraction of every motor's limit; slower than v16's 574.73 s by

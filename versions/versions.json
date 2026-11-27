@@ -669,9 +669,9 @@
       "commit": "this",
       "title": "One 40 ft flat rack, three KR 20 pin arms on one shared beam, the modules in turns of the pin arms, each move the quickest of 8 paths: three bays planned",
       "direction": "one-40ft-flat-rack",
-      "status": "chosen",
+      "status": "superseded",
       "changed": "v16's cell with two changes and nothing else: run 041's module order (order.modules 0, 4, 7, 1, 5, 8, 2, 6, 3, the modules set in turns of pin arms A, B and C) and run 042's path_tries 8 (each move searched from 8 seeds and the quickest timed path kept). Three bays are planned whole, 378 of 378 moves, verified and committed: 529.20 s for one bay (529.20 / 529.80 / 523.92 s) and a cycle time of 527.64 s over three.",
-      "why": "It is the measured step after v16 in the all-KUKA 40 ft cell: 527.64 s against v16's 572.56 s (-44.92 s), and 26.91 s below v10's 554.55 s. Registered as a candidate weighed against v16 and made the chosen version in the same run (run 043): the chosen cell is the best all-KUKA cell (the owner's rule), and v16 is superseded with its numbers kept.",
+      "why": "It is the measured step after v16 in the all-KUKA 40 ft cell: 527.64 s against v16's 572.56 s (-44.92 s), and 26.91 s below v10's 554.55 s. Registered as a candidate weighed against v16 and made the chosen version in the same run (run 043): the chosen cell is the best all-KUKA cell (the owner's rule), and v16 is superseded with its numbers kept. It was superseded on 2026-11-27 (run 046) by v18, 29.09 s quicker on the same cell, with its numbers kept.",
       "recording": "docs/evolution/v17.gif",
       "competed_with": "v16",
       "layout": {
@@ -683,6 +683,27 @@
         "sha256": "c05f48a4a9122f668e91a3854ed147e3d68fdf13527119825a0f3afa12d0b85d"
       },
       "scores": "scores/flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_paths.json"
+    },
+    {
+      "id": "v18",
+      "date": "2026-11-27",
+      "commit": "this",
+      "title": "One 40 ft flat rack, three KR 20 pin arms on one shared beam, three modules to each pin arm in turns, each move the quickest of 8 paths: three bays planned",
+      "direction": "one-40ft-flat-rack",
+      "status": "chosen",
+      "changed": "v17's cell (all KUKA, three KR 20 pin arms on one shared beam) with run 044's split and order in place of run 041's: module 3 moved from pin arm A to B and module 6 from B to C, three modules to each pin arm, order.modules 0, 3, 6, 1, 4, 7, 2, 5, 8, and B's wait/stow track 0.6; path_tries 8 as in v17 (each move searched from 8 seeds and the quickest timed path kept). Three bays are planned whole, 378 of 378 moves, verified and committed: 499.54 s for one bay (499.54 / 502.53 / 493.59 s) and a cycle time of 498.55 s over three.",
+      "why": "It is the measured step after v17 in the all-KUKA 40 ft cell: 498.55 s against v17's 527.64 s (-29.09 s). Registered as a candidate weighed against v17 and made the chosen version in the same run (run 046): the chosen cell is the best all-KUKA cell (the owner's rule), and v17 is superseded with its numbers kept.",
+      "recording": "docs/evolution/v18.gif",
+      "competed_with": "v17",
+      "layout": {
+        "path": "layouts/flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths.json",
+        "sha256": "5305060902b2605c20ecad6847c8812eabfc82e7c238819481adb61692a92b68"
+      },
+      "plan": {
+        "path": "plans/flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths.json",
+        "sha256": "c5b467b3bc0ad3fd5b79862a54fcd27f34565069aa85bf75c115db9e8d107f8f"
+      },
+      "scores": "scores/flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths.json"
     }
   ]
 }
