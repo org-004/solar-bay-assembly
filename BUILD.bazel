@@ -2189,9 +2189,12 @@ cc_test(
 # The replay's pieces (motion, the plan file, the player) and the committed
 # plans' order of work, without planning anything.
 #   bazel test --config=opt //:plan_replay_test
+# Size large since run 037: the verifier over v15's and v16's three bays takes
+# 61 and 56 s, and the test took 207.9 s here in the full suite, more than two
+# thirds of medium's 300 s.
 cc_test(
     name = "plan_replay_test",
-    size = "medium",
+    size = "large",
     # tests/retreat_legs_test.cc: a layout's retreat_legs (run 036).
     srcs = [
         "tests/plan_replay_test.cc",
@@ -2421,6 +2424,9 @@ cc_binary(
 # 184.8 s here with the balanced layout's scorecard (run 030), about 340 s on CI;
 # 725.1 s here in one process with v13's (run 033), so the committed scorecards are one
 # test per plan (CommittedFile.IsWhatTheProgramComputes/<name>) over three shards.
+# Four shards since run 037: gtest deals the tests out by index, and v15's and
+# v16's cards put two of the two-rack cards (474 to 528 s each beside the staged
+# replay) in one of three shards, 900 s and over; four give each its own.
 cc_test(
     name = "scorecard_test",
     size = "large",
@@ -2431,7 +2437,7 @@ cc_test(
         "SCORES_DIR": "scores",
         "PHYSICS_DIR": "physics",
     },
-    shard_count = 3,
+    shard_count = 4,
     deps = [
         ":layout",
         ":layout_model",
