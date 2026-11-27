@@ -244,3 +244,9 @@ module 7), pin arm B 155.35 s (modules 7 and 8, then a 13.3 s move back to its w
 bay_out waits for), bay out. Still the heavy pin arm of each stage: the next share is the 0.73 s
 legs (130.14 s on the path) and A's hole-to-hole moves (+24.0 s on the path). The plan is not
 committed: three bays and a version are the next spec's.
+
+Every committed plan re-plans byte-identically with the verifier's change in: `bazel run
+--config=opt --config=agent //:plan_layout -- <name> [--bays 3] --out PATH` and `cmp PATH
+plans/<name>.json` for all five (`two_flat_racks_2_pin_arms_balanced`, `two_flat_racks_2_pin_arms`,
+`flat_rack_3_pin_arms_ordered`, `flat_rack_3_pin_arms`, `flat_rack_2_pin_arms`). The new layout
+passes all 985 of `check_layout`'s rows.
