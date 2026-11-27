@@ -11,6 +11,7 @@
 #include <iterator>
 #include <map>
 #include <optional>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -97,8 +98,16 @@ std::optional<Scorecard> Compute(const std::string& name) {
   return cache[name] = ComputeUncached(name);
 }
 
+// The committed plans that have a scorecard. A card is of three bays; a plan of
+// one bay (run 034's all-KUKA 40 ft layout, whose three bays and card are a
+// later spec's) is replayed by tests/plan_replay_test.cc and has none yet.
 std::vector<std::string> PlanNames() {
-  return ListLayouts(Dir("PLAN_DIR", "plans"));
+  static const std::set<std::string> kOneBay = {"flat_rack_1_kr20_pin_arm_ordered"};
+  std::vector<std::string> out;
+  for (const std::string& name : ListLayouts(Dir("PLAN_DIR", "plans"))) {
+    if (kOneBay.count(name) == 0) out.push_back(name);
+  }
+  return out;
 }
 
 StepTime Step(const std::string& what) {
