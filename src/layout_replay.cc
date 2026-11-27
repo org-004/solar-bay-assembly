@@ -17,6 +17,7 @@
 #include <utility>
 
 #include "src/layout_bays.h"
+#include "src/layout_clear_out.h"
 #include "src/layout_plan_stages.h"
 #include "src/path_timing.h"
 #include "src/rrt.h"
@@ -684,6 +685,9 @@ class Verifier {
       }
     }
     for (int i = 0; i < scene_.ArmCount(); ++i) CheckArm(i);
+    if (L_.bay_out_when_clear) {
+      for (int b = 0; b < bays_; ++b) ClearOut(b);
+    }
     StepsAndPhases();
     for (int b = 0; b < bays_; ++b) Order(b);
     for (const std::string& f : BetweenBays(scene_, plan_, report_, o_.time_tolerance_s,
@@ -710,6 +714,46 @@ class Verifier {
     auto it = events_[bay].find(kind);
     return it == events_[bay].end() ? nullptr : it->second;
   }
+  // bay_out_when_clear (src/layout_clear_out.h): through bay b's bay_out
+  // every arm that does not stand at its wait pose stays clearance_m (less
+  // the tolerance) from the bay on its way, sampled as the planner samples.
+  void ClearOut(int b) {
+    const BayEvent* out = Event(b, "bay_out");
+    if (out == nullptr || !(f_.sample_s > 0.0)) return;
+    double cached_t = -1.0;
+    WorldAt w;
+    auto at = [&](int i, double t) {
+      if (t != cached_t) {
+        w = player_.At(t);
+        cached_t = t;
+      }
+      ArmInstant x;
+      if (i >= static_cast<int>(w.arms.size())) {
+        x.at_wait = true;
+        return x;
+      }
+      const ArmAt& a = w.arms[i];
+      const SceneArm& sa = scene_.arm(i);
+      x.config = a.config;
+      x.tool = a.tool;
+      x.held = a.held;
+      bool still = a.kind == "wait" && std::abs(a.config[6] - sa.wait_track) <= 1e-6;
+      for (int j = 0; j < 6; ++j) still = still && std::abs(a.config[j] - sa.wait[j]) <= 1e-6;
+      x.at_wait = still;
+      return x;
+    };
+    DataPtr d = scene_.MakeData();
+    const ArmsPassing p =
+        ArmsPassBay(scene_, d.get(), out->t0, out->t1 - out->t0, out->t1, f_.sample_s,
+                    f_.clearance_m - o_.tolerance_m, at, false, kSceneFar);
+    r_->bay_out_least_m = std::min(r_->bay_out_least_m, p.least_m);
+    if (!p.clear) {
+      Fault(Of(b) + Fmt("bay_out (%.3f to %.3f s) starts while an arm is too close: %s, below "
+                        "%.4f m",
+                        out->t0, out->t1, ArmsPassingText(scene_, p).c_str(), f_.clearance_m));
+    }
+  }
+
   // "" for a plan of one bay, so that its faults read as they always have.
   std::string Of(int bay) const { return bays_ > 1 ? Fmt("bay %d: ", bay) : ""; }
 
@@ -926,6 +970,9 @@ class Verifier {
     for (const BayEvent& e : plan_.events) {
       const std::string kind = e.kind;
       if (kind != "tube_in" && kind != "clamp" && kind != "bay_out") continue;
+      // bay_out_when_clear: ClearOut measures the arms against the bay going
+      // out in place of this rule.
+      if (kind == "bay_out" && L_.bay_out_when_clear) continue;
       const bool first = kind != "clamp";
       for (const Segment& s : segs) {
         if (s.path.empty() || s.t1 <= e.t0 + tol || s.t0 >= e.t1 - tol) continue;

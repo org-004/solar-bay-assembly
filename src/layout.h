@@ -464,8 +464,7 @@ struct RetreatLegs {
 // blocked (a pin arm going from hole to hole past the tube) gets whatever
 // way round the obstacle its one search found, and shortening only pulls
 // that way taut, never changes it; another seed often goes round closer,
-// with fewer pieces and fewer corners to slow at. Without the field every
-// move is searched once, as before.
+// with fewer pieces and fewer corners to slow at. Without it, one search.
 inline constexpr int kMaxPathTries = 16;
 
 // "torque_limit_scale" (optional, flat rack bases only; run 045): a fraction
@@ -509,6 +508,7 @@ struct Layout {
   std::optional<RetreatLegs> retreat_legs;  // Optional on a flat rack base.
   std::optional<int> path_tries;            // Optional on a flat rack base.
   std::optional<double> torque_limit_scale; // Optional on a flat rack base.
+  bool bay_out_when_clear = false;  // Optional on a flat rack base (src/layout_clear_out.h).
 };
 
 // Reads layouts/<name>.json. Returns nothing and sets *error on any fault.

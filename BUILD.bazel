@@ -2132,6 +2132,7 @@ cc_library(
     name = "layout_plan",
     srcs = [
         "src/layout_bays.cc",
+        "src/layout_clear_out.cc",
         "src/layout_plan.cc",
         "src/layout_plan_file.cc",
         "src/layout_plan_stages.cc",
@@ -2141,6 +2142,7 @@ cc_library(
     ],
     hdrs = [
         "src/layout_bays.h",
+        "src/layout_clear_out.h",
         "src/layout_plan.h",
         "src/layout_plan_stages.h",
         "src/layout_report_file.h",

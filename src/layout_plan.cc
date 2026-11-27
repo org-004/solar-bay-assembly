@@ -22,6 +22,7 @@
 #include <tuple>
 
 #include "src/layout_bays.h"
+#include "src/layout_clear_out.h"
 #include "src/layout_plan_stages.h"
 #include "src/layout_stages.h"
 #include "src/layout_torque.h"
@@ -1499,6 +1500,35 @@ bool Planner::Schedule() {
       if (st.kind == "bay_out") out.step = st.number;
     }
     out.t0 = std::max(release.t1, bay_end);
+    // bay_out_when_clear (src/layout_clear_out.h): from the release's end in
+    // steps of sample_s, the first start from which every arm not at its wait
+    // pose stays clearance_m + plan_pad_m from the bay on its way.
+    if (layout_.bay_out_when_clear && release.t1 < bay_end && f_.sample_s > 0.0) {
+      DataPtr d = scene_->MakeData();
+      auto at = [&](int a, double t) {
+        ArmInstant x;
+        int segment = -1;
+        StateAt(a, t, &x.config, &x.tool, &x.held, &segment);
+        const bool still = t >= state_[a].free ||
+                           (segment >= 0 && rows_[a].segments[segment].kind == "wait");
+        const Config w = WaitPose(scene_->arm(a));
+        bool same = true;
+        for (int j = 0; j < 7; ++j) same = same && std::abs(x.config[j] - w[j]) <= 1e-6;
+        x.at_wait = still && same;
+        return x;
+      };
+      const double apart = f_.clearance_m + f_.plan_pad_m;
+      for (int k = 0;; ++k) {
+        const double s = release.t1 + k * f_.sample_s;
+        if (s >= bay_end) break;
+        if (ArmsPassBay(*scene_, d.get(), s, layout_.bay_out.time_s, bay_end, f_.sample_s, apart,
+                        at, true, apart)
+                .clear) {
+          out.t0 = s;
+          break;
+        }
+      }
+    }
     out.t1 = out.t0 + layout_.bay_out.time_s;
     events_.push_back(release);
     events_.push_back(out);
