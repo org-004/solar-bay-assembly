@@ -33,7 +33,14 @@
 // `#` lines. track_end is each tracked arm's least slack to its track's lo
 // and hi over the plan (limit 0); carriage_gap is, for each pair of arms on
 // one beam, the least distance between their carriages along it, against
-// the distance at which the carriage boxes touch (src/layout_margins.h). It
+// the distance at which the carriage boxes touch (src/layout_margins.h).
+// After the boundary lines it prints the critical section (run 055,
+// src/layout_critical.h): for each bay the chain of steps that ends at its
+// release, one `critical` row per link from the chain's root (its start,
+// end, the wait before it and what it waited for, its motion, work and
+// torque slowdown, and why it starts then), one `critical_arm` row per arm
+// on the chain with its share of the chain, and one `critical_next` row per
+// other arm's last module step, the ends that would set the bay next. It
 // exits 0 when the plan verifies and every checker row passes.
 //
 // Exit status: 0 when the plan is complete; 1 when a move was not found,
@@ -54,6 +61,7 @@
 #include "src/layout.h"
 #include "src/layout_bays.h"
 #include "src/layout_check.h"
+#include "src/layout_critical.h"
 #include "src/layout_model.h"
 #include "src/layout_margins.h"
 #include "src/layout_plan.h"
@@ -144,6 +152,59 @@ constexpr double kTrackSampleS = 0.01;
 
 // --margins: reads the committed plan, verifies it and prints the tightest
 // margins of the plan and of the checker. Plans nothing.
+// The critical section of --margins: for each bay, one row per link of the
+// chain that ends at its release (walked back from it, printed from its
+// root), then one critical_arm row per arm on the chain (events: arm
+// "events") and one critical_next row per other arm's last module step.
+void PrintCritical(const std::vector<CriticalChain>& chains, bool pretty) {
+  std::vector<std::vector<std::string>> rows;
+  rows.push_back({"critical", "bay", "link", "step", "what", "arm", "start_s", "end_s",
+                  "chain_s", "wait_s", "way_s", "way_for", "hold_s", "motion_s", "work_s",
+                  "slowed_s", "cause", "why"});
+  for (const CriticalChain& c : chains) {
+    int k = 0;
+    for (const ChainLink& l : c.links) {
+      rows.push_back({"critical", std::to_string(c.bay), std::to_string(++k),
+                      std::to_string(l.step), l.what, l.arm.empty() ? "events" : l.arm,
+                      Num(l.start), Num(l.end), Num(l.end - l.start), Num(l.wait_s),
+                      Num(l.way_s), l.by, Num(l.hold_s),
+                      Num(l.motion_s), Num(l.work_s), Num(l.slowed_s), l.cause, l.text});
+    }
+  }
+  PrintTable(rows, pretty);
+  std::vector<std::vector<std::string>> sums;
+  sums.push_back({"critical_arm", "bay", "arm", "links", "motion_s", "work_s", "slowed_s",
+                  "wait_s", "total_s", "share_of_chain"});
+  for (const CriticalChain& c : chains) {
+    const double span = c.to_s - c.from_s;
+    for (const ChainArm& a : c.arms) {
+      const double total = a.motion_s + a.work_s + a.wait_s;
+      sums.push_back({"critical_arm", std::to_string(c.bay), a.arm.empty() ? "events" : a.arm,
+                      std::to_string(a.links), Num(a.motion_s), Num(a.work_s), Num(a.slowed_s),
+                      Num(a.wait_s), Num(total), span > 0.0 ? Num(total / span, 4) : ""});
+    }
+  }
+  PrintTable(sums, pretty);
+  std::vector<std::vector<std::string>> next;
+  next.push_back({"critical_next", "bay", "arm", "step", "what", "end_s", "chain_s",
+                  "before_release_s", "shared_step", "shared_until_s"});
+  for (const CriticalChain& c : chains) {
+    const double last = c.links.size() >= 2 ? c.links[c.links.size() - 2].block_end : c.to_s;
+    for (const CriticalChain::Next& n : c.next) {
+      next.push_back({"critical_next", std::to_string(c.bay), n.arm, std::to_string(n.step),
+                      n.what, Num(n.end), Num(n.span_s), Num(last - n.end),
+                      std::to_string(n.shared_step), Num(n.shared_until)});
+    }
+  }
+  PrintTable(next, pretty);
+  for (const CriticalChain& c : chains) {
+    std::printf("# critical bay %d: %s s from %s s (%s) to the release's end at %s s, %d links\n",
+                c.bay, Num(c.to_s - c.from_s).c_str(), Num(c.from_s).c_str(),
+                c.bay == 0 ? "the first tube_in" : "the bay before's release ends",
+                Num(c.to_s).c_str(), static_cast<int>(c.links.size()));
+  }
+}
+
 int PrintMargins(const Layout& layout, const ModelPaths& paths,
                  const std::string& layout_path, const std::string& sha,
                  const std::string& name, bool pretty) {
@@ -303,6 +364,16 @@ int PrintMargins(const Layout& layout, const ModelPaths& paths,
   }
   PrintTable(table, pretty);
   for (const std::string& line : boundaries) std::printf("%s\n", line.c_str());
+  // Run 055: each bay's critical chain (src/layout_critical.h), from the
+  // plan's times and the scheduler's rules.
+  std::string chain_error;
+  const std::vector<CriticalChain> chains =
+      CriticalChains(layout, check, *scene, player, &chain_error);
+  if (chains.empty()) {
+    std::printf("# critical: %s\n", chain_error.c_str());
+  } else {
+    PrintCritical(chains, pretty);
+  }
   std::printf("# layout: %s\n", layout_path.c_str());
   std::printf("# plan sha256: %s\n", plan->layout_sha256.c_str());
   std::printf("# least_clearance_m %s\n", Num(v.least_clearance_m, 4).c_str());
