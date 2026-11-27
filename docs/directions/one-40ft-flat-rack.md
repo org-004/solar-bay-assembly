@@ -46,6 +46,7 @@ The measures and gates are defined in [the scorecard](../scorecard.md).
 | v17 | 2026-11-27 | One 40 ft flat rack, three KR 20 pin arms on one shared beam, the modules in turns of the pin arms, each move the quickest of 8 paths: three bays planned | 527.64 s per bay | 529.20 s | 4 | 37 | 4132.2 kg | planned |
 | v18 | 2026-11-27 | One 40 ft flat rack, three KR 20 pin arms on one shared beam, three modules to each pin arm in turns, each move the quickest of 8 paths: three bays planned | 498.55 s per bay | 499.54 s | 4 | 37 | 4132.2 kg | planned |
 | v19 | 2026-11-27 | One 40 ft flat rack, three KR 20 pin arms on one shared beam, three modules to each pin arm in turns, each move the quickest of 8 paths, the module arm within 0.90 of its motors: three bays planned | 502.13 s per bay | 502.55 s | 4 | 37 | 4132.2 kg | planned |
+| v20 | 2026-11-27 | One 40 ft flat rack, three KR 20 pin arms on one shared beam, three modules to each pin arm in turns, each move the quickest of 8 paths, the module arm within 0.90 of its motors, the bay out once it is clear: three bays planned (candidate) | 496.16 s per bay | 496.59 s | 4 | 37 | 4132.2 kg | planned |
 
 The cycle time of a version with a plan is the average bay of three bays planned back to back, (end of bay 2's bay out − start of bay 0's tube in) / 3; "One bay" is its bay 0 alone, from tube in to bay out. A version without a plan has the time of one bay, marked so ([the scorecard](../scorecard.md)).
 
@@ -104,6 +105,13 @@ Each figure as the two versions' own sources report it; the conditions of a run 
 | physics_share | 0.0404 | 0.0412 | +0.000798 |
 | placement_mm | none | none | not comparable: not known |
 | plan_s | none | none | not comparable: not known |
+
+**Candidates it was chosen over.**
+
+| Version | Cycle time | One bay | Arms | Part count | Mass in transit | Failures per bay | Cycle time is | Recording | Layout | Commit | Status |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| v19 (this version) | 502.13 s per bay | 502.55 s | 4 | 37 | 4132.2 kg | 0.383 | planned | [v19.gif](../evolution/v19.gif) | [flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque.json](../../layouts/flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque.json) | the commit that added v19: `git log --format=%h -S '"id": "v19"' -- versions/versions.json \| tail -1` | chosen |
+| v20 | 496.16 s per bay | 496.59 s | 4 | 37 | 4132.2 kg | 0.383 | planned | [v20.gif](../evolution/v20.gif) | [flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque_clear_out.json](../../layouts/flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque_clear_out.json) | the commit that added v20: `git log --format=%h -S '"id": "v20"' -- versions/versions.json \| tail -1` | candidate |
 
 **Files.** [layout](../../layouts/flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque.json), [plan](../../plans/flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque.json), [scorecard](../../scores/flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque.json)
 

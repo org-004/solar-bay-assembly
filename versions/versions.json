@@ -725,6 +725,27 @@
         "sha256": "67fd7f192e69b3504ed440462f6bc1de0bdaf8b1fc08d6bdb6aff7cd0a5a9802"
       },
       "scores": "scores/flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque.json"
+    },
+    {
+      "id": "v20",
+      "date": "2026-11-27",
+      "commit": "this",
+      "title": "One 40 ft flat rack, three KR 20 pin arms on one shared beam, three modules to each pin arm in turns, each move the quickest of 8 paths, the module arm within 0.90 of its motors, the bay out once it is clear: three bays planned",
+      "direction": "one-40ft-flat-rack",
+      "status": "candidate",
+      "changed": "v19's cell and layout with one change and nothing else: bay_out_when_clear (run 050), so a bay goes out once its release has ended and no arm comes within the clearance of it on its way, not when every arm is free; pin arm C's last tool change runs while the bay goes out. Three bays are planned whole, 378 of 378 moves, 26 of them slowed (14.30 s of motion added), verified and committed: 496.59 s for one bay (496.59 / 501.82 / 490.08 s) and a cycle time of 496.16 s over three; each bay out starts at its release's end, and no arm comes nearer the bay going out than 0.2115 m.",
+      "why": "Weighed against v19: 5.97 s a bay quicker (496.16 s against 502.13 s) by the bay out alone; the paths, the order of work and the slowed moves are v19's, and torque_demand over the three bays finds no module arm move over 0.90 of a motor's limit.",
+      "recording": "docs/evolution/v20.gif",
+      "competed_with": "v19",
+      "layout": {
+        "path": "layouts/flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque_clear_out.json",
+        "sha256": "fd326810e0febd9123c5efbf53eda9b02090b1e2c9c685a9d37c0b30dad94e63"
+      },
+      "plan": {
+        "path": "plans/flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque_clear_out.json",
+        "sha256": "a822beba16bf618130e72e867a6f76e061e71646b1fae656fb7afd599b74534d"
+      },
+      "scores": "scores/flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque_clear_out.json"
     }
   ]
 }
