@@ -26,7 +26,7 @@
 <text x="480.00" y="260" text-anchor="middle" fill="#444444">v16</text>
 <text x="534.40" y="260" text-anchor="middle" fill="#444444">v17</text>
 <text x="588.80" y="260" text-anchor="middle" fill="#444444">v18</text>
-<polyline fill="none" stroke="#1f5fa8" stroke-width="1.5" points="153.60,118.30 316.80,119.54 371.20,133.09 480.00,129.49 534.40,138.47"/>
+<polyline fill="none" stroke="#1f5fa8" stroke-width="1.5" points="153.60,118.30 316.80,119.54 371.20,133.09 480.00,129.49 534.40,138.47 588.80,144.29"/>
 <circle cx="153.60" cy="118.30" r="5" fill="#ffffff" stroke="#1f5fa8" stroke-width="2"/>
 <text x="153.60" y="108.30" text-anchor="middle" fill="#222222">628.50 (1 bay)</text>
 <circle cx="208.00" cy="62.53" r="5" fill="#9aa5b1" stroke="#9aa5b1" stroke-width="2"/>
@@ -43,7 +43,7 @@
 <text x="480.00" y="119.49" text-anchor="middle" fill="#222222">572.56</text>
 <circle cx="534.40" cy="138.47" r="5" fill="#1f5fa8" stroke="#1f5fa8" stroke-width="2"/>
 <text x="534.40" y="128.47" text-anchor="middle" fill="#222222">527.64</text>
-<circle cx="588.80" cy="144.29" r="5" fill="#9aa5b1" stroke="#9aa5b1" stroke-width="2"/>
+<circle cx="588.80" cy="144.29" r="5" fill="#1f5fa8" stroke="#1f5fa8" stroke-width="2"/>
 <text x="588.80" y="134.29" text-anchor="middle" fill="#222222">498.55</text>
 <circle cx="72" cy="284" r="4" fill="#1f5fa8" stroke="#1f5fa8" stroke-width="2"/>
 <text x="82" y="288" fill="#444444">planned</text>

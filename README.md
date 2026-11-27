@@ -23,11 +23,11 @@ layout, and [`docs/scorecard.md`](docs/scorecard.md) defines each one.
 
 ### One 40 ft base: the cell on the real parts
 
-![v17  2026-11-27  One 40 ft flat rack, three KR 20 pin arms on one shared beam, the modules in turns of the pin arms, each move the quickest of 8 paths: three bays planned; cycle 527.64 s per bay (planned), 4 arms](docs/evolution/v17.gif)
+![v18  2026-11-27  One 40 ft flat rack, three KR 20 pin arms on one shared beam, three modules to each pin arm in turns, each move the quickest of 8 paths: three bays planned; cycle 498.55 s per bay (planned), 4 arms](docs/evolution/v18.gif)
 
 | Version | Cycle time | One bay | Failures per bay | Arms | Part count | Placement error | Mass in transit | Gates |
 |---|---|---|---|---|---|---|---|---|
-| v17 | 527.64 s per bay (planned) | 529.20 s | 0.383 | 4 | 37 | none | 4132.2 kg | all 3 pass |
+| v18 | 498.55 s per bay (planned) | 499.54 s | 0.383 | 4 | 37 | none | 4132.2 kg | all 3 pass |
 
 [One 40 ft base: the cell on the real parts: progress and versions](docs/directions/one-40ft-flat-rack.md)
 
@@ -92,23 +92,25 @@ and three bays average 622.31 s
 `flat_rack_3_pin_arms_ordered` (v10, three UR10e pin arms), one bay takes 560.45 s and three
 average 554.55 s ([`docs/flat-rack-order.md`](docs/flat-rack-order.md)). With three KR 20
 pin arms on one shared beam, `flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat` (v16, all
-KUKA) takes 574.73 s for one bay and three average 572.56 s. The chosen layout,
-`flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_paths` (v17, run 043), is v16 with the
+KUKA) takes 574.73 s for one bay and three average 572.56 s;
+`flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_paths` (v17, run 043), v16 with the
 modules set in turns of the pin arms (run 041) and each move the quickest of 8 searched paths
-(run 042): one bay takes 529.20 s and three average 527.64 s (its recording, of one bay, is
-v17's, above).
+(run 042), takes 529.20 s and three average 527.64 s. The chosen layout,
+`flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths` (v18, run 046), is v17
+with three modules to each pin arm, set in turns (run 044): one bay takes 499.54 s and three
+average 498.55 s (its recording, of one bay, is v18's, above).
 
 ![The whole bay as planned with run 011's order, 16 times real time](docs/bay_planned.gif)
 
 **Physics.** The simulator is MuJoCo 4.0.0. The stand-in cell runs in physics with its
 cameras, and a gate runs eight whole pallets (240 modules) in it and fails if one is not
 placed within 3 mm and 0.15 degrees ([`docs/gate.md`](docs/gate.md)). The flat rack cell is
-kinematic but for one module: in the chosen layout the module arm takes module 6 from the
+kinematic but for one module: in the chosen layout the module arm takes module 5 from the
 pallet, turns it flat and sets it on its rails in physics, on its servos and with its real
-payload, along the committed plan's own timing, within 0.25 mm of its place and never nearer
-anything than 18.92 mm ([`docs/flat-rack-physics.md`](docs/flat-rack-physics.md),
-`//:run_physics`). Those 20.73 s are why `physics_share` is 0.039 (v16's record, of module 3,
-gave 0.032); the failures are still modelled. One part of it has a physics test, the locating nose that pulls a
+payload, along the committed plan's own timing, within 0.23 mm of its place and never nearer
+anything than 21.49 mm ([`docs/flat-rack-physics.md`](docs/flat-rack-physics.md),
+`//:run_physics`). Those 20.21 s are why `physics_share` is 0.040 (v17's record, of module 6,
+gave 0.039); the failures are still modelled. One part of it has a physics test, the locating nose that pulls a
 module's holes into line before pinning (`tests/locate_physics_test.cc`,
 [`docs/bay-hardware.md`](docs/bay-hardware.md)).
 
