@@ -88,3 +88,42 @@ Run 029 added the checker's opt-in `one_posture_per_module` (a field of an arm; 
   669.83 s modelled for two_flat_racks_2_pin_arms. Moves: module arm 41, pin arm A 40, pin arm B
   33, bolt arm 13; holes A 20, B 16. Least clearance 0.0180 m, arm to arm 0.0188 m, joint margin
   8.64 deg.
+
+## Three bays (run 030)
+
+`bazel run --config=opt --config=agent //:plan_layout -- two_flat_racks_2_pin_arms_balanced
+--bays 3 --out plans/two_flat_racks_2_pin_arms_balanced.json` exits 0 with the layout of run 029
+unchanged (sha256 `fb44f3a4…`): 381 of 381 moves found (three times bay 0's 127), `complete: true`,
+verified and committed. It is version v12, a `candidate` of the direction of two 20 ft flat racks
+weighed against v11; v10 stays chosen. `tests/plan_replay_staged_test.cc` replays it beside v11's plan: its tests of the
+committed plan are parameterized by the layout's name (`.../Balanced`).
+
+| Bay | tube in to bay out (s) | Stage 1 | Stage 2 | Stage 3 |
+|---|---|---|---|---|
+| 0 | 0.00 to 852.84 (852.84) | 227.20 | 205.99 | 254.66 |
+| 1 | 805.66 to 1655.52 (849.86) | 226.87 | 205.40 | 252.59 |
+| 2 | 1608.33 to 2457.34 (849.00) | 227.06 | 203.73 | 253.22 |
+
+- `cycle_s` **819.11 s** ((2457.34 - 0.00) / 3), against v11's 969.67 s (-150.56 s, -15.5 %) and
+  v10's 554.55 s (1.48 times as long). `one_bay_s` 852.84, `interval_s` 801.82. Bay n+1's tube
+  comes in 47.19 s before bay n is out, both times.
+- The time model: 611.07 s a bay against 852.84 s planned (+39.6 %; v11 +49.8 %). The modules
+  phase is 493.02 s planned against 304.07 s modelled (v11 637.15 s), the rails 183.66 against
+  129.89 s, the end 71.17 against 72.10 s; the two transfers are 60 s of every bay in both.
+- Waits: 134 over the three bays, 6,629.28 s of arm waiting summed (module arm 1,432.5, pin arm A
+  1,513.7, pin arm B 1,541.4, bolt arm 2,141.6), against 118 and 8,319.15 s for v11.
+- Busy (moving or working) over the 2,457.34 s of three bays: module arm 1,024.8 s (42 %), pin
+  arm A 943.7 s (38 %), pin arm B 915.9 s (37 %), bolt arm 315.7 s (13 %). In v11 B was busy 53 %
+  and A 15 %. No pin arm is the bottleneck any more: the module arm is now the busiest, with A
+  and B within 4 points of it, so the next second comes from the module arm's rail and module
+  moves as much as from the pin arms.
+- Planning: `planning_s` 119.1 s and 45,969,551 collision queries (v11: 252.1 s); the whole
+  command took 219 s of wall time with a 44 s build. The costliest moves are pin arm B's from pin
+  7/2 to locate 7/3 (4,228,547 queries in each bay).
+- Tightest margins of the plan (the verifier over the schedule in four pieces): least clearance
+  0.0180 m against 0.015 m (pin arm A's nose to the tube), least arm to arm 0.0188 m, least joint
+  margin 8.64 deg against 5 deg. Pin arm A works at its track end -2.600 m and pin arm B at both
+  of its ends, 0.470 and 2.600 m (0 slack, inside the layout's limits). The scorecard's gates:
+  `check_rows_failed` 0 of 985 rows, `least_clearance_m` 0.018 >= 0.015, `mass_in_transit_kg`
+  3,727 <= 13,608. `plan_replay_staged_test` is now `large`: the balanced layout's checker report takes about
+  125 s in each shard.

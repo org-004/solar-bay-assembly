@@ -546,5 +546,51 @@ TEST(Ordered, AWaitAtTheToolChangePose) {
   EXPECT_TRUE(AnyFault(r, {"its wait", "stands neither"})) << Faults(r);
 }
 
+// R21 (run 029): a wait at a work pose between two work steps there (the
+// locate and the pin of one hole) is part of that work and is allowed; the
+// same wait after the last of them, just before the retreat, is not.
+TEST(Ordered, AWaitAtItsWorkPose) {
+  const OrderedPlan& o = TheOrdered();
+  ASSERT_TRUE(o.error.empty()) << o.error;
+  Plan p = o.plan;
+  int arm = -1;
+  size_t g = 0;
+  for (size_t a = 0; a < p.arms.size() && arm < 0; ++a) {
+    const std::vector<Segment>& ps = p.arms[a].segments;
+    for (size_t i = 0; i + 2 < ps.size(); ++i) {
+      if (ps[i].kind == "work" && ps[i + 1].kind == "work" && ps[i + 2].kind == "retreat" &&
+          !ps[i].path.empty() && !ps[i + 1].path.empty()) {
+        arm = static_cast<int>(a);
+        g = i + 1;
+        break;
+      }
+    }
+  }
+  ASSERT_GE(arm, 0) << "no two work steps one after the other before a retreat";
+  // A wait of no length between the two work steps, at their pose.
+  std::vector<Segment>& ps = p.arms[arm].segments;
+  Segment w;
+  w.kind = "wait";
+  w.step = ps[g].step;
+  w.t0 = w.t1 = ps[g].t0;
+  w.tool = ps[g].tool;
+  w.held = ps[g].held;
+  w.path = {ps[g - 1].path.back()};
+  w.reason = "for nothing (a test)";
+  Plan between = p;
+  between.arms[arm].segments.insert(between.arms[arm].segments.begin() + static_cast<long>(g), w);
+  VerifyReport r =
+      VerifyPlan(o.layout, ModelPaths::FromEnvironment(), between, o.sha256, Quick(false));
+  EXPECT_FALSE(AnyFault(r, {"its wait", "stands neither"})) << Faults(r);
+  // The same wait outside that span: after the second work step, at its
+  // pose, just before the retreat.
+  w.step = ps[g + 1].step;
+  w.t0 = w.t1 = ps[g + 1].t0;
+  w.path = {ps[g].path.back()};
+  ps.insert(ps.begin() + static_cast<long>(g + 1), w);
+  r = VerifyPlan(o.layout, ModelPaths::FromEnvironment(), p, o.sha256, Quick(false));
+  EXPECT_TRUE(AnyFault(r, {"its wait", "stands neither"})) << Faults(r);
+}
+
 }  // namespace
 }  // namespace cell::layout

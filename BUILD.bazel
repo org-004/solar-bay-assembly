@@ -2224,13 +2224,15 @@ cc_test(
     ],
 )
 
-# The committed plan of the two-rack cell, a bay built in stages
-# (src/layout_plan_stages.h): verified in pieces, and tampered with between
-# its stages.
+# The committed plans of the two-rack cell, v11's and the balanced
+# layout's (v12), a bay built in stages (src/layout_plan_stages.h): verified
+# in pieces, and tampered with between its stages. Large: the balanced
+# layout's checker report (one posture per module) takes about 125 s in
+# every shard here, and CI's runner is slower.
 #   bazel test --config=opt //:plan_replay_staged_test
 cc_test(
     name = "plan_replay_staged_test",
-    size = "medium",
+    size = "large",
     srcs = ["tests/plan_replay_staged_test.cc"],
     data = LAYOUT_FILES + LAYOUT_MODEL_FILES + PLAN_FILES,
     env = LAYOUT_ENV | {"PLAN_DIR": "plans"},
@@ -2405,7 +2407,8 @@ cc_binary(
 # they are (R5), every step of every plan maps to a kind of operation, and
 # the counting rules on the committed layouts.
 #   bazel test --config=opt //:scorecard_test
-# Size large: 126 s on the engineer's machine (run 022), about 233 s on CI at 1.84x, more than two thirds of medium's 300 s.
+# Size large: 126 s on the engineer's machine (run 022), about 233 s on CI at 1.84x, more than two thirds of medium's 300 s;
+# 184.8 s here with the balanced layout's scorecard (run 030), about 340 s on CI.
 cc_test(
     name = "scorecard_test",
     size = "large",
