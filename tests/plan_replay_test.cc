@@ -619,6 +619,25 @@ TEST(Kr20, OneBayOfTheSplitLayoutWithTheTorqueBoundPassesTheVerifier) {
   EXPECT_GT(o.plan.bay_planned_s, 513.80);
 }
 
+// Run 048: v18's layout with torque_limit_scale 0.90 (v19), three bays
+// planned whole: path_tries keeps the quickest of 8 paths as timed unslowed,
+// then the torque bound slows the module arm's kept moves; the bays cost the
+// slowed motion over v18's 498.55 s. The verifier over the whole plan, its
+// schedule included.
+TEST(Kr20, ThreeBaysOfTheChosenLayoutWithTheTorqueBoundPassTheVerifier) {
+  const OrderedPlan o =
+      NamedPlan("flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque");
+  ASSERT_TRUE(o.error.empty()) << o.error;
+  EXPECT_TRUE(o.plan.complete);
+  EXPECT_EQ(o.plan.bays, 3);
+  EXPECT_EQ(o.plan.figures.path_tries, 8);
+  EXPECT_EQ(o.plan.figures.torque_limit_scale, 0.9);
+  const VerifyReport r = VerifyPlan(o.layout, ModelPaths::FromEnvironment(), o.plan, o.sha256, VerifyOptions{});
+  EXPECT_TRUE(r.ok) << Faults(r);
+  EXPECT_NEAR(o.plan.bay_planned_s, 502.55, 0.005);
+  EXPECT_GT(o.plan.bay_planned_s, 499.54);
+}
+
 TEST(Ordered, PassesTheVerifierWithoutTheSchedule) {
   const OrderedPlan& o = TheOrdered();
   ASSERT_TRUE(o.error.empty()) << o.error;
