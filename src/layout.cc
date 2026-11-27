@@ -664,7 +664,8 @@ Layout ReadLayout(const Json& j) {
             two_racks ? "two_flat_racks" : "flat_rack", "margins", "ports", "approaches", "tube", "holder",
             "arms", "pallets", "stocks", "strap_bolts_from", "tube_in",
             "bay_out", "work", "rail_order", "items"},
-           {"order", "staging", "retreat_legs", "path_tries", "torque_limit_scale"});
+           {"order", "staging", "retreat_legs", "path_tries", "torque_limit_scale",
+            "bay_out_when_clear"});
   } else {
     throw LayoutError("base", "is \"container\", \"flat_rack\" or "
                               "\"two_flat_racks\", not \"" +
@@ -823,6 +824,9 @@ Layout ReadLayout(const Json& j) {
       throw LayoutError("torque_limit_scale", "is not a fraction in [0.5, 1]");
     }
     l.torque_limit_scale = scale;
+  }
+  if (j.contains("bay_out_when_clear")) {
+    l.bay_out_when_clear = Bool(j.at("bay_out_when_clear"), "bay_out_when_clear");
   }
   if (j.contains("order")) {
     const Json& o = j.at("order");

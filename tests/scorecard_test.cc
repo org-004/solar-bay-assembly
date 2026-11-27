@@ -107,7 +107,7 @@ std::optional<Scorecard> Compute(const std::string& name) {
 
 // The committed plans that have a scorecard. A card is of three bays; a plan of
 // one bay (run 034's all-KUKA 40 ft layout, run 041's, run 042's, run 044's, run
-// 045's and run 047's, whose three bays and cards are a later spec's) is replayed by tests/plan_replay_test.cc and has
+// 045's, run 047's and run 050's, whose three bays and cards are a later spec's) is replayed by tests/plan_replay_test.cc and has
 // none yet.
 std::vector<std::string> PlanNames() {
   static const std::set<std::string> kOneBay = {
@@ -116,7 +116,8 @@ std::vector<std::string> PlanNames() {
       "flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split",
       "flat_rack_3_kr20_pin_arms_shared_ordered_fast_paths",
       "flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_torque",
-      "flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_torque"};
+      "flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_torque",
+      "flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque_clear_out"};
   std::vector<std::string> out;
   for (const std::string& name : ListLayouts(Dir("PLAN_DIR", "plans"))) {
     if (kOneBay.count(name) == 0) out.push_back(name);

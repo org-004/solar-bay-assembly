@@ -531,13 +531,13 @@ struct VerifyReport {
   bool ok = false;
   std::vector<std::string> faults;      // Each says what, where and when.
   // Least distances over the whole schedule between things not near by
-  // design, tightest first, one for each pair of things (the instant it is
-  // least); `keep` of them.
+  // design, tightest first, one for each pair of things (when least); `keep` of them.
   std::vector<Closest> least;
   // The least distance of each pair of arms.
   std::vector<Closest> arm_pairs;
   double least_clearance_m = kSceneFar;   // least.front().distance.
   double least_arm_to_arm_m = kSceneFar;
+  double bay_out_least_m = kSceneFar;  // Arms to the bay going out (src/layout_clear_out.h).
   // The least joint margins over the schedule: degrees from a datasheet
   // limit, with the arm, the joint, the step and the time; five of them.
   struct JointMargin {
