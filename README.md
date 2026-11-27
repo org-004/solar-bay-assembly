@@ -99,12 +99,16 @@ modules set in turns of the pin arms (run 041) and each move the quickest of 8 s
 `flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths` (v18, run 046), v17
 with three modules to each pin arm, set in turns (run 044), takes 499.54 s and three average
 498.55 s, but its module arm cannot follow it: inverse dynamics asks up to 1.249 of joint 1's
-torque limit. The chosen layout,
-`flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque` (v19, run 048), is
+torque limit.
+`flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque` (v19, run 048) is
 v18 with `torque_limit_scale` 0.90 (runs 045 and 047): every module arm move that needs more than
 0.90 of a motor's limit is played slower until it holds (26 of 117, 14.30 s of motion over three
-bays), so one bay takes 502.55 s and three average 502.13 s (its recording, of one bay, is v19's,
-above).
+bays), so one bay takes 502.55 s and three average 502.13 s. The chosen layout,
+`flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque_clear_out` (v20, run
+052), is v19 with `bay_out_when_clear` (run 050): a bay goes out once its release is done and no
+arm comes near it on its way, so pin arm C's last tool change no longer holds it back; one bay
+takes 496.59 s and three average 496.16 s, 5.96 s a bay less than v19 (its recording, of one bay,
+is v20's, above).
 
 ![The whole bay as planned with run 011's order, 16 times real time](docs/bay_planned.gif)
 
@@ -116,8 +120,8 @@ pallet, turns it flat and sets it on its rails in physics, on its servos and wit
 payload, along the committed plan's own timing, within 0.23 mm of its place and never nearer
 anything than 19.26 mm, every motor below its limit (joint 1 at 0.973)
 ([`docs/flat-rack-physics.md`](docs/flat-rack-physics.md), `//:run_physics`). Those 20.73 s are
-why `physics_share` is 0.041 (v18's record, of the same module, gave 0.040 with joint 1 at its
-limit); the failures are still modelled. One part of it has a physics test, the locating nose that pulls a
+why `physics_share` is 0.042 (v19's record, of the same take and set, gave 0.041 over its longer
+bay); the failures are still modelled. One part of it has a physics test, the locating nose that pulls a
 module's holes into line before pinning (`tests/locate_physics_test.cc`,
 [`docs/bay-hardware.md`](docs/bay-hardware.md)).
 
