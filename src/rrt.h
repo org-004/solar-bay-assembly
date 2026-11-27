@@ -314,6 +314,25 @@ std::optional<JointPath> PlanRrtConnect(
     const IsFree& is_free, const RrtOptions& options = {},
     RrtReport* report = nullptr, RrtTrees* trees = nullptr);
 
+// PlanRrtConnect at each of `budgets` (iteration limits) in turn, as a
+// caller that tries the next budget when one runs out would: *reports gets
+// one report per budget tried, the last one the run that found a path or
+// stopped for another reason than the iteration limit, and the path is
+// that run's. The same paths and reports, to the bit, except their
+// `seconds`; but in one run. A run with more iterations repeats a run with
+// fewer, iteration for iteration (the samples come from the seed alone),
+// so the run at the largest budget is made once and reports what each
+// smaller budget would have reported when its count of iterations is
+// reached. The is_free calls are those of that one run: the reports' own
+// collision_queries add up to what separate runs would have called. With
+// budgets that do not increase, it makes one run per budget. The time limit
+// counts from the start of the one run.
+std::optional<JointPath> PlanRrtConnectBudgets(
+    const Eigen::VectorXd& start, const Eigen::VectorXd& goal,
+    const Eigen::VectorXd& lower, const Eigen::VectorXd& upper,
+    const IsFree& is_free, const RrtOptions& options,
+    const std::vector<int>& budgets, std::vector<RrtReport>* reports);
+
 // ------------------------------------------------------------- shortening
 //
 // Why RRT paths are jagged. Every node is a step toward a random sample, so

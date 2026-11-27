@@ -187,6 +187,44 @@ least two transfers, 60 s, with no arm working. No staged plan is complete yet, 
 staged layout has a `cycle_s`. That also leaves open where the time between bays goes in
 the two-rack cell, and how much of `bay_out` the next `tube_in` overlaps.
 
+## How long planning takes (run 026)
+
+Measured on a 4-core arm machine (`w1`), `plan_layout` at its defaults (3 threads), the
+same machine before and after; every plan below is byte-identical before and after
+(`cmp` of the `--out` files), with the same count of collision queries.
+
+| Command (`plan_layout -- two_flat_racks_2_pin_arms --bays 1 ...`) | `main` at `4bd8bea` | After run 026 |
+|---|---|---|
+| `--first-step 1 --last-step 62` (stage 1, 47 moves, 23,676,468 queries) | 301.8 s, 2.7 cores | 40.3 s, 2.8 cores |
+| `--first-step 93 --last-step 93` (one move not found, 49,191,898 queries) | more than 1,500 s (stopped at a 25 min cap) | 235.8 s |
+
+Where the time went before (a sampling profile, gperftools at 200 Hz, of the first row
+on `main`): 93% in the collision checks of the moves being planned, of which 30% was
+MuJoCo's forward kinematics of the whole model and only 3% the narrow phase
+(`mj_geomDistance`); the rest was the box-against-box pass of `LeastDistance` over every
+pair of the moving set and the obstacles. RRT growth was 0.9%, shortening 1.5%, timing
+0.2%, the schedule 0.2% and the checker before planning 5%.
+
+What changed, none of it in what is planned:
+
+- `PairQuery` (`src/layout_scene.h`) answers a move's queries as `LeastDistance` does,
+  to the bit. After the first query on an mjData it places only the moving arm's bodies
+  and their geoms again (mj_kinematics' own steps through MuJoCo's public functions),
+  keeps the boxes of everything else, drops the pairs that are never measured once,
+  passes over obstacles whose box is beyond `far` from the moving set's box, and for
+  "free or not" stops at the first pair nearer than the clearance.
+  `//:layout_scene_test` compares every pose and every answer with `mj_kinematics` and
+  `LeastDistance` over 900 random poses.
+- `PlanRrtConnectBudgets` (`src/rrt.h`): the budgets 5,000, 40,000, 160,000 (and 640,000)
+  are run as one run at the largest, which reports what each smaller one would have
+  reported when its iteration count is reached. A run with more iterations repeats one
+  with fewer iteration for iteration, so a move found at 160,000 no longer makes its first
+  45,000 iterations twice. The plan's query counts are still those of separate runs.
+- `plan_layout` prints line by line into a file or a pipe.
+
+After the change, the checker before planning (about 30 s of CPU, unchanged) is the
+largest part of the first row's CPU time.
+
 ## What would overlap more
 
 Seconds per boundary between bays; each boundary shortens `interval_s` by as much and

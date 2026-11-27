@@ -302,6 +302,10 @@ class LayoutScene {
                         const std::vector<Obstacle>& obstacles,
                         double far = kSceneFar) const;
 
+  // Per body of the model, whether its pose depends on one of the arm's
+  // joints or its track: the bodies SetPose moves.
+  std::vector<bool> MovesWith(int arm) const;
+
   // "a to b", "a to b (near by design, but into each other)" or "nothing
   // within 1 m".
   std::string PairText(const Nearest& n) const;
@@ -321,6 +325,78 @@ class LayoutScene {
   ModelPtr model_;
   LayoutHandles handles_;
   std::vector<SceneArm> arms_;
+};
+
+// mj_kinematics' steps for one body (mj_kinematics1's) and for one frame of
+// a body (mj_local2GlobalQuat, which mj_kinematics2 uses for inertial
+// frames, geoms and sites), as MuJoCo 4.0.0 takes them, through its public
+// functions; PlaceBody only where Placeable says so (hinges and slides, no
+// mocap). Parents before children. For PairQuery; defined in
+// src/layout_check.cc.
+void PlaceBody(const mjModel& m, mjData* d, int body);
+void PlaceFrame(mjData* d, mjtNum* xpos, mjtNum* xquat, mjtNum* xmat,
+                const mjtNum* pos, const mjtNum* quat, int body,
+                mjtByte sameframe);
+bool Placeable(const mjModel& m, int body);
+
+// (e) LeastDistance prepared for many queries of one arm's moving set
+// against one set of obstacles, as a move's planner asks them (MoveWorld,
+// src/layout_plan.h): the same answers, bit for bit, in a fraction of the
+// time. The rule it rests on: between two queries on one mjData nothing but
+// that arm's pose changes in it. So
+//   - Place runs the whole of mj_kinematics only on the first query on an
+//     mjData; after that it places again only the bodies that move with the
+//     arm (MovesWith), the only ones whose poses can differ, with their
+//     inertial frames, geoms and sites, by mj_kinematics' own steps through
+//     MuJoCo's public functions (src/layout_scene.cc; a test compares every
+//     pose to the bit with mj_kinematics');
+//   - the world boxes of geoms that do not move with the arm are kept from
+//     the first query;
+//   - the pairs that are never measured (a geom against itself, or skipped
+//     and not near by design) are dropped once;
+//   - an obstacle whose box is farther than `far` from the box around the
+//     whole moving set (with a margin of 1 nm against rounding) cannot give
+//     a pair nearer than `far` and is passed over whole.
+// Every pair that remains is measured as LeastDistance measures it, in the
+// same order. Closer asks only whether anything is nearer than `far`, and
+// stops at the first pair that shows it: the answer of
+// `LeastDistance(...).distance < far`, which does not depend on the order
+// in which pairs are tried. One PairQuery per thread.
+class PairQuery {
+ public:
+  PairQuery(const LayoutScene& scene, int arm, std::vector<MovingGeom> moving,
+            std::vector<Obstacle> obstacles);
+  ~PairQuery();
+  PairQuery(const PairQuery&) = delete;
+  PairQuery& operator=(const PairQuery&) = delete;
+  PairQuery(PairQuery&&) = delete;
+  PairQuery& operator=(PairQuery&&) = delete;
+  // Forward kinematics after SetPose of the arm: geom poses as
+  // mj_kinematics leaves them.
+  void Place(mjData* d);
+  // LeastDistance(d, moving, obstacles, far), after Place.
+  Nearest Least(mjData* d, double far);
+  // LeastDistance(d, moving, obstacles, far).distance < far, after Place.
+  bool Closer(mjData* d, double far);
+
+ private:
+  struct State;  // Boxes and pairs (src/layout_scene.cc).
+  // Indices of the obstacles that may give a pair nearer than `far`.
+  void Keep(double far);
+
+  const LayoutScene& scene_;
+  std::vector<MovingGeom> moving_;
+  std::vector<Obstacle> obstacles_;
+  std::vector<int> bodies_;  // Moving with the arm, in order.
+  std::vector<int> geoms_;   // Their geoms.
+  std::vector<int> sites_;   // Their sites.
+  std::vector<bool> moving_moves_, obstacle_moves_;
+  std::vector<unsigned char> kind_;  // Per pair i * obstacles + j: 0, 1 or 2.
+  std::unique_ptr<State> s_;
+  std::vector<int> keep_;
+  bool partial_ = true;  // Whether Place may place the arm's bodies alone.
+  const mjData* placed_ = nullptr;
+  int last_i_ = -1, last_j_ = -1;  // The pair that last showed Closer.
 };
 
 }  // namespace cell::layout

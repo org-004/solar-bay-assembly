@@ -352,7 +352,12 @@ Config ConfigAt(const Segment& segment, const ArmMotion& motion,
 // --------------------------------------------------------------- planning
 // (src/layout_plan.cc)
 
-// One move's world: R16's test of a configuration.
+// One move's world: R16's test of a configuration. Between its calls on
+// one mjData nothing but the arm's pose may change in that data (the
+// caller sets the other arms once, AllAtWait, before the first call): it
+// measures through a PairQuery (src/layout_scene.h), which then places only
+// the arm's geoms again. Its answers are LeastDistance's, bit for bit. One
+// MoveWorld per thread.
 class MoveWorld {
  public:
   MoveWorld(const LayoutScene& scene, int arm, const std::string& tool,
@@ -365,8 +370,7 @@ class MoveWorld {
   const LayoutScene& scene_;
   int arm_;
   double clearance_m_;
-  std::vector<MovingGeom> moving_;
-  std::vector<Obstacle> obstacles_;
+  mutable PairQuery query_;
 };
 
 // One row of //:plan_layout's table.

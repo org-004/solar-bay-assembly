@@ -367,11 +367,17 @@ const char* ToString(RrtStatus status) {
   return "unknown";
 }
 
-std::optional<JointPath> PlanRrtConnect(
+namespace {
+
+// PlanRrtConnect, and, at the end of each iteration whose count is in
+// `checkpoints` (increasing, each below options.max_iterations) with no
+// path yet, the report a run with that many iterations would have given.
+std::optional<JointPath> Plan(
     const Eigen::VectorXd& start, const Eigen::VectorXd& goal,
     const Eigen::VectorXd& lower, const Eigen::VectorXd& upper,
     const IsFree& is_free, const RrtOptions& options, RrtReport* report,
-    RrtTrees* trees) {
+    RrtTrees* trees, const std::vector<int>& checkpoints,
+    std::vector<RrtReport>* at) {
   const Clock::time_point began = Clock::now();
   RrtReport local;
   RrtReport& out = report != nullptr ? *report : local;
@@ -441,6 +447,7 @@ std::optional<JointPath> PlanRrtConnect(
   std::mt19937 rng(options.seed);
   std::uniform_real_distribution<double> unit(0.0, 1.0);
   Eigen::VectorXd sample(n);
+  std::size_t next_checkpoint = 0;
 
   // `a` grows toward a sample, `b` then tries to CONNECT to what `a` added.
   // They swap after every iteration, so both trees grow evenly.
@@ -479,8 +486,68 @@ std::optional<JointPath> PlanRrtConnect(
       }
     }
     std::swap(a, b);
+    if (next_checkpoint < checkpoints.size() &&
+        iteration + 1 == checkpoints[next_checkpoint]) {
+      ++next_checkpoint;
+      RrtReport there;
+      there.status = RrtStatus::kIterationLimit;
+      there.iterations = iteration + 1;
+      there.collision_queries = planner.queries;
+      there.start_tree_size = start_tree.size();
+      there.goal_tree_size = goal_tree.size();
+      there.seconds = SecondsSince(began);
+      at->push_back(there);
+    }
   }
   return finish({});
+}
+
+}  // namespace
+
+std::optional<JointPath> PlanRrtConnect(
+    const Eigen::VectorXd& start, const Eigen::VectorXd& goal,
+    const Eigen::VectorXd& lower, const Eigen::VectorXd& upper,
+    const IsFree& is_free, const RrtOptions& options, RrtReport* report,
+    RrtTrees* trees) {
+  return Plan(start, goal, lower, upper, is_free, options, report, trees, {},
+              nullptr);
+}
+
+std::optional<JointPath> PlanRrtConnectBudgets(
+    const Eigen::VectorXd& start, const Eigen::VectorXd& goal,
+    const Eigen::VectorXd& lower, const Eigen::VectorXd& upper,
+    const IsFree& is_free, const RrtOptions& options,
+    const std::vector<int>& budgets, std::vector<RrtReport>* reports) {
+  reports->clear();
+  bool increasing = !budgets.empty() && budgets.front() >= 1;
+  for (std::size_t k = 1; k < budgets.size(); ++k) {
+    increasing = increasing && budgets[k] > budgets[k - 1];
+  }
+  if (!increasing) {
+    // One run per budget, as the caller would.
+    std::optional<JointPath> path;
+    RrtOptions o = options;
+    for (int budget : budgets) {
+      o.max_iterations = budget;
+      RrtReport r;
+      path = PlanRrtConnect(start, goal, lower, upper, is_free, o, &r);
+      reports->push_back(r);
+      if (path || r.status != RrtStatus::kIterationLimit) break;
+    }
+    return path;
+  }
+  RrtOptions o = options;
+  o.max_iterations = budgets.back();
+  const std::vector<int> checkpoints(budgets.begin(), budgets.end() - 1);
+  std::vector<RrtReport> at;
+  RrtReport last;
+  std::optional<JointPath> path =
+      Plan(start, goal, lower, upper, is_free, o, &last, nullptr, checkpoints, &at);
+  // The budgets a path or a failure other than the iteration limit came
+  // before were never run out: their reports are the run's own.
+  *reports = at;
+  reports->push_back(last);
+  return path;
 }
 
 std::optional<JointPath> ShortenPath(const JointPath& path,
