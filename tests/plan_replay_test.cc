@@ -773,12 +773,13 @@ TEST(Kr20, ThreeBaysWithTheInfeedOverlapTheWaysAndPassTheVerifier) {
   const CycleFigures c = CycleFiguresOf(o.plan);
   std::printf("cycle_s %.2f, one bay %.2f s, least arm to the tube coming in %.4f m\n", c.cycle_s,
               c.one_bay_s, r.tube_in_least_m);
-  EXPECT_NEAR(c.cycle_s, CYCLE, 0.005);
+  EXPECT_NEAR(c.cycle_s, 470.68, 0.005);
   EXPECT_LE(c.cycle_s, 485.0);
 }
 
-// R3 of run 053: the same plan with bay 1's tube_in moved to end while pin
-// arm C still works in bay 0 is refused: C is too close to the tube coming in.
+// R3 of run 053: the same plan with bay 1's tube_in moved to end while the
+// module arm still sets bay 0's first rail on the tube is refused: the rail
+// it holds is too close to the tube coming in.
 TEST(Kr20, AnArmTooCloseToTheIncomingTubeIsRefused) {
   OrderedPlan o = NamedPlan(kInfeed);
   ASSERT_TRUE(o.error.empty()) << o.error;
@@ -786,14 +787,15 @@ TEST(Kr20, AnArmTooCloseToTheIncomingTubeIsRefused) {
       VerifyPlan(o.layout, ModelPaths::FromEnvironment(), o.plan, o.sha256, Quick(false));
   EXPECT_TRUE(plain.ok) << Faults(plain);
   EXPECT_FALSE(AnyFault(plain, {"too close to the tube coming in"}));
-  const BayEvent* release = EventOfBay(o.plan, "release", 0);
-  ASSERT_NE(release, nullptr);
-  // The middle of pin arm C's last work in bay 0 before the release.
+  // The middle of the module arm's first rail set (its first work holding a rail).
   double at = -1.0;
   for (const ArmPlan& a : o.plan.arms) {
-    if (a.name != "pin_arm_c") continue;
+    if (a.name != "module_arm") continue;
     for (const Segment& s : a.segments) {
-      if (s.kind == "work" && s.t1 <= release->t0 + 1e-9) at = (s.t0 + s.t1) / 2.0;
+      if (s.kind == "work" && s.held == "rail") {
+        at = (s.t0 + s.t1) / 2.0;
+        break;
+      }
     }
   }
   ASSERT_GT(at, 0.0);
@@ -806,7 +808,7 @@ TEST(Kr20, AnArmTooCloseToTheIncomingTubeIsRefused) {
   const VerifyReport r =
       VerifyPlan(o.layout, ModelPaths::FromEnvironment(), o.plan, o.sha256, Quick(false));
   EXPECT_FALSE(r.ok);
-  EXPECT_TRUE(AnyFault(r, {"bay 1: arm pin_arm_c", "too close to the tube coming in"})) << Faults(r);
+  EXPECT_TRUE(AnyFault(r, {"bay 1: arm module_arm", "too close to the tube coming in"})) << Faults(r);
 }
 
 TEST(Ordered, PassesTheVerifierWithoutTheSchedule) {

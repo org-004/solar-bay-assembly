@@ -275,7 +275,7 @@ int PrintMargins(const Layout& layout, const ModelPaths& paths,
   // the incoming tube (the verifier's), with the seconds the ways overlap.
   std::vector<std::string> boundaries;
   if (!WaysShareZone(layout)) {
-    DataPtr d = scene->MakeData();
+    cell::DataPtr d = scene->MakeData();
     for (int b = 1; b < plan->bays; ++b) {
       const BayEvent* out = nullptr;
       const BayEvent* in = nullptr;
