@@ -23,11 +23,11 @@ layout, and [`docs/scorecard.md`](docs/scorecard.md) defines each one.
 
 ### One 40 ft base: the cell on the real parts
 
-![v19  2026-11-27  One 40 ft flat rack, three KR 20 pin arms on one shared beam, three modules to each pin arm in turns, each move the quickest of 8 paths, the module arm within 0.90 of its motors: three bays planned; cycle 502.13 s per bay (planned), 4 arms](docs/evolution/v19.gif)
+![v20  2026-11-27  One 40 ft flat rack, three KR 20 pin arms on one shared beam, three modules to each pin arm in turns, each move the quickest of 8 paths, the module arm within 0.90 of its motors, the bay out once it is clear: three bays planned; cycle 496.16 s per bay (planned), 4 arms](docs/evolution/v20.gif)
 
 | Version | Cycle time | One bay | Failures per bay | Arms | Part count | Placement error | Mass in transit | Gates |
 |---|---|---|---|---|---|---|---|---|
-| v19 | 502.13 s per bay (planned) | 502.55 s | 0.383 | 4 | 37 | none | 4132.2 kg | all 3 pass |
+| v20 | 496.16 s per bay (planned) | 496.59 s | 0.383 | 4 | 37 | none | 4132.2 kg | all 3 pass |
 
 [One 40 ft base: the cell on the real parts: progress and versions](docs/directions/one-40ft-flat-rack.md)
 
