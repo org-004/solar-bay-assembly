@@ -81,6 +81,8 @@
 //   tool change -> tool_change, arm_move
 //   back to wait -> arm_move        release -> unclamp
 //   bay out -> bay_out
+//   move the tube to stage ... -> unclamp, tube_in, clamp (a staged
+//                                 layout's transfer)
 //
 // The kinds of scores/rates.json that no step maps to (hand_over today) are
 // counted 0.

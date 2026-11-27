@@ -247,6 +247,12 @@ is an error, and so is a kind that `rates.json` does not hold.
 | `back to wait` | `arm_move` |
 | `release` | `unclamp` |
 | `bay out` | `bay_out` |
+| `move the tube to stage ...` | `unclamp`, `tube_in`, `clamp` |
+
+A staged layout's transfer (`docs/two-flat-racks-cell.md`) counts as the holder letting the
+tube go, the infeed and outfeed units moving and seating it as a cart does at `tube_in`, and
+the holder gripping it again. No kind was added to `scores/rates.json`, so the other scores
+are unchanged.
 
 A kind that no step maps to (`hand_over` today) is counted 0.
 

@@ -17,7 +17,7 @@
       "id": "two-20ft-flat-racks",
       "title": "Two 20 ft flat racks side by side",
       "description": "Two 20 ft flat racks stand side by side on their long sides, about 25 mm apart. Each has its own transport limit of 13,608 kg (30,000 lb) and is structurally separate, but the two work as one cell and arms may reach across the gap. The torque tube is worked in sections, because a tube of 30 ft or more does not fit whole. Units at the infeed and the outfeed stage the tube. The cell of this direction is described and checked in [docs/two-flat-racks-cell.md](../two-flat-racks-cell.md): two layouts, `two_flat_racks_2_pin_arms` and `two_flat_racks_1_pin_arm`, each worked in three stages and passing every row of the checker.\n\n![two_flat_racks_2_pin_arms, finished bay at the last stage](../img/two_flat_racks_2_pin_arms.png)\n\n![two_flat_racks_1_pin_arm, finished bay at the last stage](../img/two_flat_racks_1_pin_arm.png)",
-      "limits": "Each rack carries at most 13,608 kg (30,000 lb) in transit, so the mass of the cell has to be split between them. The cell is described and checked, not yet planned: no motion plan, cycle time or scorecard exists, and no version of this direction exists yet."
+      "limits": "Each rack carries at most 13,608 kg (30,000 lb) in transit, so the mass of the cell has to be split between them. The tube is worked in three stages; its two transfers in a bay take 30 s each, a figure of the layout, not the model of a move. Times come from a time model, not from a run in physics."
     }
   ],
   "versions": [
@@ -536,6 +536,27 @@
           "plan_sha256_was": "99f1797e5990eb9f3445b65beee65a01221d5290d1dd8a8546c0fbeb2b68c19c"
         }
       ]
+    },
+    {
+      "id": "v11",
+      "date": "2026-11-27",
+      "commit": "this",
+      "title": "Two 20 ft flat racks, two pin arms: three bays planned",
+      "direction": "two-20ft-flat-racks",
+      "status": "candidate",
+      "changed": "The first version of the second direction: the cell on two 20 ft flat racks set side by side, one KUKA KR 210 that sets the rails and modules, two pin arms and a bolt arm. The torque tube is worked in three stages that the infeed and outfeed units move through. Three bays are planned whole, 378 of 378 moves, verified and committed: 1003.47 s for one bay and a cycle time of 969.67 s over three.",
+      "why": "It gives the direction of two 20 ft flat racks its first cycle time measured the same way as v10, so that the two directions can be weighed. At 969.67 s against v10's 554.55 s it is a candidate, not chosen: pin arm B has 28 of the 36 holes and the most work, and every bay stops for two 30 s transfers of the tube.",
+      "recording": "docs/evolution/v11.gif",
+      "competed_with": "v10",
+      "layout": {
+        "path": "layouts/two_flat_racks_2_pin_arms.json",
+        "sha256": "a78976cc8c6635c75279c70f9c7efca3cf5d5d8108e49aa3c9c508771a2af54f"
+      },
+      "plan": {
+        "path": "plans/two_flat_racks_2_pin_arms.json",
+        "sha256": "d199087e3f681892015f0f5737b291ffc1eeb488269ea5516e42e62434a17474"
+      },
+      "scores": "scores/two_flat_racks_2_pin_arms.json"
     }
   ]
 }

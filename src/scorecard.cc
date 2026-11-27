@@ -217,6 +217,12 @@ std::vector<std::string> OperationKinds(const StepTime& step) {
   if (head == "locate") return {"locate", "arm_move"};
   if (head == "pin") return {"pin_set", "arm_move"};
   if (head == "swage") return {"swage", "arm_move"};
+  // A staged layout's transfer: the holder lets the tube go, the infeed and
+  // outfeed units move it by whole pitches and seat it, and the holder grips
+  // it again.
+  if (step.what.rfind("move the tube to stage ", 0) == 0) {
+    return {"unclamp", "tube_in", "clamp"};
+  }
   return {};
 }
 
