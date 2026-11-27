@@ -5,7 +5,8 @@
 // plan made up here (a transfer short, missing, a step across one, an arm
 // off its wait pose through one, a module set before the stage's magazine
 // is taken and parked). With the committed plan plans/<name>.json, once it
-// exists (the tests of it are skipped until then): the verifier over the
+// exists (the tests of it are skipped until then; STAGED_LAYOUT names the
+// layout, so one target per committed staged plan): the verifier over the
 // whole plan, its schedule sampled in four pieces, and the same tampering
 // on copies of it. The checker's report is made once and shared
 // (VerifyPlanWithReport).
@@ -34,11 +35,16 @@
 namespace cell::layout {
 namespace {
 
-constexpr const char* kName = "two_flat_racks_2_pin_arms";
-
 std::string Dir(const char* variable, const char* fallback) {
   const char* dir = std::getenv(variable);
   return dir != nullptr ? dir : fallback;
+}
+
+// The staged layout whose committed plan is replayed: STAGED_LAYOUT names it
+// (BUILD.bazel has one target per committed staged plan), v11's by default.
+const std::string& Name() {
+  static const std::string name = Dir("STAGED_LAYOUT", "two_flat_racks_2_pin_arms");
+  return name;
 }
 
 std::string ReadFile(const std::string& path) {
@@ -60,7 +66,7 @@ struct Committed {
 const Committed& TheCommitted() {
   static const Committed* c = [] {
     auto* c = new Committed;
-    const std::string layout_path = Dir("LAYOUT_DIR", "layouts") + "/" + kName + ".json";
+    const std::string layout_path = Dir("LAYOUT_DIR", "layouts") + "/" + Name() + ".json";
     std::string why;
     std::optional<Layout> l = LoadLayout(layout_path, &why);
     if (!l) {
@@ -74,7 +80,7 @@ const Committed& TheCommitted() {
       c->error = "the layout does not pass the checker";
       return c;
     }
-    c->text = ReadFile(Dir("PLAN_DIR", "plans") + "/" + kName + ".json");
+    c->text = ReadFile(Dir("PLAN_DIR", "plans") + "/" + Name() + ".json");
     if (c->text.empty()) {
       c->no_plan = true;
       return c;
@@ -99,7 +105,7 @@ const Committed& TheCommitted() {
 // And the committed plan, skipped while there is none.
 #define NEED_COMMITTED()                                                        \
   NEED_LAYOUT();                                                               \
-  if (c.no_plan) GTEST_SKIP() << "no committed plan plans/" << kName << ".json";
+  if (c.no_plan) GTEST_SKIP() << "no committed plan plans/" << Name() << ".json";
 
 std::string Faults(const VerifyReport& r) {
   std::string s;

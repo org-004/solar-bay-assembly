@@ -2243,6 +2243,28 @@ cc_test(
         "@googletest//:gtest_main",
     ],
 )
+
+# The same tests on the committed plan of the balanced two-rack cell
+# (two_flat_racks_2_pin_arms_balanced, v12).
+#   bazel test --config=opt //:plan_replay_staged_balanced_test
+cc_test(
+    name = "plan_replay_staged_balanced_test",
+    size = "medium",
+    srcs = ["tests/plan_replay_staged_test.cc"],
+    data = LAYOUT_FILES + LAYOUT_MODEL_FILES + PLAN_FILES,
+    env = LAYOUT_ENV | {
+        "PLAN_DIR": "plans",
+        "STAGED_LAYOUT": "two_flat_racks_2_pin_arms_balanced",
+    },
+    shard_count = 4,
+    deps = [
+        ":layout",
+        ":layout_check",
+        ":layout_model",
+        ":layout_plan",
+        "@googletest//:gtest_main",
+    ],
+)
 # END layout_plan
 
 # BEGIN layout_bays
