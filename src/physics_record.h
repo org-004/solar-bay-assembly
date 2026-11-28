@@ -39,6 +39,32 @@
 // CountedSeconds sums over every take, each step judged against its own
 // take's set-down.
 //
+// Rail sets (run 074). A record may also hold rail sets of the same bay
+// (PhysicsRailSet): each with its rail, its one step (the module arm's
+// `set rail k`, from the step's start to its end, the rail held at the
+// gripper by a weld and let go at the end of the step's work segment), the
+// peak torque of each motor over its limit, and the rail's pose on the tube
+// after release and settling against its designed place (RailSetPose). A
+// rail set's step counts by its own rule, the rail gate
+// (docs/flat-rack-physics.md, "The rail gate"), when
+//   1. its least clearance in physics is at least clearance_m,
+//   2. no motor reached its limit (every torque_ratio below 1: a position
+//      servo's force is clipped at its limit, so a ratio of 1 is a motor
+//      that asked for more), and
+//   3. the settled rail is within the play of docs/bay-hardware.md,
+//      Tolerances: at its tab, across the tube at most rail_gate.across_mm
+//      and along it at most along_mm; round the tube at most round_deg and
+//      in yaw at most yaw_deg (src/bay_hardware.h, kTabPlayAcrossTube,
+//      kRailPlayAlongTube, kRailPlayRound, kRailPlayYaw).
+// CountedSeconds sums the rail sets' counted steps with the takes'. One bay
+// is counted once: no rail twice. A record without rail sets is written as
+// it always was: "rail_gate" and "rails" appear only when there are rail
+// sets, after the takes (or the one take's fields):
+//   "rail_gate": {"across_mm", "along_mm", "round_deg", "yaw_deg"},
+//   "rails": [{"rail", "step": {as a step above}, "torque_ratio": [7],
+//              "pose": {"across_mm", "along_mm", "round_deg", "yaw_deg",
+//                       "height_mm"}}]
+//
 // The file, physics/<layout>.json (PhysicsRecordToJson writes it with fixed
 // precision, so that the same record is the same text):
 //   {"layout", "layout_sha256", "plan_sha256", "command",
@@ -65,6 +91,7 @@
 #ifndef SRC_PHYSICS_RECORD_H_
 #define SRC_PHYSICS_RECORD_H_
 
+#include <array>
 #include <optional>
 #include <string>
 #include <vector>
@@ -110,6 +137,35 @@ struct PhysicsTake {
   SetDown set_down;
 };
 
+// A rail's pose on the tube after release and settling, against its
+// designed place, in the tube's frame (docs/bay-hardware.md): the tab's
+// offset across (X) and along (Y) the tube, the turn round the tube (about
+// Y) and the yaw (about Z), and the height of the rail's origin (not part
+// of the gate).
+struct RailSetPose {
+  double across_mm = 0.0;
+  double along_mm = 0.0;
+  double round_deg = 0.0;
+  double yaw_deg = 0.0;
+  double height_mm = 0.0;
+};
+
+// The rail's play on the tube (the rail gate's last part).
+struct RailGate {
+  double across_mm = 0.0;
+  double along_mm = 0.0;
+  double round_deg = 0.0;
+  double yaw_deg = 0.0;
+};
+
+// One rail set of the record.
+struct PhysicsRailSet {
+  int rail = -1;
+  PhysicsStep step;                      // The plan's `set rail <rail>`.
+  std::array<double, 7> torque_ratio{};  // Joints 1-6, then the track.
+  RailSetPose pose;
+};
+
 struct PhysicsRecord {
   std::string layout;
   std::string layout_sha256;    // Of layouts/<layout>.json.
@@ -119,15 +175,35 @@ struct PhysicsRecord {
   double gate_offset_mm = 0.0;  // kGateOffset in mm.
   double gate_yaw_deg = 0.0;    // kGateYaw in degrees.
   std::vector<PhysicsTake> takes;  // In the plan's order; one or more.
+  RailGate rail_gate;           // The rail's play; with rail sets only.
+  std::vector<PhysicsRailSet> rails;  // In the plan's order; may be empty.
   double counted_s = 0.0;       // CountedSeconds when it was written.
 };
+
+// The rail gate's play, from src/bay_hardware.h, to the record's precision.
+RailGate RailPlay();
+
+// The rail gate above, for one rail set of the record.
+bool RailSetCounts(const PhysicsRecord& record, const PhysicsRailSet& set);
+
+// The rails of the rail sets that count, in the record's order.
+std::vector<int> CountedRails(const PhysicsRecord& record);
+
+// The rails that count as the scorecard's basis names them: "rails 0, 1
+// (2 of the record's 3 rail sets)".
+std::string RailsText(const PhysicsRecord& record);
+
+// The numbers of the steps that count: the takes' in the record's order,
+// then, with rail sets, theirs, all in increasing order.
+std::vector<int> CountedSteps(const PhysicsRecord& record);
 
 // The rule above, for one step of a take of the record.
 bool StepCounts(const PhysicsRecord& record, const PhysicsTake& take,
                 const PhysicsStep& step);
 
 // The sum of planned_s over the steps of every take for which StepCounts
-// holds (not the stored flags).
+// holds, and of every rail set for which RailSetCounts holds (not the
+// stored flags).
 double CountedSeconds(const PhysicsRecord& record);
 
 // The modules of the takes of which a step counts, in the record's order.
@@ -153,8 +229,10 @@ std::optional<PhysicsRecord> PhysicsRecordFromJson(const std::string& text,
 // same what and arm, and start_s, end_s and planned_s within 1e-6 s of the
 // plan's. Also each stored `counted` against StepCounts and counted_s
 // against CountedSeconds (within 1e-6 s). And one bay counted once: a
-// record without takes, a take without steps, a module held by two takes,
-// or steps of different bays of the plan (StepTime::bay) are faults.
+// record without takes or rail sets, a take without steps, a module held by two takes,
+// or steps of different bays of the plan (StepTime::bay) are faults; so
+// are a rail set twice for one rail, and a rail set whose step is not
+// `set rail <rail>`. Rail sets' steps are checked as the takes' are.
 std::vector<std::string> CheckPhysicsRecord(const PhysicsRecord& record,
                                             const Plan& plan,
                                             const std::string& plan_sha256);

@@ -9,6 +9,7 @@
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
+#include <functional>
 #include <iterator>
 #include <optional>
 #include <string>
@@ -223,6 +224,118 @@ PhysicsRecord TwoTakes(const Plan& plan, const std::string& plan_sha) {
   return r;
 }
 
+// A record of one take and the rail sets of rails 0 and 1 (steps 4 and 6
+// of the plan), which agrees with the plan.
+PhysicsRecord WithRails(const Plan& plan, const std::string& plan_sha) {
+  PhysicsRecord r = Fixture(plan, plan_sha);
+  r.rail_gate = RailPlay();
+  for (const auto& [rail, step] : {std::pair{0, 4}, std::pair{1, 6}}) {
+    PhysicsRailSet set;
+    set.rail = rail;
+    set.step = StepOf(plan, step, 0.0194);
+    set.torque_ratio = {0.3467, 0.499, 0.628, 0.2441, 0.3876, 0.1319, 0.5923};
+    set.pose = {0.0023, -0.0073, 0.0011, 0.0002, -0.0005};
+    r.rails.push_back(set);
+  }
+  r.counted_s = Round6(CountedSeconds(r));
+  return r;
+}
+
+TEST(PhysicsRecord, RailSetsBesideTheTakes) {
+  const Plan plan = LoadPlan(kName);
+  const std::string sha = Sha256OfFile(PlanPath(kName));
+  const PhysicsRecord good = WithRails(plan, sha);
+  // The play of docs/bay-hardware.md, Tolerances.
+  EXPECT_EQ(good.rail_gate.across_mm, 0.928);
+  EXPECT_EQ(good.rail_gate.along_mm, 2.606);
+  EXPECT_EQ(good.rail_gate.round_deg, 0.8576);
+  EXPECT_EQ(good.rail_gate.yaw_deg, 0.8251);
+  EXPECT_TRUE(CheckPhysicsRecord(good, plan, sha).empty());
+  const double take = good.takes[0].steps[0].planned_s + good.takes[0].steps[1].planned_s;
+  const double rails = good.rails[0].step.planned_s + good.rails[1].step.planned_s;
+  EXPECT_NEAR(CountedSeconds(good), take + rails, 1e-9);
+  EXPECT_EQ(CountedRails(good), (std::vector<int>{0, 1}));
+  EXPECT_EQ(CountedSteps(good), (std::vector<int>{4, 6, 63, 64}));
+  EXPECT_EQ(RailsText(good), "rails 0, 1 (2 of the record's 2 rail sets)");
+
+  // The text: the one take's fields, then the rail gate and the rail sets;
+  // it reads back as it was. A record without rail sets has neither.
+  const std::string text = PhysicsRecordToJson(good);
+  EXPECT_NE(text.find("\n  \"rail_gate\": {"), std::string::npos);
+  EXPECT_NE(text.find("\n  \"rails\": ["), std::string::npos);
+  EXPECT_EQ(PhysicsRecordToJson(Fixture(plan, sha)).find("rail"), std::string::npos);
+  std::string error;
+  const std::optional<PhysicsRecord> back = PhysicsRecordFromJson(text, &error);
+  ASSERT_TRUE(back.has_value()) << error;
+  EXPECT_EQ(PhysicsRecordToJson(*back), text);
+  ASSERT_EQ(back->rails.size(), 2u);
+  EXPECT_EQ(back->rails[1].rail, 1);
+  EXPECT_EQ(back->rails[1].torque_ratio[6], 0.5923);
+  std::string short_torque = text;
+  const std::string last = ",\n        0.5923\n      ]";
+  const size_t at = short_torque.find(last);
+  ASSERT_NE(at, std::string::npos);
+  short_torque.replace(at, last.size(), "\n      ]");
+  EXPECT_FALSE(PhysicsRecordFromJson(short_torque, &error).has_value());
+
+  // The rail gate, part by part, at its edges.
+  auto counts = [&](const std::function<void(PhysicsRailSet*)>& change) {
+    PhysicsRecord r = good;
+    change(&r.rails[0]);
+    return RailSetCounts(r, r.rails[0]);
+  };
+  EXPECT_TRUE(counts([](PhysicsRailSet* s) { s->step.least_clearance_m = 0.015; }));
+  EXPECT_FALSE(counts([](PhysicsRailSet* s) { s->step.least_clearance_m = 0.014999; }));
+  EXPECT_TRUE(counts([](PhysicsRailSet* s) { s->torque_ratio[1] = 0.9999; }));
+  EXPECT_FALSE(counts([](PhysicsRailSet* s) { s->torque_ratio[1] = 1.0; }));
+  EXPECT_FALSE(counts([](PhysicsRailSet* s) { s->torque_ratio[6] = 1.0; }));
+  EXPECT_TRUE(counts([](PhysicsRailSet* s) { s->pose.across_mm = -0.928; }));
+  EXPECT_FALSE(counts([](PhysicsRailSet* s) { s->pose.across_mm = 0.9281; }));
+  EXPECT_TRUE(counts([](PhysicsRailSet* s) { s->pose.along_mm = 2.606; }));
+  EXPECT_FALSE(counts([](PhysicsRailSet* s) { s->pose.along_mm = -2.6061; }));
+  EXPECT_TRUE(counts([](PhysicsRailSet* s) { s->pose.round_deg = -0.8576; }));
+  EXPECT_FALSE(counts([](PhysicsRailSet* s) { s->pose.round_deg = 0.8577; }));
+  EXPECT_TRUE(counts([](PhysicsRailSet* s) { s->pose.yaw_deg = 0.8251; }));
+  EXPECT_FALSE(counts([](PhysicsRailSet* s) { s->pose.yaw_deg = -0.8252; }));
+  EXPECT_TRUE(counts([](PhysicsRailSet* s) { s->pose.height_mm = 50.0; }));  // Not gated.
+  // A rail set out of its gate takes its seconds out, the take's still count.
+  PhysicsRecord r = good;
+  r.rails[1].pose.yaw_deg = 1.0;
+  EXPECT_NEAR(CountedSeconds(r), take + good.rails[0].step.planned_s, 1e-9);
+  EXPECT_EQ(CountedRails(r), (std::vector<int>{0}));
+  EXPECT_TRUE(Mentions(CheckPhysicsRecord(r, plan, sha), "the rule gives the other"));
+
+  // One bay counts each rail once, and a rail set is the set of its rail.
+  r = good;
+  r.rails[1].rail = 0;
+  EXPECT_TRUE(Mentions(CheckPhysicsRecord(r, plan, sha), "rail 0 is set by two rail sets"));
+  EXPECT_TRUE(Mentions(CheckPhysicsRecord(r, plan, sha), "is of step \"set rail 1\""));
+  r = good;
+  r.rails[1].step = StepOf(plan, 179, 0.0194);  // Bay 1's set of rail 1.
+  EXPECT_TRUE(Mentions(CheckPhysicsRecord(r, plan, sha), "it counts one bay"));
+  r = good;
+  r.rails[0].step.start_s += 0.5;
+  EXPECT_TRUE(Mentions(CheckPhysicsRecord(r, plan, sha), "step 4 starts at"));
+  // Rail sets alone are a record.
+  r = good;
+  r.takes.clear();
+  r.counted_s = Round6(CountedSeconds(r));
+  EXPECT_TRUE(CheckPhysicsRecord(r, plan, sha).empty());
+
+  // Joined from records of one run each, given out of order.
+  PhysicsRecord a = good, b = good, c = good;
+  a.rails.clear();
+  b.takes.clear();
+  b.rails = {good.rails[1]};
+  c.takes.clear();
+  c.rails = {good.rails[0]};
+  const std::optional<PhysicsRecord> joined = JoinPhysicsRecords({b, a, c}, good.command, &error);
+  ASSERT_TRUE(joined.has_value()) << error;
+  EXPECT_EQ(PhysicsRecordToJson(*joined), text);
+  c.rail_gate.yaw_deg = 1.0;
+  EXPECT_FALSE(JoinPhysicsRecords({b, a, c}, good.command, &error).has_value());
+}
+
 TEST(PhysicsRecord, ARecordOfTwoTakesOfOneBay) {
   const Plan plan = LoadPlan(kName);
   const std::string sha = Sha256OfFile(PlanPath(kName));
@@ -294,7 +407,7 @@ TEST(PhysicsRecord, JoiningRecordsOfOneTakeEach) {
   EXPECT_FALSE(JoinPhysicsRecords({}, two.command, &error).has_value());
 }
 
-// The scorecard takes about 16 s a call, so four calls serve every case.
+// The scorecard takes about 16 s a call, so five calls serve every case.
 TEST(PhysicsRecord, ThePhysicsShareOfTheScorecard) {
   std::string error;
   const std::optional<Layout> layout = LoadLayout(
@@ -328,6 +441,18 @@ TEST(PhysicsRecord, ThePhysicsShareOfTheScorecard) {
   const auto both = ComputeScorecard(*layout, plan, *rates, paths, layout_sha,
                                      plan_sha, rates_sha, &two, &error);
   ASSERT_TRUE(both.has_value()) << error;
+  const PhysicsRecord rails = WithRails(plan, plan_sha);
+  const auto railed = ComputeScorecard(*layout, plan, *rates, paths, layout_sha,
+                                       plan_sha, rates_sha, &rails, &error);
+  ASSERT_TRUE(railed.has_value()) << error;
+  // With rail sets: their steps among the take's, in order, and the rails named.
+  const Measure* r = FindMeasure(*railed, "physics_share");
+  ASSERT_NE(r, nullptr);
+  EXPECT_EQ(r->value, Round6(CountedSeconds(rails) / CycleFiguresOf(plan).one_bay_s));
+  EXPECT_NE(r->basis.find("steps 4, 6, 63, 64 of module 4 and rails 0, 1 (2 of the record's 2 "
+                          "rail sets) carried out in physics"),
+            std::string::npos)
+      << r->basis;
 
   const Measure* m = FindMeasure(*with, "physics_share");
   ASSERT_NE(m, nullptr);

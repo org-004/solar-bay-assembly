@@ -3,7 +3,7 @@
   "layout_sha256": "0ced8a957408e22ec2b459e66c9a0b45b84eeefa1a6bc046fc5591114732fc0b",
   "plan_sha256": "25adeef100a2966d4099d7b969fff60888751d98150de1818505c906f27e83f5",
   "rates_sha256": "92ab60e5a186cfa526dc292ba67cf3583391499d692475f143aaa1287ab63614",
-  "physics_sha256": "8a987fb2c1ec637f7a1366020868eb31aa5eb67fec1de73d8fe88ddb5261c399",
+  "physics_sha256": "e3cfa6343856186f23a8e43e3015db8e04488725493a1eb6c47ade12a99eae16",
   "measures": [
     {
       "name": "cycle_s",
@@ -26,11 +26,11 @@
     {
       "name": "physics_share",
       "rank": "P0",
-      "value": 0.456641,
+      "value": 0.615583,
       "unit": "1",
       "better": "higher",
       "known": "measured",
-      "basis": "physics/flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque_clear_out_infeed_rail_mag_early_next_fill_pallet_near.json: steps 24, 25, 40, 41, 55, 56, 71, 72, 85, 86, 99, 100, 113, 114, 127, 128, 141, 142 of modules 0, 3, 6, 1, 4, 7, 2, 5, 8 (9 of the record's 9 takes of one bay) carried out in physics, 186.322650 s of one bay's 408.028661 s counted"
+      "basis": "physics/flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque_clear_out_infeed_rail_mag_early_next_fill_pallet_near.json: steps 4, 5, 6, 7, 8, 9, 10, 11, 12, 24, 25, 40, 41, 55, 56, 71, 72, 85, 86, 99, 100, 113, 114, 127, 128, 141, 142 of modules 0, 3, 6, 1, 4, 7, 2, 5, 8 (9 of the record's 9 takes of one bay) and rails 0, 1, 2, 3, 4, 5, 6, 7, 8 (9 of the record's 10 rail sets) carried out in physics, 251.175400 s of one bay's 408.028661 s counted"
     },
     {
       "name": "part_count",

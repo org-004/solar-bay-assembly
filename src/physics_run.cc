@@ -116,6 +116,46 @@ void Widen(PhysicsFigures* into, const PhysicsFigures& f) {
   }
 }
 
+// A rail set's model holds the rail twice: as the arm's held rail, fixed
+// to the tool for the checker's figures, and as the free carried_rail. The
+// held one is given no mass, so that the arm carries one rail's.
+void ZeroHeldRail(mjModel* m, mjData* d, const std::string& body) {
+  const int b = mj_name2id(m, mjOBJ_BODY, body.c_str());
+  if (b < 0) return;
+  m->body_mass[b] = 0.0;
+  for (int i = 0; i < 3; ++i) m->body_inertia[3 * b + i] = 0.0;
+  mj_setConst(m, d);
+}
+
+// Puts free body `body` at body `at`'s pose and welds it to `tool` there,
+// with the anchor at site `tip`, as src/suction.cc binds its weld.
+void PlaceAndWeld(mjModel* m, mjData* d, int body, int at, int tool, int tip, int weld) {
+  const int q = m->jnt_qposadr[m->body_jntadr[body]];
+  const int v = m->jnt_dofadr[m->body_jntadr[body]];
+  for (int i = 0; i < 3; ++i) d->qpos[q + i] = d->xpos[3 * at + i];
+  for (int i = 0; i < 4; ++i) d->qpos[q + 3 + i] = d->xquat[4 * at + i];
+  for (int i = 0; i < 6; ++i) d->qvel[v + i] = 0.0;
+  mj_forward(m, d);
+  const Frame t = BodyFrame(*d, tool);
+  const Frame f = BodyFrame(*d, body);
+  const Eigen::Vector3d p = Eigen::Map<const Eigen::Vector3d>(d->site_xpos + 3 * tip);
+  const Eigen::Vector3d in_free = f.r.transpose() * (p - f.p);
+  const Eigen::Vector3d in_tool = t.r.transpose() * (p - t.p);
+  const Eigen::Quaterniond rel(Eigen::Matrix3d(t.r.transpose() * f.r));
+  mjtNum* e = m->eq_data + mjNEQDATA * weld;
+  for (int i = 0; i < 3; ++i) {
+    e[i] = in_free[i];
+    e[3 + i] = in_tool[i];
+  }
+  e[6] = rel.w();
+  e[7] = rel.x();
+  e[8] = rel.y();
+  e[9] = rel.z();
+  e[11] = 0;
+  d->eq_active[weld] = 1;
+  mj_forward(m, d);
+}
+
 }  // namespace
 
 struct PhysicsRun::Impl {
@@ -142,12 +182,20 @@ struct PhysicsRun::Impl {
   int track_motor = -1;
   double track_lag = 0.0;
   int module_body = -1;    // The free module, in the physics model.
+  // A rail set (options.rail >= 0): the free rail, its weld, and the part
+  // the arm carries ("module" or "rail") and the body that is it.
+  bool rail_mode = false;
+  int rail_body = -1;
+  int rail_weld = -1;
+  std::string part = "module";
+  int carried_body = -1;
   int pallet_weld = -1;
   int work_site = -1;      // The tool's working point, in the physics model.
 
   // In the checker's model.
   int scene_held_body = -1;     // The held module's body.
-  int scene_set_body = -1;      // The module's body in the bay.
+  int scene_set_body = -1;      // The module's (or rail's) body in the bay.
+  std::vector<int> scene_set_geoms;  // Its geoms.
   int scene_work_site = -1;
 
   // Plan time.
@@ -255,17 +303,19 @@ struct PhysicsRun::Impl {
     const std::vector<Closest> planned =
         InstantDistances(*scene, report, *player, w, measure.get());
     f->plan_clearance_m = least(planned, nullptr);
-    const bool held = w.arms[arm].held == "module";
+    // After a rail set's release the plan's held rail is the magazine's
+    // next one, and the carried rail is on the tube.
+    const bool held = w.arms[arm].held == part && (!rail_mode || t < release_t);
     Frame planned_frame, physics_frame;
     if (held) {
       planned_frame = BodyFrame(*measure, scene_held_body);
-      physics_frame = BodyFrame(*data, module_body);
+      physics_frame = BodyFrame(*data, carried_body);
     } else {
       planned_frame = SiteFrame(*measure, scene_work_site);
       physics_frame = SiteFrame(*data, work_site);
     }
-    const auto [mm, deg] = held ? ModuleError(planned_frame, physics_frame)
-                                : FrameError(planned_frame, physics_frame);
+    const auto [mm, deg] = held && !rail_mode ? ModuleError(planned_frame, physics_frame)
+                                              : FrameError(planned_frame, physics_frame);
     f->frame_error_mm = mm;
     f->frame_error_deg = deg;
     f->frame_is_module = held;
@@ -274,17 +324,17 @@ struct PhysicsRun::Impl {
     const ArmHandle& h = handles.arms[arm];
     for (int j = 0; j < 6; ++j) w.arms[arm].config[j] = data->qpos[h.qpos[j]];
     w.arms[arm].config[6] = data->qpos[h.track_qpos];
-    const Frame module = BodyFrame(*data, module_body);
+    const Frame module = BodyFrame(*data, carried_body);
     const Built built = player->BuiltAt(w);
-    const bool set = std::find(built.modules.begin(), built.modules.end(),
-                               result.module) != built.modules.end();
+    const std::vector<int>& on = rail_mode ? built.rails : built.modules;
+    const bool set =
+        std::find(on.begin(), on.end(), rail_mode ? result.rail : result.module) != on.end();
     const LayoutHandles& H = scene->handles();
     auto adjust = [&](mjData* d) {
       if (held) {
-        MoveGeoms(d, H.arms[arm].held_geoms.at("module"), BodyFrame(*d, scene_held_body),
-                  module);
+        MoveGeoms(d, H.arms[arm].held_geoms.at(part), BodyFrame(*d, scene_held_body), module);
       } else if (set) {
-        MoveGeoms(d, H.module_geoms[result.module], BodyFrame(*d, scene_set_body), module);
+        MoveGeoms(d, scene_set_geoms, BodyFrame(*d, scene_set_body), module);
       }
     };
     std::string pair;
@@ -312,6 +362,8 @@ struct PhysicsRun::Impl {
   }
 
   bool StepOnce();
+  PhysicsStep RecordStep(const PhysicsFigures& f) const;
+  PhysicsResult FinishRail();
 };
 
 bool PhysicsRun::Impl::StepOnce() {
@@ -361,7 +413,11 @@ bool PhysicsRun::Impl::StepOnce() {
     }
   }
   if (in_steps && gripped && !released && t >= release_t) {
-    suction->Release(data.get());
+    if (rail_mode) {
+      data->eq_active[rail_weld] = 0;
+    } else {
+      suction->Release(data.get());
+    }
     released = true;
   }
   PoseOthers(t);
@@ -451,10 +507,20 @@ std::unique_ptr<PhysicsRun> PhysicsRun::Create(const Layout& layout, const Plan&
       }
     }
   }
-  if (cycles.empty()) return fail("the plan has no module take followed by a set");
   const BayStep* take = nullptr;
   const BayStep* set = nullptr;
-  if (options.take >= 0) {
+  r.rail_mode = options.rail >= 0;
+  if (r.rail_mode) {
+    // A rail set: the module arm's set of that rail, on its own.
+    for (const BayStep& s : r.report.steps) {
+      if (s.kind == "rail_set" && s.index == options.rail) set = &s;
+    }
+    if (set == nullptr) return fail(Fmt("no rail_set %d in the plan", options.rail));
+    take = set;
+    r.part = "rail";
+  } else if (cycles.empty()) {
+    return fail("the plan has no module take followed by a set");
+  } else if (options.take >= 0) {
     for (const auto& [t, s] : cycles) {
       if (t->index == options.take) {
         take = t;
@@ -486,9 +552,10 @@ std::unique_ptr<PhysicsRun> PhysicsRun::Create(const Layout& layout, const Plan&
     return fail("the plan has no times for the take and the set");
   }
   r.result.arm = take->arm;
-  r.result.take = take->index;
-  r.result.module = set->index;
-  r.result.take_step = take->number;
+  r.result.take = r.rail_mode ? -1 : take->index;
+  r.result.module = r.rail_mode ? -1 : set->index;
+  r.result.rail = r.rail_mode ? set->index : -1;
+  r.result.take_step = r.rail_mode ? 0 : take->number;
   r.result.set_step = set->number;
   r.start = times[take->number]->start;
   r.end = times[set->number]->end;
@@ -497,7 +564,9 @@ std::unique_ptr<PhysicsRun> PhysicsRun::Create(const Layout& layout, const Plan&
     if (g.step == take->number) r.grip_t = g.t1;
     if (g.step == set->number) r.release_t = g.t1;
   }
-  if (!(r.grip_t > r.start && r.release_t > r.grip_t && r.release_t < r.end)) {
+  if (r.rail_mode) r.grip_t = r.start;  // Held from the step's start.
+  if (!(r.grip_t >= r.start && r.release_t > r.grip_t && r.release_t < r.end) ||
+      (!r.rail_mode && !(r.grip_t > r.start))) {
     return fail("the take's and the set's work segments are not where they should be");
   }
 
@@ -514,13 +583,25 @@ std::unique_ptr<PhysicsRun> PhysicsRun::Create(const Layout& layout, const Plan&
     state.modules = n;  // The contiguous ones; the others are not drawn.
   }
   if (!layout.pallets.empty()) {
-    state.pallet_modules = layout.pallets[0].modules - take->index;
+    state.pallet_modules = r.rail_mode ? std::min(layout.pallets[0].modules, built.on_pallets)
+                                       : layout.pallets[0].modules - take->index;
+  }
+  if (r.rail_mode) {
+    if (std::find(built.rails.begin(), built.rails.end(), r.result.rail) != built.rails.end()) {
+      return fail(Fmt("rail %d is on the tube at its set's start", r.result.rail));
+    }
+    state.carried_rail = r.result.rail;
+    state.held[take->arm] = "rail";
   }
   for (int i = 0; i < r.scene->ArmCount(); ++i) {
     const std::string& name = layout.arms[i].name;
     const ArmAt& a = w0.arms[i];
-    if (a.held == "module" || a.held == "rail") {
+    const bool expected = r.rail_mode && i == r.arm && a.held == "rail";
+    if (!expected && (a.held == "module" || a.held == "rail")) {
       return fail("arm " + name + " holds a " + a.held + " at the take's start");
+    }
+    if (r.rail_mode && i == r.arm && !expected) {
+      return fail("arm " + name + " holds no rail at the rail set's start");
     }
     state.tool[name] = a.tool;
     std::array<double, 6> deg{};
@@ -529,7 +610,8 @@ std::unique_ptr<PhysicsRun> PhysicsRun::Create(const Layout& layout, const Plan&
     state.track[name] = a.config[6];
   }
   state.physics_arm = take->arm;
-  state.carried_take = take->index;
+  state.carried_take = r.rail_mode ? layout.pallets.at(0).modules - state.pallet_modules
+                                   : take->index;
   r.model = LoadLayoutModel(layout, state, paths, &why);
   if (!r.model) return fail(why);
   mjModel* m = r.model.get();
@@ -543,17 +625,32 @@ std::unique_ptr<PhysicsRun> PhysicsRun::Create(const Layout& layout, const Plan&
   r.module_body = mj_name2id(m, mjOBJ_BODY, "carried_module");
   r.pallet_weld = mj_name2id(m, mjOBJ_EQUALITY, "pallet_hold");
   if (r.module_body < 0 || r.pallet_weld < 0) return fail("the physics model has no carried module");
+  r.carried_body = r.module_body;
+  // What the carried part may touch: a module its two rails; a rail the
+  // tube, the holder, the base and the rails already on the tube.
   std::set<int> rails;
-  if (r.result.module + 1 >= static_cast<int>(r.handles.rail_geoms.size())) {
-    return fail("the rails of the module are not in the model");
-  }
-  for (int k : {r.result.module, r.result.module + 1}) {
-    rails.insert(r.handles.rail_geoms[k].begin(), r.handles.rail_geoms[k].end());
+  if (r.rail_mode) {
+    r.rail_body = mj_name2id(m, mjOBJ_BODY, "carried_rail");
+    r.rail_weld = mj_name2id(m, mjOBJ_EQUALITY, "rail_grip");
+    if (r.rail_body < 0 || r.rail_weld < 0) return fail("the physics model has no carried rail");
+    r.carried_body = r.rail_body;
+    for (const std::vector<int>* list : {&r.handles.tube_geoms, &r.handles.holder_geoms,
+                                         &r.handles.base_geoms}) {
+      rails.insert(list->begin(), list->end());
+    }
+    for (const std::vector<int>& on : r.handles.rail_geoms) rails.insert(on.begin(), on.end());
+  } else {
+    if (r.result.module + 1 >= static_cast<int>(r.handles.rail_geoms.size())) {
+      return fail("the rails of the module are not in the model");
+    }
+    for (int k : {r.result.module, r.result.module + 1}) {
+      rails.insert(r.handles.rail_geoms[k].begin(), r.handles.rail_geoms[k].end());
+    }
   }
   for (int g = 0; g < m->ngeom; ++g) {
     m->geom_contype[g] = 0;
     m->geom_conaffinity[g] = 0;
-    const bool module = m->geom_bodyid[g] == r.module_body;
+    const bool module = m->geom_bodyid[g] == r.carried_body;
     if (module) m->geom_contype[g] = 2;
     if (rails.count(g)) m->geom_conaffinity[g] = 2;
     if (module || rails.count(g)) {
@@ -592,22 +689,25 @@ std::unique_ptr<PhysicsRun> PhysicsRun::Create(const Layout& layout, const Plan&
 
   // In the checker's model.
   const LayoutHandles& H = r.scene->handles();
-  auto held = H.arms[r.arm].held_geoms.find("module");
+  auto held = H.arms[r.arm].held_geoms.find(r.part);
   if (held == H.arms[r.arm].held_geoms.end() || held->second.empty()) {
-    return fail("the checker's model has no held module");
+    return fail("the checker's model has no held " + r.part);
   }
   r.scene_held_body = r.scene->model().geom_bodyid[held->second.front()];
-  if (r.result.module >= static_cast<int>(H.module_geoms.size()) ||
-      H.module_geoms[r.result.module].empty()) {
-    return fail("the checker's model has no module " + std::to_string(r.result.module));
+  const std::vector<std::vector<int>>& placed = r.rail_mode ? H.rail_geoms : H.module_geoms;
+  const int index = r.rail_mode ? r.result.rail : r.result.module;
+  if (index >= static_cast<int>(placed.size()) || placed[index].empty()) {
+    return fail("the checker's model has no " + r.part + " " + std::to_string(index));
   }
-  r.scene_set_body = r.scene->model().geom_bodyid[H.module_geoms[r.result.module].front()];
+  r.scene_set_geoms = placed[index];
+  r.scene_set_body = r.scene->model().geom_bodyid[placed[index].front()];
   auto site = H.arms[r.arm].work_site.find(r.tool);
   if (site == H.arms[r.arm].work_site.end()) return fail("no work site for " + r.tool);
   r.scene_work_site = site->second;
 
   // The start: keyframe 0 holds every arm at the take's start.
   r.data = MakeData(*m);
+  if (r.rail_mode) ZeroHeldRail(m, r.data.get(), prefix + "held_rail");
   mj_resetDataKeyframe(m, r.data.get(), 0);
   for (int j = 0; j < 6; ++j) r.data->ctrl[r.follower_arm->motor[j]] = r.data->qpos[h.qpos[j]];
   r.data->ctrl[r.track_motor] = r.data->qpos[h.track_qpos];
@@ -617,12 +717,20 @@ std::unique_ptr<PhysicsRun> PhysicsRun::Create(const Layout& layout, const Plan&
   for (int j = 0; j < 6; ++j) r.data->qpos[h.qpos[j]] = c0[j];
   r.data->qpos[h.track_qpos] = c0[6];
   mj_forward(m, r.data.get());
+  if (r.rail_mode) {
+    // The free rail where the arm's held rail is, and welded there.
+    const int at = mj_name2id(m, mjOBJ_BODY, (prefix + "held_rail").c_str());
+    if (at < 0) return fail("the physics model's arm holds no rail");
+    PlaceAndWeld(m, r.data.get(), r.rail_body, at, mj_name2id(m, mjOBJ_BODY, so.tool_body.c_str()),
+                 r.work_site, r.rail_weld);
+  }
   r.follower = std::make_unique<ArmFollower>(*r.follower_arm);
   r.follower->Hold(*r.data);
   r.hold_ticks = std::lround(options.hold_s / options.timestep);
   r.run_ticks = std::lround((r.end - r.start) / options.timestep);
   r.settle_ticks = std::lround(options.settle_s / options.timestep);
   r.sample_every = std::max(1L, std::lround(options.sample_s / options.timestep));
+  r.gripped = r.rail_mode;
   return run;
 }
 
@@ -649,7 +757,7 @@ PhysicsResult PhysicsRun::Finish() {
   take.kind = set.kind = "step";
   for (const auto& [index, f] : r.by_segment) {
     out.segments.push_back(f);
-    PhysicsFigures& into = f.step == out.take_step ? take : set;
+    PhysicsFigures& into = !r.rail_mode && f.step == out.take_step ? take : set;
     Widen(&into, f);
   }
   for (const StepTime& s : r.plan->steps) {
@@ -662,9 +770,10 @@ PhysicsResult PhysicsRun::Finish() {
       set.t1 = s.end;
     }
   }
-  out.steps = {take, set};
+  out.steps = r.rail_mode ? std::vector<PhysicsFigures>{set} : std::vector<PhysicsFigures>{take, set};
   out.settle.step = out.set_step;
   out.settle.t0 = out.settle.t1 = r.end;
+  if (r.rail_mode) return r.FinishRail();
 
   // The module on its rails, against its designed place.
   mj_kinematics(&r.scene->model(), r.measure.get());
@@ -698,28 +807,97 @@ PhysicsResult PhysicsRun::Finish() {
   one.set_down.along_mm = round(out.set_down.along_mm, 1e-4);
   one.set_down.yaw_deg = round(out.set_down.yaw_deg, 1e-4);
   one.set_down.height_mm = round(out.set_down.height_mm, 1e-4);
-  for (const PhysicsFigures& f : out.steps) {
-    PhysicsStep s;
-    s.number = f.step;
-    for (const StepTime& t : r.plan->steps) {
-      if (t.number == f.step) {
-        s.what = t.what;
-        s.arm = t.arm;
-        s.start_s = t.start;
-        s.end_s = t.end;
-      }
-    }
-    s.planned_s = s.end_s - s.start_s;
-    s.max_joint_error_mrad = round(f.joint_error_mrad, 1e-4);
-    s.max_frame_error_mm = round(f.frame_error_mm, 1e-4);
-    s.max_frame_error_deg = round(f.frame_error_deg, 1e-4);
-    s.least_clearance_m = round(f.clearance_m, 1e-6);
-    s.least_clearance_pair = f.clearance_pair;
-    s.least_clearance_t = round(f.clearance_t, 1e-6);
-    s.plan_least_clearance_m = round(f.plan_clearance_m, 1e-6);
-    one.steps.push_back(s);
-  }
+  for (const PhysicsFigures& f : out.steps) one.steps.push_back(r.RecordStep(f));
   for (PhysicsStep& s : one.steps) s.counted = StepCounts(rec, one, s);
+  rec.counted_s = CountedSeconds(rec);
+  out.ok = true;
+  return out;
+}
+
+PhysicsStep PhysicsRun::Impl::RecordStep(const PhysicsFigures& f) const {
+  auto round = [](double v, double unit) { return std::round(v / unit) * unit; };
+  PhysicsStep s;
+  s.number = f.step;
+  for (const StepTime& t : plan->steps) {
+    if (t.number == f.step) {
+      s.what = t.what;
+      s.arm = t.arm;
+      s.start_s = t.start;
+      s.end_s = t.end;
+    }
+  }
+  s.planned_s = s.end_s - s.start_s;
+  s.max_joint_error_mrad = round(f.joint_error_mrad, 1e-4);
+  s.max_frame_error_mm = round(f.frame_error_mm, 1e-4);
+  s.max_frame_error_deg = round(f.frame_error_deg, 1e-4);
+  s.least_clearance_m = round(f.clearance_m, 1e-6);
+  s.least_clearance_pair = f.clearance_pair;
+  s.least_clearance_t = round(f.clearance_t, 1e-6);
+  s.plan_least_clearance_m = round(f.plan_clearance_m, 1e-6);
+  return s;
+}
+
+// The rail on the tube against its designed place (src/physics_record.h,
+// RailSetPose): the tab's offset, and the turns round the tube and in yaw.
+PhysicsResult PhysicsRun::Impl::FinishRail() {
+  PhysicsResult& out = result;
+  mj_kinematics(&scene->model(), measure.get());
+  const Frame designed = BodyFrame(*measure, scene_set_body);
+  // The rail's shape is the same turned half round about its vertical
+  // (src/bay_model.cc, RailBoxes: every box has its twin), and the plan
+  // holds it so turned from the bay's rail; the held rail has no tab. The
+  // nearer of the two, as for a module (ModuleError), with the tab where
+  // the bay's rail has it.
+  Frame physics = BodyFrame(*data, rail_body);
+  const Eigen::Matrix3d twin = physics.r * Eigen::AngleAxisd(std::numbers::pi, Eigen::Vector3d::UnitZ());
+  if (Eigen::AngleAxisd(Eigen::Matrix3d(designed.r.transpose() * twin)).angle() <
+      Eigen::AngleAxisd(Eigen::Matrix3d(designed.r.transpose() * physics.r)).angle()) {
+    physics.r = twin;
+  }
+  Eigen::Vector3d tab = Eigen::Vector3d::Zero();
+  for (const bay::Locator& l : bay::Locators()) {
+    if (l.part_a == bay::RailName(out.rail)) {
+      tab = l.pose_a.translation() - bay::RailPose(out.rail).translation();
+    }
+  }
+  const Eigen::Vector3d dt = designed.r.transpose() * (physics.p + physics.r * tab -
+                                                       designed.p - designed.r * tab);
+  const Eigen::Matrix3d dr = designed.r.transpose() * physics.r;
+  RailSetPose& pose = out.rail_pose;
+  pose.across_mm = dt.x() * 1e3;
+  pose.along_mm = dt.y() * 1e3;
+  pose.round_deg = std::atan2(dr(0, 2), dr(2, 2)) * kRadToDeg;
+  pose.yaw_deg = std::atan2(dr(1, 0), dr(0, 0)) * kRadToDeg;
+  pose.height_mm = (designed.r.transpose() * (physics.p - designed.p)).z() * 1e3;
+  // At rest on the tube: its contacts with the tube, and its speed.
+  const std::set<int> tube(handles.tube_geoms.begin(), handles.tube_geoms.end());
+  for (int c = 0; c < data->ncon; ++c) {
+    const mjContact& k = data->contact[c];
+    const bool on = model->geom_bodyid[k.geom[0]] == rail_body || model->geom_bodyid[k.geom[1]] == rail_body;
+    if (on && (tube.count(k.geom[0]) || tube.count(k.geom[1]))) ++out.rail_tube_contacts;
+  }
+  const int dof = model->jnt_dofadr[model->body_jntadr[rail_body]];
+  out.rail_speed_mm_s = Eigen::Map<const Eigen::Vector3d>(data->qvel + dof).norm() * 1e3;
+  PhysicsRecord& rec = out.record;
+  rec.layout = layout->name;
+  rec.clearance_m = report.clearance_m;
+  rec.gate_offset_mm = bay::kGateOffset * 1e3;
+  rec.gate_yaw_deg = bay::kGateYaw * kRadToDeg;
+  rec.rail_gate = RailPlay();
+  PhysicsRailSet set;
+  set.rail = out.rail;
+  set.step = RecordStep(out.steps.front());
+  auto round = [](double v, double unit) { return std::round(v / unit) * unit; };
+  for (int j = 0; j < 7; ++j) {
+    // The run's peak, the settling included.
+    set.torque_ratio[j] =
+        round(std::max(out.steps.front().torque_ratio[j], out.settle.torque_ratio[j]), 1e-4);
+  }
+  set.pose = {round(pose.across_mm, 1e-4), round(pose.along_mm, 1e-4),
+              round(pose.round_deg, 1e-4), round(pose.yaw_deg, 1e-4),
+              round(pose.height_mm, 1e-4)};
+  rec.rails = {set};
+  rec.rails.front().step.counted = RailSetCounts(rec, rec.rails.front());
   rec.counted_s = CountedSeconds(rec);
   out.ok = true;
   return out;
@@ -739,12 +917,15 @@ PhysicsResult RunPhysics(const Layout& layout, const Plan& plan,
   PhysicsResult r = run->Finish();
   r.record.layout_sha256 = layout_sha256;
   r.record.plan_sha256 = plan_sha256;
-  r.record.command = "bazel run --config=opt //:run_physics -- " + layout.name + " --write";
+  r.record.command = "bazel run --config=opt //:run_physics -- " + layout.name +
+                     (options.rail >= 0 ? " --rail " + std::to_string(options.rail) : "") +
+                     " --write";
   return r;
 }
 
 std::string PhysicsText(const PhysicsResult& r) {
   if (!r.ok) return "run_physics: " + r.error + "\n";
+  if (r.rail >= 0) return PhysicsRailText(r);
   std::string t;
   const PhysicsRecord& rec = r.record;
   const PhysicsTake& one = rec.takes.front();
@@ -793,69 +974,6 @@ std::string PhysicsText(const PhysicsResult& r) {
        "and the module ends within the gate\n";
   for (const PhysicsStep& s : one.steps) {
     t += Fmt("  step %d: %s\n", s.number, s.counted ? "counts" : "does not count");
-  }
-  t += Fmt("counted %.6f s of one_bay_s %.6f s: physics_share %.6f\n", rec.counted_s,
-           r.one_bay_s, r.one_bay_s > 0.0 ? rec.counted_s / r.one_bay_s : 0.0);
-  return t;
-}
-
-std::vector<int> BayTakes(const Layout& layout, const ModelPaths& paths, std::string* error) {
-  const CheckReport report = CheckLayout(layout, paths);
-  std::vector<int> takes;
-  if (!report.error.empty()) {
-    *error = report.error;
-    return takes;
-  }
-  for (const BayStep& s : report.steps) {
-    if (s.kind == "module_take") takes.push_back(s.index);
-  }
-  if (takes.empty()) *error = "the bay has no module take";
-  return takes;
-}
-
-PhysicsBayResult RunPhysicsTakes(const Layout& layout, const Plan& plan,
-                                 const ModelPaths& paths, const PhysicsOptions& options,
-                                 const std::vector<int>& takes, const std::string& command,
-                                 const std::string& layout_sha256,
-                                 const std::string& plan_sha256) {
-  PhysicsBayResult out;
-  std::vector<PhysicsRecord> records;
-  for (const int k : takes) {
-    PhysicsOptions one = options;
-    one.take = k;
-    out.runs.push_back(RunPhysics(layout, plan, paths, one, layout_sha256, plan_sha256));
-    if (!out.runs.back().ok) {
-      out.error = Fmt("module_take %d: %s", k, out.runs.back().error.c_str());
-      return out;
-    }
-    records.push_back(out.runs.back().record);
-  }
-  std::optional<PhysicsRecord> joined = JoinPhysicsRecords(records, command, &out.error);
-  if (!joined) return out;
-  out.record = *joined;
-  out.one_bay_s = plan.bay_planned_s;
-  out.ok = true;
-  return out;
-}
-
-std::string PhysicsBayText(const PhysicsBayResult& r) {
-  if (!r.ok) return "run_physics: " + r.error + "\n";
-  std::string t;
-  for (const PhysicsResult& run : r.runs) t += PhysicsText(run) + "\n";
-  const PhysicsRecord& rec = r.record;
-  t += Fmt("the record: %zu takes of one bay, each module once (clearance against %.3f m, "
-           "set-down against %.1f mm and %.2f deg)\n",
-           rec.takes.size(), rec.clearance_m, rec.gate_offset_mm, rec.gate_yaw_deg);
-  t += Fmt("%5s %6s %5s %5s %11s %10s %10s %9s %9s  %s\n", "take", "module", "step", "step",
-           "planned_s", "take_m", "set_m", "offset_mm", "yaw_deg", "counts");
-  for (const PhysicsTake& take : rec.takes) {
-    if (take.steps.size() != 2) continue;
-    const PhysicsStep& a = take.steps[0];
-    const PhysicsStep& b = take.steps[1];
-    t += Fmt("%5d %6d %5d %5d %11.6f %10.6f %10.6f %9.4f %9.4f  %s\n", take.take, take.module,
-             a.number, b.number, a.planned_s + b.planned_s, a.least_clearance_m,
-             b.least_clearance_m, take.set_down.offset_mm, take.set_down.yaw_deg,
-             a.counted && b.counted ? "both" : a.counted || b.counted ? "one" : "none");
   }
   t += Fmt("counted %.6f s of one_bay_s %.6f s: physics_share %.6f\n", rec.counted_s,
            r.one_bay_s, r.one_bay_s > 0.0 ? rec.counted_s / r.one_bay_s : 0.0);
