@@ -1,0 +1,4 @@
+margins exit=0
+bay 0: module_arm>c | waits: c swage 6/0 1.8s pin_arm_b; c swage 7/0 4.2s pin_arm_b | next: pin_arm_a swage 3/0 gap 24.42
+bay 1: module_arm>c | waits: c swage 6/0 1.8s pin_arm_b; c swage 7/0 2.5s pin_arm_b | next: pin_arm_a swage 3/0 gap 27.79
+bay 2: module_arm>c | waits: c swage 6/0 1.8s pin_arm_b; c swage 7/0 2.5s pin_arm_b | next: pin_arm_a swage 3/0 gap 24.81

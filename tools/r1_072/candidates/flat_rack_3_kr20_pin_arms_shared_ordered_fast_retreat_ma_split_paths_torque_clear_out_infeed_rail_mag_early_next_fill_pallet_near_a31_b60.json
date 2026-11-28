@@ -1,0 +1,2177 @@
+{
+  "name": "flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque_clear_out_infeed_rail_mag_early_next_fill_pallet_near_a31_b60",
+  "title": "Three KR 20 pin arms on one shared beam on the 40 ft flat rack, fast retreats, the modules split three to each pin arm, each move the quickest of 8 searched paths, the module arm's moves slowed to within 0.90 of its motors' limits, the bay out as soon as the arms are clear of it (run 050), and a separate infeed unit that brings the next tube in over the bay going out (run 053), and a rail magazine on the module arm's gripper that the rail rack fills in one visit (run 056), and the magazine filled while the first tube comes in (run 059).; the next bay's magazine filled after the last set; and the pallet 0.23 m along its port zone toward +Y (run 066).",
+  "summary": "_rail_mag's layout (flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque_clear_out_infeed_rail_mag, run 056) with first_bay_early, nothing else: the module arm's first step of bay 0, the magazine's fill at the rail rack, runs while the first tube comes in, as later bays' do under R10, so bay 0's rail sets start at its clamp's end. No part, place, process or leg time changes. Run 061: with next_bay_fill the module arm fills bay b+1's magazine as soon as it has set bay b's last module, while bay b's pin arms finish, so that in a later bay its rails start at the clamp's end. Run 066: v23's layout (flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque_clear_out_infeed_rail_mag_early_next_fill) with the pallet moved +0.23 m in Y inside the modules port zone (which allows 0.239 m), its take stop unchanged, the place ours; nothing else. Run 065 probed it; of six three-bay candidates planned in run 066 (v23 from three other seeds, this layout from its own seed and two others) its plan, from the default seed, is the quickest that verifies. Much of the gain is the planner's draws, not the place.",
+  "small_arms_stand": "below",
+  "base": "flat_rack",
+  "flat_rack": {
+    "end_frames": "taken_off",
+    "note": "The base alone while it works: both end frames taken off or dropped, no post, side or roof. Everything that travels stands on the deck."
+  },
+  "margins": {
+    "clearance_m": 0.015,
+    "joint_margin_deg": 5.0,
+    "reason": "As v10: clearance 0.015 m, half again over the floor of 0.010 m, and joint margin at the floor of 5 degrees (run 034, check_layout).",
+    "basis": "ours"
+  },
+  "tube": {
+    "axis_x": -1.08,
+    "axis_z": 1.598,
+    "plain_end_y": -4.308
+  },
+  "holder": {
+    "does": "Four stands carry the tube in saddles that grip its lower half on the stretches between rails; an end unit pins the plain end's rivet holes and so fixes the angle. The saddles are 0.2 m long and stand 0.4 m toward -Y from the middle of their stretch (run 031). The end unit's column stands 0.7 m beyond the plain end at the deck's -X edge and carries its head on a bar at the tube's axis height, so that the pin arm reaching rail 0 from -Y passes under the plain end (run 034, docs/flat-rack-kr20-pin-arms.md).",
+    "grips": [
+      {
+        "hold": 2,
+        "length": 0.2
+      },
+      {
+        "hold": 4,
+        "length": 0.2
+      },
+      {
+        "hold": 6,
+        "length": 0.2
+      },
+      {
+        "hold": 8,
+        "length": 0.2
+      }
+    ],
+    "angle_pin_hold": 0,
+    "resists_nm": 150.0,
+    "holds_within_deg": 0.8,
+    "clamp_s": 5.0,
+    "release_s": 5.0,
+    "mass_kg": 220.0,
+    "boxes": [
+      {
+        "name": "stand_2_column",
+        "size": [
+          0.16,
+          0.1,
+          0.845
+        ],
+        "pos": [
+          -1.08,
+          -2.832,
+          1.0705
+        ]
+      },
+      {
+        "name": "stand_2_saddle",
+        "size": [
+          0.22,
+          0.2,
+          0.04
+        ],
+        "pos": [
+          -1.08,
+          -2.832,
+          1.513
+        ]
+      },
+      {
+        "name": "stand_2_cheek_neg",
+        "size": [
+          0.03,
+          0.2,
+          0.065
+        ],
+        "pos": [
+          -1.16,
+          -2.832,
+          1.5655
+        ]
+      },
+      {
+        "name": "stand_2_cheek_pos",
+        "size": [
+          0.03,
+          0.2,
+          0.065
+        ],
+        "pos": [
+          -1.0,
+          -2.832,
+          1.5655
+        ]
+      },
+      {
+        "name": "stand_4_column",
+        "size": [
+          0.16,
+          0.1,
+          0.845
+        ],
+        "pos": [
+          -1.08,
+          -0.544,
+          1.0705
+        ]
+      },
+      {
+        "name": "stand_4_saddle",
+        "size": [
+          0.22,
+          0.2,
+          0.04
+        ],
+        "pos": [
+          -1.08,
+          -0.544,
+          1.513
+        ]
+      },
+      {
+        "name": "stand_4_cheek_neg",
+        "size": [
+          0.03,
+          0.2,
+          0.065
+        ],
+        "pos": [
+          -1.16,
+          -0.544,
+          1.5655
+        ]
+      },
+      {
+        "name": "stand_4_cheek_pos",
+        "size": [
+          0.03,
+          0.2,
+          0.065
+        ],
+        "pos": [
+          -1.0,
+          -0.544,
+          1.5655
+        ]
+      },
+      {
+        "name": "stand_6_column",
+        "size": [
+          0.16,
+          0.1,
+          0.845
+        ],
+        "pos": [
+          -1.08,
+          1.744,
+          1.0705
+        ]
+      },
+      {
+        "name": "stand_6_saddle",
+        "size": [
+          0.22,
+          0.2,
+          0.04
+        ],
+        "pos": [
+          -1.08,
+          1.744,
+          1.513
+        ]
+      },
+      {
+        "name": "stand_6_cheek_neg",
+        "size": [
+          0.03,
+          0.2,
+          0.065
+        ],
+        "pos": [
+          -1.16,
+          1.744,
+          1.5655
+        ]
+      },
+      {
+        "name": "stand_6_cheek_pos",
+        "size": [
+          0.03,
+          0.2,
+          0.065
+        ],
+        "pos": [
+          -1.0,
+          1.744,
+          1.5655
+        ]
+      },
+      {
+        "name": "stand_8_column",
+        "size": [
+          0.16,
+          0.1,
+          0.845
+        ],
+        "pos": [
+          -1.08,
+          4.032,
+          1.0705
+        ]
+      },
+      {
+        "name": "stand_8_saddle",
+        "size": [
+          0.22,
+          0.2,
+          0.04
+        ],
+        "pos": [
+          -1.08,
+          4.032,
+          1.513
+        ]
+      },
+      {
+        "name": "stand_8_cheek_neg",
+        "size": [
+          0.03,
+          0.2,
+          0.065
+        ],
+        "pos": [
+          -1.16,
+          4.032,
+          1.5655
+        ]
+      },
+      {
+        "name": "stand_8_cheek_pos",
+        "size": [
+          0.03,
+          0.2,
+          0.065
+        ],
+        "pos": [
+          -1.0,
+          4.032,
+          1.5655
+        ]
+      },
+      {
+        "name": "end_column",
+        "size": [
+          0.06,
+          0.1,
+          0.99
+        ],
+        "pos": [
+          -1.185,
+          -5.008,
+          1.143
+        ]
+      },
+      {
+        "name": "end_head",
+        "size": [
+          0.2,
+          0.14,
+          0.15
+        ],
+        "pos": [
+          -1.08,
+          -4.43,
+          1.578
+        ]
+      },
+      {
+        "name": "end_bar",
+        "size": [
+          0.175,
+          0.56,
+          0.08
+        ],
+        "pos": [
+          -1.1275,
+          -4.778,
+          1.598
+        ]
+      }
+    ],
+    "travels_inside": true,
+    "basis": "ours",
+    "source": "Designed here: envelope, mass and what it resists; docs/bay-hardware.md, Holding the tube, gives the stretches and the 150 N m."
+  },
+  "arms": [
+    {
+      "name": "module_arm",
+      "model": "kr210_r2700_2",
+      "does": "Sets the rails on the tube, then takes modules off the pallet and sets them on the rails from straight opposite, with one gripper for both.",
+      "base_pos": [
+        0.77,
+        0.0,
+        0.948
+      ],
+      "base_rpy_deg": [
+        0,
+        0,
+        90
+      ],
+      "track": {
+        "direction": [
+          0,
+          1,
+          0
+        ],
+        "lo": -3.6,
+        "hi": 5.5,
+        "speed": 1.5,
+        "accel": 1.5,
+        "mass_kg": 1600.0,
+        "beam": {
+          "name": "beam",
+          "size": [
+            0.86,
+            10.5,
+            0.25
+          ],
+          "pos": [
+            0.77,
+            0.8,
+            0.773
+          ]
+        },
+        "carriage": {
+          "name": "carriage",
+          "size": [
+            1.3,
+            0.86,
+            0.05
+          ],
+          "pos": [
+            -0.15,
+            0.0,
+            -0.025
+          ]
+        },
+        "basis": "ours",
+        "source": "Designed here as an envelope; a floor-mounted linear unit of the KL 4000 kind, standing on the deck."
+      },
+      "tools": [
+        {
+          "name": "combined_gripper",
+          "does": "Holds a module by its glass with suction cups, or a rail by its top with a clamp that sits between the cups and draws back behind them.",
+          "mass_kg": 36.0,
+          "length": 0.3,
+          "boxes": [
+            {
+              "name": "standoff",
+              "size": [
+                0.12,
+                0.12,
+                0.24
+              ],
+              "pos": [
+                0,
+                0,
+                0.12
+              ]
+            },
+            {
+              "name": "plate",
+              "size": [
+                1.2,
+                0.6,
+                0.04
+              ],
+              "pos": [
+                0,
+                0,
+                0.26
+              ]
+            },
+            {
+              "name": "cups",
+              "size": [
+                1.0,
+                0.44,
+                0.02
+              ],
+              "pos": [
+                0,
+                0,
+                0.289
+              ]
+            }
+          ],
+          "waits_at": [
+            0,
+            0,
+            0
+          ],
+          "wait_size": [
+            0,
+            0,
+            0
+          ],
+          "basis": "ours",
+          "source": "Designed here: envelope and mass.",
+          "rail_magazine": {
+            "does": "Two racks behind the gripper's plate, one on each side of the standoff, each holding five rails side by side, top toward the plate's face, long side along the tool's x. At a take the rail rack loads them one after another through the clamp; after each set the magazine moves its next rail into the clamp.",
+            "holds": 10,
+            "mass_kg": 12.0,
+            "boxes": [
+              {
+                "name": "magazine_pos_x",
+                "size": [
+                  0.5,
+                  0.5,
+                  0.15
+                ],
+                "pos": [
+                  0.33,
+                  0,
+                  0.165
+                ]
+              },
+              {
+                "name": "magazine_neg_x",
+                "size": [
+                  0.5,
+                  0.5,
+                  0.15
+                ],
+                "pos": [
+                  -0.33,
+                  0,
+                  0.165
+                ]
+              }
+            ],
+            "basis": "ours",
+            "source": "Designed here (run 056): an envelope of ten rails of 0.46 x 0.10 x 0.124 m (docs/bay-hardware.md) in two rows of five, and an empty mass of 12 kg for its frame and indexing drive."
+          }
+        }
+      ],
+      "first_tool": "combined_gripper",
+      "stops": {
+        "module_set": [
+          -3.576,
+          -2.432,
+          -1.288,
+          -0.144,
+          1.0,
+          2.144,
+          3.288,
+          4.432,
+          5.5
+        ],
+        "module_take": [
+          0.0
+        ],
+        "rail_take": [
+          1.75
+        ],
+        "rail_set": [
+          -3.6,
+          -3.004,
+          -1.86,
+          -0.716,
+          0.428,
+          1.572,
+          2.716,
+          3.86,
+          5.004,
+          5.5
+        ]
+      },
+      "wait_joints_deg": [
+        170,
+        -130,
+        150,
+        0,
+        15,
+        0
+      ],
+      "wait_track": 0.0,
+      "stow_joints_deg": [
+        180,
+        -140,
+        150,
+        0,
+        15,
+        0
+      ],
+      "stow_track": 0.0,
+      "stow_tool": "combined_gripper",
+      "tool_change_s": 0.0
+    },
+    {
+      "name": "pin_arm_a",
+      "model": "kr20_r1810_2",
+      "does": "Drives strap bolts 0-4, then changes to its pin tool, takes its magazine and locates, pins and swages the 12 holes of modules 0 to 2; it stands 1.2 to 1.7 m toward -Y from each hole (the stops are run 034's probe's, tools/kr20).",
+      "base_pos": [
+        -0.35,
+        0.0,
+        0.798
+      ],
+      "base_rpy_deg": [
+        0,
+        0,
+        0.0
+      ],
+      "track": {
+        "direction": [
+          0,
+          1,
+          0
+        ],
+        "lo": -5.7,
+        "hi": -0.8,
+        "speed": 1.5,
+        "accel": 2.0,
+        "mass_kg": 247.9,
+        "beam": {
+          "name": "beam",
+          "size": [
+            0.3,
+            11.3,
+            0.1
+          ],
+          "pos": [
+            -0.35,
+            -0.35,
+            0.698
+          ]
+        },
+        "carriage": {
+          "name": "carriage",
+          "size": [
+            0.59,
+            0.5,
+            0.05
+          ],
+          "pos": [
+            0.145,
+            0.0,
+            -0.025
+          ]
+        },
+        "basis": "ours",
+        "source": "Designed here as an envelope; a belt-driven floor axis standing on the deck, sized for a KR 20 R1810-2 (255 kg); mass 21.94 kg per metre of beam, v10's figure."
+      },
+      "tools": [
+        {
+          "name": "nutrunner",
+          "does": "Drives the strap's M8 bolt to 17.6 N m and measures the torque.",
+          "mass_kg": 3.0,
+          "length": 0.25,
+          "boxes": [
+            {
+              "name": "body",
+              "size": [
+                0.07,
+                0.07,
+                0.145
+              ],
+              "pos": [
+                0,
+                0,
+                0.0725
+              ]
+            },
+            {
+              "name": "socket",
+              "size": [
+                0.016,
+                0.016,
+                0.105
+              ],
+              "pos": [
+                0,
+                0,
+                0.1975
+              ]
+            }
+          ],
+          "waits_at": [
+            0.33,
+            -1.3,
+            0.0
+          ],
+          "wait_size": [
+            0.12,
+            0.12,
+            0.26
+          ],
+          "basis": "ours",
+          "source": "Designed here: envelope and mass; the socket and its extension, 105 long, are inside the 12 mm free radius of Fastenings over its 100 mm. Its stand rides on the carriage 1.3 m along the track from the base (run 031): a KR 20 cannot reach down to a stand beside its base."
+        },
+        {
+          "name": "pin_tool",
+          "does": "Carries the locating nose, the finger that puts the pin in from above and the swaging nose, on the hole's axis from below.",
+          "mass_kg": 8.0,
+          "length": 0.25,
+          "boxes": [
+            {
+              "name": "body",
+              "size": [
+                0.09,
+                0.09,
+                0.155
+              ],
+              "pos": [
+                0,
+                0,
+                0.0775
+              ]
+            },
+            {
+              "name": "nose",
+              "size": [
+                0.016,
+                0.016,
+                0.095
+              ],
+              "pos": [
+                0,
+                0,
+                0.2025
+              ]
+            }
+          ],
+          "waits_at": [
+            0.16999999999999998,
+            -1.3,
+            0.0
+          ],
+          "wait_size": [
+            0.12,
+            0.12,
+            0.26
+          ],
+          "basis": "ours",
+          "source": "Designed here: envelope and mass; the nose, a box 16 mm square, is inside the 13 mm free radius of Fastenings. Its stand rides on the carriage 1.3 m along the track from the base (run 031): a KR 20 cannot reach down to a stand beside its base."
+        }
+      ],
+      "first_tool": "nutrunner",
+      "stops": {
+        "pins_take": [
+          -5.2
+        ],
+        "locate": [
+          -5.5,
+          -5.7,
+          -4.4,
+          -4.6,
+          -4.3,
+          -4.6,
+          -3.1,
+          -3.5,
+          -3.2,
+          -3.4,
+          -2.1,
+          -2.3,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "pin": [
+          -5.5,
+          -5.7,
+          -4.4,
+          -4.6,
+          -4.3,
+          -4.6,
+          -3.1,
+          -3.5,
+          -3.2,
+          -3.4,
+          -2.1,
+          -2.3,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "swage": [
+          -5.5,
+          -5.7,
+          -4.4,
+          -4.6,
+          -4.3,
+          -4.6,
+          -3.1,
+          -3.5,
+          -3.2,
+          -3.4,
+          -2.1,
+          -2.3,
+          -2.0,
+          -2.3,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "strap_bolt": [
+          -5.0,
+          -4.0,
+          -2.9,
+          -1.8,
+          -1.2,
+          2.3,
+          2.3,
+          2.8,
+          3.3,
+          4.45
+        ]
+      },
+      "wait_joints_deg": [
+        75.0,
+        40.0,
+        -90.0,
+        0.0,
+        20.0,
+        0.0
+      ],
+      "wait_track": -5.7,
+      "stow_joints_deg": [
+        0.0,
+        10.0,
+        -130.0,
+        0.0,
+        60.0,
+        0.0
+      ],
+      "stow_track": -4.7,
+      "stow_tool": "",
+      "tool_change_s": 8.0
+    },
+    {
+      "name": "pin_arm_c",
+      "model": "kr20_r1810_2",
+      "does": "Drives strap bolts 5-9, then changes to its pin tool, takes its magazine and locates, pins and swages the 12 holes of modules 6 to 8; it stands 1.2 to 1.7 m toward -Y from each hole (the stops are run 034's probe's, tools/kr20).",
+      "base_pos": [
+        -0.35,
+        0.0,
+        0.798
+      ],
+      "base_rpy_deg": [
+        0,
+        0,
+        0.0
+      ],
+      "track": {
+        "direction": [
+          0,
+          1,
+          0
+        ],
+        "lo": 0.8,
+        "hi": 5.0,
+        "speed": 1.5,
+        "accel": 2.0,
+        "mass_kg": 24.1,
+        "beam": {
+          "name": "beam",
+          "size": [
+            0.3,
+            11.3,
+            0.1
+          ],
+          "pos": [
+            -0.35,
+            -0.35,
+            0.698
+          ]
+        },
+        "carriage": {
+          "name": "carriage",
+          "size": [
+            0.59,
+            0.5,
+            0.05
+          ],
+          "pos": [
+            0.145,
+            0.0,
+            -0.025
+          ]
+        },
+        "basis": "ours",
+        "source": "Rides pin_arm_a's beam (run 035, shares_beam_with): the same box; its mass is its carriage only, 21.94 kg per metre over 1.1 m.",
+        "shares_beam_with": "pin_arm_a"
+      },
+      "tools": [
+        {
+          "name": "nutrunner",
+          "does": "Drives the strap's M8 bolt to 17.6 N m and measures the torque.",
+          "mass_kg": 3.0,
+          "length": 0.25,
+          "boxes": [
+            {
+              "name": "body",
+              "size": [
+                0.07,
+                0.07,
+                0.145
+              ],
+              "pos": [
+                0,
+                0,
+                0.0725
+              ]
+            },
+            {
+              "name": "socket",
+              "size": [
+                0.016,
+                0.016,
+                0.105
+              ],
+              "pos": [
+                0,
+                0,
+                0.1975
+              ]
+            }
+          ],
+          "waits_at": [
+            0.33,
+            1.6,
+            0.0
+          ],
+          "wait_size": [
+            0.12,
+            0.12,
+            0.26
+          ],
+          "basis": "ours",
+          "source": "Designed here: envelope and mass; the socket and its extension, 105 long, are inside the 12 mm free radius of Fastenings over its 100 mm. Its stand rides on the carriage 1.3 m along the track from the base (run 031): a KR 20 cannot reach down to a stand beside its base."
+        },
+        {
+          "name": "pin_tool",
+          "does": "Carries the locating nose, the finger that puts the pin in from above and the swaging nose, on the hole's axis from below.",
+          "mass_kg": 8.0,
+          "length": 0.25,
+          "boxes": [
+            {
+              "name": "body",
+              "size": [
+                0.09,
+                0.09,
+                0.155
+              ],
+              "pos": [
+                0,
+                0,
+                0.0775
+              ]
+            },
+            {
+              "name": "nose",
+              "size": [
+                0.016,
+                0.016,
+                0.095
+              ],
+              "pos": [
+                0,
+                0,
+                0.2025
+              ]
+            }
+          ],
+          "waits_at": [
+            0.16999999999999998,
+            1.6,
+            0.0
+          ],
+          "wait_size": [
+            0.12,
+            0.12,
+            0.26
+          ],
+          "basis": "ours",
+          "source": "Designed here: envelope and mass; the nose, a box 16 mm square, is inside the 13 mm free radius of Fastenings. Its stand rides on the carriage 1.3 m along the track from the base (run 031): a KR 20 cannot reach down to a stand beside its base."
+        }
+      ],
+      "first_tool": "nutrunner",
+      "stops": {
+        "pins_take": [
+          4.4
+        ],
+        "locate": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          1.4,
+          1.2,
+          2.5,
+          2.3,
+          2.6,
+          2.3,
+          3.7,
+          3.4,
+          3.5,
+          3.3,
+          4.6,
+          4.4
+        ],
+        "pin": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          1.4,
+          1.2,
+          2.5,
+          2.3,
+          2.6,
+          2.3,
+          3.7,
+          3.4,
+          3.5,
+          3.3,
+          4.6,
+          4.4
+        ],
+        "swage": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          1.4,
+          1.2,
+          2.5,
+          2.3,
+          2.6,
+          2.3,
+          3.7,
+          3.4,
+          3.5,
+          3.3,
+          4.6,
+          4.4
+        ],
+        "strap_bolt": [
+          -5.0,
+          -4.0,
+          -2.9,
+          -1.8,
+          -1.2,
+          2.3,
+          2.3,
+          2.8,
+          3.3,
+          4.45
+        ]
+      },
+      "wait_joints_deg": [
+        -81.1,
+        26.3,
+        -45.9,
+        180.0,
+        -109.5,
+        -81.1
+      ],
+      "wait_track": 4.6,
+      "stow_joints_deg": [
+        0.0,
+        10.0,
+        -130.0,
+        0.0,
+        60.0,
+        0.0
+      ],
+      "stow_track": 4.25,
+      "stow_tool": "",
+      "tool_change_s": 8.0
+    },
+    {
+      "name": "pin_arm_b",
+      "model": "kr20_r1810_2",
+      "does": "Takes its magazine and locates, pins and swages the 12 holes of modules 3 to 5; it stands 1.2 to 1.7 m toward -Y from each hole (the stops are run 034's probe's, tools/kr20).",
+      "base_pos": [
+        -0.35,
+        0.0,
+        0.798
+      ],
+      "base_rpy_deg": [
+        0,
+        0,
+        0.0
+      ],
+      "track": {
+        "direction": [
+          0,
+          1,
+          0
+        ],
+        "lo": -2.7,
+        "hi": 1.9,
+        "speed": 1.5,
+        "accel": 2.0,
+        "mass_kg": 24.1,
+        "beam": {
+          "name": "beam",
+          "size": [
+            0.3,
+            11.3,
+            0.1
+          ],
+          "pos": [
+            -0.35,
+            -0.35,
+            0.698
+          ]
+        },
+        "carriage": {
+          "name": "carriage",
+          "size": [
+            0.59,
+            0.5,
+            0.05
+          ],
+          "pos": [
+            0.145,
+            0.0,
+            -0.025
+          ]
+        },
+        "basis": "ours",
+        "source": "Rides pin_arm_a's beam (run 035, shares_beam_with): the same box; its mass is its carriage only, 21.94 kg per metre over 1.1 m.",
+        "shares_beam_with": "pin_arm_a"
+      },
+      "tools": [
+        {
+          "name": "pin_tool",
+          "does": "Carries the locating nose, the finger that puts the pin in from above and the swaging nose, on the hole's axis from below.",
+          "mass_kg": 8.0,
+          "length": 0.25,
+          "boxes": [
+            {
+              "name": "body",
+              "size": [
+                0.09,
+                0.09,
+                0.155
+              ],
+              "pos": [
+                0,
+                0,
+                0.0775
+              ]
+            },
+            {
+              "name": "nose",
+              "size": [
+                0.016,
+                0.016,
+                0.095
+              ],
+              "pos": [
+                0,
+                0,
+                0.2025
+              ]
+            }
+          ],
+          "waits_at": [
+            0.16999999999999998,
+            -1.3,
+            0.0
+          ],
+          "wait_size": [
+            0.12,
+            0.12,
+            0.26
+          ],
+          "basis": "ours",
+          "source": "Designed here: envelope and mass; the nose, a box 16 mm square, is inside the 13 mm free radius of Fastenings. Its stand rides on the carriage 1.3 m along the track from the base (run 031): a KR 20 cannot reach down to a stand beside its base."
+        }
+      ],
+      "first_tool": "pin_tool",
+      "stops": {
+        "pins_take": [
+          -1.0
+        ],
+        "locate": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          -2.0,
+          -2.3,
+          -0.8,
+          -1.2,
+          -0.9,
+          -1.1,
+          0.2,
+          0.0,
+          0.3,
+          0.0,
+          1.5,
+          1.1,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "pin": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          -2.0,
+          -2.3,
+          -0.8,
+          -1.2,
+          -0.9,
+          -1.1,
+          0.2,
+          0.0,
+          0.3,
+          0.0,
+          1.5,
+          1.1,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "swage": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          -2.0,
+          -2.3,
+          -0.8,
+          -1.2,
+          -0.9,
+          -1.1,
+          0.2,
+          0.0,
+          0.3,
+          0.0,
+          1.5,
+          1.1,
+          1.4,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "wait_joints_deg": [
+        180.0,
+        26.3,
+        -45.9,
+        180.0,
+        -109.5,
+        -81.1
+      ],
+      "wait_track": 0.6,
+      "stow_joints_deg": [
+        0.0,
+        10.0,
+        -130.0,
+        0.0,
+        60.0,
+        0.0
+      ],
+      "stow_track": 0.6,
+      "stow_tool": "",
+      "tool_change_s": 8.0
+    }
+  ],
+  "pallets": [
+    {
+      "pos": [
+        2.92,
+        0.23,
+        0.0
+      ],
+      "yaw_deg": -90.0,
+      "modules": 36,
+      "how": "As the maker packs them: 36 modules standing on their long edge side by side, the glass of each toward the cell, the pallet on a dock that lifts its deck to 0.50 m above the ground. The module arm takes the nearest one by its glass with the tool lying level, and turns it flat on the way.",
+      "base_height": 0.5,
+      "pitch": 0.03,
+      "outside": true,
+      "basis": "ours",
+      "source": "36 to a pallet is the maker's figure (docs/bay-hardware.md, Module). That they stand on their long edge is read from the maker's unpacking manual and a sibling datasheet's pallet size; which way the glass faces, the deck's height and the pitch of one frame thickness are ours.",
+      "stands": "on_long_edge"
+    }
+  ],
+  "stocks": [
+    {
+      "name": "rails",
+      "part": "rail",
+      "how": "Rails with their straps and bolts on, in a rack at the rails' port outside the +X side beside the pallet, which presents one rail at a time on two pegs, top up, long side along X, its strap hanging open, its top 0.20 m above the rack's body.",
+      "pick_pos": [
+        2.37,
+        1.75,
+        1.278
+      ],
+      "pick_axis": [
+        0,
+        0,
+        -1
+      ],
+      "holds": 40,
+      "mass_kg": 150.0,
+      "boxes": [
+        {
+          "name": "rack",
+          "size": [
+            0.6,
+            0.4,
+            1.078
+          ],
+          "pos": [
+            2.37,
+            1.75,
+            0.539
+          ]
+        }
+      ],
+      "outside": true,
+      "basis": "ours",
+      "source": "Designed here."
+    },
+    {
+      "name": "pins",
+      "part": "pin magazine",
+      "how": "Magazines of 36 pins and collars come along a lane on the deck from the feeder at the +Y end and stop in a nest beside pin_arm_a; its pin tool takes one for each bay.",
+      "pick_pos": [
+        0.17,
+        -5.2,
+        0.998
+      ],
+      "pick_axis": [
+        0,
+        0,
+        -1
+      ],
+      "holds": 2,
+      "mass_kg": 1.0,
+      "boxes": [],
+      "outside": false,
+      "basis": "ours",
+      "source": "Designed here: the pick point is 0.05 m above the nest's top; the lane and its nests are the item pin_lane."
+    },
+    {
+      "name": "pins_1",
+      "part": "pin magazine",
+      "how": "Magazines of 36 pins and collars come along a lane on the deck from the feeder at the +Y end and stop in a nest beside pin_arm_b; its pin tool takes one for each bay.",
+      "pick_pos": [
+        0.17,
+        -2.6,
+        0.998
+      ],
+      "pick_axis": [
+        0,
+        0,
+        -1
+      ],
+      "holds": 2,
+      "mass_kg": 1.0,
+      "boxes": [],
+      "outside": false,
+      "basis": "ours",
+      "source": "Designed here: the pick point is 0.05 m above the nest's top; the lane and its nests are the item pin_lane."
+    },
+    {
+      "name": "pins_2",
+      "part": "pin magazine",
+      "how": "Magazines of 36 pins and collars come along a lane on the deck from the feeder at the +Y end and stop in a nest beside pin_arm_c; its pin tool takes one for each bay.",
+      "pick_pos": [
+        0.17,
+        6.0,
+        0.998
+      ],
+      "pick_axis": [
+        0,
+        0,
+        -1
+      ],
+      "holds": 2,
+      "mass_kg": 1.0,
+      "boxes": [],
+      "outside": false,
+      "basis": "ours",
+      "source": "Designed here: the pick point is 0.05 m above the nest's top; the lane and its nests are the item pin_lane."
+    }
+  ],
+  "strap_bolts_from": "Each strap bolt comes with its rail, held in the strap's +X ear with its nut in the other, as docs/bay-hardware.md counts the rail's mass.",
+  "tube_in": {
+    "what": "On the infeed unit that stands outside the -X side beyond the transfer cart: the bare tube comes across 0.45 m above its place, over the bay going out, then is lowered into the saddles. The way's 5.10 m in 40 s is 0.128 m/s, below the 0.144 m/s of the two-rack infeed (run 053).",
+    "path": [
+      [
+        -4.65,
+        0,
+        0.45
+      ],
+      [
+        0,
+        0,
+        0.45
+      ],
+      [
+        0,
+        0,
+        0
+      ]
+    ],
+    "time_s": 40.0,
+    "basis": "ours"
+  },
+  "bay_out": {
+    "what": "Lifted 0.12 m out of the saddles by the same cart's forks under four free stretches of the tube, then out over the -X side.",
+    "path": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0.12
+      ],
+      [
+        -2.9,
+        0,
+        0.12
+      ]
+    ],
+    "time_s": 40.0,
+    "basis": "ours"
+  },
+  "work": [
+    {
+      "kind": "rail_take",
+      "arm": "module_arm",
+      "tool": "combined_gripper",
+      "points": "all",
+      "process_s": 2.0,
+      "note": "Close on the rail's top.",
+      "basis": "ours"
+    },
+    {
+      "kind": "rail_set",
+      "arm": "module_arm",
+      "tool": "combined_gripper",
+      "points": "all",
+      "process_s": 3.0,
+      "note": "Lower over the tube until the tab is in its hole, level, let go.",
+      "basis": "ours"
+    },
+    {
+      "kind": "strap_bolt",
+      "arm": "pin_arm_a",
+      "tool": "nutrunner",
+      "points": "0-4",
+      "process_s": 6.0,
+      "note": "Run down and tighten to 17.6 N m, measured.",
+      "basis": "ours"
+    },
+    {
+      "kind": "strap_bolt",
+      "arm": "pin_arm_c",
+      "tool": "nutrunner",
+      "points": "5-9",
+      "process_s": 6.0,
+      "note": "Run down and tighten to 17.6 N m, measured.",
+      "basis": "ours"
+    },
+    {
+      "kind": "module_take",
+      "arm": "module_arm",
+      "tool": "combined_gripper",
+      "points": "all",
+      "process_s": 2.0,
+      "note": "Suction on.",
+      "basis": "ours"
+    },
+    {
+      "kind": "module_set",
+      "arm": "module_arm",
+      "tool": "combined_gripper",
+      "points": "all",
+      "process_s": 3.0,
+      "note": "Lay down, suction off, lift clear.",
+      "basis": "ours"
+    },
+    {
+      "kind": "locate",
+      "arm": "pin_arm_a",
+      "tool": "pin_tool",
+      "points": "0-11",
+      "process_s": 3.0,
+      "note": "Tip up, once round the slot at most, nose in, nose out.",
+      "basis": "ours"
+    },
+    {
+      "kind": "locate",
+      "arm": "pin_arm_b",
+      "tool": "pin_tool",
+      "points": "12-23",
+      "process_s": 3.0,
+      "note": "Tip up, once round the slot at most, nose in, nose out.",
+      "basis": "ours"
+    },
+    {
+      "kind": "locate",
+      "arm": "pin_arm_c",
+      "tool": "pin_tool",
+      "points": "24-35",
+      "process_s": 3.0,
+      "note": "Tip up, once round the slot at most, nose in, nose out.",
+      "basis": "ours"
+    },
+    {
+      "kind": "pin",
+      "arm": "pin_arm_a",
+      "tool": "pin_tool",
+      "points": "0-11",
+      "process_s": 2.0,
+      "note": "The finger puts the pin in from above.",
+      "basis": "ours"
+    },
+    {
+      "kind": "pin",
+      "arm": "pin_arm_b",
+      "tool": "pin_tool",
+      "points": "12-23",
+      "process_s": 2.0,
+      "note": "The finger puts the pin in from above.",
+      "basis": "ours"
+    },
+    {
+      "kind": "pin",
+      "arm": "pin_arm_c",
+      "tool": "pin_tool",
+      "points": "24-35",
+      "process_s": 2.0,
+      "note": "The finger puts the pin in from above.",
+      "basis": "ours"
+    },
+    {
+      "kind": "swage",
+      "arm": "pin_arm_a",
+      "tool": "pin_tool",
+      "points": "0-13",
+      "process_s": 3.0,
+      "note": "Collar on, swaged.",
+      "basis": "ours"
+    },
+    {
+      "kind": "swage",
+      "arm": "pin_arm_b",
+      "tool": "pin_tool",
+      "points": "14-24",
+      "process_s": 3.0,
+      "note": "Collar on, swaged.",
+      "basis": "ours"
+    },
+    {
+      "kind": "swage",
+      "arm": "pin_arm_c",
+      "tool": "pin_tool",
+      "points": "25-35",
+      "process_s": 3.0,
+      "note": "Collar on, swaged.",
+      "basis": "ours"
+    },
+    {
+      "kind": "pins_take",
+      "arm": "pin_arm_a",
+      "tool": "pin_tool",
+      "points": "0",
+      "process_s": 4.0,
+      "note": "Change the magazine.",
+      "basis": "ours"
+    },
+    {
+      "kind": "pins_take",
+      "arm": "pin_arm_b",
+      "tool": "pin_tool",
+      "points": "1",
+      "process_s": 4.0,
+      "note": "Change the magazine.",
+      "basis": "ours"
+    },
+    {
+      "kind": "pins_take",
+      "arm": "pin_arm_c",
+      "tool": "pin_tool",
+      "points": "2",
+      "process_s": 4.0,
+      "note": "Change the magazine.",
+      "basis": "ours"
+    }
+  ],
+  "rail_order": "all_rails_then_all_bolts",
+  "order": {
+    "modules": [
+      0,
+      3,
+      6,
+      1,
+      4,
+      7,
+      2,
+      5,
+      8
+    ],
+    "modules_start": "after_their_rails",
+    "pin_tools": "just_in_time",
+    "note": "The modules in turns of the three pin arms, A, B, C, A, B, C, A, B, C (A holds modules 0-2, B 3-5, C 6-8): each pin arm gets its first module within the first three sets and every pin arm has two other sets, about 45 s, between its modules, about as long as it takes to pin one. In run 041's split pin arm A had four modules and pinned two of them back to back after the module arm's last sets, which put its whole chain on the critical path. A module is taken once its own two rails are bolted, and a pin arm changes to its pin tool and takes its magazine as soon as its first module is set.",
+    "basis": "ours (run 044: one bay 513.80 s against run 041's 543.96 s; the table in docs/flat-rack-kr20-pin-arms.md, \"Pin arm A's chain (run 044)\")"
+  },
+  "retreat_legs": {
+    "speed": 0.5,
+    "accel": 3.0,
+    "basis": "Run 036: a retreat leaves the hole, the rail or the module into free air, a plain point-to-point move with nothing to touch, so it may run faster than an approach, which ends in contact or insertion and keeps leg_speed and leg_accel. 0.5 m/s and 3.0 m/s^2 of the working point are the limits the owner set for such a leg (spec 036); every joint is still held within its datasheet speed by the leg's law (src/layout_plan.h, LegDuration)."
+  },
+  "path_tries": 8,
+  "torque_limit_scale": 0.9,
+  "bay_out_when_clear": true,
+  "first_bay_early": {
+    "does": "While the first tube comes in, before its clamp, the module arm swings to the rail rack and the rack fills the magazine (10 x 2 s, the take's own process_s), then the arm holds the ten rails where the take's retreat left it until the clamp ends and sets rail 0. Later bays already fill it so from their tube_in's start (R10); this gives bay 0 the same rule. The arm is held clearance_m from the tube on its way by the schedule and the verifier.",
+    "basis": "ours (run 059: of the module arm's part of bay 0's chain the magazine's fill, 24.98 s, is the one link that touches neither the tube nor the bay and still waits for the clamp)"
+  },
+  "next_bay_fill": {
+    "arm": "module_arm",
+    "does": "In bays after the first, the module arm fills its magazine for bay b+1 as soon as it has set bay b's last module and gone back to its wait pose, while bay b's pin arms still pin and swage, bay b goes out and bay b+1's tube comes in: it swings to the rail rack, the rack fills the magazine (10 x 2 s, the take's own process_s), and it holds the ten rails where the take's retreat left it until bay b+1's clamp ends and sets rail 0. Its move to the rack is planned with the whole of bay b built; the verifier holds it apart from bay b's arms, the bay going out and the tube coming in.",
+    "basis": "ours (run 059 and 061 R1: in bays 1 and 2 of rail_mag the fill, 24.8 s, waits for the bay before's bay_out though the rail rack is at +X, about 1.5 m from the pin arms' side of the bay; the module arm's last set ends about 60 s before the release)"
+  },
+  "items": [
+    {
+      "name": "transfer_cart",
+      "does": "Takes a finished bay out over the -X side; a separate unit that stands at the bays_out port there. Since run 053 a separate infeed unit brings the tubes in.",
+      "travels_inside": false,
+      "mass_kg": 800.0,
+      "boxes": [
+        {
+          "name": "cart",
+          "size": [
+            1.2,
+            9.0,
+            1.0
+          ],
+          "pos": [
+            -3.6,
+            1.0,
+            0.5
+          ]
+        }
+      ],
+      "basis": "ours",
+      "source": "Designed here as an envelope."
+    },
+    {
+      "name": "infeed_unit",
+      "does": "Brings a bare tube in over the -X side, over the bay going out on the transfer cart, and lowers it into the saddles; a separate unit that stands at the tubes_in port beyond the cart. Its bed is drawn; its carriage, which travels with the tube, is not, as the cart's forks are not.",
+      "travels_inside": false,
+      "mass_kg": 800.0,
+      "boxes": [
+        {
+          "name": "bed",
+          "size": [
+            1.2,
+            10.0,
+            1.8
+          ],
+          "pos": [
+            -6.35,
+            1.0,
+            0.9
+          ]
+        }
+      ],
+      "basis": "ours",
+      "source": "Designed here as an envelope (run 053)."
+    },
+    {
+      "name": "pin_feeder",
+      "does": "Puts pin magazines on the lane at the +Y end; a separate unit that stands at the port there.",
+      "travels_inside": false,
+      "mass_kg": 60.0,
+      "boxes": [
+        {
+          "name": "feeder",
+          "size": [
+            0.4,
+            0.5,
+            1.0
+          ],
+          "pos": [
+            0.17,
+            6.4,
+            0.5
+          ]
+        }
+      ],
+      "basis": "ours",
+      "source": "Designed here as an envelope."
+    },
+    {
+      "name": "pin_lane",
+      "does": "Carries pin magazines along the deck from the base's +Y edge to a nest beside each pin arm; travels with the cell.",
+      "travels_inside": true,
+      "mass_kg": 108.1,
+      "boxes": [
+        {
+          "name": "lane",
+          "size": [
+            0.1,
+            11.64,
+            0.25
+          ],
+          "pos": [
+            0.17,
+            0.27,
+            0.773
+          ]
+        },
+        {
+          "name": "nest_0",
+          "size": [
+            0.1,
+            0.14,
+            0.05
+          ],
+          "pos": [
+            0.17,
+            -5.2,
+            0.923
+          ]
+        },
+        {
+          "name": "nest_1",
+          "size": [
+            0.1,
+            0.14,
+            0.05
+          ],
+          "pos": [
+            0.17,
+            -2.6,
+            0.923
+          ]
+        },
+        {
+          "name": "nest_2",
+          "size": [
+            0.1,
+            0.14,
+            0.05
+          ],
+          "pos": [
+            0.17,
+            6.0,
+            0.923
+          ]
+        }
+      ],
+      "basis": "ours",
+      "source": "Designed here as an envelope: a lane 0.10 m wide and 0.25 m high standing on the deck, and a nest 0.05 m high on it at each pick point."
+    }
+  ],
+  "ports": [
+    {
+      "name": "tubes_in",
+      "crosses": "tubes",
+      "unit": "The infeed unit: a bed outside the -X side, beyond the transfer cart, carries one bare tube at a time at the height of its way; its carriage brings the tube in over the bay going out and lowers it into the holder's open saddles. It is a unit of its own, so the next tube comes in while the bay goes out.",
+      "frame_pos": [
+        -1.219,
+        0.0,
+        0.648
+      ],
+      "frame_yaw_deg": 180.0,
+      "zone": {
+        "size": [
+          1.55,
+          11.4,
+          2.4
+        ],
+        "pos": [
+          -6.325,
+          1.0,
+          1.2
+        ]
+      },
+      "hands_over": [
+        "item:infeed_unit",
+        "way:tube_in"
+      ],
+      "shares_zone_with": "",
+      "presents": "The tube level and parallel to Y, its locating holes straight up, its plain end toward -Y, its axis 0.45 m above its place in the holder and 4.65 m toward -X of it.",
+      "per_bay": 1.0,
+      "basis": "ours"
+    },
+    {
+      "name": "bays_out",
+      "crosses": "bays",
+      "unit": "The transfer cart: its forks lift the finished bay 0.12 m out of the saddles under four free stretches of the tube and carry it out over the -X side; it no longer brings tubes in.",
+      "frame_pos": [
+        -1.219,
+        0.0,
+        0.648
+      ],
+      "frame_yaw_deg": 180.0,
+      "zone": {
+        "size": [
+          4.25,
+          11.4,
+          2.4
+        ],
+        "pos": [
+          -3.375,
+          1.0,
+          1.2
+        ]
+      },
+      "hands_over": [
+        "item:transfer_cart",
+        "way:bay_out"
+      ],
+      "shares_zone_with": "",
+      "presents": "The finished bay is taken as it lies in the holder: level, modules up.",
+      "per_bay": 1.0,
+      "basis": "ours"
+    },
+    {
+      "name": "modules",
+      "crosses": "modules",
+      "unit": "A pallet dock: one maker's pallet of 36 modules standing on their long edge, exchanged when empty.",
+      "frame_pos": [
+        1.219,
+        0.0,
+        0.648
+      ],
+      "frame_yaw_deg": 0.0,
+      "zone": {
+        "size": [
+          3.2,
+          2.9,
+          2.4
+        ],
+        "pos": [
+          2.86,
+          0.0,
+          1.2
+        ]
+      },
+      "hands_over": [
+        "pallet:0"
+      ],
+      "shares_zone_with": "",
+      "presents": "Modules upright on their long edge, glass toward the cell, the nearest one first; the pallet's deck 0.50 m above the ground.",
+      "per_bay": 9.0,
+      "basis": "ours"
+    },
+    {
+      "name": "rails",
+      "crosses": "rails",
+      "unit": "A rail rack that presents one rail at a time, with its strap and bolt on.",
+      "frame_pos": [
+        1.219,
+        1.75,
+        0.648
+      ],
+      "frame_yaw_deg": 0.0,
+      "zone": {
+        "size": [
+          1.9,
+          0.55,
+          2.4
+        ],
+        "pos": [
+          2.21,
+          1.76,
+          1.2
+        ]
+      },
+      "hands_over": [
+        "stock:rails"
+      ],
+      "shares_zone_with": "",
+      "presents": "One rail, top up, long side along X, its top face 1.278 m above the ground.",
+      "per_bay": 10.0,
+      "basis": "ours"
+    },
+    {
+      "name": "pin_magazines",
+      "crosses": "pin_magazines",
+      "unit": "A feeder that stands against the +Y end and puts magazines of 36 pins and collars on the lane's outer end, at the base's edge.",
+      "frame_pos": [
+        0.17,
+        6.096,
+        0.648
+      ],
+      "frame_yaw_deg": 90.0,
+      "zone": {
+        "size": [
+          0.8,
+          0.9,
+          2.4
+        ],
+        "pos": [
+          0.17,
+          6.546,
+          1.2
+        ]
+      },
+      "hands_over": [
+        "item:pin_feeder"
+      ],
+      "shares_zone_with": "",
+      "presents": "A magazine set upright on the lane's outer end, which ends 6 mm inside the base's +Y edge, 0.25 m above the deck.",
+      "per_bay": 3.0,
+      "basis": "ours"
+    }
+  ],
+  "approaches": [
+    {
+      "kind": "rail_take",
+      "approach_frame": "world",
+      "approach_dir": [
+        0,
+        0,
+        1
+      ],
+      "approach_m": 0.15,
+      "retreat_frame": "world",
+      "retreat_dir": [
+        0,
+        0,
+        1
+      ],
+      "retreat_m": 0.25,
+      "note": "Down onto the rail's top in the rack; the rail is lifted straight up out of it.",
+      "basis": "ours"
+    },
+    {
+      "kind": "rail_set",
+      "approach_frame": "world",
+      "approach_dir": [
+        0,
+        0,
+        1
+      ],
+      "approach_m": 0.2,
+      "retreat_frame": "world",
+      "retreat_dir": [
+        0,
+        0,
+        1
+      ],
+      "retreat_m": 0.15,
+      "note": "The rail is lowered straight over the tube until its tab is in its hole; the gripper leaves straight up.",
+      "basis": "ours"
+    },
+    {
+      "kind": "strap_bolt",
+      "approach_frame": "tool",
+      "approach_dir": [
+        0,
+        0,
+        -1
+      ],
+      "approach_m": 0.1,
+      "retreat_frame": "tool",
+      "retreat_dir": [
+        0,
+        0,
+        -1
+      ],
+      "retreat_m": 0.1,
+      "note": "Along the bolt's axis: the socket comes onto the head from +X and draws back the same way.",
+      "basis": "ours"
+    },
+    {
+      "kind": "module_take",
+      "approach_frame": "tool",
+      "approach_dir": [
+        0,
+        0,
+        -1
+      ],
+      "approach_m": 0.15,
+      "retreat_frame": "world",
+      "retreat_dir": [
+        -0.7071067811865476,
+        0,
+        0.7071067811865476
+      ],
+      "retreat_m": 0.4,
+      "note": "Onto the glass along the tool's axis; the module is drawn out of the pack toward the cell and up at 45 degrees, clear of the deck and of the module behind it.",
+      "basis": "ours"
+    },
+    {
+      "kind": "module_set",
+      "approach_frame": "world",
+      "approach_dir": [
+        0,
+        0,
+        1
+      ],
+      "approach_m": 0.15,
+      "retreat_frame": "world",
+      "retreat_dir": [
+        0,
+        0,
+        1
+      ],
+      "retreat_m": 0.15,
+      "note": "The module is lowered flat onto its two rails beside its neighbour; the gripper leaves straight up.",
+      "basis": "ours"
+    },
+    {
+      "kind": "locate",
+      "approach_frame": "tool",
+      "approach_dir": [
+        0,
+        0,
+        -1
+      ],
+      "approach_m": 0.12,
+      "retreat_frame": "tool",
+      "retreat_dir": [
+        0,
+        0,
+        -1
+      ],
+      "retreat_m": 0.12,
+      "note": "Along the hole's axis from below: the nose rises into the rail's hat and comes down out of it.",
+      "basis": "ours"
+    },
+    {
+      "kind": "pin",
+      "approach_frame": "tool",
+      "approach_dir": [
+        0,
+        0,
+        -1
+      ],
+      "approach_m": 0.12,
+      "retreat_frame": "tool",
+      "retreat_dir": [
+        0,
+        0,
+        -1
+      ],
+      "retreat_m": 0.12,
+      "note": "As locate.",
+      "basis": "ours"
+    },
+    {
+      "kind": "swage",
+      "approach_frame": "tool",
+      "approach_dir": [
+        0,
+        0,
+        -1
+      ],
+      "approach_m": 0.12,
+      "retreat_frame": "tool",
+      "retreat_dir": [
+        0,
+        0,
+        -1
+      ],
+      "retreat_m": 0.12,
+      "note": "As locate.",
+      "basis": "ours"
+    },
+    {
+      "kind": "pins_take",
+      "approach_frame": "world",
+      "approach_dir": [
+        0,
+        0,
+        1
+      ],
+      "approach_m": 0.15,
+      "retreat_frame": "world",
+      "retreat_dir": [
+        0,
+        0,
+        1
+      ],
+      "retreat_m": 0.15,
+      "note": "Down onto the magazine in its nest and straight up with it.",
+      "basis": "ours"
+    }
+  ],
+  "swage_after_pins": true,
+  "borrowed_last": true
+}

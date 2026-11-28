@@ -1,0 +1,6 @@
+torque_demand: flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque_clear_out_infeed_rail_mag_early_next_fill_pallet_near_a31_b61, all 3 bays, arm module_arm
+torque_limit_scale: 0.900000
+bay 0: moves 30; over 1.0: 0; over 0.900: 0; worst 0.900 (joint 2) in step 137
+bay 1: moves 30; over 1.0: 0; over 0.900: 0; worst 0.900 (joint 1) in step 186
+bay 2: moves 30; over 1.0: 0; over 0.900: 0; worst 0.900 (joint 2) in step 392
+total: moves 90; over 1.0: 0; over 0.900: 0; worst 0.900 (joint 2) in step 392

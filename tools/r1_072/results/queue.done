@@ -1,0 +1,13 @@
+screen a31 exit=124 blocked=0
+screen a31_b60 exit=124 blocked=0
+screen a31_b61 exit=124 blocked=0
+screen a30 exit=124 blocked=0
+a31 exit=0 secs=963
+a31_s2 exit=0 secs=450
+a31_b60 exit=1 secs=449
+a31_b60_s2 exit=0 secs=349
+a31_b61 exit=0 secs=339
+a31_b61_s2 exit=0 secs=360
+a30 exit=0 secs=323
+a30_s2 exit=0 secs=319
+ALLDONE
