@@ -1,8 +1,9 @@
 // A rail magazine on the module arm's gripper (src/layout_rail_magazine.h,
 // run 056): a layout without the field keeps one take for each rail and its
-// committed plan verifies as before; the magazine layout's committed bay
-// verifies with one take of all ten rails; and the same plan against a
-// magazine that holds fewer rails than the arm sets after a take is refused.
+// committed plan verifies as before; the magazine layout's committed plan of
+// three bays (run 057) verifies with one take of all ten rails in each bay;
+// and the same plan against a magazine that holds fewer rails than the arm
+// sets after a take is refused.
 
 #include <cstdlib>
 #include <fstream>
@@ -14,6 +15,7 @@
 
 #include "src/bay_hardware.h"
 #include "src/layout.h"
+#include "src/layout_bays.h"
 #include "src/layout_model.h"
 #include "src/layout_plan.h"
 #include "src/layout_rail_magazine.h"
@@ -121,18 +123,22 @@ TEST(RailMagazine, TheMagazineRidesOnTheGripper) {
   EXPECT_NEAR(MagazineRailsMass(l), 23.5, 1e-9);
 }
 
-TEST(RailMagazine, OneBayWithTheMagazinePassesTheVerifier) {
+TEST(RailMagazine, ThreeBaysWithTheMagazinePassTheVerifier) {
   const Named o = Load(kRailMag);
   ASSERT_TRUE(o.error.empty()) << o.error;
   EXPECT_TRUE(o.plan.complete);
-  EXPECT_EQ(o.plan.bays, 1);
-  EXPECT_EQ(CountSteps(o.plan, "take rail"), 1);
-  EXPECT_EQ(CountSteps(o.plan, "set rail"), bay::kRailCount);
+  EXPECT_EQ(o.plan.bays, 3);
+  EXPECT_EQ(CountSteps(o.plan, "take rail"), 3);
+  EXPECT_EQ(CountSteps(o.plan, "set rail"), 3 * bay::kRailCount);
   const VerifyReport r =
       VerifyPlan(o.layout, ModelPaths::FromEnvironment(), o.plan, o.sha256, VerifyOptions{});
   EXPECT_TRUE(r.ok) << Faults(r);
-  std::printf("one bay %.2f s (v21 496.59 s)\n", o.plan.bay_planned_s);
-  EXPECT_LE(o.plan.bay_planned_s, 475.0);
+  const CycleFigures c = CycleFiguresOf(o.plan);
+  std::printf("cycle_s %.2f, one bay %.2f s, interval %.2f s (v21 470.68 / 496.59 / 451.90 s)\n",
+              c.cycle_s, c.one_bay_s, c.interval_s);
+  EXPECT_NEAR(c.cycle_s, 418.31, 0.005);
+  EXPECT_NEAR(c.one_bay_s, 442.03, 0.005);
+  EXPECT_LE(c.cycle_s, 470.68);
 }
 
 TEST(RailMagazine, SettingMoreRailsThanTheMagazineHoldsIsRefused) {
