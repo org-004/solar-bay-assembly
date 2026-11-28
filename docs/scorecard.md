@@ -146,6 +146,8 @@ prints them:
 - `item`: each item of the layout (feeders, lanes, carts), whether it travels or not.
 - `pin_magazine`: each pin magazine that a stock inside the cell holds (a stock whose part
   is a magazine counts its `holds` of them, the number on its nest when the nest is full).
+- `rail_magazine`: each tool with a `rail_magazine` (run 056, `src/layout_rail_magazine.h`),
+  one; a row only on the cards of layouts that have one.
 
 Not counted: the parts of the bay (tube, rails, modules, pins, bolts), and what they
 arrive in (the pallets and the rail rack, which are stocks outside). The bay's parts are
