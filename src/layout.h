@@ -457,21 +457,6 @@ struct RetreatLegs {
   std::string basis;
 };
 
-// "first_bay_early" (optional, flat rack bases only; run 059): bay 0's
-// steps that touch neither the tube nor the bay (a take from a stock or the
-// pallet, a magazine take, a tool change; src/layout_bays.h, TouchesTheBay)
-// may start while the first tube comes in, from its tube_in's start, as R10
-// lets a later bay's do (src/layout_plan.h, "Between bay b and bay b+1"):
-// on the rail magazine layout the module arm fills its magazine at the rail
-// rack while the first tube comes in, and waits with it for the clamp. The
-// schedule and the verifier hold such an arm apart from the tube on its way.
-// Without it bay 0 starts every arm after its clamp, so that every committed
-// plan replays as it was.
-struct FirstBayEarly {
-  std::string does;
-  std::string basis;
-};
-
 // "path_tries" (optional, flat rack bases only; run 042): each move is
 // searched from this many seeds, the move's own first, each path shortened,
 // and the one whose timed trajectory is quickest is kept (PlanFigures). An
@@ -512,8 +497,7 @@ struct Layout {
   Way tube_in;
   Way bay_out;
   std::vector<Work> work;
-  // "all_rails_then_all_bolts" or "each_rail_then_its_bolt".
-  std::string rail_order;
+  std::string rail_order;  // "all_rails_then_all_bolts" or "each_rail_then_its_bolt".
   WorkOrder order;                    // Only with base "flat_rack"; optional.
   std::vector<Item> items;
   std::vector<Port> ports;            // Only with base "flat_rack".
@@ -524,7 +508,7 @@ struct Layout {
   std::optional<int> path_tries;            // Optional on a flat rack base.
   std::optional<double> torque_limit_scale; // Optional on a flat rack base.
   bool bay_out_when_clear = false;  // Optional on a flat rack base (src/layout_clear_out.h).
-  std::optional<FirstBayEarly> first_bay_early;  // Optional on a flat rack base (run 059).
+  std::optional<std::string> first_bay_early;  // Its basis; optional (src/layout_bays.h).
 };
 
 // Reads layouts/<name>.json. Returns nothing and sets *error on any fault.

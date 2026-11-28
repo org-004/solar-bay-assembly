@@ -849,14 +849,11 @@ Layout ReadLayout(const Json& j) {
   if (j.contains("bay_out_when_clear")) {
     l.bay_out_when_clear = Bool(j.at("bay_out_when_clear"), "bay_out_when_clear");
   }
-  if (j.contains("first_bay_early")) {
+  if (j.contains("first_bay_early")) {  // src/layout_bays.h, "first_bay_early".
     const Json& e = j.at("first_bay_early");
-    const std::string ep = "first_bay_early";
-    Fields(e, ep, {"does", "basis"});
-    FirstBayEarly early;
-    early.does = String(FIELD(e, ep, "does"));
-    early.basis = String(FIELD(e, ep, "basis"));
-    l.first_bay_early = early;
+    Fields(e, "first_bay_early", {"does", "basis"});
+    (void)String(FIELD(e, "first_bay_early", "does"));
+    l.first_bay_early = String(FIELD(e, "first_bay_early", "basis"));
   }
   if (j.contains("order")) {
     const Json& o = j.at("order");

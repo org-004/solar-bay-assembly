@@ -1,5 +1,5 @@
 // The rail magazine filled while the first tube comes in ("first_bay_early",
-// src/layout.h, run 059): the magazine layout without the field starts
+// src/layout_bays.h, run 059): the magazine layout without the field starts
 // every arm of bay 0 after its clamp, as before; the layout with it has a
 // committed plan in which the module arm fills its magazine at the rail
 // rack during the first tube_in and sets rail 0 at the clamp's end, and
@@ -99,7 +99,7 @@ TEST(FirstBayEarly, TheMagazineFilledWhileTheFirstTubeComesInPassesTheVerifier) 
   const Named o = Load(kEarly);
   ASSERT_TRUE(o.error.empty()) << o.error;
   ASSERT_TRUE(o.layout.first_bay_early.has_value());
-  EXPECT_EQ(o.layout.first_bay_early->basis.rfind("ours", 0), 0U);
+  EXPECT_EQ(o.layout.first_bay_early->rfind("ours", 0), 0U);
   EXPECT_TRUE(o.plan.complete);
   const BayEvent* in = Event(o.plan, "tube_in", 0);
   const BayEvent* clamp = Event(o.plan, "clamp", 0);
