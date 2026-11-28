@@ -39,7 +39,7 @@
       "what": "The new cell: a layout as data, its model, its checks, its scene and distances, its planned and replayed motion, and its scorecard.",
       "frozen": false,
       "namespaces": ["cell", "cell::layout"],
-      "files": ["src/arm_catalog.h", "src/layout.*", "src/layout_rail_magazine.*", "src/layout_lookup.*", "src/layout_racks.*", "src/layout_check.*", "src/layout_stages.*", "src/layout_stage_rows.*", "src/layout_sweep.*", "src/layout_model.*", "src/layout_plan.*",
+      "files": ["src/arm_catalog.h", "src/layout.*", "src/layout_rail_magazine.*", "src/layout_lookup.*", "src/layout_racks.*", "src/layout_read.*", "src/layout_parts.h", "src/layout_check.*", "src/layout_stages.*", "src/layout_stage_rows.*", "src/layout_sweep.*", "src/layout_model.*", "src/layout_plan.*",
                 "src/layout_replay.cc", "src/layout_plan_file.cc", "src/layout_report_file.*", "src/layout_bays.*", "src/layout_rows.*", "src/layout_scene.*", "src/scorecard.*",
                 "src/physics_record.*",
                 "src/layout_plan_stages.*", "src/layout_torque.*", "src/layout_margins.*", "src/layout_critical.*", "src/layout_clear_out.*", "tests/plan_replay_staged_test.cc",

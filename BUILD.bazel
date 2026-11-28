@@ -1911,11 +1911,14 @@ cc_library(
         "src/layout.cc",
         "src/layout_lookup.cc",
         "src/layout_racks.cc",
+        "src/layout_read.cc",
     ],
     hdrs = [
         "src/arm_catalog.h",
         "src/layout.h",
+        "src/layout_parts.h",
         "src/layout_racks.h",
+        "src/layout_read.h",
     ],
     deps = ["@nlohmann_json//:json"],
 )
