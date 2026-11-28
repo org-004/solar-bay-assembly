@@ -171,6 +171,17 @@ CycleFigures CycleFiguresOf(const Plan& plan);
 // it always has, every arm after the clamp.
 bool TouchesTheBay(const std::string& kind);
 
+// "first_bay_early" (optional, flat rack bases only; run 059; Layout holds
+// its basis): bay 0's steps that touch neither the tube nor the bay (a take
+// from a stock or the pallet, a magazine take, a tool change; TouchesTheBay)
+// may start while the first tube comes in, from its tube_in's start, as R10
+// lets a later bay's do (src/layout_plan.h, "Between bay b and bay b+1"):
+// on the rail magazine layout the module arm fills its magazine at the rail
+// rack while the first tube comes in, and waits with it for the clamp. The
+// schedule and the verifier hold such an arm apart from the tube on its way.
+// Without it bay 0 starts every arm after its clamp, so that every committed
+// plan replays as it was.
+
 // Where a bay lies on the joint clock, for its planner (PlanBays). Times
 // but `shift` are on the bay's own clock, whose 0 is its arms' start.
 struct BayClock {

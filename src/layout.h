@@ -497,8 +497,7 @@ struct Layout {
   Way tube_in;
   Way bay_out;
   std::vector<Work> work;
-  // "all_rails_then_all_bolts" or "each_rail_then_its_bolt".
-  std::string rail_order;
+  std::string rail_order;  // "all_rails_then_all_bolts" or "each_rail_then_its_bolt".
   WorkOrder order;                    // Only with base "flat_rack"; optional.
   std::vector<Item> items;
   std::vector<Port> ports;            // Only with base "flat_rack".
@@ -509,6 +508,7 @@ struct Layout {
   std::optional<int> path_tries;            // Optional on a flat rack base.
   std::optional<double> torque_limit_scale; // Optional on a flat rack base.
   bool bay_out_when_clear = false;  // Optional on a flat rack base (src/layout_clear_out.h).
+  std::optional<std::string> first_bay_early;  // Its basis; optional (src/layout_bays.h).
 };
 
 // Reads layouts/<name>.json. Returns nothing and sets *error on any fault.

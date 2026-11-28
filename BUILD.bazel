@@ -2321,6 +2321,24 @@ cc_test(
     ],
 )
 
+# The rail magazine filled while the first tube comes in (first_bay_early,
+# run 059): the committed plan of its layout verified, and refused without
+# the field. A target of its own, beside plan_replay_test's.
+#   bazel test --config=opt //:first_bay_early_test
+cc_test(
+    name = "first_bay_early_test",
+    size = "medium",
+    srcs = ["tests/first_bay_early_test.cc"],
+    data = LAYOUT_FILES + LAYOUT_MODEL_FILES + PLAN_FILES,
+    env = LAYOUT_ENV | {"PLAN_DIR": "plans"},
+    deps = [
+        ":layout",
+        ":layout_model",
+        ":layout_plan",
+        "@googletest//:gtest_main",
+    ],
+)
+
 # The layouts with "one_posture_per_module": their checker reports take 125
 # to 180 s each (run 039, R1), so each is made once per layout and checker
 # build by a check_report rule (bazel/check_report.bzl), whose action's inputs

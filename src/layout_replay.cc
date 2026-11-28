@@ -694,6 +694,9 @@ class Verifier {
     if (!WaysShareZone(L_)) {
       for (int b = 1; b < bays_; ++b) TubeComingIn(b);
     }
+    // Run 059: with first_bay_early an arm may do an early step through bay
+    // 0's tube_in, held apart from the tube so.
+    if (L_.first_bay_early) TubeComingIn(0);
     StepsAndPhases();
     for (int b = 0; b < bays_; ++b) Order(b);
     for (const std::string& f : BetweenBays(scene_, plan_, report_, o_.time_tolerance_s,
@@ -1043,7 +1046,8 @@ class Verifier {
         // that touches neither the tube nor the bay, and wait after it.
         if (ending && BayOfStep(s.step, n_) < e.bay) continue;
         const BayStep* own = Step(s.step);
-        if (e.bay > 0 && kind != "bay_out" && own != nullptr && BayOfStep(s.step, n_) == e.bay &&
+        const bool early_bay = e.bay > 0 || L_.first_bay_early.has_value();
+        if (early_bay && kind != "bay_out" && own != nullptr && BayOfStep(s.step, n_) == e.bay &&
             (s.kind == "wait" || !TouchesTheBay(own->kind))) {
           continue;
         }
