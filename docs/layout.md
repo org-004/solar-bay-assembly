@@ -805,6 +805,21 @@ layout is declared in `Layout` in `src/layout.h` and read in `ReadLayout` in
 a field's type and the error that carries the field's path are shared through
 `src/layout_read.h`; the racks and stages are read in `src/layout_racks.cc`.
 
+### `swage_after_pins`: two arms may swage one module (run 070)
+
+An optional boolean on a flat rack base. Without it, or `false`, each hole step of module
+m (locate, pin, swage, in the order locate/pin 0, 2, 3, 1, then swage 1, 3, 2, 0) waits
+for the module's set and for the module's hole step before it, whichever arm does it.
+With `true`, a **swage** waits for the module's set and the module's **last pin** step,
+whichever arm sets it, and no longer for the swage before it: swaging needs only that all
+four pins are in (`docs/bay-hardware.md`, "Which holes are located"; the swage order is a
+motion choice). Locates and pins keep the old rule, and each arm still does its own steps
+in its own order. The planner (`src/layout_plan.cc`, `needs_of`), the critical-chain
+report (`src/layout_critical.cc`) and the verifier (`src/layout_replay.cc`) apply the same
+rule. It only matters when one module's swages are split between two arms in `work`;
+`tests/swage_after_pins_test.cc` shows A's swage 3/0 waiting for B's swage 3/2 under the
+old rule and not under the new one.
+
 ## The form for two racks and for stages
 
 Since run 020 a layout may stand on two 20 ft flat racks and may work the tube in stages.
