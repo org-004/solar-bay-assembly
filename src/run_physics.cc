@@ -1,7 +1,7 @@
 // run_physics: one module's cycle of a layout's committed plan, in physics
 // (src/physics_run.h), and its record (src/physics_record.h).
 //
-//   run_physics [<name>] [--take K]... [--bay 0] [--write] [--json]
+//   run_physics [<name>] [--take K]... [--rail K] [--bay 0] [--write] [--json]
 //
 // <name> is a layout with a committed plan, plans/<name>.json; without it,
 // the chosen layout (versions/versions.json). --take K runs module_take K
@@ -9,7 +9,10 @@
 // hardest carry. --take given more than once runs each of those takes, and
 // --bay 0 every module take of bay 0 (the only bay the record counts: the
 // later bays repeat its modules), each on its own from the plan's state at
-// its start, and joins them as one record of several takes. It prints the figures of every segment and step, the
+// its start, and joins them as one record of several takes; since run 074
+// --bay 0 also runs every rail set of the module arm in bay 0 (rail_set k,
+// the rail carried at the gripper and set on the tube) and the record holds
+// them beside the takes. --rail K runs the set of rail K alone. It prints the figures of every segment and step, the
 // set-down and which steps count by the rule of docs/scorecard.md. --json
 // prints the record instead; --write also writes it as physics/<name>.json
 // into the source tree (BUILD_WORKSPACE_DIRECTORY), where //:score_layout
@@ -45,7 +48,7 @@ std::string Env(const char* name, const char* fallback) {
 
 int Usage() {
   std::fprintf(stderr,
-               "usage: run_physics [<name>] [--take K]... [--bay 0] [--write] [--json]\n");
+               "usage: run_physics [<name>] [--take K]... [--rail K] [--bay 0] [--write] [--json]\n");
   return 2;
 }
 
@@ -89,6 +92,12 @@ int main(int argc, char** argv) {
       if (k.empty() || *end != '\0' || take < 0) return Usage();
       if (std::find(takes.begin(), takes.end(), take) != takes.end()) return Usage();
       takes.push_back(static_cast<int>(take));
+    } else if (a == "--rail" && i + 1 < args.size() && options.rail < 0) {
+      const std::string& k = args[++i];
+      char* end = nullptr;
+      const long rail = std::strtol(k.c_str(), &end, 10);
+      if (k.empty() || *end != '\0' || rail < 0) return Usage();
+      options.rail = static_cast<int>(rail);
     } else if (a == "--bay" && i + 1 < args.size()) {
       if (args[++i] != "0") {
         std::fprintf(stderr, "run_physics: only bay 0 is run; the later bays repeat its modules\n");
@@ -136,10 +145,13 @@ int main(int argc, char** argv) {
     return 1;
   }
   if (bay && !takes.empty()) return Usage();
+  if (options.rail >= 0 && (bay || !takes.empty())) return Usage();
   if (takes.size() == 1) options.take = takes.front();
+  std::vector<int> rails;
   if (bay) {
     takes = BayTakes(*layout, ModelPaths::FromEnvironment(), &error);
-    if (takes.empty()) {
+    if (!takes.empty()) rails = BayRails(*layout, ModelPaths::FromEnvironment(), &error);
+    if (takes.empty() || !error.empty()) {
       std::fprintf(stderr, "run_physics: %s\n", error.c_str());
       return 1;
     }
@@ -154,7 +166,8 @@ int main(int argc, char** argv) {
     }
     command += " --write";
     const PhysicsBayResult result =
-        RunPhysicsTakes(*layout, *plan, ModelPaths::FromEnvironment(), options, takes, command,
+        RunPhysicsTakes(*layout, *plan, ModelPaths::FromEnvironment(), options, takes, rails,
+                        command,
                         layout_sha, Sha256OfFile(plan_path));
     if (!result.ok) {
       std::fputs(PhysicsBayText(result).c_str(), stderr);

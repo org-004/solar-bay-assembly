@@ -351,11 +351,8 @@ Measure PhysicsShare(const std::string& name, const Plan& plan, double one_bay_s
             (faults.empty() ? "plan_sha256 differs" : faults.front()));
   }
   std::string steps;
-  for (const PhysicsTake& take : physics->takes) {
-    for (const PhysicsStep& s : take.steps) {
-      if (!StepCounts(*physics, take, s)) continue;
-      steps += (steps.empty() ? "" : ", ") + std::to_string(s.number);
-    }
+  for (const int n : CountedSteps(*physics)) {
+    steps += (steps.empty() ? "" : ", ") + std::to_string(n);
   }
   // One take: the basis as it was before records held several.
   std::string modules;
@@ -371,6 +368,7 @@ Measure PhysicsShare(const std::string& name, const Plan& plan, double one_bay_s
     modules += " (" + std::to_string(counted.size()) + " of the record's " +
                std::to_string(physics->takes.size()) + " takes of one bay)";
   }
+  if (!physics->rails.empty()) modules += " and " + RailsText(*physics);
   char seconds[64];
   std::snprintf(seconds, sizeof(seconds), "%.6f s of one bay's %.6f s counted",
                 CountedSeconds(*physics), one_bay_s);

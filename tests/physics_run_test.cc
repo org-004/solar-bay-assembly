@@ -12,6 +12,7 @@
 #include <optional>
 #include <sstream>
 #include <string>
+#include <vector>
 
 #include <gtest/gtest.h>
 
@@ -97,6 +98,53 @@ TEST(PhysicsRun, TheChosenLayoutsModuleIsCarriedAndSetAsRecorded) {
   if (committed->takes.size() == 1) {
     EXPECT_NEAR(committed->counted_s, r.record.counted_s, 1e-6);
   }
+}
+
+// The chosen layout's first rail set (run 074): the rail is carried at the
+// gripper, let go on the tube and comes to rest there, it counts by the
+// rail gate, and its figures are the committed record's.
+TEST(PhysicsRun, TheChosenLayoutsFirstRailIsCarriedAndSetAsRecorded) {
+  std::string error;
+  const std::optional<std::string> name = ChosenLayout(VersionsPath(), &error);
+  ASSERT_TRUE(name.has_value()) << error;
+  const std::string layout_path = Env("LAYOUT_DIR", "layouts") + "/" + *name + ".json";
+  const std::string plan_path = Env("PLAN_DIR", "plans") + "/" + *name + ".json";
+  const std::optional<Layout> layout = LoadLayout(layout_path, &error);
+  ASSERT_TRUE(layout.has_value()) << error;
+  const std::optional<Plan> plan = PlanFromJson(ReadText(plan_path), &error);
+  ASSERT_TRUE(plan.has_value()) << error;
+  const std::vector<int> rails = BayRails(*layout, ModelPaths::FromEnvironment(), &error);
+  if (rails.empty()) GTEST_SKIP() << "the chosen layout's module arm sets no rail";
+  PhysicsOptions options;
+  options.rail = rails.front();
+  const PhysicsResult r = RunPhysics(*layout, *plan, ModelPaths::FromEnvironment(), options,
+                                     Sha256OfFile(layout_path), Sha256OfFile(plan_path));
+  ASSERT_TRUE(r.ok) << r.error;
+  std::printf("%s", PhysicsText(r).c_str());
+  EXPECT_GE(r.rail_tube_contacts, 1);
+  EXPECT_LT(r.rail_speed_mm_s, 1.0);
+  ASSERT_TRUE(r.record.takes.empty());
+  ASSERT_EQ(r.record.rails.size(), 1u);
+  const PhysicsRailSet& run = r.record.rails.front();
+  EXPECT_TRUE(run.step.counted);
+  EXPECT_TRUE(CheckPhysicsRecord(r.record, *plan, Sha256OfFile(plan_path)).empty());
+
+  const std::string text = ReadText(Env("PHYSICS_DIR", "physics") + "/" + *name + ".json");
+  const std::optional<PhysicsRecord> committed = PhysicsRecordFromJson(text, &error);
+  ASSERT_TRUE(committed.has_value()) << error;
+  const PhysicsRailSet* kept = nullptr;
+  for (const PhysicsRailSet& s : committed->rails) {
+    if (s.rail == run.rail) kept = &s;
+  }
+  ASSERT_NE(kept, nullptr) << "the record holds no set of rail " << run.rail;
+  EXPECT_EQ(kept->step.number, run.step.number);
+  EXPECT_EQ(kept->step.counted, run.step.counted);
+  EXPECT_NEAR(kept->step.least_clearance_m, run.step.least_clearance_m, 1e-4);
+  for (int j = 0; j < 7; ++j) EXPECT_NEAR(kept->torque_ratio[j], run.torque_ratio[j], 0.01);
+  EXPECT_NEAR(kept->pose.across_mm, run.pose.across_mm, 0.05);
+  EXPECT_NEAR(kept->pose.along_mm, run.pose.along_mm, 0.05);
+  EXPECT_NEAR(kept->pose.round_deg, run.pose.round_deg, 0.005);
+  EXPECT_NEAR(kept->pose.yaw_deg, run.pose.yaw_deg, 0.005);
 }
 
 }  // namespace

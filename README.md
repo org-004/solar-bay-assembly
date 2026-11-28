@@ -146,8 +146,12 @@ physics, each take run on its own from the plan's state at its start, on its ser
 its real payload and the rail magazine's 12 kg, along the committed plan's own timing, each
 within 0.32 mm of its place and never nearer anything than 17.92 mm, every motor below its limit
 (joint 1 at worst 0.991) ([`docs/flat-rack-physics.md`](docs/flat-rack-physics.md),
-`//:run_physics -- --bay 0`). Those 186.32 s are why `physics_share` is 0.457 (v24's record,
-nine takes and sets, over one bay of 408.03 s); the pin arms, the rail sets and the tube are not
+`//:run_physics -- --bay 0`). Since run 074 the same command also carries bay 0's ten rails at
+the gripper and sets each on the tube in physics, with contacts against the tube; nine of the ten
+pass the rail gate (each within 0.07 mm and 0.05 degrees of its place, every motor below its
+limit), and rail 9 misses it by its clearance, 14.645 mm against 15 mm, where the plan itself has
+14.636 mm. Those 251.18 s are why `physics_share` is 0.616 (v24's record, nine takes and sets and
+nine rail sets, over one bay of 408.03 s); the pin arms, the magazine's fill and the tube are not
 run in physics; the failures are still modelled. One part of it has a physics test, the locating nose that pulls a
 module's holes into line before pinning (`tests/locate_physics_test.cc`,
 [`docs/bay-hardware.md`](docs/bay-hardware.md)).

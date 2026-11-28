@@ -92,6 +92,12 @@ figure is 0 and the basis says what does not agree. The scorecard file then hold
 sha256 of the record (`physics_sha256`), so that a changed record makes the committed card
 stale.
 
+A record may also hold rail sets beside its takes (since run 074): the module arm's set of a
+rail, carried at the gripper and set on the tube in physics. A rail set's step counts by the
+rail gate of `docs/flat-rack-physics.md` ("The rail gate": the same clearance, every motor below
+its limit, and the rail within its play on the tube), and its planned seconds are summed with
+the takes'; the basis names the rails that count after the modules.
+
 A record holds one take or several (since run 071). Each take is one module's take and the
 set after it, with its own module, `module_take` index, steps and set-down, and each step is
 judged against its own take's set-down; the figure sums the counting steps of every take.

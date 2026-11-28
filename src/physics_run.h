@@ -98,6 +98,12 @@ struct PhysicsOptions {
   // the set whose carry (the move that holds the module) the planner needed
   // the most collision queries to find, the hardest carry of the plan.
   int take = -1;
+  // With rail >= 0, the module arm's rail_set of that rail instead (run
+  // 074): the step alone, the rail held at the gripper by a weld from the
+  // step's start, let go at the end of its work segment and settled on the
+  // tube, with contacts against the tube, the holder, the base and the
+  // rails already on it.
+  int rail = -1;
   double timestep = 0.0005;  // s
   double hold_s = 1.0;       // Before the plan's clock starts.
   double settle_s = 2.0;     // After the set's retreat.
@@ -129,11 +135,15 @@ struct PhysicsResult {
   std::string error;
   std::string layout, arm;
   int take = -1, module = -1;
-  int take_step = 0, set_step = 0;
+  int rail = -1;                         // A rail set's rail, else -1.
+  int take_step = 0, set_step = 0;       // A rail set has set_step only.
   std::vector<PhysicsFigures> segments;  // In time order.
   std::vector<PhysicsFigures> steps;     // The take, then the set.
   PhysicsFigures settle;                 // After the set's retreat.
   SetDown set_down;
+  RailSetPose rail_pose;                 // A rail set's, unrounded.
+  int rail_tube_contacts = 0;            // Its contacts with the tube at the end.
+  double rail_speed_mm_s = 0.0;          // Its speed at the end.
   double grip_offset_mm = 0.0;           // Tool tip to glass at the grip.
   PhysicsRecord record;                  // The record of these figures.
   double one_bay_s = 0.0;                // The plan's bay_planned_s: bay 0.
@@ -180,14 +190,21 @@ PhysicsResult RunPhysics(const Layout& layout, const Plan& plan,
 
 // The figures as text, the same for the same result.
 std::string PhysicsText(const PhysicsResult& result);
+// The same for a rail set (src/physics_bay.cc).
+std::string PhysicsRailText(const PhysicsResult& result);
 
 // The module_take indices of the bay (the checker's steps: bay 0 of the
 // plan), in the bay's order. Empty, with *error set, on a fault.
 std::vector<int> BayTakes(const Layout& layout, const ModelPaths& paths, std::string* error);
 
+// The rails of the bay's rail_set steps of the arm that takes the modules
+// (the module arm), in the bay's order. Empty when there are none.
+std::vector<int> BayRails(const Layout& layout, const ModelPaths& paths, std::string* error);
+
 // Several takes of one bay, each run as RunPhysics runs it (from the plan's
-// state at the take's start, on its own), and their records joined as one
-// (src/physics_record.h, JoinPhysicsRecords) whose command is `command`.
+// state at the take's start, on its own), then the rail sets of `rails`
+// the same way, and their records joined as one (src/physics_record.h,
+// JoinPhysicsRecords) whose command is `command`. src/physics_bay.cc.
 struct PhysicsBayResult {
   bool ok = false;
   std::string error;
@@ -197,11 +214,13 @@ struct PhysicsBayResult {
 };
 PhysicsBayResult RunPhysicsTakes(const Layout& layout, const Plan& plan,
                                  const ModelPaths& paths, const PhysicsOptions& options,
-                                 const std::vector<int>& takes, const std::string& command,
+                                 const std::vector<int>& takes, const std::vector<int>& rails,
+                                 const std::string& command,
                                  const std::string& layout_sha256,
                                  const std::string& plan_sha256);
 
-// Each take's text, then a table of the takes and the share they count.
+// Each run's text, then a table of the takes, one of the rail sets, and the
+// share they count.
 std::string PhysicsBayText(const PhysicsBayResult& result);
 
 }  // namespace cell::layout

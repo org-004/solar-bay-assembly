@@ -248,8 +248,11 @@ and was not run.
 
 - **The other three arms.** The pin arms are kinematic: written into the model every
   step, with no contacts and no servos.
-- **The rails.** No rail is carried in physics, and the rails are fixed where the bay
-  puts them.
+- **The rails.** Since run 074 the module arm's ten rail sets of bay 0 are carried in
+  physics (below, "Bay 0's rail sets in physics"); the magazine's fill and its indexing
+  drive are not, and a rail on the tube stays where its run left it only in its own run:
+  each rail set and each module take starts from the plan's state, rails at their designed
+  places.
 - **The other modules.** Except in the table above (which is not counted), no other
   module is carried. The modules already set are drawn, as far as the builder's count
   allows, and touch nothing.
@@ -759,3 +762,77 @@ against 0.015 m (the plan's 0.018241 m); the largest set-down is module 8's, 0.3
 -0.0059° against 3 mm and 0.15°; the worst joint is joint 1 on take 2's set, 0.991 of its limit
 with the module arm bounded to 0.90 of its motors in the plan. The pin arms, the rail sets, the
 tube and the bay events are not run in physics (221.71 s of the bay).
+
+## Bay 0's rail sets in physics (run 074)
+
+`bazel run --config=opt //:run_physics -- flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque_clear_out_infeed_rail_mag_early_next_fill_pallet_near --bay 0 --write`
+now also runs each of the module arm's ten rail sets of bay 0 (`set rail 0` ... `set rail 9`,
+steps 4 to 13), each on its own from the plan's state at the step's start, after the nine module
+takes, and writes them into the same record as a list `rails` beside the takes
+(`src/physics_record.h`). `-- --rail K` runs one alone. The takes' part of the record is what it
+was, byte for byte.
+
+**The run.** The model is the take's (`src/layout_model.h`, Physics) with the rail free: the rail
+the arm holds is drawn on the arm as always (strap open, with the other rails of the magazine as
+mass behind the plate) but given no mass, and a free body `carried_rail` of the same boxes and
+the rail's 2.35 kg stands in for it, welded to the tool at the held rail's pose from the step's
+start (the weld of `src/suction.cc`, anchored at the gripper's working point). The arm follows
+the step from its start (the move from the last retreat) to its end (the retreat) as a take
+does; the weld is switched off at the end of the step's work segment, and the rail settles for
+`settle_s` (2 s) at the retreat's pose. Contacts: the rail's boxes against the tube, the holder,
+the base and the rails already on the tube, with the take's contact settings (solref twice the
+timestep's four, solimp 0.95 0.99 0.0005, elliptic cones, friction `kLocateFriction`); nothing
+else collides. The rail rests on the tube on its saddle (the middle of each web on the tube's
+top, `src/bay_model.cc`, RailBoxes): at the end of every run it had 4 contacts with the tube and
+moved at less than 0.04 mm/s. The tab and the hole are sites, not geometry (`docs/bay-hardware.md`,
+Simplifications), so nothing but friction holds the rail along the tube or in yaw.
+
+**The pose.** After settling, the rail against its designed place in the tube's frame: the tab's
+point (the locator's `_a` site) across the tube (X) and along it (Y), the turn round the tube
+(about Y) and the yaw (about Z). The rail's boxes are the same turned half round about its
+vertical, and the plan holds the rail so turned from the bay's rail (the held rail has no tab);
+the nearer of the two orientations is taken, as for a module.
+
+### The rail gate
+
+A rail set's step counts when all of these hold (`src/physics_record.h`, RailSetCounts):
+
+| Part | Limit | Source |
+|---|---|---|
+| Least clearance in physics, as for a take | at least `clearance_m`, 0.015 m | the layout's margins, as the module gate |
+| Every motor below its limit: joints 1 to 6 and the track, the run's peak (settling included) | torque ratio below 1 | a position servo's force is clipped at its limit, so a ratio of 1 is a motor that asked for more |
+| The tab across the tube | at most 0.928 mm | `docs/bay-hardware.md`, Tolerances: sqrt(7^2 - 1^2) - 6 (`kTabPlayAcrossTube`) |
+| The tab along the tube | at most 2.606 mm | the same: sqrt(7^2 - 6^2) - 1 (`kRailPlayAlongTube`) |
+| Round the tube | at most 0.8576 degrees (15 mrad) | the same: 0.928 / 62 (`kRailPlayRound`) |
+| Yaw | at most 0.8251 degrees (14.4 mrad) | the same: the saddle's play over the web's 49 mm (`kRailPlayYaw`) |
+
+The record holds the play as `rail_gate`, to 4 decimals. The module gate (3 mm, 0.15 degrees)
+and its figures are unchanged, and a record without rail sets is written as before.
+
+### What the rail sets carried out
+
+| rail | step | planned s | least clearance in physics (pair); the plan's | tab across / along mm | round / yaw | worst joint | track | counts |
+|---|---|---|---|---|---|---|---|---|
+| 0 | 4 | 10.159989 | 0.019398 m (tool_combined_gripper_plate to pallet_module_0_frame_long_b); plan 0.019403 m | 0.0023 / 0.0073 | 0.0011° / 0.0000° | j3 0.628 | 0.592 | yes |
+| 1 | 5 | 6.412370 | 0.040776 m (tool_combined_gripper_plate to pin_arm_a_tool_nutrunner_body); plan 0.040812 m | 0.0037 / -0.0029 | 0.0020° / 0.0000° | j2 0.471 | 0.581 | yes |
+| 2 | 6 | 6.897199 | 0.049985 m (held_rail_strap_open_pos to bay_rail_1_top); plan 0.050001 m | 0.0037 / -0.0029 | 0.0013° / 0.0000° | j2 0.471 | 0.519 | yes |
+| 3 | 7 | 6.897199 | 0.045603 m (held_rail_foot_a_pos to holder_stand_4_cheek_neg); plan 0.045607 m | 0.0037 / -0.0029 | 0.0046° / 0.0000° | j2 0.471 | 0.519 | yes |
+| 4 | 8 | 6.897198 | 0.049985 m (held_rail_strap_open_pos to bay_rail_3_top); plan 0.050001 m | 0.0037 / -0.0029 | 0.0060° / 0.0000° | j2 0.471 | 0.519 | yes |
+| 5 | 9 | 6.897199 | 0.045603 m (held_rail_foot_a_pos to holder_stand_6_cheek_neg); plan 0.045607 m | 0.0037 / -0.0029 | 0.0005° / 0.0000° | j2 0.471 | 0.519 | yes |
+| 6 | 10 | 6.897199 | 0.049985 m (held_rail_strap_open_pos to bay_rail_5_top); plan 0.050001 m | 0.0037 / -0.0029 | 0.0013° / 0.0000° | j2 0.471 | 0.519 | yes |
+| 7 | 11 | 6.897198 | 0.045603 m (held_rail_foot_a_pos to holder_stand_8_cheek_neg); plan 0.045607 m | 0.0037 / -0.0029 | 0.0013° / 0.0000° | j2 0.471 | 0.519 | yes |
+| 8 | 12 | 6.897199 | 0.049985 m (held_rail_strap_open_pos to bay_rail_7_top); plan 0.050001 m | 0.0037 / -0.0029 | 0.0013° / 0.0000° | j2 0.471 | 0.519 | yes |
+| 9 | 13 | 6.302134 | 0.014645 m (arm_link_2 to pin_arm_c_tool_nutrunner_socket); plan 0.014636 m | 0.0312 / -0.0608 | 0.0453° / 0.0000° | j2 0.510 | 0.606 | no |
+
+Nine of the ten count: 64.852750 s of the rails' 71.154884 s; with the nine takes, 251.175400 s
+of `one_bay_s` 408.028661 s, `physics_share` **0.615583** (0.456641 with the takes alone, run
+071). Rail 9 does not count: its least clearance in physics is 0.014645 m against 0.015 m, in
+the move of step 13 at plan time 110.633 s, between the module arm's link 2 and pin arm C's
+nutrunner socket. The plan's own distance at the same instants is 0.014636 m, so the shortfall
+is the plan's (sampled every 0.01 s as this run samples, the plan itself is below its margin
+there), not the physics': the arm in physics is 0.009 mm farther from pin arm C than the plan. The smallest lever
+is in the plan, not the run: a move for step 13 that keeps 0.015 m at every 0.01 s (or a pin arm
+C that waits clear of it), which a new plan of a new version would carry. The rail sets ask
+little of the motors (joint 3 at 0.628 on rail 0's long first move, the track at 0.606 at worst);
+the pose errors are microns, because the arm follows the plan to 0.08 mrad and the rail is let
+go where it rests.

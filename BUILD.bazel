@@ -1937,7 +1937,10 @@ cc_library(
 
 cc_library(
     name = "layout_model",
-    srcs = ["src/layout_model.cc"],
+    srcs = [
+        "src/layout_handles.cc",
+        "src/layout_model.cc",
+    ],
     hdrs = ["src/layout_model.h"],
     deps = [
         ":bay_hardware",
@@ -2473,7 +2476,10 @@ cc_test(
 # release, and the figures (src/physics_run.h).
 cc_library(
     name = "physics_run",
-    srcs = ["src/physics_run.cc"],
+    srcs = [
+        "src/physics_bay.cc",
+        "src/physics_run.cc",
+    ],
     hdrs = ["src/physics_run.h"],
     deps = [
         ":arm",
@@ -2540,6 +2546,7 @@ cc_library(
     srcs = ["src/physics_record.cc"],
     hdrs = ["src/physics_record.h"],
     deps = [
+        ":bay_hardware",
         ":layout_plan",
         "@nlohmann_json//:json",
     ],

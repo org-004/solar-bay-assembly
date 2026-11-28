@@ -9,13 +9,16 @@
 
 #include <algorithm>
 #include <cmath>
+#include <numbers>
 #include <optional>
 #include <set>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
 #include <nlohmann/json.hpp>
 
+#include "src/bay_hardware.h"
 #include "src/layout_plan.h"
 
 namespace cell::layout {
@@ -45,6 +48,26 @@ bool StepCounts(const PhysicsRecord& record, const PhysicsTake& take,
          std::abs(take.set_down.yaw_deg) <= record.gate_yaw_deg;
 }
 
+RailGate RailPlay() {
+  constexpr double kDeg = 180.0 / std::numbers::pi;
+  RailGate g;
+  g.across_mm = Fine(bay::kTabPlayAcrossTube * 1e3);
+  g.along_mm = Fine(bay::kRailPlayAlongTube * 1e3);
+  g.round_deg = Fine(bay::kRailPlayRound * kDeg);
+  g.yaw_deg = Fine(bay::kRailPlayYaw * kDeg);
+  return g;
+}
+
+bool RailSetCounts(const PhysicsRecord& record, const PhysicsRailSet& set) {
+  bool motors = true;
+  for (const double r : set.torque_ratio) motors = motors && r < 1.0;
+  const RailGate& g = record.rail_gate;
+  const RailSetPose& p = set.pose;
+  return set.step.least_clearance_m >= record.clearance_m && motors &&
+         std::abs(p.across_mm) <= g.across_mm && std::abs(p.along_mm) <= g.along_mm &&
+         std::abs(p.round_deg) <= g.round_deg && std::abs(p.yaw_deg) <= g.yaw_deg;
+}
+
 double CountedSeconds(const PhysicsRecord& record) {
   double sum = 0.0;
   for (const PhysicsTake& take : record.takes) {
@@ -52,7 +75,43 @@ double CountedSeconds(const PhysicsRecord& record) {
       if (StepCounts(record, take, step)) sum += step.planned_s;
     }
   }
+  for (const PhysicsRailSet& set : record.rails) {
+    if (RailSetCounts(record, set)) sum += set.step.planned_s;
+  }
   return sum;
+}
+
+std::vector<int> CountedRails(const PhysicsRecord& record) {
+  std::vector<int> rails;
+  for (const PhysicsRailSet& set : record.rails) {
+    if (RailSetCounts(record, set)) rails.push_back(set.rail);
+  }
+  return rails;
+}
+
+std::string RailsText(const PhysicsRecord& record) {
+  const std::vector<int> counted = CountedRails(record);
+  std::string t = counted.empty() ? "no rail" : counted.size() == 1 ? "rail " : "rails ";
+  for (size_t i = 0; i < counted.size(); ++i) {
+    t += (i == 0 ? "" : ", ") + std::to_string(counted[i]);
+  }
+  return t + " (" + std::to_string(counted.size()) + " of the record's " +
+         std::to_string(record.rails.size()) + " rail sets)";
+}
+
+std::vector<int> CountedSteps(const PhysicsRecord& record) {
+  std::vector<int> steps;
+  for (const PhysicsTake& take : record.takes) {
+    for (const PhysicsStep& s : take.steps) {
+      if (StepCounts(record, take, s)) steps.push_back(s.number);
+    }
+  }
+  if (record.rails.empty()) return steps;
+  for (const PhysicsRailSet& set : record.rails) {
+    if (RailSetCounts(record, set)) steps.push_back(set.step.number);
+  }
+  std::sort(steps.begin(), steps.end());
+  return steps;
 }
 
 std::vector<int> CountedModules(const PhysicsRecord& record) {
@@ -77,6 +136,19 @@ std::optional<PhysicsRecord> JoinPhysicsRecords(
   PhysicsRecord joined = records.front();
   joined.command = command;
   joined.takes.clear();
+  joined.rails.clear();
+  for (const PhysicsRecord& r : records) {
+    if (r.rails.empty()) continue;
+    const RailGate& a = r.rail_gate;
+    const RailGate& b = joined.rail_gate;
+    if (!joined.rails.empty() && (a.across_mm != b.across_mm || a.along_mm != b.along_mm ||
+                                  a.round_deg != b.round_deg || a.yaw_deg != b.yaw_deg)) {
+      *error = "the records' rail gates differ";
+      return std::nullopt;
+    }
+    joined.rail_gate = a;
+    joined.rails.insert(joined.rails.end(), r.rails.begin(), r.rails.end());
+  }
   for (const PhysicsRecord& r : records) {
     if (r.layout != joined.layout || r.layout_sha256 != joined.layout_sha256 ||
         r.plan_sha256 != joined.plan_sha256 || r.clearance_m != joined.clearance_m ||
@@ -94,18 +166,21 @@ std::optional<PhysicsRecord> JoinPhysicsRecords(
                    [&](const PhysicsTake& x, const PhysicsTake& y) {
                      return first_step(x) < first_step(y);
                    });
+  std::stable_sort(joined.rails.begin(), joined.rails.end(),
+                   [](const PhysicsRailSet& x, const PhysicsRailSet& y) {
+                     return x.step.number < y.step.number;
+                   });
   for (PhysicsTake& take : joined.takes) {
     for (PhysicsStep& s : take.steps) s.counted = StepCounts(joined, take, s);
   }
+  for (PhysicsRailSet& set : joined.rails) set.step.counted = RailSetCounts(joined, set);
   joined.counted_s = CountedSeconds(joined);
   return joined;
 }
 
 namespace {
 
-OJson StepsToJson(const std::vector<PhysicsStep>& steps) {
-  OJson out = OJson::array();
-  for (const PhysicsStep& s : steps) {
+OJson StepToJson(const PhysicsStep& s) {
     OJson e = OJson::object();
     e["number"] = s.number;
     e["what"] = s.what;
@@ -121,6 +196,31 @@ OJson StepsToJson(const std::vector<PhysicsStep>& steps) {
     e["least_clearance_t"] = Seconds(s.least_clearance_t);
     e["plan_least_clearance_m"] = Seconds(s.plan_least_clearance_m);
     e["counted"] = s.counted;
+    return e;
+}
+
+OJson StepsToJson(const std::vector<PhysicsStep>& steps) {
+  OJson out = OJson::array();
+  for (const PhysicsStep& s : steps) out.push_back(StepToJson(s));
+  return out;
+}
+
+OJson RailsToJson(const std::vector<PhysicsRailSet>& rails) {
+  OJson out = OJson::array();
+  for (const PhysicsRailSet& r : rails) {
+    OJson e = OJson::object();
+    e["rail"] = r.rail;
+    e["step"] = StepToJson(r.step);
+    OJson torque = OJson::array();
+    for (const double t : r.torque_ratio) torque.push_back(Fine(t));
+    e["torque_ratio"] = torque;
+    OJson pose = OJson::object();
+    pose["across_mm"] = Fine(r.pose.across_mm);
+    pose["along_mm"] = Fine(r.pose.along_mm);
+    pose["round_deg"] = Fine(r.pose.round_deg);
+    pose["yaw_deg"] = Fine(r.pose.yaw_deg);
+    pose["height_mm"] = Fine(r.pose.height_mm);
+    e["pose"] = pose;
     out.push_back(e);
   }
   return out;
@@ -136,30 +236,50 @@ OJson SetDownToJson(const SetDown& d) {
   return out;
 }
 
+PhysicsStep StepFromJson(const nlohmann::json& e) {
+  PhysicsStep s;
+  s.number = e.at("number").get<int>();
+  s.what = e.at("what").get<std::string>();
+  s.arm = e.at("arm").get<std::string>();
+  s.start_s = e.at("start_s").get<double>();
+  s.end_s = e.at("end_s").get<double>();
+  s.planned_s = e.at("planned_s").get<double>();
+  s.max_joint_error_mrad = e.at("max_joint_error_mrad").get<double>();
+  s.max_frame_error_mm = e.at("max_frame_error_mm").get<double>();
+  s.max_frame_error_deg = e.at("max_frame_error_deg").get<double>();
+  s.least_clearance_m = e.at("least_clearance_m").get<double>();
+  s.least_clearance_pair = e.at("least_clearance_pair").get<std::string>();
+  s.least_clearance_t = e.at("least_clearance_t").get<double>();
+  s.plan_least_clearance_m = e.at("plan_least_clearance_m").get<double>();
+  s.counted = e.at("counted").get<bool>();
+  return s;
+}
+
+PhysicsRailSet RailFromJson(const nlohmann::json& e) {
+  PhysicsRailSet r;
+  r.rail = e.at("rail").get<int>();
+  r.step = StepFromJson(e.at("step"));
+  const nlohmann::json& torque = e.at("torque_ratio");
+  if (torque.size() != r.torque_ratio.size()) {
+    throw std::runtime_error("a rail set's torque_ratio needs 7 values");
+  }
+  for (size_t i = 0; i < r.torque_ratio.size(); ++i) r.torque_ratio[i] = torque.at(i).get<double>();
+  const nlohmann::json& p = e.at("pose");
+  r.pose.across_mm = p.at("across_mm").get<double>();
+  r.pose.along_mm = p.at("along_mm").get<double>();
+  r.pose.round_deg = p.at("round_deg").get<double>();
+  r.pose.yaw_deg = p.at("yaw_deg").get<double>();
+  r.pose.height_mm = p.at("height_mm").get<double>();
+  return r;
+}
+
 // The fields of one take, from the take's object or, for a record of one
 // take, from the record's own.
 PhysicsTake TakeFromJson(const nlohmann::json& j) {
   PhysicsTake t;
   t.module = j.at("module").get<int>();
   t.take = j.at("take").get<int>();
-  for (const nlohmann::json& e : j.at("steps")) {
-    PhysicsStep s;
-    s.number = e.at("number").get<int>();
-    s.what = e.at("what").get<std::string>();
-    s.arm = e.at("arm").get<std::string>();
-    s.start_s = e.at("start_s").get<double>();
-    s.end_s = e.at("end_s").get<double>();
-    s.planned_s = e.at("planned_s").get<double>();
-    s.max_joint_error_mrad = e.at("max_joint_error_mrad").get<double>();
-    s.max_frame_error_mm = e.at("max_frame_error_mm").get<double>();
-    s.max_frame_error_deg = e.at("max_frame_error_deg").get<double>();
-    s.least_clearance_m = e.at("least_clearance_m").get<double>();
-    s.least_clearance_pair = e.at("least_clearance_pair").get<std::string>();
-    s.least_clearance_t = e.at("least_clearance_t").get<double>();
-    s.plan_least_clearance_m = e.at("plan_least_clearance_m").get<double>();
-    s.counted = e.at("counted").get<bool>();
-    t.steps.push_back(s);
-  }
+  for (const nlohmann::json& e : j.at("steps")) t.steps.push_back(StepFromJson(e));
   const nlohmann::json& d = j.at("set_down");
   t.set_down.offset_mm = d.at("offset_mm").get<double>();
   t.set_down.across_mm = d.at("across_mm").get<double>();
@@ -201,6 +321,15 @@ std::string PhysicsRecordToJson(const PhysicsRecord& record) {
     }
     j["takes"] = takes;
   }
+  if (!record.rails.empty()) {
+    OJson g = OJson::object();
+    g["across_mm"] = Fine(record.rail_gate.across_mm);
+    g["along_mm"] = Fine(record.rail_gate.along_mm);
+    g["round_deg"] = Fine(record.rail_gate.round_deg);
+    g["yaw_deg"] = Fine(record.rail_gate.yaw_deg);
+    j["rail_gate"] = g;
+    j["rails"] = RailsToJson(record.rails);
+  }
   j["counted_s"] = Seconds(record.counted_s);
   return j.dump(2) + "\n";
 }
@@ -222,9 +351,20 @@ std::optional<PhysicsRecord> PhysicsRecordFromJson(const std::string& text,
     } else {
       r.takes.push_back(TakeFromJson(j));
     }
+    if (j.contains("rails")) {
+      const nlohmann::json& g = j.at("rail_gate");
+      r.rail_gate.across_mm = g.at("across_mm").get<double>();
+      r.rail_gate.along_mm = g.at("along_mm").get<double>();
+      r.rail_gate.round_deg = g.at("round_deg").get<double>();
+      r.rail_gate.yaw_deg = g.at("yaw_deg").get<double>();
+      for (const nlohmann::json& e : j.at("rails")) r.rails.push_back(RailFromJson(e));
+    }
     r.counted_s = j.at("counted_s").get<double>();
     return r;
   } catch (const nlohmann::json::exception& e) {
+    *error = std::string("not a physics record: ") + e.what();
+    return std::nullopt;
+  } catch (const std::runtime_error& e) {
     *error = std::string("not a physics record: ") + e.what();
     return std::nullopt;
   }
@@ -246,7 +386,7 @@ std::vector<std::string> CheckPhysicsRecord(const PhysicsRecord& record,
     return std::abs(a - b) > kSecondsTolerance;
   };
   // One bay, counted once.
-  if (record.takes.empty()) faults.push_back("the record holds no take");
+  if (record.takes.empty() && record.rails.empty()) faults.push_back("the record holds no take");
   std::set<int> modules;
   std::set<int> bays;
   for (const PhysicsTake& take : record.takes) {
@@ -264,54 +404,71 @@ std::vector<std::string> CheckPhysicsRecord(const PhysicsRecord& record,
       }
     }
   }
+  std::set<int> rails;
+  for (const PhysicsRailSet& set : record.rails) {
+    if (!rails.insert(set.rail).second) {
+      faults.push_back("rail " + std::to_string(set.rail) +
+                       " is set by two rail sets: one bay counts each rail once");
+    }
+    if (set.step.what != "set rail " + std::to_string(set.rail)) {
+      faults.push_back("the rail set of rail " + std::to_string(set.rail) + " is of step \"" +
+                       set.step.what + "\"");
+    }
+    for (const StepTime& t : plan.steps) {
+      if (t.number == set.step.number) bays.insert(t.bay);
+    }
+  }
   if (bays.size() > 1) {
     faults.push_back("the record holds steps of " + std::to_string(bays.size()) +
                      " bays: it counts one bay");
   }
-  for (const PhysicsTake& take : record.takes) {
-    for (const PhysicsStep& s : take.steps) {
-      const std::string name = "step " + std::to_string(s.number);
-      const StepTime* found = nullptr;
-      for (const StepTime& t : plan.steps) {
-        if (t.number == s.number) {
-          found = &t;
-          break;
-        }
-      }
-      if (found == nullptr) {
-        faults.push_back(name + " is not a step of the plan");
-      } else {
-        if (s.what != found->what) {
-          faults.push_back(name + " is \"" + s.what + "\", the plan's is \"" +
-                           found->what + "\"");
-        }
-        if (s.arm != found->arm) {
-          faults.push_back(name + " is of arm " + s.arm + ", the plan's is " +
-                           found->arm);
-        }
-        if (differs(s.start_s, found->start)) {
-          faults.push_back(name + " starts at " + std::to_string(s.start_s) +
-                           " s, the plan's at " + std::to_string(found->start) +
-                           " s");
-        }
-        if (differs(s.end_s, found->end)) {
-          faults.push_back(name + " ends at " + std::to_string(s.end_s) +
-                           " s, the plan's at " + std::to_string(found->end) +
-                           " s");
-        }
-        if (differs(s.planned_s, found->end - found->start)) {
-          faults.push_back(name + " has planned_s " +
-                           std::to_string(s.planned_s) + " s, the plan's is " +
-                           std::to_string(found->end - found->start) + " s");
-        }
-      }
-      if (s.counted != StepCounts(record, take, s)) {
-        faults.push_back(name + " is stored as " +
-                         (s.counted ? "counted" : "not counted") +
-                         ", the rule gives the other");
+  // A step against the plan's, and its stored flag against the rule.
+  auto check_step = [&](const PhysicsStep& s, bool counts) {
+    const std::string name = "step " + std::to_string(s.number);
+    const StepTime* found = nullptr;
+    for (const StepTime& t : plan.steps) {
+      if (t.number == s.number) {
+        found = &t;
+        break;
       }
     }
+    if (found == nullptr) {
+      faults.push_back(name + " is not a step of the plan");
+    } else {
+      if (s.what != found->what) {
+        faults.push_back(name + " is \"" + s.what + "\", the plan's is \"" +
+                         found->what + "\"");
+      }
+      if (s.arm != found->arm) {
+        faults.push_back(name + " is of arm " + s.arm + ", the plan's is " +
+                         found->arm);
+      }
+      if (differs(s.start_s, found->start)) {
+        faults.push_back(name + " starts at " + std::to_string(s.start_s) +
+                         " s, the plan's at " + std::to_string(found->start) +
+                         " s");
+      }
+      if (differs(s.end_s, found->end)) {
+        faults.push_back(name + " ends at " + std::to_string(s.end_s) +
+                         " s, the plan's at " + std::to_string(found->end) +
+                         " s");
+      }
+      if (differs(s.planned_s, found->end - found->start)) {
+        faults.push_back(name + " has planned_s " +
+                         std::to_string(s.planned_s) + " s, the plan's is " +
+                         std::to_string(found->end - found->start) + " s");
+      }
+    }
+    if (s.counted != counts) {
+      faults.push_back(name + " is stored as " +
+                       (s.counted ? "counted" : "not counted") +
+                       ", the rule gives the other");
+    }
+  };
+  for (const PhysicsTake& take : record.takes) {
+    for (const PhysicsStep& s : take.steps) check_step(s, StepCounts(record, take, s));
   }
+  for (const PhysicsRailSet& set : record.rails) check_step(set.step, RailSetCounts(record, set));
   if (differs(record.counted_s, CountedSeconds(record))) {
     faults.push_back("counted_s is " + std::to_string(record.counted_s) +
                      " s, the steps that count add up to " +

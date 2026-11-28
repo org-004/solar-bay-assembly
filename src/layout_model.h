@@ -126,6 +126,11 @@ struct LayoutState {
   // the module_take index of the first pallet's module that is free.
   std::string physics_arm;
   int carried_take = -1;
+  // With physics_arm set, rail carried_rail (not on the tube) is also a free
+  // body "carried_rail" (strap open on the flat racks), at its designed
+  // place, with a weld "rail_grip", off, from "<arm>_tool_mount" to it, and
+  // its pose after the carried module's in the keyframe (run 074). -1: none.
+  int carried_rail = -1;
 };
 
 // The track servo of a physics arm (ours). The moving mass on the track is

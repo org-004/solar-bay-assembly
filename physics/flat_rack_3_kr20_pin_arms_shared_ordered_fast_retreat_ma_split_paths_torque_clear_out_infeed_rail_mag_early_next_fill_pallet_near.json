@@ -413,5 +413,363 @@
       }
     }
   ],
-  "counted_s": 186.32265
+  "rail_gate": {
+    "across_mm": 0.928,
+    "along_mm": 2.606,
+    "round_deg": 0.8576,
+    "yaw_deg": 0.8251
+  },
+  "rails": [
+    {
+      "rail": 0,
+      "step": {
+        "number": 4,
+        "what": "set rail 0",
+        "arm": "module_arm",
+        "start_s": 45.0,
+        "end_s": 55.159989,
+        "planned_s": 10.159989,
+        "max_joint_error_mrad": 0.075,
+        "max_frame_error_mm": 0.1103,
+        "max_frame_error_deg": 0.0155,
+        "least_clearance_m": 0.019398,
+        "least_clearance_pair": "module_arm_tool_combined_gripper_plate to pallet_module_0_frame_long_b",
+        "least_clearance_t": 46.44,
+        "plan_least_clearance_m": 0.019403,
+        "counted": true
+      },
+      "torque_ratio": [
+        0.3467,
+        0.499,
+        0.628,
+        0.2441,
+        0.3876,
+        0.1319,
+        0.5923
+      ],
+      "pose": {
+        "across_mm": 0.0023,
+        "along_mm": 0.0073,
+        "round_deg": 0.0011,
+        "yaw_deg": 0.0,
+        "height_mm": -0.0005
+      }
+    },
+    {
+      "rail": 1,
+      "step": {
+        "number": 5,
+        "what": "set rail 1",
+        "arm": "module_arm",
+        "start_s": 55.159989,
+        "end_s": 61.572359,
+        "planned_s": 6.41237,
+        "max_joint_error_mrad": 0.0139,
+        "max_frame_error_mm": 0.0434,
+        "max_frame_error_deg": 0.0027,
+        "least_clearance_m": 0.040776,
+        "least_clearance_pair": "module_arm_tool_combined_gripper_plate to pin_arm_a_tool_nutrunner_body",
+        "least_clearance_t": 55.699989,
+        "plan_least_clearance_m": 0.040812,
+        "counted": true
+      },
+      "torque_ratio": [
+        0.2097,
+        0.4712,
+        0.2973,
+        0.0371,
+        0.0813,
+        0.0154,
+        0.5812
+      ],
+      "pose": {
+        "across_mm": 0.0037,
+        "along_mm": -0.0029,
+        "round_deg": 0.002,
+        "yaw_deg": 0.0,
+        "height_mm": -0.0005
+      }
+    },
+    {
+      "rail": 2,
+      "step": {
+        "number": 6,
+        "what": "set rail 2",
+        "arm": "module_arm",
+        "start_s": 61.572359,
+        "end_s": 68.469558,
+        "planned_s": 6.897199,
+        "max_joint_error_mrad": 0.0138,
+        "max_frame_error_mm": 0.0259,
+        "max_frame_error_deg": 0.0015,
+        "least_clearance_m": 0.049985,
+        "least_clearance_pair": "module_arm_held_rail_strap_open_pos to bay_rail_1_top",
+        "least_clearance_t": 61.582359,
+        "plan_least_clearance_m": 0.050001,
+        "counted": true
+      },
+      "torque_ratio": [
+        0.094,
+        0.4711,
+        0.2941,
+        0.0196,
+        0.0813,
+        0.0,
+        0.5188
+      ],
+      "pose": {
+        "across_mm": 0.0037,
+        "along_mm": -0.0029,
+        "round_deg": 0.0013,
+        "yaw_deg": 0.0,
+        "height_mm": -0.0005
+      }
+    },
+    {
+      "rail": 3,
+      "step": {
+        "number": 7,
+        "what": "set rail 3",
+        "arm": "module_arm",
+        "start_s": 68.469558,
+        "end_s": 75.366757,
+        "planned_s": 6.897199,
+        "max_joint_error_mrad": 0.0138,
+        "max_frame_error_mm": 0.0259,
+        "max_frame_error_deg": 0.0015,
+        "least_clearance_m": 0.045603,
+        "least_clearance_pair": "module_arm_held_rail_foot_a_pos to holder_stand_4_cheek_neg",
+        "least_clearance_t": 71.819558,
+        "plan_least_clearance_m": 0.045607,
+        "counted": true
+      },
+      "torque_ratio": [
+        0.094,
+        0.4711,
+        0.2941,
+        0.0196,
+        0.0813,
+        0.0,
+        0.5188
+      ],
+      "pose": {
+        "across_mm": 0.0037,
+        "along_mm": -0.0029,
+        "round_deg": 0.0046,
+        "yaw_deg": 0.0,
+        "height_mm": -0.0005
+      }
+    },
+    {
+      "rail": 4,
+      "step": {
+        "number": 8,
+        "what": "set rail 4",
+        "arm": "module_arm",
+        "start_s": 75.366757,
+        "end_s": 82.263955,
+        "planned_s": 6.897198,
+        "max_joint_error_mrad": 0.0138,
+        "max_frame_error_mm": 0.0259,
+        "max_frame_error_deg": 0.0015,
+        "least_clearance_m": 0.049985,
+        "least_clearance_pair": "module_arm_held_rail_strap_open_pos to bay_rail_3_top",
+        "least_clearance_t": 75.376757,
+        "plan_least_clearance_m": 0.050001,
+        "counted": true
+      },
+      "torque_ratio": [
+        0.094,
+        0.4711,
+        0.2941,
+        0.0196,
+        0.0813,
+        0.0,
+        0.5188
+      ],
+      "pose": {
+        "across_mm": 0.0037,
+        "along_mm": -0.0029,
+        "round_deg": 0.006,
+        "yaw_deg": 0.0,
+        "height_mm": -0.0005
+      }
+    },
+    {
+      "rail": 5,
+      "step": {
+        "number": 9,
+        "what": "set rail 5",
+        "arm": "module_arm",
+        "start_s": 82.263955,
+        "end_s": 89.161154,
+        "planned_s": 6.897199,
+        "max_joint_error_mrad": 0.0138,
+        "max_frame_error_mm": 0.0259,
+        "max_frame_error_deg": 0.0015,
+        "least_clearance_m": 0.045603,
+        "least_clearance_pair": "module_arm_held_rail_foot_a_pos to holder_stand_6_cheek_neg",
+        "least_clearance_t": 85.613955,
+        "plan_least_clearance_m": 0.045607,
+        "counted": true
+      },
+      "torque_ratio": [
+        0.094,
+        0.4711,
+        0.2941,
+        0.0196,
+        0.0813,
+        0.0,
+        0.5188
+      ],
+      "pose": {
+        "across_mm": 0.0037,
+        "along_mm": -0.0029,
+        "round_deg": 0.0005,
+        "yaw_deg": 0.0,
+        "height_mm": -0.0005
+      }
+    },
+    {
+      "rail": 6,
+      "step": {
+        "number": 10,
+        "what": "set rail 6",
+        "arm": "module_arm",
+        "start_s": 89.161154,
+        "end_s": 96.058353,
+        "planned_s": 6.897199,
+        "max_joint_error_mrad": 0.0138,
+        "max_frame_error_mm": 0.0259,
+        "max_frame_error_deg": 0.0015,
+        "least_clearance_m": 0.049985,
+        "least_clearance_pair": "module_arm_held_rail_strap_open_pos to bay_rail_5_top",
+        "least_clearance_t": 89.171154,
+        "plan_least_clearance_m": 0.050001,
+        "counted": true
+      },
+      "torque_ratio": [
+        0.094,
+        0.4711,
+        0.2941,
+        0.0196,
+        0.0813,
+        0.0,
+        0.5188
+      ],
+      "pose": {
+        "across_mm": 0.0037,
+        "along_mm": -0.0029,
+        "round_deg": 0.0013,
+        "yaw_deg": 0.0,
+        "height_mm": -0.0005
+      }
+    },
+    {
+      "rail": 7,
+      "step": {
+        "number": 11,
+        "what": "set rail 7",
+        "arm": "module_arm",
+        "start_s": 96.058353,
+        "end_s": 102.955551,
+        "planned_s": 6.897198,
+        "max_joint_error_mrad": 0.0138,
+        "max_frame_error_mm": 0.0259,
+        "max_frame_error_deg": 0.0015,
+        "least_clearance_m": 0.045603,
+        "least_clearance_pair": "module_arm_held_rail_foot_a_pos to holder_stand_8_cheek_neg",
+        "least_clearance_t": 99.408353,
+        "plan_least_clearance_m": 0.045607,
+        "counted": true
+      },
+      "torque_ratio": [
+        0.094,
+        0.4711,
+        0.2941,
+        0.0196,
+        0.0813,
+        0.0,
+        0.5188
+      ],
+      "pose": {
+        "across_mm": 0.0037,
+        "along_mm": -0.0029,
+        "round_deg": 0.0013,
+        "yaw_deg": 0.0,
+        "height_mm": -0.0005
+      }
+    },
+    {
+      "rail": 8,
+      "step": {
+        "number": 12,
+        "what": "set rail 8",
+        "arm": "module_arm",
+        "start_s": 102.955551,
+        "end_s": 109.85275,
+        "planned_s": 6.897199,
+        "max_joint_error_mrad": 0.0138,
+        "max_frame_error_mm": 0.0259,
+        "max_frame_error_deg": 0.0015,
+        "least_clearance_m": 0.049985,
+        "least_clearance_pair": "module_arm_held_rail_strap_open_pos to bay_rail_7_top",
+        "least_clearance_t": 102.965551,
+        "plan_least_clearance_m": 0.050001,
+        "counted": true
+      },
+      "torque_ratio": [
+        0.094,
+        0.4711,
+        0.2941,
+        0.0196,
+        0.0813,
+        0.0,
+        0.5188
+      ],
+      "pose": {
+        "across_mm": 0.0037,
+        "along_mm": -0.0029,
+        "round_deg": 0.0013,
+        "yaw_deg": 0.0,
+        "height_mm": -0.0005
+      }
+    },
+    {
+      "rail": 9,
+      "step": {
+        "number": 13,
+        "what": "set rail 9",
+        "arm": "module_arm",
+        "start_s": 109.85275,
+        "end_s": 116.154884,
+        "planned_s": 6.302134,
+        "max_joint_error_mrad": 0.0152,
+        "max_frame_error_mm": 0.0517,
+        "max_frame_error_deg": 0.0032,
+        "least_clearance_m": 0.014645,
+        "least_clearance_pair": "module_arm_arm_link_2_collision to pin_arm_c_tool_nutrunner_socket",
+        "least_clearance_t": 110.63275,
+        "plan_least_clearance_m": 0.014636,
+        "counted": false
+      },
+      "torque_ratio": [
+        0.2664,
+        0.5099,
+        0.2946,
+        0.0432,
+        0.0799,
+        0.021,
+        0.6056
+      ],
+      "pose": {
+        "across_mm": 0.0312,
+        "along_mm": -0.0608,
+        "round_deg": 0.0453,
+        "yaw_deg": 0.0,
+        "height_mm": -0.0005
+      }
+    }
+  ],
+  "counted_s": 251.1754
 }
