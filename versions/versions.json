@@ -753,9 +753,9 @@
       "commit": "this",
       "title": "One 40 ft flat rack, three KR 20 pin arms on one shared beam, three modules to each pin arm in turns, each move the quickest of 8 paths, the module arm within 0.90 of its motors, the bay out once it is clear, the next tube in over it from an infeed unit: three bays planned",
       "direction": "one-40ft-flat-rack",
-      "status": "chosen",
+      "status": "superseded",
       "changed": "v20's cell and layout with one part added and nothing else: an infeed unit (item infeed_unit, a 1.2 x 10.0 x 1.8 m bed, 800 kg, basis ours) at a tubes_in port and zone of its own beyond the transfer cart at -X (run 053), so the next tube comes in 0.45 m above its place over the bay going out (5.10 m in 40 s) and is lowered into the saddles, and the cart only takes bays out. Bay b+1's tube_in starts once the holder is empty, so the two ways overlap 38.41 s at each boundary. Three bays are planned whole, 378 of 378 moves, 26 of them slowed (14.30 s of motion added), verified and committed: 496.59 s for one bay and a cycle time of 470.68 s over three (boundaries 496.59 / 463.54 / 451.90 s); the incoming tube passes 0.1140 m above the outgoing bay's lifted modules.",
-      "why": "Weighed against v20: 25.48 s a bay quicker (470.68 s against 496.16 s) by overlapping the next tube's way with the bay going out, at the price of one part (38 against 37); the paths, the order of work and the slowed moves are v20's, and torque_demand over the three bays finds no module arm move over 0.90 of a motor's limit. The infeed unit's carriage is not modelled (docs/infeed-unit.md). Registered as a candidate weighed against v20 and made the chosen version in the same run (run 054): in physics v21's record take (module 5, the same take and set as v20's, at the same times) keeps every module arm joint below its limit (joint 1 0.973 on the take, 0.597 at most on the set); v20 is superseded with its numbers kept.",
+      "why": "Weighed against v20: 25.48 s a bay quicker (470.68 s against 496.16 s) by overlapping the next tube's way with the bay going out, at the price of one part (38 against 37); the paths, the order of work and the slowed moves are v20's, and torque_demand over the three bays finds no module arm move over 0.90 of a motor's limit. The infeed unit's carriage is not modelled (docs/infeed-unit.md). Registered as a candidate weighed against v20 and made the chosen version in the same run (run 054): in physics v21's record take (module 5, the same take and set as v20's, at the same times) keeps every module arm joint below its limit (joint 1 0.973 on the take, 0.597 at most on the set); v20 is superseded with its numbers kept. Superseded by v22 (run 057): v22 carries the ten rails of a bay in a magazine on the module arm's gripper and sets them with no trip back, and is 52.37 s a bay quicker (418.31 s against 470.68 s) at the price of one part (39 against 38).",
       "recording": "docs/evolution/v21.gif",
       "competed_with": "v20",
       "layout": {
@@ -767,6 +767,27 @@
         "sha256": "d6c41bd7cca2989207cc1515c2cfea8bbc82ea0fdcaf9bd4e148827c04a32473"
       },
       "scores": "scores/flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque_clear_out_infeed.json"
+    },
+    {
+      "id": "v22",
+      "date": "2026-11-28",
+      "commit": "this",
+      "title": "One 40 ft flat rack, three KR 20 pin arms on one shared beam, three modules to each pin arm in turns, each move the quickest of 8 paths, the module arm within 0.90 of its motors, the bay out once it is clear, the next tube in over it from an infeed unit, ten rails at once in a magazine on the gripper: three bays planned",
+      "direction": "one-40ft-flat-rack",
+      "status": "chosen",
+      "changed": "v21's cell and layout with one part added and nothing else: a rail magazine (item rail_magazine, 12 kg and two 0.5 x 0.5 x 0.15 m boxes on the module arm's combined gripper, basis ours; run 056), so the module arm takes all ten rails of a bay at one take and sets them one after another along its track with no trip back to the rail rack. The tool load is 48 kg + a module's 32.4 kg = 80.4 kg of the arm's 210 kg; 945 of 945 checker rows pass. Three bays are planned whole (budgets 5000,40000,160000,640000), 351 of 351 moves, 30 of the module arm's 90 slowed (20.08 s of motion added), verified and committed: 442.03 s for one bay and a cycle time of 418.31 s over three (bay ends 442.03 / 858.63 / 1254.92 s, interval 396.30 s); the ways still overlap 38.41 s at each boundary.",
+      "why": "Weighed against v21: 52.37 s a bay quicker (418.31 s against 470.68 s) by taking the ten rails in one take instead of ten round trips, at the price of one part (39 against 38); torque_demand over the three bays finds no module arm move over 0.90 of a motor's limit. The magazine's indexing drive and how the rail rack fills it are not modelled (docs/rail-magazine.md). Registered as a candidate weighed against v21 and made the chosen version in the same run (run 057): in physics v22's record take (module 1, module_take 3, plan steps 71 and 72) keeps every module arm joint below its limit with the magazine's 12 kg on the gripper (joint 1 0.968 on the take, 0.865 at most on the set); v21 is superseded with its numbers kept.",
+      "recording": "docs/evolution/v22.gif",
+      "competed_with": "v21",
+      "layout": {
+        "path": "layouts/flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque_clear_out_infeed_rail_mag.json",
+        "sha256": "13f60ea94ac0aed2585d8390179e14fa6300156fba4dfc183b022771fe27a586"
+      },
+      "plan": {
+        "path": "plans/flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque_clear_out_infeed_rail_mag.json",
+        "sha256": "2278440bbb0b2a1a8f16a30c4e8add3cfc5367db4cf417048f0625db11b5e534"
+      },
+      "scores": "scores/flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque_clear_out_infeed_rail_mag.json"
     }
   ]
 }

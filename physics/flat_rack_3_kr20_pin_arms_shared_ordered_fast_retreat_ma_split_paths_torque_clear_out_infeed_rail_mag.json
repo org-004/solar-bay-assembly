@@ -1,0 +1,53 @@
+{
+  "layout": "flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque_clear_out_infeed_rail_mag",
+  "layout_sha256": "13f60ea94ac0aed2585d8390179e14fa6300156fba4dfc183b022771fe27a586",
+  "plan_sha256": "2278440bbb0b2a1a8f16a30c4e8add3cfc5367db4cf417048f0625db11b5e534",
+  "command": "bazel run --config=opt //:run_physics -- flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque_clear_out_infeed_rail_mag --write",
+  "module": 1,
+  "take": 3,
+  "clearance_m": 0.015,
+  "gate_offset_mm": 3.0,
+  "gate_yaw_deg": 0.15,
+  "steps": [
+    {
+      "number": 71,
+      "what": "take module 1",
+      "arm": "module_arm",
+      "start_s": 206.868118,
+      "end_s": 219.24818,
+      "planned_s": 12.380062,
+      "max_joint_error_mrad": 0.6197,
+      "max_frame_error_mm": 0.6415,
+      "max_frame_error_deg": 0.0449,
+      "least_clearance_m": 0.01858,
+      "least_clearance_pair": "module_arm_tool_combined_gripper_magazine_pos_x to bay_module_6_flange_short_b",
+      "least_clearance_t": 210.208118,
+      "plan_least_clearance_m": 0.018578,
+      "counted": true
+    },
+    {
+      "number": 72,
+      "what": "set module 1",
+      "arm": "module_arm",
+      "start_s": 219.24818,
+      "end_s": 229.898683,
+      "planned_s": 10.650503,
+      "max_joint_error_mrad": 2.9227,
+      "max_frame_error_mm": 0.8737,
+      "max_frame_error_deg": 0.1726,
+      "least_clearance_m": 0.01923,
+      "least_clearance_pair": "module_arm_held_module_frame_long_a to pin_arm_a_tool_pin_tool_nose",
+      "least_clearance_t": 229.258118,
+      "plan_least_clearance_m": 0.019443,
+      "counted": true
+    }
+  ],
+  "set_down": {
+    "offset_mm": 0.204,
+    "across_mm": 0.0419,
+    "along_mm": -0.1997,
+    "yaw_deg": 0.0053,
+    "height_mm": -0.0001
+  },
+  "counted_s": 23.030565
+}

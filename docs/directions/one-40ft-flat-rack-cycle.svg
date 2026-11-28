@@ -16,44 +16,47 @@
 <text x="66" y="48.00" text-anchor="end" fill="#444444">1000</text>
 <line x1="72" y1="244" x2="616" y2="244" stroke="#444444"/>
 <text transform="translate(16 144.00) rotate(-90)" text-anchor="middle" fill="#444444">cycle time (s per bay)</text>
-<text x="92.92" y="260" text-anchor="middle" fill="#444444">v05</text>
-<text x="134.77" y="260" text-anchor="middle" fill="#444444">v06</text>
-<text x="176.62" y="260" text-anchor="middle" fill="#444444">v07</text>
-<text x="218.46" y="260" text-anchor="middle" fill="#444444">v08</text>
-<text x="260.31" y="260" text-anchor="middle" fill="#444444">v09</text>
-<text x="302.15" y="260" text-anchor="middle" fill="#444444">v10</text>
-<text x="344.00" y="260" text-anchor="middle" fill="#444444">v15</text>
-<text x="385.85" y="260" text-anchor="middle" fill="#444444">v16</text>
-<text x="427.69" y="260" text-anchor="middle" fill="#444444">v17</text>
-<text x="469.54" y="260" text-anchor="middle" fill="#444444">v18</text>
-<text x="511.38" y="260" text-anchor="middle" fill="#444444">v19</text>
-<text x="553.23" y="260" text-anchor="middle" fill="#444444">v20</text>
-<text x="595.08" y="260" text-anchor="middle" fill="#444444">v21</text>
-<polyline fill="none" stroke="#1f5fa8" stroke-width="1.5" points="134.77,118.30 260.31,119.54 302.15,133.09 385.85,129.49 427.69,138.47 469.54,144.29 511.38,143.57 553.23,144.77 595.08,149.86"/>
-<circle cx="134.77" cy="118.30" r="5" fill="#ffffff" stroke="#1f5fa8" stroke-width="2"/>
-<text x="134.77" y="108.30" text-anchor="middle" fill="#222222">628.50 (1 bay)</text>
-<circle cx="176.62" cy="62.53" r="5" fill="#9aa5b1" stroke="#9aa5b1" stroke-width="2"/>
-<text x="176.62" y="52.53" text-anchor="middle" fill="#222222">907.34 (1 bay)</text>
-<circle cx="218.46" cy="106.75" r="5" fill="#9aa5b1" stroke="#9aa5b1" stroke-width="2"/>
-<text x="218.46" y="96.75" text-anchor="middle" fill="#222222">686.26</text>
-<circle cx="260.31" cy="119.54" r="5" fill="#1f5fa8" stroke="#1f5fa8" stroke-width="2"/>
-<text x="260.31" y="109.54" text-anchor="middle" fill="#222222">622.31</text>
-<circle cx="302.15" cy="133.09" r="5" fill="#1f5fa8" stroke="#1f5fa8" stroke-width="2"/>
-<text x="302.15" y="123.09" text-anchor="middle" fill="#222222">554.55</text>
-<circle cx="344.00" cy="121.52" r="5" fill="#9aa5b1" stroke="#9aa5b1" stroke-width="2"/>
-<text x="344.00" y="111.52" text-anchor="middle" fill="#222222">612.40</text>
-<circle cx="385.85" cy="129.49" r="5" fill="#1f5fa8" stroke="#1f5fa8" stroke-width="2"/>
-<text x="385.85" y="119.49" text-anchor="middle" fill="#222222">572.56</text>
-<circle cx="427.69" cy="138.47" r="5" fill="#1f5fa8" stroke="#1f5fa8" stroke-width="2"/>
-<text x="427.69" y="128.47" text-anchor="middle" fill="#222222">527.64</text>
-<circle cx="469.54" cy="144.29" r="5" fill="#1f5fa8" stroke="#1f5fa8" stroke-width="2"/>
-<text x="469.54" y="134.29" text-anchor="middle" fill="#222222">498.55</text>
-<circle cx="511.38" cy="143.57" r="5" fill="#1f5fa8" stroke="#1f5fa8" stroke-width="2"/>
-<text x="511.38" y="133.57" text-anchor="middle" fill="#222222">502.13</text>
-<circle cx="553.23" cy="144.77" r="5" fill="#1f5fa8" stroke="#1f5fa8" stroke-width="2"/>
-<text x="553.23" y="134.77" text-anchor="middle" fill="#222222">496.16</text>
-<circle cx="595.08" cy="149.86" r="5" fill="#1f5fa8" stroke="#1f5fa8" stroke-width="2"/>
-<text x="595.08" y="139.86" text-anchor="middle" fill="#222222">470.68</text>
+<text x="91.43" y="260" text-anchor="middle" fill="#444444">v05</text>
+<text x="130.29" y="260" text-anchor="middle" fill="#444444">v06</text>
+<text x="169.14" y="260" text-anchor="middle" fill="#444444">v07</text>
+<text x="208.00" y="260" text-anchor="middle" fill="#444444">v08</text>
+<text x="246.86" y="260" text-anchor="middle" fill="#444444">v09</text>
+<text x="285.71" y="260" text-anchor="middle" fill="#444444">v10</text>
+<text x="324.57" y="260" text-anchor="middle" fill="#444444">v15</text>
+<text x="363.43" y="260" text-anchor="middle" fill="#444444">v16</text>
+<text x="402.29" y="260" text-anchor="middle" fill="#444444">v17</text>
+<text x="441.14" y="260" text-anchor="middle" fill="#444444">v18</text>
+<text x="480.00" y="260" text-anchor="middle" fill="#444444">v19</text>
+<text x="518.86" y="260" text-anchor="middle" fill="#444444">v20</text>
+<text x="557.71" y="260" text-anchor="middle" fill="#444444">v21</text>
+<text x="596.57" y="260" text-anchor="middle" fill="#444444">v22</text>
+<polyline fill="none" stroke="#1f5fa8" stroke-width="1.5" points="130.29,118.30 246.86,119.54 285.71,133.09 363.43,129.49 402.29,138.47 441.14,144.29 480.00,143.57 518.86,144.77 557.71,149.86 596.57,160.34"/>
+<circle cx="130.29" cy="118.30" r="5" fill="#ffffff" stroke="#1f5fa8" stroke-width="2"/>
+<text x="130.29" y="108.30" text-anchor="middle" fill="#222222">628.50 (1 bay)</text>
+<circle cx="169.14" cy="62.53" r="5" fill="#9aa5b1" stroke="#9aa5b1" stroke-width="2"/>
+<text x="169.14" y="52.53" text-anchor="middle" fill="#222222">907.34 (1 bay)</text>
+<circle cx="208.00" cy="106.75" r="5" fill="#9aa5b1" stroke="#9aa5b1" stroke-width="2"/>
+<text x="208.00" y="96.75" text-anchor="middle" fill="#222222">686.26</text>
+<circle cx="246.86" cy="119.54" r="5" fill="#1f5fa8" stroke="#1f5fa8" stroke-width="2"/>
+<text x="246.86" y="109.54" text-anchor="middle" fill="#222222">622.31</text>
+<circle cx="285.71" cy="133.09" r="5" fill="#1f5fa8" stroke="#1f5fa8" stroke-width="2"/>
+<text x="285.71" y="123.09" text-anchor="middle" fill="#222222">554.55</text>
+<circle cx="324.57" cy="121.52" r="5" fill="#9aa5b1" stroke="#9aa5b1" stroke-width="2"/>
+<text x="324.57" y="111.52" text-anchor="middle" fill="#222222">612.40</text>
+<circle cx="363.43" cy="129.49" r="5" fill="#1f5fa8" stroke="#1f5fa8" stroke-width="2"/>
+<text x="363.43" y="119.49" text-anchor="middle" fill="#222222">572.56</text>
+<circle cx="402.29" cy="138.47" r="5" fill="#1f5fa8" stroke="#1f5fa8" stroke-width="2"/>
+<text x="402.29" y="128.47" text-anchor="middle" fill="#222222">527.64</text>
+<circle cx="441.14" cy="144.29" r="5" fill="#1f5fa8" stroke="#1f5fa8" stroke-width="2"/>
+<text x="441.14" y="134.29" text-anchor="middle" fill="#222222">498.55</text>
+<circle cx="480.00" cy="143.57" r="5" fill="#1f5fa8" stroke="#1f5fa8" stroke-width="2"/>
+<text x="480.00" y="133.57" text-anchor="middle" fill="#222222">502.13</text>
+<circle cx="518.86" cy="144.77" r="5" fill="#1f5fa8" stroke="#1f5fa8" stroke-width="2"/>
+<text x="518.86" y="134.77" text-anchor="middle" fill="#222222">496.16</text>
+<circle cx="557.71" cy="149.86" r="5" fill="#1f5fa8" stroke="#1f5fa8" stroke-width="2"/>
+<text x="557.71" y="139.86" text-anchor="middle" fill="#222222">470.68</text>
+<circle cx="596.57" cy="160.34" r="5" fill="#1f5fa8" stroke="#1f5fa8" stroke-width="2"/>
+<text x="596.57" y="150.34" text-anchor="middle" fill="#222222">418.31</text>
 <circle cx="72" cy="284" r="4" fill="#1f5fa8" stroke="#1f5fa8" stroke-width="2"/>
 <text x="82" y="288" fill="#444444">planned</text>
 <rect x="158" y="280" width="8" height="8" fill="#1f5fa8" stroke="#1f5fa8" stroke-width="2"/>
