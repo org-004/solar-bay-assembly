@@ -794,6 +794,17 @@ are timed but not checked; the held part is not checked against the arm's own li
 edges are checked every 0.01 m of weighted motion, so 0.010 m is not a strict guarantee
 between the checked points. Seven moves of 165 steps were planned; the others are not.
 
+## Where a field is read and declared
+
+Since run 069 the reader is in two files and the structs in two headers, so that each stays
+within the line limits of `tools/architecture/deps.json`. A new **top-level** field of a
+layout is declared in `Layout` in `src/layout.h` and read in `ReadLayout` in
+`src/layout.cc` (its key goes into the list of allowed keys of `ReadLayout`'s call of
+`Fields`). A field of a **part** (an arm, a tool, a port, ...) is declared in its struct in
+`src/layout_parts.h` and read in that part's reader in `src/layout_read.cc`. The checks of
+a field's type and the error that carries the field's path are shared through
+`src/layout_read.h`; the racks and stages are read in `src/layout_racks.cc`.
+
 ## The form for two racks and for stages
 
 Since run 020 a layout may stand on two 20 ft flat racks and may work the tube in stages.
