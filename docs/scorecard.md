@@ -92,6 +92,18 @@ figure is 0 and the basis says what does not agree. The scorecard file then hold
 sha256 of the record (`physics_sha256`), so that a changed record makes the committed card
 stale.
 
+A record holds one take or several (since run 071). Each take is one module's take and the
+set after it, with its own module, `module_take` index, steps and set-down, and each step is
+judged against its own take's set-down; the figure sums the counting steps of every take.
+`run_physics <layout> --take K` writes a record of one take, in the format of the records
+written before run 071 (their text and sha256 are unchanged); `--take` given more than once,
+or `--bay 0` for every module take of bay 0, runs each take on its own from the plan's state
+at its start and writes one record with a `takes` list. One bay is counted once: the
+denominator is one bay, so a record that holds the same module twice, or steps of two bays
+of the plan (bays 1 and 2 repeat bay 0's modules), does not agree with the plan and counts
+nothing. The basis names the counting steps and the modules they belong to. A step that
+fails the rule stays in the record, uncounted.
+
 **`part_count`** (P1, lower, counted). The pieces of equipment of the cell, by the rule
 below.
 

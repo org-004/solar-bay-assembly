@@ -84,21 +84,23 @@ PhysicsStep StepOf(const Plan& plan, int number, double clearance_m) {
   return s;
 }
 
-// A record of steps 63 and 64 that agrees with the committed plan.
+// A record of steps 63 and 64 (module 4, module_take 3) that agrees with the committed plan.
 PhysicsRecord Fixture(const Plan& plan, const std::string& plan_sha) {
   PhysicsRecord r;
   r.layout = kName;
   r.layout_sha256 = "ab12";
   r.plan_sha256 = plan_sha;
   r.command = "bazel run //:run_physics -- test";
-  r.module = 4;
-  r.take = 3;
   r.clearance_m = 0.015;
   r.gate_offset_mm = 3.0;
   r.gate_yaw_deg = 0.15;
-  r.steps = {StepOf(plan, 63, 0.0212), StepOf(plan, 64, 0.0151)};
-  r.set_down = {1.2346, -0.5, 1.1, 0.0123, 0.4};
-  r.counted_s = Round6(r.steps[0].planned_s + r.steps[1].planned_s);
+  PhysicsTake take;
+  take.module = 4;
+  take.take = 3;
+  take.steps = {StepOf(plan, 63, 0.0212), StepOf(plan, 64, 0.0151)};
+  take.set_down = {1.2346, -0.5, 1.1, 0.0123, 0.4};
+  r.takes = {take};
+  r.counted_s = Round6(take.steps[0].planned_s + take.steps[1].planned_s);
   return r;
 }
 
@@ -120,12 +122,12 @@ TEST(PhysicsRecord, TheTextRoundTripsExactlyAndIsStable) {
   const std::optional<PhysicsRecord> back = PhysicsRecordFromJson(text, &error);
   ASSERT_TRUE(back.has_value()) << error;
   EXPECT_EQ(PhysicsRecordToJson(*back), text);
-  EXPECT_EQ(back->steps.size(), 2u);
-  EXPECT_EQ(back->steps[1].end_s, record.steps[1].end_s);
-  EXPECT_EQ(back->steps[0].least_clearance_pair, "gripper to rails");
-  EXPECT_EQ(back->set_down.offset_mm, 1.2346);
+  EXPECT_EQ(back->takes[0].steps.size(), 2u);
+  EXPECT_EQ(back->takes[0].steps[1].end_s, record.takes[0].steps[1].end_s);
+  EXPECT_EQ(back->takes[0].steps[0].least_clearance_pair, "gripper to rails");
+  EXPECT_EQ(back->takes[0].set_down.offset_mm, 1.2346);
   EXPECT_EQ(back->counted_s, record.counted_s);
-  EXPECT_TRUE(back->steps[0].counted);
+  EXPECT_TRUE(back->takes[0].steps[0].counted);
 }
 
 TEST(PhysicsRecord, AMissingFieldIsAnError) {
@@ -145,28 +147,28 @@ TEST(PhysicsRecord, AMissingFieldIsAnError) {
 TEST(PhysicsRecord, TheRuleOfWhatCounts) {
   const Plan plan = LoadPlan(kName);
   PhysicsRecord r = Fixture(plan, "x");
-  PhysicsStep step = r.steps[0];
+  PhysicsStep step = r.takes[0].steps[0];
   step.least_clearance_m = 0.015;
-  EXPECT_TRUE(StepCounts(r, step));
+  EXPECT_TRUE(StepCounts(r, r.takes[0], step));
   step.least_clearance_m = 0.014999;
-  EXPECT_FALSE(StepCounts(r, step));
+  EXPECT_FALSE(StepCounts(r, r.takes[0], step));
   step.least_clearance_m = 0.02;
-  r.set_down.offset_mm = 3.0;
-  EXPECT_TRUE(StepCounts(r, step));
-  r.set_down.offset_mm = 3.0001;
-  EXPECT_FALSE(StepCounts(r, step));
-  r.set_down.offset_mm = 1.0;
-  r.set_down.yaw_deg = -0.15;
-  EXPECT_TRUE(StepCounts(r, step));
-  r.set_down.yaw_deg = 0.1501;
-  EXPECT_FALSE(StepCounts(r, step));
-  r.set_down.yaw_deg = -0.1501;
-  EXPECT_FALSE(StepCounts(r, step));
-  r.set_down.yaw_deg = 0.0;
-  EXPECT_DOUBLE_EQ(CountedSeconds(r), r.steps[0].planned_s + r.steps[1].planned_s);
-  r.steps[1].least_clearance_m = 0.001;
-  r.steps[1].counted = true;  // The stored flag is not what counts.
-  EXPECT_DOUBLE_EQ(CountedSeconds(r), r.steps[0].planned_s);
+  r.takes[0].set_down.offset_mm = 3.0;
+  EXPECT_TRUE(StepCounts(r, r.takes[0], step));
+  r.takes[0].set_down.offset_mm = 3.0001;
+  EXPECT_FALSE(StepCounts(r, r.takes[0], step));
+  r.takes[0].set_down.offset_mm = 1.0;
+  r.takes[0].set_down.yaw_deg = -0.15;
+  EXPECT_TRUE(StepCounts(r, r.takes[0], step));
+  r.takes[0].set_down.yaw_deg = 0.1501;
+  EXPECT_FALSE(StepCounts(r, r.takes[0], step));
+  r.takes[0].set_down.yaw_deg = -0.1501;
+  EXPECT_FALSE(StepCounts(r, r.takes[0], step));
+  r.takes[0].set_down.yaw_deg = 0.0;
+  EXPECT_DOUBLE_EQ(CountedSeconds(r), r.takes[0].steps[0].planned_s + r.takes[0].steps[1].planned_s);
+  r.takes[0].steps[1].least_clearance_m = 0.001;
+  r.takes[0].steps[1].counted = true;  // The stored flag is not what counts.
+  EXPECT_DOUBLE_EQ(CountedSeconds(r), r.takes[0].steps[0].planned_s);
 }
 
 TEST(PhysicsRecord, TheCheckAgainstThePlan) {
@@ -177,21 +179,21 @@ TEST(PhysicsRecord, TheCheckAgainstThePlan) {
   EXPECT_TRUE(CheckPhysicsRecord(good, plan, sha).empty());
 
   PhysicsRecord r = good;
-  r.steps[0].number = 99999;
+  r.takes[0].steps[0].number = 99999;
   EXPECT_TRUE(Mentions(CheckPhysicsRecord(r, plan, sha), "99999"));
 
   r = good;
-  r.steps[1].planned_s += 0.001;
+  r.takes[0].steps[1].planned_s += 0.001;
   EXPECT_TRUE(Mentions(CheckPhysicsRecord(r, plan, sha), "planned_s"));
 
   r = good;
-  r.steps[0].arm += "x";
+  r.takes[0].steps[0].arm += "x";
   EXPECT_FALSE(CheckPhysicsRecord(r, plan, sha).empty());
   r = good;
-  r.steps[0].what += "x";
+  r.takes[0].steps[0].what += "x";
   EXPECT_FALSE(CheckPhysicsRecord(r, plan, sha).empty());
   r = good;
-  r.steps[0].start_s += 0.01;
+  r.takes[0].steps[0].start_s += 0.01;
   EXPECT_FALSE(CheckPhysicsRecord(r, plan, sha).empty());
 
   r = good;
@@ -199,7 +201,7 @@ TEST(PhysicsRecord, TheCheckAgainstThePlan) {
   EXPECT_TRUE(Mentions(CheckPhysicsRecord(r, plan, sha), "plan_sha256"));
 
   r = good;
-  r.steps[0].counted = false;
+  r.takes[0].steps[0].counted = false;
   EXPECT_TRUE(Mentions(CheckPhysicsRecord(r, plan, sha), "counted"));
 
   r = good;
@@ -207,7 +209,92 @@ TEST(PhysicsRecord, TheCheckAgainstThePlan) {
   EXPECT_TRUE(Mentions(CheckPhysicsRecord(r, plan, sha), "counted_s"));
 }
 
-// The scorecard takes about 16 s a call, so three calls serve every case.
+// A record of two takes of bay 0: module 4 (steps 63, 64) and module 6
+// (steps 123, 124), each with its own set-down.
+PhysicsRecord TwoTakes(const Plan& plan, const std::string& plan_sha) {
+  PhysicsRecord r = Fixture(plan, plan_sha);
+  PhysicsTake six;
+  six.module = 6;
+  six.take = 6;
+  six.steps = {StepOf(plan, 123, 0.0187), StepOf(plan, 124, 0.0163)};
+  six.set_down = {0.3156, 0.1294, 0.2878, -0.0059, -0.0001};
+  r.takes.push_back(six);
+  r.counted_s = Round6(CountedSeconds(r));
+  return r;
+}
+
+TEST(PhysicsRecord, ARecordOfTwoTakesOfOneBay) {
+  const Plan plan = LoadPlan(kName);
+  const std::string sha = Sha256OfFile(PlanPath(kName));
+  const PhysicsRecord good = TwoTakes(plan, sha);
+  const double four = good.takes[0].steps[0].planned_s + good.takes[0].steps[1].planned_s;
+  const double six = good.takes[1].steps[0].planned_s + good.takes[1].steps[1].planned_s;
+  EXPECT_NEAR(CountedSeconds(good), four + six, 1e-9);
+  EXPECT_EQ(CountedModules(good), (std::vector<int>{4, 6}));
+  EXPECT_TRUE(CheckPhysicsRecord(good, plan, sha).empty());
+
+  // Its text holds a list of takes, and reads back as it was.
+  const std::string text = PhysicsRecordToJson(good);
+  EXPECT_NE(text.find("\n  \"takes\": ["), std::string::npos);
+  EXPECT_EQ(text.find("\n  \"module\": "), std::string::npos);
+  std::string error;
+  const std::optional<PhysicsRecord> back = PhysicsRecordFromJson(text, &error);
+  ASSERT_TRUE(back.has_value()) << error;
+  EXPECT_EQ(PhysicsRecordToJson(*back), text);
+  ASSERT_EQ(back->takes.size(), 2u);
+  EXPECT_EQ(back->takes[1].module, 6);
+  EXPECT_EQ(back->takes[1].steps[0].number, 123);
+  EXPECT_EQ(back->takes[1].set_down.yaw_deg, -0.0059);
+
+  // Each step is judged against its own take's set-down: module 6 out of the
+  // gate takes its two steps out, module 4's still count.
+  PhysicsRecord r = good;
+  r.takes[1].set_down.offset_mm = 3.5;
+  EXPECT_NEAR(CountedSeconds(r), four, 1e-9);
+  EXPECT_EQ(CountedModules(r), (std::vector<int>{4}));
+  EXPECT_TRUE(Mentions(CheckPhysicsRecord(r, plan, sha), "the rule gives the other"));
+  for (PhysicsStep& s : r.takes[1].steps) s.counted = false;
+  r.counted_s = Round6(CountedSeconds(r));
+  EXPECT_TRUE(CheckPhysicsRecord(r, plan, sha).empty());
+
+  // One bay counts each module once.
+  r = good;
+  r.takes[1].module = 4;
+  EXPECT_TRUE(Mentions(CheckPhysicsRecord(r, plan, sha), "module 4 is held by two takes"));
+
+  // And the record is of one bay: module 6's take and set of bay 1 beside
+  // module 4's of bay 0 are refused.
+  r = good;
+  r.takes[1].steps = {StepOf(plan, 296, 0.0187), StepOf(plan, 297, 0.0163)};
+  r.counted_s = Round6(CountedSeconds(r));
+  EXPECT_TRUE(Mentions(CheckPhysicsRecord(r, plan, sha), "bays"));
+
+  // A record without takes is a fault, not a share of 0.
+  r = good;
+  r.takes.clear();
+  r.counted_s = 0.0;
+  EXPECT_TRUE(Mentions(CheckPhysicsRecord(r, plan, sha), "no take"));
+}
+
+TEST(PhysicsRecord, JoiningRecordsOfOneTakeEach) {
+  const Plan plan = LoadPlan(kName);
+  const std::string sha = Sha256OfFile(PlanPath(kName));
+  const PhysicsRecord two = TwoTakes(plan, sha);
+  PhysicsRecord a = two;
+  PhysicsRecord b = two;
+  a.takes = {two.takes[0]};
+  b.takes = {two.takes[1]};
+  std::string error;
+  // Given out of order, the takes come out in the plan's.
+  const std::optional<PhysicsRecord> joined = JoinPhysicsRecords({b, a}, two.command, &error);
+  ASSERT_TRUE(joined.has_value()) << error;
+  EXPECT_EQ(PhysicsRecordToJson(*joined), PhysicsRecordToJson(two));
+  b.plan_sha256 = "00";
+  EXPECT_FALSE(JoinPhysicsRecords({a, b}, two.command, &error).has_value());
+  EXPECT_FALSE(JoinPhysicsRecords({}, two.command, &error).has_value());
+}
+
+// The scorecard takes about 16 s a call, so four calls serve every case.
 TEST(PhysicsRecord, ThePhysicsShareOfTheScorecard) {
   std::string error;
   const std::optional<Layout> layout = LoadLayout(
@@ -237,6 +324,10 @@ TEST(PhysicsRecord, ThePhysicsShareOfTheScorecard) {
   const auto bad = ComputeScorecard(*layout, plan, *rates, paths, layout_sha,
                                     plan_sha, rates_sha, &wrong, &error);
   ASSERT_TRUE(bad.has_value()) << error;
+  const PhysicsRecord two = TwoTakes(plan, plan_sha);
+  const auto both = ComputeScorecard(*layout, plan, *rates, paths, layout_sha,
+                                     plan_sha, rates_sha, &two, &error);
+  ASSERT_TRUE(both.has_value()) << error;
 
   const Measure* m = FindMeasure(*with, "physics_share");
   ASSERT_NE(m, nullptr);
@@ -251,6 +342,17 @@ TEST(PhysicsRecord, ThePhysicsShareOfTheScorecard) {
       << m->basis;
   EXPECT_NE(m->basis.find("steps 63, 64 of module 4"), std::string::npos)
       << m->basis;
+
+  // Two takes: their seconds summed, the modules named.
+  const Measure* summed = FindMeasure(*both, "physics_share");
+  ASSERT_NE(summed, nullptr);
+  ASSERT_TRUE(summed->value.has_value());
+  EXPECT_EQ(*summed->value, Round6(CountedSeconds(two) / CycleFiguresOf(plan).one_bay_s));
+  EXPECT_GT(*summed->value, *m->value);
+  EXPECT_NE(summed->basis.find("steps 63, 64, 123, 124 of modules 4, 6 (2 of the record's 2 "
+                               "takes of one bay)"),
+            std::string::npos)
+      << summed->basis;
 
   const Measure* none = FindMeasure(*without, "physics_share");
   ASSERT_NE(none, nullptr);
