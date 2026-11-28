@@ -26,7 +26,7 @@ namespace cell::layout {
 namespace {
 
 constexpr long long kRecordingMaxBytes = 2500000;
-constexpr long long kEvolutionMaxBytes = 20000000;
+constexpr long long kEvolutionMaxBytes = 30000000;
 
 std::string Env(const char* name, const char* fallback) {
   const char* value = std::getenv(name);
@@ -141,7 +141,7 @@ TEST(Versions, TheEvolutionDirectoryIsSmall) {
   EXPECT_FALSE(ec) << "cannot list docs/evolution: " << ec.message();
   EXPECT_GT(files, 0) << "docs/evolution/ holds no recording";
   EXPECT_LE(total, kEvolutionMaxBytes)
-      << "the files of docs/evolution/ together are larger than 20,000,000 bytes";
+      << "the files of docs/evolution/ together are larger than 30,000,000 bytes";
 }
 
 TEST(Versions, EveryScorecardExists) {

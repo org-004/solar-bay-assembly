@@ -327,12 +327,8 @@ void HoldsItsFraction(const char* name, int fewest) {
 
 TEST_P(CommittedTorquePlan, HoldsItsFraction) { HoldsItsFraction(GetParam(), 30); }
 
-// Run 056: one bay with the rail magazine has 30 module arm moves (one rail
-// take for ten in v21's 39).
-TEST(TorqueLimit, TheRailMagazinePlanHoldsItsFraction) { HoldsItsFraction(kRailMag, 29); }
-
 INSTANTIATE_TEST_SUITE_P(TorqueLimit, CommittedTorquePlan,
-                         ::testing::Values(kTorque, kSplitTorque, kV19, kV20, kV21));
+                         ::testing::Values(kTorque, kSplitTorque, kV19, kV20, kV21, kRailMag));
 
 // The seconds the slowed moves of the module arm add to its motion: each
 // slowed move's time without its settle, less the same at time scale 1.

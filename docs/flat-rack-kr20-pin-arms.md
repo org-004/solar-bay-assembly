@@ -200,7 +200,9 @@ module arm within 0.90 of its motors, three bays 502.55 / 507.79 / 496.04 s, cyc
 run 052 made v20 chosen (v19 with `bay_out_when_clear`, the bay out once the release is done and no arm is near,
 three bays 496.59 / 501.82 / 490.08 s, cycle 496.16 s), and v20 until run 054 made v21 chosen (v20 with an
 infeed unit of its own whose tube comes in over the bay going out, run 053; bay ends 496.59 / 960.13 / 1412.03 s,
-cycle 470.68 s, part count 38; [`infeed-unit.md`](infeed-unit.md)).
+cycle 470.68 s, part count 38; [`infeed-unit.md`](infeed-unit.md)), and v21 until run 057 made v22 chosen (v21
+with a magazine of ten rails on the module arm's gripper, run 056; bay ends 442.03 / 858.63 / 1254.92 s, cycle
+418.31 s, part count 39; [`rail-magazine.md`](rail-magazine.md)).
 
 | | v15 `flat_rack_3_kr20_pin_arms_shared_ordered` | v16 `..._fast_retreat` |
 |---|---:|---:|
