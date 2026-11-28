@@ -446,7 +446,10 @@ PlanResult PlanBays(const Layout& layout, const ModelPaths& paths,
     // is sampled at the instants the verifier samples.
     double start = 0.0;
     BayClock clock;
-    if (b > 0) {
+    if (b == 0 && layout.first_bay_early) {
+      // Run 059: bay 0's early steps from its tube_in's start (time 0).
+      clock.early = options.early_steps;
+    } else if (b > 0) {
       const PlanFigures& f = plans.front().figures;
       start = NextTubeStart(*scene, last_out, f.sample_s, f.clearance_m);
       clock.shift = ArmShift(start, clamp_end, last_out);

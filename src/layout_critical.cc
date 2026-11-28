@@ -284,13 +284,22 @@ class Walker {
     const BayEvent* clamp = Event("clamp", bay);
     const BayEvent* out = bay > 0 ? Event("bay_out", bay - 1) : nullptr;
     const BayEvent* in = Event("tube_in", bay);
-    if (clamp != nullptr && (blk.parking || TouchesTheBay(st->kind) || (bay == 0 && first_in_bay))) {
+    // Bay 0 starts every arm after its clamp, but for first_bay_early (run
+    // 059), where a step that touches neither the tube nor the bay may start
+    // from the tube_in's start.
+    const bool early0 = bay == 0 && layout_.first_bay_early.has_value();
+    if (clamp != nullptr &&
+        (blk.parking || TouchesTheBay(st->kind) || (bay == 0 && first_in_bay && !early0))) {
       if (out != nullptr && out->t1 > clamp->t1) {
         cands.push_back({out->t1, 1, "clamp", "after the clamp, the bay before's bay_out ends",
                          Node{-1, "bay_out", bay - 1, out->t1}});
       } else {
         cands.push_back({clamp->t1, 1, "clamp", "the tube's clamp ends", Node{-1, "clamp", bay, clamp->t1}});
       }
+    }
+    if (early0 && first_in_bay && in != nullptr && !blk.parking && !TouchesTheBay(st->kind)) {
+      cands.push_back({in->t0, 1, "early", "the first tube starts to come in",
+                       Node{-1, "tube_in", bay, in->t0}});
     }
     if (bay > 0 && first_in_bay && in != nullptr && out != nullptr) {
       if (out->t1 >= in->t0) {

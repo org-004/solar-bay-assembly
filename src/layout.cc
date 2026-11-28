@@ -686,7 +686,7 @@ Layout ReadLayout(const Json& j) {
             "arms", "pallets", "stocks", "strap_bolts_from", "tube_in",
             "bay_out", "work", "rail_order", "items"},
            {"order", "staging", "retreat_legs", "path_tries", "torque_limit_scale",
-            "bay_out_when_clear"});
+            "bay_out_when_clear", "first_bay_early"});
   } else {
     throw LayoutError("base", "is \"container\", \"flat_rack\" or "
                               "\"two_flat_racks\", not \"" +
@@ -848,6 +848,15 @@ Layout ReadLayout(const Json& j) {
   }
   if (j.contains("bay_out_when_clear")) {
     l.bay_out_when_clear = Bool(j.at("bay_out_when_clear"), "bay_out_when_clear");
+  }
+  if (j.contains("first_bay_early")) {
+    const Json& e = j.at("first_bay_early");
+    const std::string ep = "first_bay_early";
+    Fields(e, ep, {"does", "basis"});
+    FirstBayEarly early;
+    early.does = String(FIELD(e, ep, "does"));
+    early.basis = String(FIELD(e, ep, "basis"));
+    l.first_bay_early = early;
   }
   if (j.contains("order")) {
     const Json& o = j.at("order");

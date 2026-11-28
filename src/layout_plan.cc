@@ -2015,7 +2015,11 @@ PlanResult PlanLayout(const Layout& layout, const ModelPaths& paths,
                       const std::string& layout_sha256,
                       const PlanOptions& options) {
   if (options.bays <= 1 || options.first_step != 0 || options.last_step != 0) {
-    Planner planner(layout, paths, layout_sha256, options);
+    // first_bay_early (run 059): bay 0's early steps from its tube_in's
+    // start, as PlanBays gives them.
+    BayClock clock;
+    clock.early = layout.first_bay_early.has_value() && options.early_steps;
+    Planner planner(layout, paths, layout_sha256, options, 0, nullptr, clock);
     return planner.Run();
   }
   const auto t0 = std::chrono::steady_clock::now();
