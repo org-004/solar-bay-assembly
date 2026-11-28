@@ -64,6 +64,10 @@ constexpr const char* kV20 =
     "flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque_clear_out";
 constexpr const char* kV21 =
     "flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque_clear_out_infeed";
+// Run 056: v21's layout with a rail magazine on the module arm's gripper.
+constexpr const char* kRailMag =
+    "flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque_clear_out_infeed_"
+    "rail_mag";
 
 // A committed plan with what it takes to measure its module arm.
 struct Measured {
@@ -320,7 +324,7 @@ TEST_P(CommittedTorquePlan, HoldsItsFraction) {
 }
 
 INSTANTIATE_TEST_SUITE_P(TorqueLimit, CommittedTorquePlan,
-                         ::testing::Values(kTorque, kSplitTorque, kV19, kV20, kV21));
+                         ::testing::Values(kTorque, kSplitTorque, kV19, kV20, kV21, kRailMag));
 
 // The seconds the slowed moves of the module arm add to its motion: each
 // slowed move's time without its settle, less the same at time scale 1.

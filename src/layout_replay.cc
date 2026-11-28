@@ -19,6 +19,7 @@
 #include "src/layout_bays.h"
 #include "src/layout_clear_out.h"
 #include "src/layout_plan_stages.h"
+#include "src/layout_rail_magazine.h"
 #include "src/path_timing.h"
 #include "src/rrt.h"
 
@@ -1204,6 +1205,7 @@ class Verifier {
     size_t next = 0;  // Into `mine`.
     std::string tool = sa.use->first_tool;
     std::string held;
+    int rails_left = 0;  // In its rail magazine.
     PoseRef at = WaitPose(i);
     std::map<int, int> group_of;  // Step number to group.
     for (size_t gi = 0; gi < groups.size(); ++gi) {
@@ -1256,6 +1258,21 @@ class Verifier {
       park = park || (L_.staging && found > 0 && mine[found - 1]->kind == "pins_take" &&
                       bay_of(found - 1) == bay_of(found));
       const bool last = found + 1 == mine.size() || bay_of(found + 1) != bay_of(found);
+      // A rail magazine (src/layout_rail_magazine.h): a take loads it, a set
+      // uses a rail, and after a set's retreat the next rail is held.
+      if (RailsPerTake(L_) > 1 && step->kind == "rail_take") {
+        rails_left = RailsLoadedAt(L_, step->index);
+      } else if (RailsPerTake(L_) > 1 && step->kind == "rail_set") {
+        if (rails_left <= 0) {
+          Fault(Fmt("arm %s, %s at %.3f s: its rail magazine is empty: it sets more rails than "
+                    "the magazine holds (%d) since its last take",
+                    name.c_str(), StepName(step, grp.step).c_str(), first.t0,
+                    RailsPerTake(L_)));
+        } else if (held.empty()) {
+          held = "rail";
+        }
+        --rails_left;
+      }
       StepSegments(i, *step, last, park, segs, grp.segs, motion, &tool, &held, &at);
     }
     for (size_t k = next; k < mine.size(); ++k) {
@@ -1412,7 +1429,7 @@ class Verifier {
         if (step.kind == "tool_change") {
           want = scene_.arm(i).use->tool_change_s;
         } else if (const Work* w = FindWork(L_, step.kind, step.index)) {
-          want = w->process_s;
+          want = WorkSeconds(L_, *w, step.kind, step.index);
         }
         Timing(i, s, want,
                step.kind == "tool_change" ? "the arm's tool_change_s" : "the work's process_s");

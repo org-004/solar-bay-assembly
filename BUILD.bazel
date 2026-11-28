@@ -1920,6 +1920,18 @@ cc_library(
     deps = ["@nlohmann_json//:json"],
 )
 
+# A rail magazine on the tool that sets the rails (run 056): the counts the
+# checker, the planner and the verifier take from a tool's rail_magazine.
+cc_library(
+    name = "layout_rail_magazine",
+    srcs = ["src/layout_rail_magazine.cc"],
+    hdrs = ["src/layout_rail_magazine.h"],
+    deps = [
+        ":bay_hardware",
+        ":layout",
+    ],
+)
+
 cc_library(
     name = "layout_model",
     srcs = ["src/layout_model.cc"],
@@ -1930,6 +1942,7 @@ cc_library(
         ":container",
         ":flat_rack",
         ":layout",
+        ":layout_rail_magazine",
         ":mj_handles",
         "@eigen",
         "@mujoco",
@@ -2005,6 +2018,7 @@ cc_library(
         ":container",
         ":flat_rack",
         ":layout",
+        ":layout_rail_magazine",
         ":layout_model",
         ":mj_handles",
         ":portable_random",
@@ -2152,6 +2166,7 @@ cc_library(
         ":bay_hardware",
         ":joint_move",
         ":layout",
+        ":layout_rail_magazine",
         ":layout_check",
         ":layout_model",
         ":mj_handles",
@@ -2256,23 +2271,27 @@ cc_test(
     # tests/layout_margins_test.cc: v19's track ends, carriage gaps and
     # torque by bay (run 051), about 7 s;
     # tests/layout_critical_test.cc: the critical chains of a small plan and
-    # of the infeed layout's (run 055).
+    # of the infeed layout's (run 055);
+    # tests/rail_magazine_test.cc: a rail magazine on the gripper (run 056).
     srcs = [
         "tests/layout_critical_test.cc",
         "tests/layout_margins_test.cc",
         "tests/path_tries_test.cc",
         "tests/plan_replay_test.cc",
+        "tests/rail_magazine_test.cc",
         "tests/retreat_legs_test.cc",
         "tests/torque_limit_test.cc",
     ],
     data = LAYOUT_FILES + LAYOUT_MODEL_FILES + PLAN_FILES,
     env = LAYOUT_ENV | {"PLAN_DIR": "plans"},
     deps = [
+        ":bay_hardware",
         ":layout",
         ":layout_check",
         ":layout_margins",
         ":layout_model",
         ":layout_plan",
+        ":layout_rail_magazine",
         "@googletest//:gtest_main",
         "@nlohmann_json//:json",
     ],

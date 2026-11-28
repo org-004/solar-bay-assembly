@@ -264,20 +264,21 @@ std::optional<std::vector<OperationCount>> CountOperations(
 }
 
 std::vector<Count> PartCount(const Layout& layout) {
-  int arms = 0, tracks = 0, tools = 0, stands = 0, magazines = 0;
+  int arms = 0, tracks = 0, tools = 0, stands = 0, magazines = 0, rail_magazines = 0;
   for (const ArmUse& a : layout.arms) {
     ++arms;
     tracks += a.track ? 1 : 0;
     for (const Tool& t : a.tools) {
       ++tools;
       stands += HasStand(t) ? 1 : 0;
+      rail_magazines += t.magazine_holds > 0 ? 1 : 0;  // Run 056.
     }
   }
   for (const Stock& s : layout.stocks) {
     if (!s.outside && s.part == "pin magazine") magazines += s.holds;
   }
   const int grips = static_cast<int>(layout.holder.grips.size());
-  return {MakeCount("arm", arms),
+  std::vector<Count> out = {MakeCount("arm", arms),
           MakeCount("track", tracks),
           MakeCount("tool", tools),
           MakeCount("tool_stand", stands),
@@ -286,6 +287,10 @@ std::vector<Count> PartCount(const Layout& layout) {
           MakeCount("holder_end_unit", 1),
           MakeCount("item", static_cast<int>(layout.items.size())),
           MakeCount("pin_magazine", magazines)};
+  // A rail magazine on a tool (src/layout_rail_magazine.h): a row only for
+  // the layouts that have one, so that the others' cards stay as they were.
+  if (rail_magazines > 0) out.push_back(MakeCount("rail_magazine", rail_magazines));
+  return out;
 }
 
 std::vector<Count> DrivenAxes(const Layout& layout) {

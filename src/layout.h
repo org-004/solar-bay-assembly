@@ -251,8 +251,8 @@ struct Tool {
   // base (so it rides with a carriage), the centre of a box of wait_size.
   Vec3 waits_at{};
   Vec3 wait_size{};
-  std::string basis;
-  std::string source;
+  std::string basis, source;
+  int magazine_holds = 0;  // Its rail_magazine's rails, 0 if none (src/layout_rail_magazine.h).
 };
 
 // A straight track under an arm's base. The base stands at

@@ -406,7 +406,8 @@ Holder ReadHolder(const Json& j, const std::string& path) {
 Tool ReadTool(const Json& j, const std::string& path) {
   Fields(j, path,
          {"name", "does", "mass_kg", "length", "boxes", "waits_at",
-          "wait_size", "basis", "source"});
+          "wait_size", "basis", "source"},
+         {"rail_magazine"});
   Tool t;
   t.name = String(FIELD(j, path, "name"));
   t.does = String(FIELD(j, path, "does"));
@@ -417,6 +418,26 @@ Tool ReadTool(const Json& j, const std::string& path) {
   t.wait_size = Numbers<3>(FIELD(j, path, "wait_size"));
   t.basis = String(FIELD(j, path, "basis"));
   t.source = String(FIELD(j, path, "source"));
+  if (j.contains("rail_magazine")) {
+    // A rail magazine rides on the tool (src/layout_rail_magazine.h): its
+    // boxes join the tool's before its last (the one that touches the work)
+    // and its empty mass joins the tool's, so that the checker sweeps it
+    // and the torque counts it wherever the tool goes.
+    const std::string mp = Sub(path, "rail_magazine");
+    const Json& m = j.at("rail_magazine");
+    Fields(m, mp, {"does", "holds", "mass_kg", "boxes", "basis", "source"});
+    t.magazine_holds = Integer(FIELD(m, mp, "holds"));
+    if (t.magazine_holds < 1) throw LayoutError(Sub(mp, "holds"), "holds at least one rail");
+    const double mass = Number(FIELD(m, mp, "mass_kg"));
+    if (mass < 0.0) throw LayoutError(Sub(mp, "mass_kg"), "is negative");
+    t.mass_kg += mass;
+    std::vector<Box> boxes = ReadBoxes(FIELD(m, mp, "boxes"));
+    if (t.boxes.empty()) throw LayoutError(Sub(path, "boxes"), "a tool with a magazine has boxes");
+    t.boxes.insert(t.boxes.end() - 1, boxes.begin(), boxes.end());
+    for (const char* key : {"does", "basis", "source"}) {
+      if (String(FIELD(m, mp, key)).empty()) throw LayoutError(Sub(mp, key), "is empty");
+    }
+  }
   return t;
 }
 

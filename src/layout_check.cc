@@ -30,6 +30,7 @@
 #include "src/bay_hardware.h"
 #include "src/container.h"
 #include "src/flat_rack.h"
+#include "src/layout_rail_magazine.h"
 #include "src/layout_rows.h"
 #include "src/layout_scene.h"
 #include "src/layout_stage_rows.h"
@@ -1831,7 +1832,7 @@ std::vector<CheckRow> Checker::LoadRows() {
         const std::string held = HeldAtWork(w.kind);
         double mass = 0.0;
         if (held == "module") mass = bay::kModuleMass;
-        if (held == "rail") mass = bay::kRailMass;
+        if (held == "rail") mass = MagazineRailsMass(L_);
         if (held == "pin magazine" || w.kind == "pin" || w.kind == "locate" ||
             w.kind == "swage") {
           mass = kPinMagazineMass;
@@ -1840,7 +1841,10 @@ std::vector<CheckRow> Checker::LoadRows() {
         if (mass > part) {
           part = mass;
           if (held == "module") what = "a module";
-          if (held == "rail") what = "a rail with its strap";
+          if (held == "rail") {
+            what = RailsPerTake(L_) > 1 ? Fmt("a full rail magazine's %d rails", RailsPerTake(L_))
+                                        : std::string("a rail with its strap");
+          }
         }
       }
       const double total = t.mass_kg + part;
@@ -2154,7 +2158,7 @@ std::vector<CheckRow> Checker::TimeRows(std::vector<BayStep>* steps,
       missing.push_back(to);
       to += " (no pose)";
     }
-    t += push(what, w->arm, w->tool, part, n.at, to, move + w->process_s, kind,
+    t += push(what, w->arm, w->tool, part, n.at, to, move + WorkSeconds(L_, *w, kind, index), kind,
               index);
     n.at = job != nullptr ? job->point.item : kind;
     n.busy += t;
@@ -2198,8 +2202,12 @@ std::vector<CheckRow> Checker::TimeRows(std::vector<BayStep>* steps,
   const int rail_units = static_cast<int>(rails_here.size());
   for (int u = 0; u < rail_units; ++u) {
     const int k = rails_here[u];
-    piece(&rail_pieces, "rail_take", k, u, true, Fmt("take rail %d", k),
-          Fmt("rail %d", k));
+    // A rail magazine (src/layout_rail_magazine.h): a take loads the rails
+    // of its unit and the next, which the arm then sets one after another.
+    if (u % RailsPerTake(L_) == 0) {
+      piece(&rail_pieces, "rail_take", k, u, true, Fmt("take rail %d", k),
+            Fmt("rail %d", k));
+    }
     piece(&rail_pieces, "rail_set", k, u, true, Fmt("set rail %d", k),
           Fmt("rail %d", k));
     if (each) bolt_rail(k, u);
