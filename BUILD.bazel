@@ -2284,6 +2284,7 @@ cc_test(
     ],
     data = LAYOUT_FILES + LAYOUT_MODEL_FILES + PLAN_FILES,
     env = LAYOUT_ENV | {"PLAN_DIR": "plans"},
+    shard_count = 4,
     deps = [
         ":bay_hardware",
         ":layout",
