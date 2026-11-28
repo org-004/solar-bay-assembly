@@ -263,7 +263,9 @@ TEST(PhysicsRecord, RailSetsBesideTheTakes) {
   const std::string text = PhysicsRecordToJson(good);
   EXPECT_NE(text.find("\n  \"rail_gate\": {"), std::string::npos);
   EXPECT_NE(text.find("\n  \"rails\": ["), std::string::npos);
-  EXPECT_EQ(PhysicsRecordToJson(Fixture(plan, sha)).find("rail"), std::string::npos);
+  const std::string plain = PhysicsRecordToJson(Fixture(plan, sha));
+  EXPECT_EQ(plain.find("\"rail_gate\""), std::string::npos);
+  EXPECT_EQ(plain.find("\"rails\""), std::string::npos);
   std::string error;
   const std::optional<PhysicsRecord> back = PhysicsRecordFromJson(text, &error);
   ASSERT_TRUE(back.has_value()) << error;
