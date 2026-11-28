@@ -460,12 +460,12 @@ struct RetreatLegs {
 // "path_tries" (optional, flat rack bases only; run 042): each move is
 // searched from this many seeds, the move's own first, each path shortened,
 // and the one whose timed trajectory is quickest is kept (PlanFigures). An
-// integer from 2 to kMaxPathTries. Why: a short move whose straight line is
-// blocked (a pin arm going from hole to hole past the tube) gets whatever
-// way round the obstacle its one search found, and shortening only pulls
-// that way taut, never changes it; another seed often goes round closer,
-// with fewer pieces and fewer corners to slow at. Without it, one search.
-inline constexpr int kMaxPathTries = 16;
+// integer from 2 to kMaxPathTries. Why: a blocked move gets whatever way round
+// the obstacle its one search found, and shortening never changes that way;
+// another seed often goes round closer. Without it, one search.
+// "plan_seed" (optional, flat rack bases only; run 066): PlanFigures::seed, 2
+// to kMaxPlanSeed, to plan one layout from other seeds. Without it, 1.
+inline constexpr int kMaxPathTries = 16, kMaxPlanSeed = 1000000;
 
 // "torque_limit_scale" (optional, flat rack bases only; run 045): a fraction
 // in [kMinTorqueLimitScale, 1] of the module arm's motor limits. A module arm
@@ -504,7 +504,7 @@ struct Layout {
   std::vector<Approach> approaches;   // Only with base "flat_rack"; one a kind.
   std::optional<Staging> staging;  // Optional (flat rack); without it one stage, the bay at "tube".
   std::optional<RetreatLegs> retreat_legs;  // Optional on a flat rack base.
-  std::optional<int> path_tries;            // Optional on a flat rack base.
+  std::optional<int> path_tries, plan_seed;  // Optional on a flat rack base.
   std::optional<double> torque_limit_scale; // Optional on a flat rack base.
   bool bay_out_when_clear = false;  // Optional on a flat rack base (src/layout_clear_out.h).
   std::optional<std::string> first_bay_early;  // Its basis; optional (src/layout_bays.h).

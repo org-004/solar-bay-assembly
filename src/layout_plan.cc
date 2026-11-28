@@ -1861,6 +1861,7 @@ PlanResult Planner::Run(bool plan, bool verify) {
     f_.retreat_accel = layout_.retreat_legs->accel;
   }
   if (layout_.path_tries) f_.path_tries = *layout_.path_tries;
+  if (layout_.plan_seed) f_.seed = static_cast<std::uint32_t>(*layout_.plan_seed);
   if (layout_.torque_limit_scale) {
     f_.torque_limit_scale = *layout_.torque_limit_scale;
     torque_arm_ = ModuleArm(layout_);

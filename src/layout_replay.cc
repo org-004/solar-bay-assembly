@@ -1826,8 +1826,10 @@ VerifyReport VerifyPlanWithReport(const Layout& layout, const ModelPaths& paths,
       r.faults.push_back(Fmt("the plan's figure path_tries is %d, not ours, %d",
                              f.path_tries, tries));
     }
-    if (f.seed != d.seed) {
-      r.faults.push_back(Fmt("the plan's figure seed is %u, not ours, %u", f.seed, d.seed));
+    // The layout's plan_seed (src/layout.h), else ours.
+    const std::uint32_t seed = layout.plan_seed ? static_cast<std::uint32_t>(*layout.plan_seed) : d.seed;
+    if (f.seed != seed) {
+      r.faults.push_back(Fmt("the plan's figure seed is %u, not ours, %u", f.seed, seed));
     }
   }
   if (plan.layout != layout.name) {
