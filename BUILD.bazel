@@ -2045,9 +2045,15 @@ cc_binary(
 
 # The reference layout passes; a copy broken in memory fails each check.
 #   bazel test --config=opt //:layout_check_test
+# Four shards since run 062: whole, it runs the checker over every committed
+# layout and had grown to 130.1 s of medium's 300 s in run 060's full suite
+# (about 234 s on CI at 1.8x). In run 062's full suite at three jobs the
+# shards took 12.1, 12.9, 20.2 and 19.2 s (10, 10, 10 and 9 of its 39 cases),
+# the slowest 20.2 s of 300 s (about 36 s on CI at 1.8x).
 cc_test(
     name = "layout_check_test",
     size = "medium",
+    shard_count = 4,
     srcs = ["tests/layout_check_test.cc"],
     data = LAYOUT_FILES + LAYOUT_MODEL_FILES,
     env = LAYOUT_ENV,
