@@ -46,7 +46,9 @@
 // "torque_arm_way" (optional, flat rack bases only; run 064; Layout holds its
 // basis) makes the first and the third again with the torque arm's right of
 // way: when its block is so blocked, the other arm's last block is taken back
-// at once and placed after it. The shortest of the four is kept. On the rail
+// at once and placed after it; in the third, the torque arm is not held to its
+// release either (its own slowed moves put it off already, and the release
+// keeps every wait it had unslowed). The shortest of the four is kept. On the rail
 // magazine layout bay 1's module arm waited 15.50 s at set module 4 for pin
 // arm C, standing at module 6's holes across its path. Without it, as before.
 

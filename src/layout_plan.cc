@@ -16,6 +16,7 @@
 #include <cstdarg>
 #include <cstdio>
 #include <cstdlib>
+#include <limits>
 #include <random>
 #include <set>
 #include <thread>
@@ -38,6 +39,9 @@ constexpr double kPi = 3.14159265358979323846;
 constexpr double kDeg = kPi / 180.0;
 // How far a block is put off when another arm is in its way, and how often.
 constexpr double kShiftS = 0.25;
+// torque_arm_way (src/layout_torque.h): the longest the torque arm waits for
+// another arm before that arm gives way.
+constexpr double kWayS = 1.0;
 constexpr int kShiftTries = 2000;
 
 std::string Fmt(const char* format, ...) {
@@ -1488,6 +1492,18 @@ bool Planner::Schedule() {
         if (s > c.ready) {
           // Name the conflict that made it wait last.
           Conflict last = Check(c.arm, b, s - kShiftS, d.get());
+          // torque_arm_way (src/layout_torque.h): the torque arm that would
+          // wait more than kWayS for another arm has that arm give way.
+          const int o = last.tube ? -1 : last.other;
+          if (right_of_way_ && s - c.ready > kWayS && o >= 0 && state_[o].next > 0 &&
+              scene_->arm(c.arm).use->name == torque_arm_) {
+            const int their = arm_blocks_[o][state_[o].next - 1];
+            if (blocks_[their].placed && yielded_.count({their, c.block}) == 0) {
+              yield_to = c.block;
+              yield_arm = o;
+              break;
+            }
+          }
           wait_reason = Fmt("for %s to pass: %s at %.2f s",
                             last.tube ? "the tube" : scene_->arm(last.other).use->name.c_str(),
                             scene_->PairText(last.nearest).c_str(), last.t);
@@ -1767,6 +1783,9 @@ bool Planner::ScheduleSlowed() {
         std::fprintf(stderr, "slowed bay %d: %s %d %.2f (best before %.2f)\n", bay_, tag, ok,
                      ok ? bay_end() : -1.0, best_end);
       }
+      if (!ok && std::getenv("PLAN_DEBUG_SLOWED") != nullptr && !result_.faults.empty()) {
+        std::fprintf(stderr, "  %s fault: %s\n", tag, result_.faults.back().c_str());
+      }
       if (!ok || (best_ok && bay_end() >= best_end)) return;
       result_.faults.resize(faults);
       best = Kept{rows_, state_, events_, blocks_, placed_order_, undo_, yielded_, result_.faults};
@@ -1780,7 +1799,14 @@ bool Planner::ScheduleSlowed() {
     if (plain && order.size() == kept.order.size()) {
       rank_.assign(blocks_.size(), static_cast<int>(blocks_.size()));
       for (size_t k = 0; k < order.size(); ++k) rank_[order[k]] = static_cast<int>(k);
+      // The torque arm is not held to its release: its own slowed moves put
+      // it off already, and the release would keep its unslowed waits.
       release_ = release;
+      for (size_t k = 0; k < blocks_.size(); ++k) {
+        if (scene_->arm(blocks_[k].arm).use->name == torque_arm_) {
+          release_[k] = -std::numeric_limits<double>::infinity();
+        }
+      }
       ResetSchedule();
       result_.faults.resize(faults);
       consider(Schedule(), "way third");
