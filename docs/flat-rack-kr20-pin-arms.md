@@ -204,7 +204,9 @@ cycle 470.68 s, part count 38; [`infeed-unit.md`](infeed-unit.md)), and v21 unti
 with a magazine of ten rails on the module arm's gripper, run 056; bay ends 442.03 / 858.63 / 1254.92 s, cycle
 418.31 s, part count 39; [`rail-magazine.md`](rail-magazine.md)), and v22 until run 063 made v23 chosen (v22
 with the magazine filled while the first tube comes in and while the bay before is finished, runs 059 and 061;
-bay ends 417.06 / 815.51 / 1193.58 s, cycle 397.86 s, part count 39).
+bay ends 417.06 / 815.51 / 1193.58 s, cycle 397.86 s, part count 39), and v23 until run 068 made v24 chosen (v23
+with the pallet 0.23 m along its port zone, run 066; bay ends 408.03 / 786.59 / 1161.68 s, cycle 387.23 s, part
+count 39, the quickest of seeds 1-3, whose mean is 393.08 s).
 
 | | v15 `flat_rack_3_kr20_pin_arms_shared_ordered` | v16 `..._fast_retreat` |
 |---|---:|---:|

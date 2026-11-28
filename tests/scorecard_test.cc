@@ -108,15 +108,11 @@ std::optional<Scorecard> Compute(const std::string& name) {
 // The committed plans that have a scorecard. A card is of three bays; a plan of
 // one bay (run 034's all-KUKA 40 ft layout, run 041's, run 042's, run 044's, run
 // 045's, run 047's and run 059's, whose three bays and cards are a later spec's)
-// is replayed by tests/plan_replay_test.cc and has none yet; nor has run 066's
-// three-bay plan (tests/plan_seed_test.cc), whose card is a later spec's.
+// is replayed by tests/plan_replay_test.cc and has none yet.
 std::vector<std::string> PlanNames() {
   static constexpr const char* kRailMagEarly =
       "flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque_clear_out_infeed_"
       "rail_mag_early";
-  static constexpr const char* kPalletNear =
-      "flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque_clear_out_infeed_"
-      "rail_mag_early_next_fill_pallet_near";
   static const std::set<std::string> kOneBay = {
       "flat_rack_1_kr20_pin_arm_ordered",
       "flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma",
@@ -124,8 +120,7 @@ std::vector<std::string> PlanNames() {
       "flat_rack_3_kr20_pin_arms_shared_ordered_fast_paths",
       "flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_torque",
       "flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_torque",
-      kRailMagEarly,
-      kPalletNear};
+      kRailMagEarly};
   std::vector<std::string> out;
   for (const std::string& name : ListLayouts(Dir("PLAN_DIR", "plans"))) {
     if (kOneBay.count(name) == 0) out.push_back(name);

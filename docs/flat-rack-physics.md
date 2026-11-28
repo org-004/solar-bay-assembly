@@ -14,9 +14,10 @@ The run is measured as the checker measures. Its committed record,
 `physics/flat_rack_3_pin_arms_ordered.json`, is what the scorecard's `physics_share`
 counts ([`scorecard.md`](scorecard.md)).
 
-Since run 063 the chosen layout is v23, `flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque_clear_out_infeed_rail_mag_early_next_fill`
-(all KUKA, v22 with the magazine filled while the tube comes in and while the bay before is finished), so `run_physics` with no name runs v23's plan; its record is in
-"[v23's record (run 063)](#v23s-record-run-063)" below, after v22's, chosen from run 057 to run 063, in
+Since run 068 the chosen layout is v24, `flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque_clear_out_infeed_rail_mag_early_next_fill_pallet_near`
+(all KUKA, v23 with the pallet 0.23 m along its port zone), so `run_physics` with no name runs v24's plan; its record is in
+"[v24's record (run 068)](#v24s-record-run-068)" below, after v23's, chosen from run 063 to run 068, in
+"[v23's record (run 063)](#v23s-record-run-063)", v22's, chosen from run 057 to run 063, in
 "[v22's record (run 057)](#v22s-record-run-057)", v21's, chosen from run 054 to run 057, in
 "[v21's record (run 054)](#v21s-record-run-054)", v20's, chosen from run 052 to run 054, in
 "[v20's record (run 052)](#v20s-record-run-052)", v19's, chosen from run 048 to run 052, in
@@ -695,4 +696,37 @@ Its path, its timing within the steps and the bay built around it are v22's, so 
 
 Both steps count. `physics_share` rises only because the same 23.03 s are counted against a
 shorter bay. v23 is chosen (run 063): every module arm joint stays below its limit on the take and
+the set.
+
+## v24's record (run 068)
+
+v24 is v23's layout with the pallet moved +0.23 m in Y inside the modules port zone and no part
+added
+(`flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque_clear_out_infeed_rail_mag_early_next_fill_pallet_near`,
+run 066). Three bays from the default seed 1, 351 of 351 moves, 27 of the module arm's 90 slowed
+(14.98 s), none over 0.90: bay ends 408.03 / 786.59 / 1161.68 s, `cycle_s` 387.23 s against v23's
+397.86 s (-10.63 s), `one_bay_s` 408.03 s (v23 417.06 s), `interval_s` 375.08 s (v23 378.07 s).
+Most of the gain is the planner's draw: seeds 2 and 3 of the same layout give 395.89 s and 396.11 s
+(the table is on the [direction page](directions/one-40ft-flat-rack.md)).
+
+`bazel run --config=opt //:run_physics -- flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque_clear_out_infeed_rail_mag_early_next_fill_pallet_near --write`
+wrote `physics/flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque_clear_out_infeed_rail_mag_early_next_fill_pallet_near.json`.
+The pallet moved and the plan is new, so the record take is no longer v23's: the take before the
+plan's hardest carry is now module 8's (module_take 8, plan steps 141 and 142, 279.09 to 302.48 s).
+
+| Figure (derived) | v24, module 8 | v23, module 1 (run 063) |
+|---|---|---|
+| counted, of one bay | 23.391905 s of 408.028661 s | 23.030565 s of 417.058577 s |
+| `physics_share` | 0.057329 | 0.055221 |
+| peak torque over its limit, joints 1-6, take | 0.970 0.852 0.260 0.065 0.369 0.274 | 0.968 0.705 0.262 0.138 0.320 0.255 |
+| peak torque over its limit, joints 1-6, set | 0.810 0.660 0.519 0.195 0.326 0.146 | 0.865 0.635 0.370 0.233 0.431 0.702 |
+| peak track force over its limit, take / set | 0.500 / 0.872 | 0.386 / 0.779 |
+| least clearance in physics, take / set | 0.019825 m / 0.024534 m (plan 0.019825 / 0.024545), against 0.015 m | 0.018580 m / 0.019230 m |
+| largest joint tracking error, take / set | 0.6188 / 0.7618 mrad | 0.6197 / 2.9227 mrad |
+| largest Cartesian error, take / set | 0.6971 mm / 1.0337 mm | 0.6415 mm / 0.8737 mm |
+| set-down offset after settling | 0.3156 mm, yaw -0.0059 deg (gate 3.0 mm, 0.15 deg) | 0.2040 mm, yaw 0.0053 deg |
+
+Both steps count. The worst joint is still joint 1 on the take, 0.970 against v23's 0.968; joint 2
+on the take rises to 0.852 (0.705) and the track's set to 0.872 (0.779), while the set's joints 1
+and 6 fall. v24 is chosen (run 068): every module arm joint stays below its limit on the take and
 the set.
