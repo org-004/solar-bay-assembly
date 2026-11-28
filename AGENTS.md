@@ -19,8 +19,8 @@ suites at once ran a machine out of memory.
   (`docs/gate.md`): `bazel test --config=opt //...`
 - A change to documents alone needs no build and no test.
 - At 4.4 GB of memory the full test needs `--jobs=3 --local_resources=cpu=3` or fewer;
-  `plan_replay_test` (about 50 s) and `layout_check_test` (about 27 s) are among the
-  slow ones.
+  `plan_replay_test` (four shards, the slowest about 100 s, run 060) and
+  `layout_check_test` (about 27 s) are among the slow ones.
 - Before code lands, the architecture checks (`docs/architecture/README.md`):
   `tools/architecture/measure.sh --check` (2 s, no Bazel: the dependency rules, the
   figures of `docs/architecture/baseline.txt`, the paths the documents name), and

@@ -2261,7 +2261,11 @@ cc_test(
 #   bazel test --config=opt //:plan_replay_test
 # Size large since run 037: the verifier over v15's and v16's three bays takes
 # 61 and 56 s, and the test took 207.9 s here in the full suite, more than two
-# thirds of medium's 300 s.
+# thirds of medium's 300 s. Four shards since run 060: whole, it had grown to
+# 444.7 s of large's 900 s in run 057's full suite, about 60 to 160 s more with
+# each three-bay plan. In run 060's full suite at three jobs the shards took
+# 100.1, 86.4, 74.3 and 92.0 s (15, 15, 14 and 14 of its 58 cases), the
+# slowest 100.1 s of 900 s (about 180 s on CI at 1.8x).
 cc_test(
     name = "plan_replay_test",
     size = "large",
@@ -2284,6 +2288,7 @@ cc_test(
     ],
     data = LAYOUT_FILES + LAYOUT_MODEL_FILES + PLAN_FILES,
     env = LAYOUT_ENV | {"PLAN_DIR": "plans"},
+    shard_count = 4,
     deps = [
         ":bay_hardware",
         ":layout",
