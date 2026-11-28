@@ -2,3 +2,7 @@ a31_b61 exit=1 secs=432
 a31_b61_s2 (orphaned from first queue) done
 a31 exit=0 secs=475
 ctl exit=0 secs=410
+a31_s2 exit=0 secs=373
+ctl_s2 exit=0 secs=476
+a30_b61 exit=0 secs=411
+a30_b61_s2 exit=0 secs=442

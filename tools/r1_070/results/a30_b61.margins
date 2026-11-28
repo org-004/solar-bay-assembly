@@ -1,0 +1,289 @@
+kind,rank,figure,unit,limit,a,b,arm,step,time_s,detail
+distance,1,0.0160,m,0.0150,pin_arm_c_arm_link_3_collision,holder_stand_8_saddle,pin_arm_c,143,307.75,against the cell
+distance,2,0.0180,m,0.0150,pin_arm_b_tool_pin_tool_nose,bay_tube,pin_arm_b,215,600.45,against the cell
+distance,3,0.0181,m,0.0150,pin_arm_c_tool_pin_tool_nose,bay_tube,pin_arm_c,147,322.15,against the cell
+distance,4,0.0181,m,0.0150,pin_arm_a_tool_pin_tool_nose,bay_rail_1_strap_ears,pin_arm_a,200,583.70,against the cell
+distance,5,0.0181,m,0.0150,pin_arm_b_tool_pin_tool_nose,bay_rail_5_strap_ears,pin_arm_b,91,276.35,against the cell
+distance,6,0.0182,m,0.0150,pin_arm_a_arm_link_3_collision,holder_stand_2_column,pin_arm_a,237,619.10,against the cell
+distance,7,0.0182,m,0.0150,pin_arm_a_tool_nutrunner_socket,holder_stand_2_saddle,pin_arm_a,178,455.60,against the cell
+distance,8,0.0182,m,0.0150,module_arm_tool_combined_gripper_plate,pallet_module_10_frame_long_b,module_arm,202,525.85,against the cell
+distance,9,0.0182,m,0.0150,pin_arm_c_tool_pin_tool_nose,holder_stand_8_saddle,pin_arm_c,231,617.35,against the cell
+distance,10,0.0182,m,0.0150,module_arm_tool_combined_gripper_plate,stock_rails_rack,module_arm,261,605.45,against the cell
+distance,11,0.0182,m,0.0150,pin_arm_a_tool_pin_tool_nose,bay_rail_3_strap_pos,pin_arm_a,125,328.50,against the cell
+distance,12,0.0182,m,0.0150,module_arm_held_module_frame_long_a,bay_rail_2_top,module_arm,25,130.80,against the cell
+distance,13,0.0183,m,0.0150,pin_arm_a_tool_pin_tool_nose,bay_rail_3_strap_ears,pin_arm_a,443,1075.10,against the cell
+distance,14,0.0183,m,0.0150,pin_arm_b_arm_link_5_collision,holder_stand_6_column,pin_arm_b,229,632.00,against the cell
+distance,15,0.0184,m,0.0150,pin_arm_a_tool_pin_tool_nose,holder_stand_2_column,pin_arm_a,397,993.10,against the cell
+distance,16,0.0184,m,0.0150,pin_arm_a_tool_pin_tool_nose,bay_tube,pin_arm_a,407,1038.20,against the cell
+distance,17,0.0184,m,0.0150,module_arm_tool_combined_gripper_plate,bay_module_3_laminate,module_arm,85,197.00,against the cell
+distance,18,0.0186,m,0.0150,module_arm_tool_combined_gripper_plate,bay_module_6_frame_short_b,module_arm,141,281.95,against the cell
+distance,19,0.0187,m,0.0150,pin_arm_c_tool_pin_tool_nose,bay_rail_7_strap_ears,pin_arm_c,63,206.50,against the cell
+distance,20,0.0187,m,0.0150,pin_arm_b_tool_pin_tool_nose,bay_module_4_flange_long_b,pin_arm_b,129,318.35,against the cell
+arm_pair,1,0.0187,m,0.0150,module_arm_held_module_flange_long_a,pin_arm_b_tool_pin_tool_nose,module_arm,290,659.80,arms module_arm and pin_arm_b
+arm_pair,2,0.0193,m,0.0150,module_arm_arm_link_2_collision,pin_arm_c_tool_nutrunner_socket,module_arm,175,492.55,arms module_arm and pin_arm_c
+arm_pair,3,0.0209,m,0.0150,module_arm_held_module_flange_long_a,pin_arm_a_tool_pin_tool_nose,module_arm,234,580.40,arms module_arm and pin_arm_a
+arm_pair,4,0.0248,m,0.0150,pin_arm_a_arm_link_3_collision,pin_arm_b_arm_link_1_collision,pin_arm_a,121,310.70,arms pin_arm_a and pin_arm_b
+arm_pair,5,0.0414,m,0.0150,pin_arm_c_arm_link_1_collision,pin_arm_b_arm_link_3_collision,pin_arm_c,103,245.65,arms pin_arm_c and pin_arm_b
+arm_pair,6,1.0000,m,0.0150,nothing,nothing,pin_arm_a,14,0.00,arms pin_arm_a and pin_arm_c
+joint_margin,1,5.00,deg,5.0,arm_joint_1,,pin_arm_a,27,147.95,
+joint_margin,2,5.00,deg,5.0,arm_joint_1,,pin_arm_b,42,0.00,
+joint_margin,3,10.00,deg,5.0,arm_joint_2,,module_arm,3,0.00,
+joint_margin,4,10.08,deg,5.0,arm_joint_3,,module_arm,25,127.55,
+joint_margin,5,14.39,deg,5.0,arm_joint_3,,pin_arm_c,20,123.00,
+tool_fit,1,0.0007,m,0.0000,nutrunner,strap_bolt,pin_arm_a,,,free radius 0.012 over the 0.100 behind the working point; box socket reaches 0.0113 from the axis
+tool_fit,2,0.0007,m,0.0000,nutrunner,strap_bolt,pin_arm_c,,,free radius 0.012 over the 0.100 behind the working point; box socket reaches 0.0113 from the axis
+tool_fit,3,0.0017,m,0.0000,pin_tool,pin,pin_arm_a,,,free radius 0.013 over the 0.080 behind the working point; box nose reaches 0.0113 from the axis
+tool_fit,4,0.0017,m,0.0000,pin_tool,pin,pin_arm_b,,,free radius 0.013 over the 0.080 behind the working point; box nose reaches 0.0113 from the axis
+tool_fit,5,0.0017,m,0.0000,pin_tool,pin,pin_arm_c,,,free radius 0.013 over the 0.080 behind the working point; box nose reaches 0.0113 from the axis
+tool_fit,6,0.0017,m,0.0000,pin_tool,swage,pin_arm_a,,,free radius 0.013 over the 0.080 behind the working point; box nose reaches 0.0113 from the axis
+tool_fit,7,0.0017,m,0.0000,pin_tool,swage,pin_arm_b,,,free radius 0.013 over the 0.080 behind the working point; box nose reaches 0.0113 from the axis
+tool_fit,8,0.0017,m,0.0000,pin_tool,swage,pin_arm_c,,,free radius 0.013 over the 0.080 behind the working point; box nose reaches 0.0113 from the axis
+tool_fit,9,0.0077,m,0.0000,pin_tool,locate,pin_arm_a,,,free radius 0.019 over the 0.080 behind the working point; box nose reaches 0.0113 from the axis
+tool_fit,10,0.0077,m,0.0000,pin_tool,locate,pin_arm_b,,,free radius 0.019 over the 0.080 behind the working point; box nose reaches 0.0113 from the axis
+tool_fit,11,0.0077,m,0.0000,pin_tool,locate,pin_arm_c,,,free radius 0.019 over the 0.080 behind the working point; box nose reaches 0.0113 from the axis
+load,1,8.5000,kg,20.0000,pin_arm_a pin_tool,,pin_arm_a,,,"tool 8.00 + a pin magazine (ours) 0.50; rated payload of KUKA KR 20 R1810-2 (KR CYBERTECH-2); centre of mass 0.090 m along the flange's axis (rated to 0.155), 0.000 m across (rated to 0.120)"
+load,2,8.5000,kg,20.0000,pin_arm_c pin_tool,,pin_arm_c,,,"tool 8.00 + a pin magazine (ours) 0.50; rated payload of KUKA KR 20 R1810-2 (KR CYBERTECH-2); centre of mass 0.090 m along the flange's axis (rated to 0.155), 0.000 m across (rated to 0.120)"
+load,3,8.5000,kg,20.0000,pin_arm_b pin_tool,,pin_arm_b,,,"tool 8.00 + a pin magazine (ours) 0.50; rated payload of KUKA KR 20 R1810-2 (KR CYBERTECH-2); centre of mass 0.090 m along the flange's axis (rated to 0.155), 0.000 m across (rated to 0.120)"
+load,4,80.4000,kg,210.0000,module_arm combined_gripper,,module_arm,,,"tool 48.00 + a module 32.40; rated payload of KUKA KR 210 R2700-2 (KR QUANTEC); centre of mass 0.238 m along the flange's axis (rated to 0.310), 0.000 m across (rated to 0.355)"
+load,5,3.0000,kg,20.0000,pin_arm_a nutrunner,,pin_arm_a,,,"tool 3.00 + nothing 0.00; rated payload of KUKA KR 20 R1810-2 (KR CYBERTECH-2); centre of mass 0.077 m along the flange's axis (rated to 0.155), 0.000 m across (rated to 0.120)"
+load,6,3.0000,kg,20.0000,pin_arm_c nutrunner,,pin_arm_c,,,"tool 3.00 + nothing 0.00; rated payload of KUKA KR 20 R1810-2 (KR CYBERTECH-2); centre of mass 0.077 m along the flange's axis (rated to 0.155), 0.000 m across (rated to 0.120)"
+ways,1,0.0430,m,0.0150,tube in,,,,,"bay_tube to holder_stand_4_column at offset (0.000, 0.000, 0.000); 205 samples, at most 0.025 m apart"
+ways,2,0.0430,m,0.0150,bay out,,,,,"bay_tube to holder_stand_4_column at offset (0.000, 0.000, 0.000); 122 samples, at most 0.025 m apart"
+transport,1,0.0000,m,0.0000,stowed bottom,,,,,"worst pin_arm_a_beam, above 0.648"
+transport,2,0.0000,boxes,0.0000,on the deck holder,,,,,all 19 stand on the deck
+transport,3,0.0000,boxes,0.0000,on the deck beam module_arm,,,,,all 1 stand on the deck
+transport,4,0.0000,boxes,0.0000,on the deck beam pin_arm_a,,,,,all 1 stand on the deck
+transport,5,0.0000,boxes,0.0000,on the deck beam pin_arm_c,,,,,all 1 stand on the deck
+transport,6,0.0000,boxes,0.0000,on the deck beam pin_arm_b,,,,,all 1 stand on the deck
+transport,7,0.0000,m,0.0010,on the deck arm pin_arm_a,,pin_arm_a,,,"worst at lo: carriage 0.0000 m from the beam's top, 0.0000 m past the beam's end, 0.0000 m off the beam across, base 0.0000 m from the carriage's top"
+transport,8,0.0000,m,0.0010,on the deck arm pin_arm_c,,pin_arm_c,,,"worst at lo: carriage 0.0000 m from the beam's top, 0.0000 m past the beam's end, 0.0000 m off the beam across, base 0.0000 m from the carriage's top"
+transport,9,0.0000,m,0.0010,on the deck arm pin_arm_b,,pin_arm_b,,,"worst at lo: carriage 0.0000 m from the beam's top, 0.0000 m past the beam's end, 0.0000 m off the beam across, base 0.0000 m from the carriage's top"
+transport,10,0.0000,boxes,0.0000,on the deck stock pins,,,,,no box
+transport,11,0.0000,boxes,0.0000,on the deck stock pins_1,,,,,no box
+transport,12,0.0000,boxes,0.0000,on the deck stock pins_2,,,,,no box
+transport,13,0.0000,boxes,0.0000,on the deck item pin_lane,,,,,all 4 stand on the deck
+transport,14,0.0000,m,0.0010,on the deck arm module_arm,,module_arm,,,"worst at lo: carriage 0.0000 m from the beam's top, 0.0000 m past the beam's end, 0.0000 m off the beam across, base 0.0000 m from the carriage's top"
+transport,15,0.0040,m,0.0000,stowed x,,,,,"worst holder_end_column, inside +/-1.219"
+transport,16,0.0060,m,0.0000,stowed y,,,,,"worst item_pin_lane_lane, inside +/-6.096"
+transport,17,0.2656,m,0.0000,stowed top,,,,,"worst module_arm_tool_combined_gripper_magazine_neg_x, under 2.896"
+transport,18,4147.2000,kg,13608.0000,mass,,,,,"arms 1842, tracks 1896, tools 78.0, holder 220, items inside 108, stocks inside 3"
+transport,19,0.7500,m,0.0000,stow track pin_arm_c,,pin_arm_c,,,stow_track 4.250 on the track's 0.800..5.000
+transport,20,1.0000,m,0.0000,stow track pin_arm_a,,pin_arm_a,,,stow_track -4.700 on the track's -5.700..-0.800
+transport,21,1.3000,m,0.0000,stow track pin_arm_b,,pin_arm_b,,,stow_track 0.600 on the track's -2.700..1.900
+transport,22,3.6000,m,0.0000,stow track module_arm,,module_arm,,,stow_track 0.000 on the track's -3.600..5.500
+track_end,1,0.0000,m,0.0000,lo,,module_arm,4,50.12,"track -3.600 to 5.500, least at -3.600"
+track_end,2,0.0000,m,0.0000,hi,,module_arm,13,111.11,"track -3.600 to 5.500, least at 5.500"
+track_end,3,0.0000,m,0.0000,lo,,pin_arm_a,14,0.00,"track -5.700 to -0.800, least at -5.700"
+track_end,4,0.3267,m,0.0000,lo,,pin_arm_b,205,554.54,"track -2.700 to 1.900, least at -2.373"
+track_end,5,0.4000,m,0.0000,hi,,pin_arm_a,18,93.02,"track -5.700 to -0.800, least at -1.200"
+track_end,6,0.4000,m,0.0000,lo,,pin_arm_c,65,215.42,"track 0.800 to 5.000, least at 1.200"
+track_end,7,0.4000,m,0.0000,hi,,pin_arm_b,131,327.79,"track -2.700 to 1.900, least at 1.500"
+track_end,8,0.4000,m,0.0000,hi,,pin_arm_c,19,0.00,"track 0.800 to 5.000, least at 4.600"
+carriage_gap,1,1.1446,m,0.5000,pin_arm_a,pin_arm_b,pin_arm_a,441,1067.09,pin_arm_b at step 420; boxes 0.6446 m apart
+carriage_gap,2,1.3903,m,0.5000,pin_arm_c,pin_arm_b,pin_arm_c,103,245.66,pin_arm_b at step 67; boxes 0.8903 m apart
+carriage_gap,3,3.2000,m,0.5000,pin_arm_a,pin_arm_c,pin_arm_a,54,215.42,pin_arm_c at step 65; boxes 2.7000 m apart
+tube_bay,1,0.1140,m,0.0150,tube_in 1,bay_out 0,,163,401.05,the incoming tube to the outgoing bay's rails and modules
+tube_bay,2,0.1140,m,0.0150,tube_in 2,bay_out 1,,325,788.67,the incoming tube to the outgoing bay's rails and modules
+tube_arms,1,1.0000,m,0.0150,,,,,,arms off their wait poses to the tube coming in (the verifier's)
+# boundary 0/1: bay_out 380.77 to 420.77 s, tube_in 382.36 to 422.36 s, overlap 38.41 s
+# boundary 1/2: bay_out 768.33 to 808.33 s, tube_in 769.92 to 809.92 s, overlap 38.41 s
+critical,bay,link,step,what,arm,start_s,end_s,chain_s,wait_s,way_s,way_for,hold_s,motion_s,work_s,slowed_s,cause,why
+critical,0,1,1,tube_in 0,events,0.00,40.00,40.00,0.00,0.00,,0.00,0.00,40.00,0.00,root,the first tube comes in
+critical,0,2,2,clamp 0,events,40.00,45.00,5.00,0.00,0.00,,0.00,0.00,5.00,0.00,tube,the tube is in at 40.00 s
+critical,0,3,4,set rail 0,module_arm,45.00,55.16,10.16,0.00,0.00,,0.00,7.16,3.00,0.00,clamp,the tube's clamp ends at 45.00 s
+critical,0,4,5,set rail 1,module_arm,55.16,61.57,6.41,0.00,0.00,,0.00,3.41,3.00,0.00,arm,its arm's step 4 (set rail 0) ends at 55.16 s
+critical,0,5,6,set rail 2,module_arm,61.57,68.47,6.90,0.00,0.00,,0.00,3.90,3.00,0.00,arm,its arm's step 5 (set rail 1) ends at 61.57 s
+critical,0,6,7,set rail 3,module_arm,68.47,75.37,6.90,0.00,0.00,,0.00,3.90,3.00,0.00,arm,its arm's step 6 (set rail 2) ends at 68.47 s
+critical,0,7,8,set rail 4,module_arm,75.37,82.26,6.90,0.00,0.00,,0.00,3.90,3.00,0.00,arm,its arm's step 7 (set rail 3) ends at 75.37 s
+critical,0,8,9,set rail 5,module_arm,82.26,89.16,6.90,0.00,0.00,,0.00,3.90,3.00,0.00,arm,its arm's step 8 (set rail 4) ends at 82.26 s
+critical,0,9,10,set rail 6,module_arm,89.16,96.06,6.90,0.00,0.00,,0.00,3.90,3.00,0.00,arm,its arm's step 9 (set rail 5) ends at 89.16 s
+critical,0,10,11,set rail 7,module_arm,96.06,102.96,6.90,0.00,0.00,,0.00,3.90,3.00,0.00,arm,its arm's step 10 (set rail 6) ends at 96.06 s
+critical,0,11,12,set rail 8,module_arm,102.96,109.85,6.90,0.00,0.00,,0.00,3.90,3.00,0.00,arm,its arm's step 11 (set rail 7) ends at 102.96 s
+critical,0,12,13,set rail 9,module_arm,109.85,116.15,6.30,0.00,0.00,,0.00,3.30,3.00,0.00,arm,its arm's step 12 (set rail 8) ends at 109.85 s
+critical,0,13,24,take module 0,module_arm,116.15,127.54,11.39,0.00,0.00,,0.00,9.39,2.00,1.03,arm,its arm's step 13 (set rail 9) ends at 116.15 s
+critical,0,14,25,set module 0,module_arm,127.54,137.05,9.51,0.00,0.00,,0.00,6.51,3.00,0.00,arm,its arm's step 24 (take module 0) ends at 127.54 s
+critical,0,15,40,take module 3,module_arm,137.05,145.80,8.74,0.00,0.00,,0.00,6.74,2.00,0.00,arm,its arm's step 25 (set module 0) ends at 137.05 s
+critical,0,16,41,set module 3,module_arm,145.80,155.51,9.71,0.00,0.00,,0.00,6.71,3.00,0.38,arm,its arm's step 40 (take module 3) ends at 145.80 s
+critical,0,17,55,take module 6,module_arm,155.51,162.42,6.91,0.00,0.00,,0.00,4.91,2.00,0.27,arm,its arm's step 41 (set module 3) ends at 155.51 s
+critical,0,18,56,set module 6,module_arm,162.42,172.31,9.90,0.00,0.00,,0.00,6.90,3.00,0.14,arm,its arm's step 55 (take module 6) ends at 162.42 s
+critical,0,19,57,tool change,pin_arm_c,172.31,180.67,8.36,0.00,0.00,,0.00,0.36,8.00,0.00,need,the work of step 56 (set module 6) by module_arm ends at 172.31 s
+critical,0,20,58,take a pin magazine,pin_arm_c,180.67,187.21,6.54,0.00,0.00,,0.00,2.54,4.00,0.00,arm,its arm's step 57 (tool change) ends at 180.67 s
+critical,0,21,59,locate 6/0,pin_arm_c,187.21,194.78,7.58,0.00,0.00,,0.00,4.58,3.00,0.00,arm,its arm's step 58 (take a pin magazine) ends at 187.21 s
+critical,0,22,60,pin 6/0,pin_arm_c,194.78,197.27,2.49,0.00,0.00,,0.00,0.49,2.00,0.00,need,step 59 (locate 6/0) by pin_arm_c ends at 194.78 s
+critical,0,23,61,locate 6/2,pin_arm_c,197.27,203.01,5.74,0.00,0.00,,0.00,2.74,3.00,0.00,need,step 60 (pin 6/0) by pin_arm_c ends at 197.27 s
+critical,0,24,62,pin 6/2,pin_arm_c,203.01,205.50,2.49,0.00,0.00,,0.00,0.49,2.00,0.00,need,step 61 (locate 6/2) by pin_arm_c ends at 203.01 s
+critical,0,25,63,locate 6/3,pin_arm_c,205.50,211.34,5.84,0.00,0.00,,0.00,2.84,3.00,0.00,need,step 62 (pin 6/2) by pin_arm_c ends at 205.50 s
+critical,0,26,64,pin 6/3,pin_arm_c,211.34,213.83,2.49,0.00,0.00,,0.00,0.49,2.00,0.00,need,step 63 (locate 6/3) by pin_arm_c ends at 211.34 s
+critical,0,27,65,locate 6/1,pin_arm_c,213.83,219.56,5.74,0.00,0.00,,0.00,2.74,3.00,0.00,need,step 64 (pin 6/3) by pin_arm_c ends at 213.83 s
+critical,0,28,66,pin 6/1,pin_arm_c,219.56,222.05,2.49,0.00,0.00,,0.00,0.49,2.00,0.00,need,step 65 (locate 6/1) by pin_arm_c ends at 219.56 s
+critical,0,29,67,swage 6/1,pin_arm_b,242.55,250.52,7.97,20.50,20.50,pin_arm_c,0.00,4.97,3.00,0.00,need,step 66 (pin 6/1) by pin_arm_c ends at 222.05 s; then waits 20.50 s for pin_arm_c in its way
+critical,0,30,70,swage 6/0,pin_arm_b,250.52,256.51,5.99,0.00,0.00,,0.00,2.99,3.00,0.00,arm,its arm's step 67 (swage 6/1) ends at 250.52 s
+critical,0,31,87,locate 4/0,pin_arm_b,256.51,264.91,8.40,0.00,0.00,,0.00,5.40,3.00,0.00,arm,its arm's step 70 (swage 6/0) ends at 256.51 s
+critical,0,32,88,pin 4/0,pin_arm_b,264.91,267.40,2.49,0.00,0.00,,0.00,0.49,2.00,0.00,need,step 87 (locate 4/0) by pin_arm_b ends at 264.91 s
+critical,0,33,89,locate 4/2,pin_arm_b,267.40,273.14,5.74,0.00,0.00,,0.00,2.74,3.00,0.00,need,step 88 (pin 4/0) by pin_arm_b ends at 267.40 s
+critical,0,34,90,pin 4/2,pin_arm_b,273.14,275.63,2.49,0.00,0.00,,0.00,0.49,2.00,0.00,need,step 89 (locate 4/2) by pin_arm_b ends at 273.14 s
+critical,0,35,91,locate 4/3,pin_arm_b,275.63,281.34,5.71,0.00,0.00,,0.00,2.71,3.00,0.00,need,step 90 (pin 4/2) by pin_arm_b ends at 275.63 s
+critical,0,36,92,pin 4/3,pin_arm_b,281.34,283.83,2.49,0.00,0.00,,0.00,0.49,2.00,0.00,need,step 91 (locate 4/3) by pin_arm_b ends at 281.34 s
+critical,0,37,93,locate 4/1,pin_arm_b,283.83,289.56,5.74,0.00,0.00,,0.00,2.74,3.00,0.00,need,step 92 (pin 4/3) by pin_arm_b ends at 283.83 s
+critical,0,38,94,pin 4/1,pin_arm_b,289.56,291.56,2.00,0.00,0.00,,0.00,0.00,2.00,0.00,need,step 93 (locate 4/1) by pin_arm_b ends at 289.56 s
+critical,0,39,95,swage 4/1,pin_arm_b,291.56,295.05,3.49,0.00,0.00,,0.00,0.49,3.00,0.00,need,step 94 (pin 4/1) by pin_arm_b ends at 291.56 s
+critical,0,40,96,swage 4/3,pin_arm_b,295.05,301.28,6.23,0.00,0.00,,0.00,3.23,3.00,0.00,arm,its arm's step 95 (swage 4/1) ends at 295.05 s
+critical,0,41,97,swage 4/2,pin_arm_b,301.28,307.29,6.01,0.00,0.00,,0.00,3.01,3.00,0.00,arm,its arm's step 96 (swage 4/3) ends at 301.28 s
+critical,0,42,98,swage 4/0,pin_arm_b,309.29,315.52,6.23,2.00,2.00,pin_arm_a,0.00,3.23,3.00,0.00,arm,its arm's step 97 (swage 4/2) ends at 307.29 s; then waits 2.00 s for pin_arm_a in its way
+critical,0,43,129,locate 5/0,pin_arm_b,315.52,321.32,5.80,0.00,0.00,,0.00,2.80,3.00,0.00,arm,its arm's step 98 (swage 4/0) ends at 315.52 s
+critical,0,44,130,pin 5/0,pin_arm_b,321.32,323.81,2.49,0.00,0.00,,0.00,0.49,2.00,0.00,need,step 129 (locate 5/0) by pin_arm_b ends at 321.32 s
+critical,0,45,131,locate 5/2,pin_arm_b,323.81,331.93,8.13,0.00,0.00,,0.00,5.13,3.00,0.00,need,step 130 (pin 5/0) by pin_arm_b ends at 323.81 s
+critical,0,46,132,pin 5/2,pin_arm_b,331.93,334.42,2.49,0.00,0.00,,0.00,0.49,2.00,0.00,need,step 131 (locate 5/2) by pin_arm_b ends at 331.93 s
+critical,0,47,133,locate 5/3,pin_arm_b,334.42,340.17,5.74,0.00,0.00,,0.00,2.74,3.00,0.00,need,step 132 (pin 5/2) by pin_arm_b ends at 334.42 s
+critical,0,48,134,pin 5/3,pin_arm_b,340.17,342.66,2.49,0.00,0.00,,0.00,0.49,2.00,0.00,need,step 133 (locate 5/3) by pin_arm_b ends at 340.17 s
+critical,0,49,135,locate 5/1,pin_arm_b,342.66,348.39,5.74,0.00,0.00,,0.00,2.74,3.00,0.00,need,step 134 (pin 5/3) by pin_arm_b ends at 342.66 s
+critical,0,50,136,pin 5/1,pin_arm_b,348.39,350.39,2.00,0.00,0.00,,0.00,0.00,2.00,0.00,need,step 135 (locate 5/1) by pin_arm_b ends at 348.39 s
+critical,0,51,137,swage 5/1,pin_arm_b,350.39,353.88,3.49,0.00,0.00,,0.00,0.49,3.00,0.00,need,step 136 (pin 5/1) by pin_arm_b ends at 350.39 s
+critical,0,52,138,swage 5/3,pin_arm_b,353.88,360.11,6.23,0.00,0.00,,0.00,3.23,3.00,0.00,arm,its arm's step 137 (swage 5/1) ends at 353.88 s
+critical,0,53,139,swage 5/2,pin_arm_b,360.11,366.32,6.22,0.00,0.00,,0.00,3.22,3.00,0.00,arm,its arm's step 138 (swage 5/3) ends at 360.11 s
+critical,0,54,140,swage 5/0,pin_arm_b,366.32,375.77,9.45,0.00,0.00,,0.00,6.45,3.00,0.00,arm,its arm's step 139 (swage 5/2) ends at 366.32 s
+critical,0,55,155,release 0,events,375.77,380.77,5.00,0.00,0.00,,0.00,0.00,5.00,0.00,modules,"the bay's last block of phase modules, step 140 (swage 5/0) by pin_arm_b, ends at 375.77 s"
+critical,1,1,156,bay_out 0,events,380.77,382.36,1.59,0.00,0.00,,0.00,0.00,1.59,0.00,release,bay 0's release ends at 380.77 s
+critical,1,2,163,tube_in 1,events,382.36,422.36,40.00,0.00,0.00,,0.00,0.00,40.00,0.00,holder,the holder is empty at 382.36 s
+critical,1,3,164,clamp 1,events,422.36,427.36,5.00,0.00,0.00,,0.00,0.00,5.00,0.00,tube,the tube is in at 422.36 s
+critical,1,4,166,set rail 0,module_arm,427.36,437.07,9.71,0.00,0.00,,0.00,6.71,3.00,0.00,clamp,the tube's clamp ends at 427.36 s
+critical,1,5,167,set rail 1,module_arm,437.07,443.49,6.41,0.00,0.00,,0.00,3.41,3.00,0.00,arm,its arm's step 166 (set rail 0) ends at 437.07 s
+critical,1,6,168,set rail 2,module_arm,443.49,450.38,6.90,0.00,0.00,,0.00,3.90,3.00,0.00,arm,its arm's step 167 (set rail 1) ends at 443.49 s
+critical,1,7,169,set rail 3,module_arm,450.38,457.28,6.90,0.00,0.00,,0.00,3.90,3.00,0.00,arm,its arm's step 168 (set rail 2) ends at 450.38 s
+critical,1,8,170,set rail 4,module_arm,457.28,464.18,6.90,0.00,0.00,,0.00,3.90,3.00,0.00,arm,its arm's step 169 (set rail 3) ends at 457.28 s
+critical,1,9,171,set rail 5,module_arm,464.18,471.07,6.90,0.00,0.00,,0.00,3.90,3.00,0.00,arm,its arm's step 170 (set rail 4) ends at 464.18 s
+critical,1,10,172,set rail 6,module_arm,471.07,477.97,6.90,0.00,0.00,,0.00,3.90,3.00,0.00,arm,its arm's step 171 (set rail 5) ends at 471.07 s
+critical,1,11,173,set rail 7,module_arm,477.97,484.87,6.90,0.00,0.00,,0.00,3.90,3.00,0.00,arm,its arm's step 172 (set rail 6) ends at 477.97 s
+critical,1,12,174,set rail 8,module_arm,484.87,491.77,6.90,0.00,0.00,,0.00,3.90,3.00,0.00,arm,its arm's step 173 (set rail 7) ends at 484.87 s
+critical,1,13,175,set rail 9,module_arm,491.77,498.07,6.30,0.00,0.00,,0.00,3.30,3.00,0.00,arm,its arm's step 174 (set rail 8) ends at 491.77 s
+critical,1,14,186,take module 0,module_arm,498.07,509.74,11.67,0.00,0.00,,0.00,9.67,2.00,1.07,arm,its arm's step 175 (set rail 9) ends at 498.07 s
+critical,1,15,187,set module 0,module_arm,509.74,521.09,11.35,0.00,0.00,,0.00,8.35,3.00,0.00,arm,its arm's step 186 (take module 0) ends at 509.74 s
+critical,1,16,202,take module 3,module_arm,521.09,531.24,10.15,0.00,0.00,,0.00,8.15,2.00,0.00,arm,its arm's step 187 (set module 0) ends at 521.09 s
+critical,1,17,203,set module 3,module_arm,531.24,542.10,10.86,0.00,0.00,,0.00,7.86,3.00,0.58,arm,its arm's step 202 (take module 3) ends at 531.24 s
+critical,1,18,217,take module 6,module_arm,542.10,550.36,8.26,0.00,0.00,,0.00,6.26,2.00,0.22,arm,its arm's step 203 (set module 3) ends at 542.10 s
+critical,1,19,218,set module 6,module_arm,550.36,561.12,10.76,0.00,0.00,,0.00,7.76,3.00,0.00,arm,its arm's step 217 (take module 6) ends at 550.36 s
+critical,1,20,219,tool change,pin_arm_c,561.12,569.48,8.36,0.00,0.00,,0.00,0.36,8.00,0.00,need,the work of step 218 (set module 6) by module_arm ends at 561.12 s
+critical,1,21,220,take a pin magazine,pin_arm_c,569.48,576.01,6.54,0.00,0.00,,0.00,2.54,4.00,0.00,arm,its arm's step 219 (tool change) ends at 569.48 s
+critical,1,22,221,locate 6/0,pin_arm_c,576.01,583.59,7.58,0.00,0.00,,0.00,4.58,3.00,0.00,arm,its arm's step 220 (take a pin magazine) ends at 576.01 s
+critical,1,23,222,pin 6/0,pin_arm_c,583.59,586.08,2.49,0.00,0.00,,0.00,0.49,2.00,0.00,need,step 221 (locate 6/0) by pin_arm_c ends at 583.59 s
+critical,1,24,223,locate 6/2,pin_arm_c,586.08,591.82,5.74,0.00,0.00,,0.00,2.74,3.00,0.00,need,step 222 (pin 6/0) by pin_arm_c ends at 586.08 s
+critical,1,25,224,pin 6/2,pin_arm_c,591.82,594.31,2.49,0.00,0.00,,0.00,0.49,2.00,0.00,need,step 223 (locate 6/2) by pin_arm_c ends at 591.82 s
+critical,1,26,225,locate 6/3,pin_arm_c,594.31,600.14,5.84,0.00,0.00,,0.00,2.84,3.00,0.00,need,step 224 (pin 6/2) by pin_arm_c ends at 594.31 s
+critical,1,27,226,pin 6/3,pin_arm_c,600.14,602.63,2.49,0.00,0.00,,0.00,0.49,2.00,0.00,need,step 225 (locate 6/3) by pin_arm_c ends at 600.14 s
+critical,1,28,227,locate 6/1,pin_arm_c,602.63,608.37,5.74,0.00,0.00,,0.00,2.74,3.00,0.00,need,step 226 (pin 6/3) by pin_arm_c ends at 602.63 s
+critical,1,29,228,pin 6/1,pin_arm_c,608.37,610.86,2.49,0.00,0.00,,0.00,0.49,2.00,0.00,need,step 227 (locate 6/1) by pin_arm_c ends at 608.37 s
+critical,1,30,229,swage 6/1,pin_arm_b,630.11,638.08,7.97,19.25,19.25,pin_arm_c,0.00,4.97,3.00,0.00,need,step 228 (pin 6/1) by pin_arm_c ends at 610.86 s; then waits 19.25 s for pin_arm_c in its way
+critical,1,31,232,swage 6/0,pin_arm_b,638.08,644.07,5.99,0.00,0.00,,0.00,2.99,3.00,0.00,arm,its arm's step 229 (swage 6/1) ends at 638.08 s
+critical,1,32,249,locate 4/0,pin_arm_b,644.07,652.47,8.40,0.00,0.00,,0.00,5.40,3.00,0.00,arm,its arm's step 232 (swage 6/0) ends at 644.07 s
+critical,1,33,250,pin 4/0,pin_arm_b,652.47,654.96,2.49,0.00,0.00,,0.00,0.49,2.00,0.00,need,step 249 (locate 4/0) by pin_arm_b ends at 652.47 s
+critical,1,34,251,locate 4/2,pin_arm_b,654.96,660.69,5.74,0.00,0.00,,0.00,2.74,3.00,0.00,need,step 250 (pin 4/0) by pin_arm_b ends at 654.96 s
+critical,1,35,252,pin 4/2,pin_arm_b,660.69,663.18,2.49,0.00,0.00,,0.00,0.49,2.00,0.00,need,step 251 (locate 4/2) by pin_arm_b ends at 660.69 s
+critical,1,36,253,locate 4/3,pin_arm_b,663.18,668.89,5.71,0.00,0.00,,0.00,2.71,3.00,0.00,need,step 252 (pin 4/2) by pin_arm_b ends at 663.18 s
+critical,1,37,254,pin 4/3,pin_arm_b,668.89,671.38,2.49,0.00,0.00,,0.00,0.49,2.00,0.00,need,step 253 (locate 4/3) by pin_arm_b ends at 668.89 s
+critical,1,38,255,locate 4/1,pin_arm_b,671.38,677.12,5.74,0.00,0.00,,0.00,2.74,3.00,0.00,need,step 254 (pin 4/3) by pin_arm_b ends at 671.38 s
+critical,1,39,256,pin 4/1,pin_arm_b,677.12,679.12,2.00,0.00,0.00,,0.00,0.00,2.00,0.00,need,step 255 (locate 4/1) by pin_arm_b ends at 677.12 s
+critical,1,40,257,swage 4/1,pin_arm_b,679.12,682.61,3.49,0.00,0.00,,0.00,0.49,3.00,0.00,need,step 256 (pin 4/1) by pin_arm_b ends at 679.12 s
+critical,1,41,258,swage 4/3,pin_arm_b,682.61,688.83,6.23,0.00,0.00,,0.00,3.23,3.00,0.00,arm,its arm's step 257 (swage 4/1) ends at 682.61 s
+critical,1,42,259,swage 4/2,pin_arm_b,688.83,694.85,6.01,0.00,0.00,,0.00,3.01,3.00,0.00,arm,its arm's step 258 (swage 4/3) ends at 688.83 s
+critical,1,43,260,swage 4/0,pin_arm_b,696.85,703.07,6.23,2.00,2.00,pin_arm_a,0.00,3.23,3.00,0.00,arm,its arm's step 259 (swage 4/2) ends at 694.85 s; then waits 2.00 s for pin_arm_a in its way
+critical,1,44,291,locate 5/0,pin_arm_b,703.07,708.87,5.80,0.00,0.00,,0.00,2.80,3.00,0.00,arm,its arm's step 260 (swage 4/0) ends at 703.07 s
+critical,1,45,292,pin 5/0,pin_arm_b,708.87,711.36,2.49,0.00,0.00,,0.00,0.49,2.00,0.00,need,step 291 (locate 5/0) by pin_arm_b ends at 708.87 s
+critical,1,46,293,locate 5/2,pin_arm_b,711.36,719.49,8.13,0.00,0.00,,0.00,5.13,3.00,0.00,need,step 292 (pin 5/0) by pin_arm_b ends at 711.36 s
+critical,1,47,294,pin 5/2,pin_arm_b,719.49,721.98,2.49,0.00,0.00,,0.00,0.49,2.00,0.00,need,step 293 (locate 5/2) by pin_arm_b ends at 719.49 s
+critical,1,48,295,locate 5/3,pin_arm_b,721.98,727.72,5.74,0.00,0.00,,0.00,2.74,3.00,0.00,need,step 294 (pin 5/2) by pin_arm_b ends at 721.98 s
+critical,1,49,296,pin 5/3,pin_arm_b,727.72,730.21,2.49,0.00,0.00,,0.00,0.49,2.00,0.00,need,step 295 (locate 5/3) by pin_arm_b ends at 727.72 s
+critical,1,50,297,locate 5/1,pin_arm_b,730.21,735.95,5.74,0.00,0.00,,0.00,2.74,3.00,0.00,need,step 296 (pin 5/3) by pin_arm_b ends at 730.21 s
+critical,1,51,298,pin 5/1,pin_arm_b,735.95,737.95,2.00,0.00,0.00,,0.00,0.00,2.00,0.00,need,step 297 (locate 5/1) by pin_arm_b ends at 735.95 s
+critical,1,52,299,swage 5/1,pin_arm_b,737.95,741.44,3.49,0.00,0.00,,0.00,0.49,3.00,0.00,need,step 298 (pin 5/1) by pin_arm_b ends at 737.95 s
+critical,1,53,300,swage 5/3,pin_arm_b,741.44,747.66,6.23,0.00,0.00,,0.00,3.23,3.00,0.00,arm,its arm's step 299 (swage 5/1) ends at 741.44 s
+critical,1,54,301,swage 5/2,pin_arm_b,747.66,753.88,6.22,0.00,0.00,,0.00,3.22,3.00,0.00,arm,its arm's step 300 (swage 5/3) ends at 747.66 s
+critical,1,55,302,swage 5/0,pin_arm_b,753.88,763.33,9.45,0.00,0.00,,0.00,6.45,3.00,0.00,arm,its arm's step 301 (swage 5/2) ends at 753.88 s
+critical,1,56,317,release 1,events,763.33,768.33,5.00,0.00,0.00,,0.00,0.00,5.00,0.00,modules,"the bay's last block of phase modules, step 302 (swage 5/0) by pin_arm_b, ends at 763.33 s"
+critical,2,1,318,bay_out 1,events,768.33,769.92,1.59,0.00,0.00,,0.00,0.00,1.59,0.00,release,bay 1's release ends at 768.33 s
+critical,2,2,325,tube_in 2,events,769.92,809.92,40.00,0.00,0.00,,0.00,0.00,40.00,0.00,holder,the holder is empty at 769.92 s
+critical,2,3,326,clamp 2,events,809.92,814.92,5.00,0.00,0.00,,0.00,0.00,5.00,0.00,tube,the tube is in at 809.92 s
+critical,2,4,328,set rail 0,module_arm,814.92,824.63,9.71,0.00,0.00,,0.00,6.71,3.00,0.00,clamp,the tube's clamp ends at 814.92 s
+critical,2,5,329,set rail 1,module_arm,824.63,831.04,6.41,0.00,0.00,,0.00,3.41,3.00,0.00,arm,its arm's step 328 (set rail 0) ends at 824.63 s
+critical,2,6,330,set rail 2,module_arm,831.04,837.94,6.90,0.00,0.00,,0.00,3.90,3.00,0.00,arm,its arm's step 329 (set rail 1) ends at 831.04 s
+critical,2,7,331,set rail 3,module_arm,837.94,844.84,6.90,0.00,0.00,,0.00,3.90,3.00,0.00,arm,its arm's step 330 (set rail 2) ends at 837.94 s
+critical,2,8,332,set rail 4,module_arm,844.84,851.73,6.90,0.00,0.00,,0.00,3.90,3.00,0.00,arm,its arm's step 331 (set rail 3) ends at 844.84 s
+critical,2,9,333,set rail 5,module_arm,851.73,858.63,6.90,0.00,0.00,,0.00,3.90,3.00,0.00,arm,its arm's step 332 (set rail 4) ends at 851.73 s
+critical,2,10,334,set rail 6,module_arm,858.63,865.53,6.90,0.00,0.00,,0.00,3.90,3.00,0.00,arm,its arm's step 333 (set rail 5) ends at 858.63 s
+critical,2,11,335,set rail 7,module_arm,865.53,872.43,6.90,0.00,0.00,,0.00,3.90,3.00,0.00,arm,its arm's step 334 (set rail 6) ends at 865.53 s
+critical,2,12,336,set rail 8,module_arm,872.43,879.32,6.90,0.00,0.00,,0.00,3.90,3.00,0.00,arm,its arm's step 335 (set rail 7) ends at 872.43 s
+critical,2,13,337,set rail 9,module_arm,879.32,885.62,6.30,0.00,0.00,,0.00,3.30,3.00,0.00,arm,its arm's step 336 (set rail 8) ends at 879.32 s
+critical,2,14,348,take module 0,module_arm,885.62,895.75,10.13,0.00,0.00,,0.00,8.13,2.00,0.00,arm,its arm's step 337 (set rail 9) ends at 885.62 s
+critical,2,15,349,set module 0,module_arm,895.75,907.16,11.41,0.00,0.00,,0.00,8.41,3.00,0.00,arm,its arm's step 348 (take module 0) ends at 895.75 s
+critical,2,16,364,take module 3,module_arm,907.16,916.92,9.76,0.00,0.00,,0.00,7.76,2.00,0.00,arm,its arm's step 349 (set module 0) ends at 907.16 s
+critical,2,17,365,set module 3,module_arm,916.92,926.07,9.15,0.00,0.00,,0.00,6.15,3.00,0.00,arm,its arm's step 364 (take module 3) ends at 916.92 s
+critical,2,18,379,take module 6,module_arm,926.07,934.99,8.93,0.00,0.00,,0.00,6.93,2.00,0.79,arm,its arm's step 365 (set module 3) ends at 926.07 s
+critical,2,19,380,set module 6,module_arm,934.99,945.29,10.29,0.00,0.00,,0.00,7.29,3.00,0.00,arm,its arm's step 379 (take module 6) ends at 934.99 s
+critical,2,20,381,tool change,pin_arm_c,945.29,953.64,8.36,0.00,0.00,,0.00,0.36,8.00,0.00,need,the work of step 380 (set module 6) by module_arm ends at 945.29 s
+critical,2,21,382,take a pin magazine,pin_arm_c,953.64,960.18,6.54,0.00,0.00,,0.00,2.54,4.00,0.00,arm,its arm's step 381 (tool change) ends at 953.64 s
+critical,2,22,383,locate 6/0,pin_arm_c,960.18,967.76,7.58,0.00,0.00,,0.00,4.58,3.00,0.00,arm,its arm's step 382 (take a pin magazine) ends at 960.18 s
+critical,2,23,384,pin 6/0,pin_arm_c,967.76,970.25,2.49,0.00,0.00,,0.00,0.49,2.00,0.00,need,step 383 (locate 6/0) by pin_arm_c ends at 967.76 s
+critical,2,24,385,locate 6/2,pin_arm_c,970.25,975.98,5.74,0.00,0.00,,0.00,2.74,3.00,0.00,need,step 384 (pin 6/0) by pin_arm_c ends at 970.25 s
+critical,2,25,386,pin 6/2,pin_arm_c,975.98,978.47,2.49,0.00,0.00,,0.00,0.49,2.00,0.00,need,step 385 (locate 6/2) by pin_arm_c ends at 975.98 s
+critical,2,26,387,locate 6/3,pin_arm_c,978.47,984.31,5.84,0.00,0.00,,0.00,2.84,3.00,0.00,need,step 386 (pin 6/2) by pin_arm_c ends at 978.47 s
+critical,2,27,388,pin 6/3,pin_arm_c,984.31,986.80,2.49,0.00,0.00,,0.00,0.49,2.00,0.00,need,step 387 (locate 6/3) by pin_arm_c ends at 984.31 s
+critical,2,28,389,locate 6/1,pin_arm_c,986.80,992.53,5.74,0.00,0.00,,0.00,2.74,3.00,0.00,need,step 388 (pin 6/3) by pin_arm_c ends at 986.80 s
+critical,2,29,390,pin 6/1,pin_arm_c,992.53,995.02,2.49,0.00,0.00,,0.00,0.49,2.00,0.00,need,step 389 (locate 6/1) by pin_arm_c ends at 992.53 s
+critical,2,30,391,swage 6/1,pin_arm_b,1014.27,1022.24,7.97,19.25,19.25,pin_arm_c,0.00,4.97,3.00,0.00,need,step 390 (pin 6/1) by pin_arm_c ends at 995.02 s; then waits 19.25 s for pin_arm_c in its way
+critical,2,31,394,swage 6/0,pin_arm_b,1022.24,1028.23,5.99,0.00,0.00,,0.00,2.99,3.00,0.00,arm,its arm's step 391 (swage 6/1) ends at 1022.24 s
+critical,2,32,411,locate 4/0,pin_arm_b,1028.23,1036.63,8.40,0.00,0.00,,0.00,5.40,3.00,0.00,arm,its arm's step 394 (swage 6/0) ends at 1028.23 s
+critical,2,33,412,pin 4/0,pin_arm_b,1036.63,1039.12,2.49,0.00,0.00,,0.00,0.49,2.00,0.00,need,step 411 (locate 4/0) by pin_arm_b ends at 1036.63 s
+critical,2,34,413,locate 4/2,pin_arm_b,1039.12,1044.86,5.74,0.00,0.00,,0.00,2.74,3.00,0.00,need,step 412 (pin 4/0) by pin_arm_b ends at 1039.12 s
+critical,2,35,414,pin 4/2,pin_arm_b,1044.86,1047.35,2.49,0.00,0.00,,0.00,0.49,2.00,0.00,need,step 413 (locate 4/2) by pin_arm_b ends at 1044.86 s
+critical,2,36,415,locate 4/3,pin_arm_b,1047.35,1053.06,5.71,0.00,0.00,,0.00,2.71,3.00,0.00,need,step 414 (pin 4/2) by pin_arm_b ends at 1047.35 s
+critical,2,37,416,pin 4/3,pin_arm_b,1053.06,1055.55,2.49,0.00,0.00,,0.00,0.49,2.00,0.00,need,step 415 (locate 4/3) by pin_arm_b ends at 1053.06 s
+critical,2,38,417,locate 4/1,pin_arm_b,1055.55,1061.28,5.74,0.00,0.00,,0.00,2.74,3.00,0.00,need,step 416 (pin 4/3) by pin_arm_b ends at 1055.55 s
+critical,2,39,418,pin 4/1,pin_arm_b,1061.28,1063.28,2.00,0.00,0.00,,0.00,0.00,2.00,0.00,need,step 417 (locate 4/1) by pin_arm_b ends at 1061.28 s
+critical,2,40,419,swage 4/1,pin_arm_b,1063.28,1066.77,3.49,0.00,0.00,,0.00,0.49,3.00,0.00,need,step 418 (pin 4/1) by pin_arm_b ends at 1063.28 s
+critical,2,41,420,swage 4/3,pin_arm_b,1066.77,1073.00,6.23,0.00,0.00,,0.00,3.23,3.00,0.00,arm,its arm's step 419 (swage 4/1) ends at 1066.77 s
+critical,2,42,421,swage 4/2,pin_arm_b,1073.00,1079.01,6.01,0.00,0.00,,0.00,3.01,3.00,0.00,arm,its arm's step 420 (swage 4/3) ends at 1073.00 s
+critical,2,43,422,swage 4/0,pin_arm_b,1081.01,1087.24,6.23,2.00,2.00,pin_arm_a,0.00,3.23,3.00,0.00,arm,its arm's step 421 (swage 4/2) ends at 1079.01 s; then waits 2.00 s for pin_arm_a in its way
+critical,2,44,453,locate 5/0,pin_arm_b,1087.24,1093.04,5.80,0.00,0.00,,0.00,2.80,3.00,0.00,arm,its arm's step 422 (swage 4/0) ends at 1087.24 s
+critical,2,45,454,pin 5/0,pin_arm_b,1093.04,1095.53,2.49,0.00,0.00,,0.00,0.49,2.00,0.00,need,step 453 (locate 5/0) by pin_arm_b ends at 1093.04 s
+critical,2,46,455,locate 5/2,pin_arm_b,1095.53,1103.66,8.13,0.00,0.00,,0.00,5.13,3.00,0.00,need,step 454 (pin 5/0) by pin_arm_b ends at 1095.53 s
+critical,2,47,456,pin 5/2,pin_arm_b,1103.66,1106.15,2.49,0.00,0.00,,0.00,0.49,2.00,0.00,need,step 455 (locate 5/2) by pin_arm_b ends at 1103.66 s
+critical,2,48,457,locate 5/3,pin_arm_b,1106.15,1111.89,5.74,0.00,0.00,,0.00,2.74,3.00,0.00,need,step 456 (pin 5/2) by pin_arm_b ends at 1106.15 s
+critical,2,49,458,pin 5/3,pin_arm_b,1111.89,1114.38,2.49,0.00,0.00,,0.00,0.49,2.00,0.00,need,step 457 (locate 5/3) by pin_arm_b ends at 1111.89 s
+critical,2,50,459,locate 5/1,pin_arm_b,1114.38,1120.11,5.74,0.00,0.00,,0.00,2.74,3.00,0.00,need,step 458 (pin 5/3) by pin_arm_b ends at 1114.38 s
+critical,2,51,460,pin 5/1,pin_arm_b,1120.11,1122.11,2.00,0.00,0.00,,0.00,0.00,2.00,0.00,need,step 459 (locate 5/1) by pin_arm_b ends at 1120.11 s
+critical,2,52,461,swage 5/1,pin_arm_b,1122.11,1125.60,3.49,0.00,0.00,,0.00,0.49,3.00,0.00,need,step 460 (pin 5/1) by pin_arm_b ends at 1122.11 s
+critical,2,53,462,swage 5/3,pin_arm_b,1125.60,1131.83,6.23,0.00,0.00,,0.00,3.23,3.00,0.00,arm,its arm's step 461 (swage 5/1) ends at 1125.60 s
+critical,2,54,463,swage 5/2,pin_arm_b,1131.83,1138.04,6.22,0.00,0.00,,0.00,3.22,3.00,0.00,arm,its arm's step 462 (swage 5/3) ends at 1131.83 s
+critical,2,55,464,swage 5/0,pin_arm_b,1138.04,1147.49,9.45,0.00,0.00,,0.00,6.45,3.00,0.00,arm,its arm's step 463 (swage 5/2) ends at 1138.04 s
+critical,2,56,479,release 2,events,1147.49,1152.49,5.00,0.00,0.00,,0.00,0.00,5.00,0.00,modules,"the bay's last block of phase modules, step 464 (swage 5/0) by pin_arm_b, ends at 1147.49 s"
+critical_arm,bay,arm,links,motion_s,work_s,slowed_s,wait_s,total_s,share_of_chain
+critical_arm,0,events,3,0.00,50.00,0.00,0.00,50.00,0.1313
+critical_arm,0,module_arm,16,82.31,45.00,1.82,0.00,127.31,0.3344
+critical_arm,0,pin_arm_c,10,17.74,32.00,0.00,0.00,49.74,0.1306
+critical_arm,0,pin_arm_b,26,61.22,70.00,0.00,22.50,153.72,0.4037
+critical_arm,1,events,4,0.00,51.59,0.00,0.00,51.59,0.1331
+critical_arm,1,module_arm,16,88.76,45.00,1.87,0.00,133.76,0.3451
+critical_arm,1,pin_arm_c,10,17.74,32.00,0.00,0.00,49.74,0.1283
+critical_arm,1,pin_arm_b,26,61.22,70.00,0.00,21.25,152.47,0.3934
+critical_arm,2,events,4,0.00,51.59,0.00,0.00,51.59,0.1343
+critical_arm,2,module_arm,16,85.37,45.00,0.79,0.00,130.37,0.3394
+critical_arm,2,pin_arm_c,10,17.74,32.00,0.00,0.00,49.74,0.1295
+critical_arm,2,pin_arm_b,26,61.22,70.00,0.00,21.25,152.47,0.3969
+critical_next,bay,arm,step,what,end_s,chain_s,before_release_s,shared_step,shared_until_s
+critical_next,0,pin_arm_c,154,swage 8/0,358.87,358.87,16.90,56,172.86
+critical_next,0,pin_arm_a,126,swage 2/0,340.56,340.56,35.21,25,136.51
+critical_next,0,module_arm,142,set module 8,302.64,302.64,73.13,56,172.86
+critical_next,1,pin_arm_c,316,swage 8/0,741.09,360.32,22.23,218,561.67
+critical_next,1,pin_arm_a,288,swage 2/0,728.09,347.32,35.23,187,520.54
+critical_next,1,module_arm,304,set module 8,684.86,304.09,78.46,218,561.67
+critical_next,2,pin_arm_c,478,swage 8/0,1124.39,356.07,23.10,390,995.02
+critical_next,2,pin_arm_a,450,swage 2/0,1112.17,343.84,35.32,349,906.61
+critical_next,2,module_arm,466,set module 8,1063.39,295.06,84.11,380,945.83
+# critical bay 0: 380.77 s from 0.00 s (the first tube_in) to the release's end at 380.77 s, 55 links
+# critical bay 1: 387.56 s from 380.77 s (the bay before's release ends) to the release's end at 768.33 s, 56 links
+# critical bay 2: 384.17 s from 768.33 s (the bay before's release ends) to the release's end at 1152.49 s, 56 links
+# layout: layouts/flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque_clear_out_infeed_rail_mag_early_next_fill_pallet_near_a30_b61.json
+# plan sha256: 53892042652d9fcc86997c0ac6f97b7ed5ddb5f9aa980cd6db27dbb923f453b3
+# least_clearance_m 0.0160
+# least_arm_to_arm_m 0.0187
+# schedule collision queries: 615075
+# track_end and carriage_gap: 120719 instants, every 0.010 s and at every segment's ends
