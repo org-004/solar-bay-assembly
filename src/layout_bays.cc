@@ -225,6 +225,9 @@ double NextTubeStart(const LayoutScene& scene, const BayEvent& bay_out,
 
 // ------------------------------------------------------------ joining
 
+// Two instants of one joint clock closer than this are the same.
+constexpr double kJoinEps = 1e-6;
+
 double ArmShift(double tube_start, double clamp_end, const BayEvent& last_out) {
   return tube_start + std::max(0.0, last_out.t1 - (tube_start + clamp_end));
 }
@@ -284,6 +287,16 @@ Plan JoinBays(const std::vector<Plan>& bays, int steps_per_bay,
         g.t0 += shift;
         g.t1 += shift;
         g.step = StepNumberInBay(g.step, b, steps_per_bay);
+        if (k == 0 && !row.empty() && g.t0 < row.back().t1 - kJoinEps &&
+            (g.kind != "wait" || g.t1 < row.back().t1 - kJoinEps)) {
+          // next_bay_fill (run 061): the arm starts bay b before its row of
+          // bay b-1 ends; that row's trailing waits end where bay b starts.
+          while (row.size() > 1 && row.back().kind == "wait" && row.back().t0 >= g.t0 - kJoinEps) {
+            row.pop_back();
+          }
+          if (row.back().kind == "wait") row.back().t1 = std::max(row.back().t0, g.t0);
+          if (std::abs(row.back().t1 - g.t0) <= kJoinEps) g.t0 = row.back().t1;
+        }
         if (k == 0 && !row.empty()) {
           const double end = row.back().t1;
           if (g.t0 < end && g.kind == "wait") {
@@ -407,6 +420,19 @@ std::vector<std::string> BetweenBays(const LayoutScene& scene, const Plan& plan,
       }
     }
     for (const ArmPlan& a : plan.arms) {
+      // R10: no arm starts a step of bay b before bay b-1's bay_out ends,
+      // but the arm that next_bay_fill names a step that touches neither
+      // the tube nor the bay (run 061).
+      for (const Segment& g : a.segments) {
+        if (g.kind == "wait" || BayOfStep(g.step, steps_per_bay) != b ||
+            g.t0 >= last->t1 - tolerance_s || (a.name == L.next_bay_fill && !touches(g.step))) {
+          continue;
+        }
+        out.push_back(Fmt("bay %d: arm %s starts its %s of step %d at %.3f s, before bay %d's "
+                          "bay_out ends at %.3f s",
+                          b, a.name.c_str(), g.kind.c_str(), g.step, g.t0, b - 1, last->t1));
+        break;
+      }
       for (const Segment& g : a.segments) {
         if (g.kind == "wait" || BayOfStep(g.step, steps_per_bay) != b ||
             g.t0 >= clamp->t1 - tolerance_s || !touches(g.step)) {
@@ -440,6 +466,7 @@ PlanResult PlanBays(const Layout& layout, const ModelPaths& paths,
   const double clamp_end = layout.tube_in.time_s + layout.holder.clamp_s;
   std::vector<Plan> plans;
   std::vector<double> starts;  // Each bay's tube_in on the joint clock.
+  std::vector<double> shifts;  // Each bay's arms' 0 on the joint clock.
   BayEvent last_out;
   for (int b = 0; b < std::max(1, options.bays); ++b) {
     // Where the bay's arms start on the joint clock, so that its schedule
@@ -456,6 +483,18 @@ PlanResult PlanBays(const Layout& layout, const ModelPaths& paths,
       clock.tube_start = start - clock.shift;
       clock.early = options.early_steps;
       clock.early_from = std::max(start, last_out.t1) - clock.shift;
+      // next_bay_fill (run 061): the named arm's early steps from the end
+      // of its last block of bay b-1, its trailing waits left out.
+      const int fill = layout.next_bay_fill.empty() ? -1 : scene->ArmIndex(layout.next_bay_fill);
+      for (const ArmPlan& a : plans.back().arms) {
+        if (fill < 0 || !clock.early || a.name != layout.next_bay_fill) continue;
+        double end = 0.0;
+        for (const Segment& g : a.segments) {
+          if (g.kind != "wait") end = g.t1;
+        }
+        clock.early_arm = fill;
+        clock.early_arm_from = std::min(clock.early_from, end + shifts.back() - clock.shift);
+      }
     }
     const double shift = clock.shift;
     PlanResult r = plan_bay(b, report, clock);
@@ -476,6 +515,7 @@ PlanResult PlanBays(const Layout& layout, const ModelPaths& paths,
       last_out.t1 += shift;
     }
     starts.push_back(start);
+    shifts.push_back(shift);
     plans.push_back(std::move(r.plan));
   }
   size_t next = 1;

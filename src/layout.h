@@ -502,13 +502,13 @@ struct Layout {
   std::vector<Item> items;
   std::vector<Port> ports;            // Only with base "flat_rack".
   std::vector<Approach> approaches;   // Only with base "flat_rack"; one a kind.
-  // Optional on a flat rack base; without it one stage, the whole bay at "tube".
-  std::optional<Staging> staging;
+  std::optional<Staging> staging;  // Optional (flat rack); without it one stage, the bay at "tube".
   std::optional<RetreatLegs> retreat_legs;  // Optional on a flat rack base.
   std::optional<int> path_tries;            // Optional on a flat rack base.
   std::optional<double> torque_limit_scale; // Optional on a flat rack base.
   bool bay_out_when_clear = false;  // Optional on a flat rack base (src/layout_clear_out.h).
   std::optional<std::string> first_bay_early;  // Its basis; optional (src/layout_bays.h).
+  std::string next_bay_fill;  // The arm it names; empty without it (src/layout_bays.h).
 };
 
 // Reads layouts/<name>.json. Returns nothing and sets *error on any fault.

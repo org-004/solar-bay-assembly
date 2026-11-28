@@ -677,16 +677,14 @@ Layout ReadLayout(const Json& j) {
     Fields(j, path,
            {"name", "title", "summary", "small_arms_stand", "base",
             "container", "tube", "holder", "arms", "pallets", "stocks",
-            "strap_bolts_from", "tube_in", "bay_out", "work", "rail_order",
-            "items"});
+            "strap_bolts_from", "tube_in", "bay_out", "work", "rail_order", "items"});
   } else if (flat_rack) {
     Fields(j, path,
            {"name", "title", "summary", "small_arms_stand", "base",
             two_racks ? "two_flat_racks" : "flat_rack", "margins", "ports", "approaches", "tube", "holder",
-            "arms", "pallets", "stocks", "strap_bolts_from", "tube_in",
-            "bay_out", "work", "rail_order", "items"},
+            "arms", "pallets", "stocks", "strap_bolts_from", "tube_in", "bay_out", "work", "rail_order", "items"},
            {"order", "staging", "retreat_legs", "path_tries", "torque_limit_scale",
-            "bay_out_when_clear", "first_bay_early"});
+            "bay_out_when_clear", "first_bay_early", "next_bay_fill"});
   } else {
     throw LayoutError("base", "is \"container\", \"flat_rack\" or "
                               "\"two_flat_racks\", not \"" +
@@ -854,6 +852,10 @@ Layout ReadLayout(const Json& j) {
     Fields(e, "first_bay_early", {"does", "basis"});
     (void)String(FIELD(e, "first_bay_early", "does"));
     l.first_bay_early = String(FIELD(e, "first_bay_early", "basis"));
+  }
+  if (j.contains("next_bay_fill")) {  // src/layout_bays.h, "next_bay_fill".
+    Fields(j.at("next_bay_fill"), "next_bay_fill", {"arm", "does", "basis"});
+    l.next_bay_fill = String(FIELD(j.at("next_bay_fill"), "next_bay_fill", "arm"));
   }
   if (j.contains("order")) {
     const Json& o = j.at("order");

@@ -137,7 +137,9 @@ using NextTubeStartFn = std::function<double(const BayEvent& bay_out)>;
 // arm starts before bay b-1's bay_out has ended. Numbers are moved on by
 // b N; events, steps and phases carry their bay. Each arm's row stays
 // without a gap: bay b's first wait is cut to start where the arm's row of
-// bay b-1 ends, or that row's last wait is drawn out to where it starts.
+// bay b-1 ends, or that row's last wait is drawn out to where it starts;
+// where an arm's first block of bay b starts before its row of bay b-1 ends
+// (next_bay_fill), that row's trailing waits end where the block starts.
 // The joint plan is complete when every bay's is. A wait's reason names
 // steps and instants on its own bay's clock. One plan is returned as it is.
 Plan JoinBays(const std::vector<Plan>& bays, int steps_per_bay,
@@ -182,6 +184,21 @@ bool TouchesTheBay(const std::string& kind);
 // Without it bay 0 starts every arm after its clamp, so that every committed
 // plan replays as it was.
 
+// "next_bay_fill" (optional, flat rack bases only; run 061; Layout holds the
+// arm it names): in a later bay b+1 that arm's steps that touch neither the
+// tube nor the bay, before its first step that does, may start as soon as
+// the arm has ended its last block of bay b (on the rail magazine layout,
+// its move to its wait pose after setting bay b's last module), while bay
+// b's other arms still work, bay b goes out and bay b+1's tube comes in;
+// the arm then waits where its take's retreat left it for bay b+1's clamp.
+// Its moves there are planned with the whole of bay b built (every rail and
+// module), and JoinBays ends its trailing waits of bay b where its first
+// block of bay b+1 begins. Bay b+1's scheduler does not see bay b's arms;
+// the verifier samples the joined plan, so every arm is held apart from it,
+// and ClearOut and TubeComingIn hold it apart from the bay going out and
+// the tube coming in. Without the field no arm starts a step of bay b+1
+// but a wait before bay b's bay_out ends (BetweenBays), as before.
+
 // Where a bay lies on the joint clock, for its planner (PlanBays). Times
 // but `shift` are on the bay's own clock, whose 0 is its arms' start.
 struct BayClock {
@@ -189,6 +206,8 @@ struct BayClock {
   double tube_start = 0.0;  // Its tube_in's start (start - shift, at most 0).
   bool early = false;       // Steps that do not touch the bay may start early,
   double early_from = 0.0;  // from here.
+  int early_arm = -1;           // next_bay_fill: this arm's early steps may start
+  double early_arm_from = 0.0;  // from here (on the bay's clock, perhaps before 0).
 };
 
 // The least distance from `moving` (posed in d) to the tube at `u` (0 .. 1)

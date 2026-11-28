@@ -301,7 +301,12 @@ class Walker {
       cands.push_back({in->t0, 1, "early", "the first tube starts to come in",
                        Node{-1, "tube_in", bay, in->t0}});
     }
-    if (bay > 0 && first_in_bay && in != nullptr && out != nullptr) {
+    // next_bay_fill (run 061): the arm it names starts a later bay's steps
+    // that touch neither the tube nor the bay when its last block of the
+    // bay before ends (its own link above).
+    const bool fill = bay > 0 && ArmName(blk.arm) == layout_.next_bay_fill && !blk.parking &&
+                      !TouchesTheBay(st->kind);
+    if (bay > 0 && first_in_bay && in != nullptr && out != nullptr && !fill) {
       if (out->t1 >= in->t0) {
         cands.push_back({out->t1, 1, "early", "R10: the bay before's bay_out ends",
                          Node{-1, "bay_out", bay - 1, out->t1}});

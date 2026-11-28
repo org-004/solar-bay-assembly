@@ -669,6 +669,15 @@ bool Planner::Assemble() {
           narrow.modules.push_back(m);
         }
       }
+      // next_bay_fill (run 061): the named arm's early steps of a later bay
+      // may run while the bay before is still in the holder, all of it built.
+      if (bay_ > 0 && a == clock_.early_arm && now[a].last_wp == nullptr && !TouchesTheBay(st.kind)) {
+        for (int k = 0; k < PointCount(layout_, "rail_set"); ++k) built.rails.push_back(k);
+        built.modules.clear();
+        for (int k = 0; k < per_bay; ++k) built.modules.push_back(k);
+        std::sort(built.rails.begin(), built.rails.end());
+        built.rails.erase(std::unique(built.rails.begin(), built.rails.end()), built.rails.end());
+      }
       const size_t before = moves_.size();
       add_move(a, block, bi, approach.front(), p->item + " approach",
                BuiltInBay(built, bay_, per_bay), t);
@@ -1239,14 +1248,17 @@ bool Planner::Schedule() {
     wseg.kind = "wait";
     wseg.step = clamp.step;
     wseg.t0 = 0.0;
-    // A later bay's early steps (R10) may start from early_from.
-    wseg.t1 = clock_.early ? std::clamp(clock_.early_from, 0.0, clamp_end_) : clamp_end_;
+    // A later bay's early steps (R10) may start from early_from, and the
+    // arm next_bay_fill names from early_arm_from, perhaps before 0.
+    double from = clock_.early ? std::clamp(clock_.early_from, 0.0, clamp_end_) : clamp_end_;
+    if (clock_.early && a == clock_.early_arm) from = std::min(from, clock_.early_arm_from);
+    wseg.t1 = from;
     wseg.tool = e.tool;
     wseg.held = e.held;
     wseg.path = {e.config};
     wseg.reason = "for the tube to come in and be clamped";
     if (wseg.t1 > 0.0) rows_[a].segments.push_back(wseg);
-    state_[a].free = wseg.t1;
+    state_[a].free = from;
   }
   // The precedences of each block; the first take and the bolts by stage.
   std::map<int, int> first_take;
