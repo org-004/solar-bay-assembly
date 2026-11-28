@@ -343,6 +343,7 @@ class Planner {
   bool slowed_ = false;
   std::vector<int> rank_;
   std::vector<double> release_;  // Each block's earliest start, when not empty.
+  bool right_of_way_ = false;    // torque_arm_way, in the schedules that use it.
 };
 
 const SolvedPoint* FindPoint(const CheckReport& r, const std::string& kind,
@@ -1516,10 +1517,18 @@ bool Planner::Schedule() {
                     conflict.nearest.distance, conflict.t, other.c_str(),
                     ConfigText(conflict.theirs).c_str());
       if (first_block.empty()) first_block = text;
-      if (standing && yield_to < 0) {
+      // torque_arm_way (src/layout_torque.h): the torque arm, stood in the way
+      // of, has the other arm give way at once, before any other is tried.
+      bool way = false;
+      if (right_of_way_ && standing && me == torque_arm_ && state_[conflict.other].next > 0) {
+        const int last = arm_blocks_[conflict.other][state_[conflict.other].next - 1];
+        way = blocks_[last].placed && yielded_.count({last, c.block}) == 0;
+      }
+      if (standing && (yield_to < 0 || way)) {
         yield_to = c.block;
         yield_arm = conflict.other;
       }
+      if (way) break;
     }
     // Giving way: when nothing can be placed, the schedule is taken back to
     // before the last block of the arm that stands in the first standing
@@ -1743,35 +1752,42 @@ bool Planner::ScheduleSlowed() {
     std::fprintf(stderr, "slowed bay %d: first %d %.2f, third %d %.2f\n", bay_, first, first_end,
                  third, third ? bay_end() : -1.0);
   }
-  // torque_order_free (src/layout_torque.h): a fourth schedule in the third's
-  // order, in which the torque arm's blocks are not held to their release;
-  // the shortest of the first, the third and the fourth is kept.
-  if (layout_.torque_order_free && plain && order.size() == kept.order.size()) {
-    const Kept best = third_kept ? Kept{rows_, state_, events_, blocks_, placed_order_, undo_,
-                                        yielded_, result_.faults}
-                                 : kept;
-    const bool best_ok = third_kept || first;
-    const double best_end = third_kept ? bay_end() : first_end;
-    rank_.assign(blocks_.size(), static_cast<int>(blocks_.size()));
-    for (size_t k = 0; k < order.size(); ++k) rank_[order[k]] = static_cast<int>(k);
-    release_ = release;
-    for (size_t k = 0; k < blocks_.size(); ++k) {
-      if (scene_->arm(blocks_[k].arm).use->name == torque_arm_) release_[k] = 0.0;
-    }
+  // torque_arm_way (src/layout_torque.h): the first and the third again with
+  // the torque arm's right of way; the shortest of the four is kept.
+  if (layout_.torque_arm_way) {
+    if (third_kept) result_.faults.resize(faults);
+    Kept best = third_kept ? Kept{rows_, state_, events_, blocks_, placed_order_, undo_, yielded_,
+                                  result_.faults}
+                           : kept;
+    bool best_ok = third_kept || first;
+    double best_end = third_kept ? bay_end() : first_end;
+    const auto consider = [&](bool ok, const char* tag) {
+      dump(tag);
+      if (std::getenv("PLAN_DEBUG_SLOWED") != nullptr) {
+        std::fprintf(stderr, "slowed bay %d: %s %d %.2f (best before %.2f)\n", bay_, tag, ok,
+                     ok ? bay_end() : -1.0, best_end);
+      }
+      if (!ok || (best_ok && bay_end() >= best_end)) return;
+      result_.faults.resize(faults);
+      best = Kept{rows_, state_, events_, blocks_, placed_order_, undo_, yielded_, result_.faults};
+      best_ok = true;
+      best_end = bay_end();
+    };
+    right_of_way_ = true;
     ResetSchedule();
     result_.faults.resize(faults);
-    const bool fourth = Schedule();
-    dump("fourth");
-    rank_.clear();
-    release_.clear();
-    if (std::getenv("PLAN_DEBUG_SLOWED") != nullptr) {
-      std::fprintf(stderr, "slowed bay %d: fourth %d %.2f (best before %.2f)\n", bay_, fourth,
-                   fourth ? bay_end() : -1.0, best_end);
-    }
-    if (fourth && (!best_ok || bay_end() < best_end)) {
+    consider(Schedule(), "way first");
+    if (plain && order.size() == kept.order.size()) {
+      rank_.assign(blocks_.size(), static_cast<int>(blocks_.size()));
+      for (size_t k = 0; k < order.size(); ++k) rank_[order[k]] = static_cast<int>(k);
+      release_ = release;
+      ResetSchedule();
       result_.faults.resize(faults);
-      return true;
+      consider(Schedule(), "way third");
+      rank_.clear();
+      release_.clear();
     }
+    right_of_way_ = false;
     restore(best);
     return best_ok;
   }

@@ -508,7 +508,7 @@ struct Layout {
   bool bay_out_when_clear = false;  // Optional on a flat rack base (src/layout_clear_out.h).
   std::optional<std::string> first_bay_early;  // Its basis; optional (src/layout_bays.h).
   std::string next_bay_fill;  // The arm it names; empty without it (src/layout_bays.h).
-  std::optional<std::string> torque_order_free;  // Its basis; optional (src/layout_torque.h).
+  std::optional<std::string> torque_arm_way;  // Its basis; optional (src/layout_torque.h).
 };
 
 // Reads layouts/<name>.json. Returns nothing and sets *error on any fault.

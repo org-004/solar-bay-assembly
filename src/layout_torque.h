@@ -36,6 +36,19 @@
 // rounded up to kTorqueScaleStep so that the plan file holds it exactly.
 // Gravity does not scale: a move whose demand at rest already exceeds the
 // fraction cannot be helped, and TorqueTimeScale says so.
+//
+// The schedule of a bay with slowed moves (src/layout_plan.cc, ScheduleSlowed)
+// is made three times: earliest start first; unslowed, for an order of
+// placing; and slowed in that order. The shorter of the first and the third
+// is kept. In each, an arm whose next block is blocked by another arm
+// standing still at the end of its last placed block is passed over, and the
+// other arm goes on; it gives way only when no block can be placed.
+// "torque_arm_way" (optional, flat rack bases only; run 064; Layout holds its
+// basis) makes the first and the third again with the torque arm's right of
+// way: when its block is so blocked, the other arm's last block is taken back
+// at once and placed after it. The shortest of the four is kept. On the rail
+// magazine layout bay 1's module arm waited 15.50 s at set module 4 for pin
+// arm C, standing at module 6's holes across its path. Without it, as before.
 
 #ifndef SRC_LAYOUT_TORQUE_H_
 #define SRC_LAYOUT_TORQUE_H_
