@@ -135,7 +135,7 @@ Each header opens with a long comment that explains the piece (240 of the 1,173 
 | The flat rack the new cell stands on | `docs/bay-hardware.md` ("The container"), `src/flat_rack.h`, `models/flat_rack.xml`, `tests/flat_rack_test.cc` |
 | The bay's model is generated: change the header, then regenerate | `src/bay_model.h`, `bazel run --config=opt //:gen_bay > models/bay.xml`, `tests/bay_model_test.cc` |
 | Locating a module before pinning: the nose, its capture range, a physics test | `docs/bay-hardware.md` ("Locating a module before pinning"), `src/bay_hardware.h`, `//:print_bay -- --capture`, `tests/locate_physics_test.cc` |
-| The new cell's layouts, as data (designed, not yet running; beside the cell, not in it) | `docs/layout.md`, `layouts/*.json`, `src/layout.h`, `src/arm_catalog.h` |
+| The new cell's layouts, as data (designed, not yet running; beside the cell, not in it) | `docs/layout.md`, `layouts/*.json`, `src/layout.h` (its parts in `src/layout_parts.h`, read by `src/layout.cc` and `src/layout_read.cc`), `src/arm_catalog.h` |
 | The flat rack cell's design: the chosen layout, ports, approaches, planned bay, margins | `docs/flat-rack-cell.md`, `layouts/flat_rack_*.json` |
 | The two 20 ft flat racks cell, as checked, and planned in stages (no complete plan yet): layouts, staging, margins, gap, what blocks the plan | `docs/two-flat-racks-cell.md`, `layouts/two_flat_racks_*.json` |
 | Two racks and stages of a layout: the reader of the racks, the rack each thing stands on and the tube's stages; the checks at every stage and at the ends of the racks' tolerance (gap rows) | `src/layout_racks.h`, `src/layout_stages.h`, `src/layout_stage_rows.h` (the ways rows with the units) |
