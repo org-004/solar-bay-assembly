@@ -683,7 +683,7 @@ Layout ReadLayout(const Json& j) {
            {"name", "title", "summary", "small_arms_stand", "base",
             two_racks ? "two_flat_racks" : "flat_rack", "margins", "ports", "approaches", "tube", "holder",
             "arms", "pallets", "stocks", "strap_bolts_from", "tube_in", "bay_out", "work", "rail_order", "items"},
-           {"order", "staging", "retreat_legs", "path_tries", "torque_limit_scale",
+           {"order", "staging", "retreat_legs", "path_tries", "plan_seed", "torque_limit_scale",
             "bay_out_when_clear", "first_bay_early", "next_bay_fill"});
   } else {
     throw LayoutError("base", "is \"container\", \"flat_rack\" or "
@@ -830,12 +830,12 @@ Layout ReadLayout(const Json& j) {
     }
     l.retreat_legs = legs;
   }
-  if (j.contains("path_tries")) {
-    const int tries = Integer(j.at("path_tries"), "path_tries");
-    if (tries < 2 || tries > kMaxPathTries) {
-      throw LayoutError("path_tries", "is not an integer from 2 to 16");
-    }
-    l.path_tries = tries;
+  for (const std::string k : {"path_tries", "plan_seed"}) {  // src/layout.h
+    if (!j.contains(k)) continue;
+    const int v = Integer(j.at(k), k);
+    const int most = k == "path_tries" ? kMaxPathTries : kMaxPlanSeed;
+    if (v < 2 || v > most) throw LayoutError(k, "is not an integer from 2 to " + std::to_string(most));
+    (k == "path_tries" ? l.path_tries : l.plan_seed) = v;
   }
   if (j.contains("torque_limit_scale")) {
     const double scale = Number(j.at("torque_limit_scale"), "torque_limit_scale");

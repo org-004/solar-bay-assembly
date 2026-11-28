@@ -2364,6 +2364,24 @@ cc_test(
     ],
 )
 
+# A layout planned from another seed (plan_seed, src/layout.h, run 066): the
+# landed layout's committed three-bay plan verifies with its figures, and a
+# layout without the field plans with today's seeds.
+#   bazel test --config=opt //:plan_seed_test
+cc_test(
+    name = "plan_seed_test",
+    size = "medium",
+    srcs = ["tests/plan_seed_test.cc"],
+    data = LAYOUT_FILES + LAYOUT_MODEL_FILES + PLAN_FILES,
+    env = LAYOUT_ENV | {"PLAN_DIR": "plans"},
+    deps = [
+        ":layout",
+        ":layout_model",
+        ":layout_plan",
+        "@googletest//:gtest_main",
+    ],
+)
+
 # The layouts with "one_posture_per_module": their checker reports take 125
 # to 180 s each (run 039, R1), so each is made once per layout and checker
 # build by a check_report rule (bazel/check_report.bzl), whose action's inputs
