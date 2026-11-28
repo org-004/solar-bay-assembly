@@ -181,6 +181,29 @@ PhysicsResult RunPhysics(const Layout& layout, const Plan& plan,
 // The figures as text, the same for the same result.
 std::string PhysicsText(const PhysicsResult& result);
 
+// The module_take indices of the bay (the checker's steps: bay 0 of the
+// plan), in the bay's order. Empty, with *error set, on a fault.
+std::vector<int> BayTakes(const Layout& layout, const ModelPaths& paths, std::string* error);
+
+// Several takes of one bay, each run as RunPhysics runs it (from the plan's
+// state at the take's start, on its own), and their records joined as one
+// (src/physics_record.h, JoinPhysicsRecords) whose command is `command`.
+struct PhysicsBayResult {
+  bool ok = false;
+  std::string error;
+  std::vector<PhysicsResult> runs;  // One per take, in the order given.
+  PhysicsRecord record;             // The joined record.
+  double one_bay_s = 0.0;
+};
+PhysicsBayResult RunPhysicsTakes(const Layout& layout, const Plan& plan,
+                                 const ModelPaths& paths, const PhysicsOptions& options,
+                                 const std::vector<int>& takes, const std::string& command,
+                                 const std::string& layout_sha256,
+                                 const std::string& plan_sha256);
+
+// Each take's text, then a table of the takes and the share they count.
+std::string PhysicsBayText(const PhysicsBayResult& result);
+
 }  // namespace cell::layout
 
 #endif  // SRC_PHYSICS_RUN_H_

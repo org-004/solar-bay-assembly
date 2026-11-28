@@ -15,8 +15,9 @@ The run is measured as the checker measures. Its committed record,
 counts ([`scorecard.md`](scorecard.md)).
 
 Since run 068 the chosen layout is v24, `flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque_clear_out_infeed_rail_mag_early_next_fill_pallet_near`
-(all KUKA, v23 with the pallet 0.23 m along its port zone), so `run_physics` with no name runs v24's plan; its record is in
-"[v24's record (run 068)](#v24s-record-run-068)" below, after v23's, chosen from run 063 to run 068, in
+(all KUKA, v23 with the pallet 0.23 m along its port zone), so `run_physics` with no name runs v24's plan; its record holds all nine takes of bay 0
+since run 071, in "[v24's record of bay 0 (run 071)](#v24s-record-of-bay-0-run-071)", and held
+module 8's alone before, in "[v24's record (run 068)](#v24s-record-run-068)" below, after v23's, chosen from run 063 to run 068, in
 "[v23's record (run 063)](#v23s-record-run-063)", v22's, chosen from run 057 to run 063, in
 "[v22's record (run 057)](#v22s-record-run-057)", v21's, chosen from run 054 to run 057, in
 "[v21's record (run 054)](#v21s-record-run-054)", v20's, chosen from run 052 to run 054, in
@@ -730,3 +731,31 @@ Both steps count. The worst joint is still joint 1 on the take, 0.970 against v2
 on the take rises to 0.852 (0.705) and the track's set to 0.872 (0.779), while the set's joints 1
 and 6 fall. v24 is chosen (run 068): every module arm joint stays below its limit on the take and
 the set.
+
+## v24's record of bay 0 (run 071)
+
+`bazel run --config=opt //:run_physics -- flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque_clear_out_infeed_rail_mag_early_next_fill_pallet_near --bay 0 --write`
+runs each of bay 0's nine module takes and the set after it, each on its own from the plan's state
+at the take's start, and writes them as one record of nine takes (`docs/scorecard.md`: a record
+of several takes, one bay counted once). The takes of bays 1 and 2 repeat the same modules and are
+not run. Each row below is also what `-- --take K` prints alone; two runs of `--bay 0` print the
+same, byte for byte.
+
+| take | module | steps | planned s | least clearance in physics (step: pair) | set-down offset / yaw | worst joint (step) | track | counts |
+|---|---|---|---|---|---|---|---|---|
+| 0 | 0 | 24, 25 | 20.899843 | 0.017921 m (25: held frame long a to bay rail 2 top) | 0.1809 mm / -0.0011° | j1 0.966 (24) | 0.669 | both |
+| 1 | 3 | 40, 41 | 18.451643 | 0.019424 m (41: held flange short a to stock rails rack) | 0.1927 mm / -0.0012° | j1 0.978 (41) | 0.876 | both |
+| 2 | 6 | 55, 56 | 17.355656 | 0.022043 m (56: held flange short a to stock rails rack) | 0.1720 mm / -0.0021° | j1 0.991 (56) | 0.736 | both |
+| 3 | 1 | 71, 72 | 22.612067 | 0.020827 m (72: held frame long b to bay module 3 frame long b) | 0.1922 mm / -0.0009° | j1 0.979 (72) | 0.586 | both |
+| 4 | 4 | 85, 86 | 18.499322 | 0.018325 m (86: held frame long a to stock rails rack) | 0.2318 mm / -0.0010° | j2 0.702 (85) | 0.754 | both |
+| 5 | 7 | 99, 100 | 20.667190 | 0.018733 m (100: held flange short a to stock rails rack) | 0.2117 mm / 0.0001° | j1 0.973 (99) | 0.689 | both |
+| 6 | 2 | 113, 114 | 22.787207 | 0.019095 m (113: gripper plate to bay module 7 frame long b) | 0.2045 mm / -0.0001° | j1 0.973 (114) | 0.722 | both |
+| 7 | 5 | 127, 128 | 21.657817 | 0.020660 m (128: held flange long a to stock rails rack) | 0.2110 mm / 0.0002° | j1 0.981 (128) | 0.718 | both |
+| 8 | 8 | 141, 142 | 23.391905 | 0.019825 m (141: gripper plate to bay module 5 laminate) | 0.3156 mm / -0.0059° | j1 0.970 (141) | 0.872 | both |
+
+All eighteen steps count: 186.322650 s of `one_bay_s` 408.028661 s, `physics_share` **0.456641**
+(0.057329 with module 8 alone, run 068). The least clearance of the bay is take 0's set, 0.017921 m
+against 0.015 m (the plan's 0.018241 m); the largest set-down is module 8's, 0.3156 mm and
+-0.0059° against 3 mm and 0.15°; the worst joint is joint 1 on take 2's set, 0.991 of its limit
+with the module arm bounded to 0.90 of its motors in the plan. The pin arms, the rail sets, the
+tube and the bay events are not run in physics (221.71 s of the bay).

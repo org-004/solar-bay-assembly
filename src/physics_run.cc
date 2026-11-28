@@ -11,8 +11,11 @@
 #include <functional>
 #include <map>
 #include <numbers>
+#include <optional>
 #include <set>
+#include <string>
 #include <utility>
+#include <vector>
 
 #include <Eigen/Core>
 #include <Eigen/Geometry>
@@ -682,17 +685,19 @@ PhysicsResult PhysicsRun::Finish() {
   // The record.
   PhysicsRecord& rec = out.record;
   rec.layout = r.layout->name;
-  rec.module = out.module;
-  rec.take = out.take;
+  rec.takes.resize(1);
+  PhysicsTake& one = rec.takes.front();
+  one.module = out.module;
+  one.take = out.take;
   rec.clearance_m = r.report.clearance_m;
   rec.gate_offset_mm = bay::kGateOffset * 1e3;
   rec.gate_yaw_deg = bay::kGateYaw * kRadToDeg;
   auto round = [](double v, double unit) { return std::round(v / unit) * unit; };
-  rec.set_down.offset_mm = round(out.set_down.offset_mm, 1e-4);
-  rec.set_down.across_mm = round(out.set_down.across_mm, 1e-4);
-  rec.set_down.along_mm = round(out.set_down.along_mm, 1e-4);
-  rec.set_down.yaw_deg = round(out.set_down.yaw_deg, 1e-4);
-  rec.set_down.height_mm = round(out.set_down.height_mm, 1e-4);
+  one.set_down.offset_mm = round(out.set_down.offset_mm, 1e-4);
+  one.set_down.across_mm = round(out.set_down.across_mm, 1e-4);
+  one.set_down.along_mm = round(out.set_down.along_mm, 1e-4);
+  one.set_down.yaw_deg = round(out.set_down.yaw_deg, 1e-4);
+  one.set_down.height_mm = round(out.set_down.height_mm, 1e-4);
   for (const PhysicsFigures& f : out.steps) {
     PhysicsStep s;
     s.number = f.step;
@@ -712,9 +717,9 @@ PhysicsResult PhysicsRun::Finish() {
     s.least_clearance_pair = f.clearance_pair;
     s.least_clearance_t = round(f.clearance_t, 1e-6);
     s.plan_least_clearance_m = round(f.plan_clearance_m, 1e-6);
-    rec.steps.push_back(s);
+    one.steps.push_back(s);
   }
-  for (PhysicsStep& s : rec.steps) s.counted = StepCounts(rec, s);
+  for (PhysicsStep& s : one.steps) s.counted = StepCounts(rec, one, s);
   rec.counted_s = CountedSeconds(rec);
   out.ok = true;
   return out;
@@ -742,6 +747,7 @@ std::string PhysicsText(const PhysicsResult& r) {
   if (!r.ok) return "run_physics: " + r.error + "\n";
   std::string t;
   const PhysicsRecord& rec = r.record;
+  const PhysicsTake& one = rec.takes.front();
   t += Fmt("layout %s, arm %s: module %d (module_take %d), steps %d and %d\n",
            r.layout.c_str(), r.arm.c_str(), r.module, r.take, r.take_step, r.set_step);
   t += Fmt("plan %s, layout %s\n", rec.plan_sha256.substr(0, 12).c_str(),
@@ -766,8 +772,8 @@ std::string PhysicsText(const PhysicsResult& r) {
     t += "\n";
   }
   t += "\nsteps\n";
-  for (size_t i = 0; i < rec.steps.size(); ++i) {
-    const PhysicsStep& s = rec.steps[i];
+  for (size_t i = 0; i < one.steps.size(); ++i) {
+    const PhysicsStep& s = one.steps[i];
     t += Fmt("  step %d (%s, %s): %.6f to %.6f s, planned %.6f s\n", s.number, s.what.c_str(),
              s.arm.c_str(), s.start_s, s.end_s, s.planned_s);
     t += Fmt("    largest joint tracking error %.4f mrad, track %.4f mm\n",
@@ -781,12 +787,75 @@ std::string PhysicsText(const PhysicsResult& r) {
   }
   t += Fmt("\nset-down after release and settling: offset %.4f mm (across %.4f, along %.4f), "
            "yaw %.4f deg, height %.4f mm; the gate %.1f mm and %.2f deg\n",
-           rec.set_down.offset_mm, rec.set_down.across_mm, rec.set_down.along_mm,
-           rec.set_down.yaw_deg, rec.set_down.height_mm, rec.gate_offset_mm, rec.gate_yaw_deg);
+           one.set_down.offset_mm, one.set_down.across_mm, one.set_down.along_mm,
+           one.set_down.yaw_deg, one.set_down.height_mm, rec.gate_offset_mm, rec.gate_yaw_deg);
   t += "\nthe rule: a step counts when its least clearance in physics is at least clearance_m "
        "and the module ends within the gate\n";
-  for (const PhysicsStep& s : rec.steps) {
+  for (const PhysicsStep& s : one.steps) {
     t += Fmt("  step %d: %s\n", s.number, s.counted ? "counts" : "does not count");
+  }
+  t += Fmt("counted %.6f s of one_bay_s %.6f s: physics_share %.6f\n", rec.counted_s,
+           r.one_bay_s, r.one_bay_s > 0.0 ? rec.counted_s / r.one_bay_s : 0.0);
+  return t;
+}
+
+std::vector<int> BayTakes(const Layout& layout, const ModelPaths& paths, std::string* error) {
+  const CheckReport report = CheckLayout(layout, paths);
+  std::vector<int> takes;
+  if (!report.error.empty()) {
+    *error = report.error;
+    return takes;
+  }
+  for (const BayStep& s : report.steps) {
+    if (s.kind == "module_take") takes.push_back(s.index);
+  }
+  if (takes.empty()) *error = "the bay has no module take";
+  return takes;
+}
+
+PhysicsBayResult RunPhysicsTakes(const Layout& layout, const Plan& plan,
+                                 const ModelPaths& paths, const PhysicsOptions& options,
+                                 const std::vector<int>& takes, const std::string& command,
+                                 const std::string& layout_sha256,
+                                 const std::string& plan_sha256) {
+  PhysicsBayResult out;
+  std::vector<PhysicsRecord> records;
+  for (const int k : takes) {
+    PhysicsOptions one = options;
+    one.take = k;
+    out.runs.push_back(RunPhysics(layout, plan, paths, one, layout_sha256, plan_sha256));
+    if (!out.runs.back().ok) {
+      out.error = Fmt("module_take %d: %s", k, out.runs.back().error.c_str());
+      return out;
+    }
+    records.push_back(out.runs.back().record);
+  }
+  std::optional<PhysicsRecord> joined = JoinPhysicsRecords(records, command, &out.error);
+  if (!joined) return out;
+  out.record = *joined;
+  out.one_bay_s = plan.bay_planned_s;
+  out.ok = true;
+  return out;
+}
+
+std::string PhysicsBayText(const PhysicsBayResult& r) {
+  if (!r.ok) return "run_physics: " + r.error + "\n";
+  std::string t;
+  for (const PhysicsResult& run : r.runs) t += PhysicsText(run) + "\n";
+  const PhysicsRecord& rec = r.record;
+  t += Fmt("the record: %zu takes of one bay, each module once (clearance against %.3f m, "
+           "set-down against %.1f mm and %.2f deg)\n",
+           rec.takes.size(), rec.clearance_m, rec.gate_offset_mm, rec.gate_yaw_deg);
+  t += Fmt("%5s %6s %5s %5s %11s %10s %10s %9s %9s  %s\n", "take", "module", "step", "step",
+           "planned_s", "take_m", "set_m", "offset_mm", "yaw_deg", "counts");
+  for (const PhysicsTake& take : rec.takes) {
+    if (take.steps.size() != 2) continue;
+    const PhysicsStep& a = take.steps[0];
+    const PhysicsStep& b = take.steps[1];
+    t += Fmt("%5d %6d %5d %5d %11.6f %10.6f %10.6f %9.4f %9.4f  %s\n", take.take, take.module,
+             a.number, b.number, a.planned_s + b.planned_s, a.least_clearance_m,
+             b.least_clearance_m, take.set_down.offset_mm, take.set_down.yaw_deg,
+             a.counted && b.counted ? "both" : a.counted || b.counted ? "one" : "none");
   }
   t += Fmt("counted %.6f s of one_bay_s %.6f s: physics_share %.6f\n", rec.counted_s,
            r.one_bay_s, r.one_bay_s > 0.0 ? rec.counted_s / r.one_bay_s : 0.0);
