@@ -480,8 +480,7 @@ struct Layout {
   std::string title;
   std::string summary;         // One paragraph.
   std::string small_arms_stand;  // "below", "beside" or "above" the tube.
-  // "container", "flat_rack" or "two_flat_racks".
-  std::string base;
+  std::string base;  // "container", "flat_rack" or "two_flat_racks".
   ContainerState container;      // Only with base "container".
   FlatRackState flat_rack;       // Only with base "flat_rack".
   TwoFlatRacksState two_flat_racks;  // Only with base "two_flat_racks".
@@ -509,6 +508,7 @@ struct Layout {
   bool bay_out_when_clear = false;  // Optional on a flat rack base (src/layout_clear_out.h).
   std::optional<std::string> first_bay_early;  // Its basis; optional (src/layout_bays.h).
   std::string next_bay_fill;  // The arm it names; empty without it (src/layout_bays.h).
+  std::optional<std::string> torque_order_free;  // Its basis; optional (src/layout_torque.h).
 };
 
 // Reads layouts/<name>.json. Returns nothing and sets *error on any fault.

@@ -1664,8 +1664,20 @@ bool Planner::ScheduleSlowed() {
   auto swap_segs = [&]() {
     for (size_t k = 0; k < blocks_.size(); ++k) std::swap(blocks_[k].segs, plain_segs_[k]);
   };
+  const auto dump = [&](const char* tag) {
+    if (std::getenv("PLAN_DEBUG_SLOWED") == nullptr) return;
+    for (const ArmPlan& r : rows_) {
+      for (const Segment& g : r.segments) {
+        if (g.kind == "wait" && g.t1 - g.t0 > 1.0) {
+          std::fprintf(stderr, "  %s bay %d %s wait %.2f-%.2f step %d: %s\n", tag, bay_,
+                       r.name.c_str(), g.t0, g.t1, g.step, g.reason.c_str());
+        }
+      }
+    }
+  };
   rank_.clear();
   const bool first = Schedule();
+  dump("first");
   const double first_end = bay_end();
   struct Kept {
     std::vector<ArmPlan> rows;
@@ -1683,6 +1695,7 @@ bool Planner::ScheduleSlowed() {
   ResetSchedule();
   const bool plain = Schedule();
   std::vector<int> order = placed_order_;
+  dump("unslowed");
   // Each block's release: its unslowed start, plus what the slowed moves
   // that started before it in the unslowed schedule added.
   std::vector<std::pair<double, double>> added;  // (unslowed start, seconds added)
@@ -1714,18 +1727,59 @@ bool Planner::ScheduleSlowed() {
     rank_.clear();
     release_.clear();
   }
-  if (third && (!first || bay_end() < first_end)) {
+  if (third) dump("third");
+  const auto restore = [&](const Kept& k) {
+    rows_ = k.rows;
+    state_ = k.state;
+    events_ = k.events;
+    blocks_ = k.blocks;
+    placed_order_ = k.order;
+    undo_ = k.undo;
+    yielded_ = k.yielded;
+    result_.faults = k.faults;
+  };
+  const bool third_kept = third && (!first || bay_end() < first_end);
+  if (std::getenv("PLAN_DEBUG_SLOWED") != nullptr) {
+    std::fprintf(stderr, "slowed bay %d: first %d %.2f, third %d %.2f\n", bay_, first, first_end,
+                 third, third ? bay_end() : -1.0);
+  }
+  // torque_order_free (src/layout_torque.h): a fourth schedule in the third's
+  // order, in which the torque arm's blocks are not held to their release;
+  // the shortest of the first, the third and the fourth is kept.
+  if (layout_.torque_order_free && plain && order.size() == kept.order.size()) {
+    const Kept best = third_kept ? Kept{rows_, state_, events_, blocks_, placed_order_, undo_,
+                                        yielded_, result_.faults}
+                                 : kept;
+    const bool best_ok = third_kept || first;
+    const double best_end = third_kept ? bay_end() : first_end;
+    rank_.assign(blocks_.size(), static_cast<int>(blocks_.size()));
+    for (size_t k = 0; k < order.size(); ++k) rank_[order[k]] = static_cast<int>(k);
+    release_ = release;
+    for (size_t k = 0; k < blocks_.size(); ++k) {
+      if (scene_->arm(blocks_[k].arm).use->name == torque_arm_) release_[k] = 0.0;
+    }
+    ResetSchedule();
+    result_.faults.resize(faults);
+    const bool fourth = Schedule();
+    dump("fourth");
+    rank_.clear();
+    release_.clear();
+    if (std::getenv("PLAN_DEBUG_SLOWED") != nullptr) {
+      std::fprintf(stderr, "slowed bay %d: fourth %d %.2f (best before %.2f)\n", bay_, fourth,
+                   fourth ? bay_end() : -1.0, best_end);
+    }
+    if (fourth && (!best_ok || bay_end() < best_end)) {
+      result_.faults.resize(faults);
+      return true;
+    }
+    restore(best);
+    return best_ok;
+  }
+  if (third_kept) {
     result_.faults.resize(faults);
     return true;
   }
-  rows_ = kept.rows;
-  state_ = kept.state;
-  events_ = kept.events;
-  blocks_ = kept.blocks;
-  placed_order_ = kept.order;
-  undo_ = kept.undo;
-  yielded_ = kept.yielded;
-  result_.faults = kept.faults;
+  restore(kept);
   return first;
 }
 

@@ -684,7 +684,7 @@ Layout ReadLayout(const Json& j) {
             two_racks ? "two_flat_racks" : "flat_rack", "margins", "ports", "approaches", "tube", "holder",
             "arms", "pallets", "stocks", "strap_bolts_from", "tube_in", "bay_out", "work", "rail_order", "items"},
            {"order", "staging", "retreat_legs", "path_tries", "torque_limit_scale",
-            "bay_out_when_clear", "first_bay_early", "next_bay_fill"});
+            "bay_out_when_clear", "first_bay_early", "next_bay_fill", "torque_order_free"});
   } else {
     throw LayoutError("base", "is \"container\", \"flat_rack\" or "
                               "\"two_flat_racks\", not \"" +
@@ -844,14 +844,13 @@ Layout ReadLayout(const Json& j) {
     }
     l.torque_limit_scale = scale;
   }
-  if (j.contains("bay_out_when_clear")) {
-    l.bay_out_when_clear = Bool(j.at("bay_out_when_clear"), "bay_out_when_clear");
-  }
-  if (j.contains("first_bay_early")) {  // src/layout_bays.h, "first_bay_early".
-    const Json& e = j.at("first_bay_early");
-    Fields(e, "first_bay_early", {"does", "basis"});
-    (void)String(FIELD(e, "first_bay_early", "does"));
-    l.first_bay_early = String(FIELD(e, "first_bay_early", "basis"));
+  if (j.contains("bay_out_when_clear")) l.bay_out_when_clear = Bool(j.at("bay_out_when_clear"), "bay_out_when_clear");
+  // A field of {does, basis} (src/layout_bays.h, src/layout_torque.h): its basis.
+  for (const char* f : {"first_bay_early", "torque_order_free"}) {
+    if (!j.contains(f)) continue;
+    Fields(j.at(f), f, {"does", "basis"});
+    (void)String(FIELD(j.at(f), f, "does"));
+    (f[0] == 'f' ? l.first_bay_early : l.torque_order_free) = String(FIELD(j.at(f), f, "basis"));
   }
   if (j.contains("next_bay_fill")) {  // src/layout_bays.h, "next_bay_fill".
     Fields(j.at("next_bay_fill"), "next_bay_fill", {"arm", "does", "basis"});
