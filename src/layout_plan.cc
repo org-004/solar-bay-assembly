@@ -1400,7 +1400,7 @@ bool Planner::Schedule() {
         can = false;
         why = "for the tube's move to stage " + scopes_[b.stage].name;
       }
-      if (moved > r) {
+      if (b.stage > 0 && moved > r) {  // r may be below 0 (next_bay_fill).
         r = moved;
         reason = "for the tube to move to stage " + scopes_[b.stage].name;
       }
