@@ -2533,6 +2533,8 @@ cc_library(
 # Runs it and prints the figures, or writes physics/<name>.json.
 #   bazel run --config=opt //:run_physics
 #   bazel run --config=opt //:run_physics -- flat_rack_3_pin_arms_ordered --write
+# --bay 0 (or --take given more than once) runs every take of bay 0 and writes
+# them as one record.
 cc_binary(
     name = "run_physics",
     srcs = ["src/run_physics.cc"],

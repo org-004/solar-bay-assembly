@@ -351,9 +351,25 @@ Measure PhysicsShare(const std::string& name, const Plan& plan, double one_bay_s
             (faults.empty() ? "plan_sha256 differs" : faults.front()));
   }
   std::string steps;
-  for (const PhysicsStep& s : physics->steps) {
-    if (!StepCounts(*physics, s)) continue;
-    steps += (steps.empty() ? "" : ", ") + std::to_string(s.number);
+  for (const PhysicsTake& take : physics->takes) {
+    for (const PhysicsStep& s : take.steps) {
+      if (!StepCounts(*physics, take, s)) continue;
+      steps += (steps.empty() ? "" : ", ") + std::to_string(s.number);
+    }
+  }
+  // One take: the basis as it was before records held several.
+  std::string modules;
+  const std::vector<int> counted = CountedModules(*physics);
+  if (physics->takes.size() == 1) {
+    modules = "module " + std::to_string(physics->takes.front().module);
+  } else {
+    modules = counted.size() == 1 ? "module " : "modules ";
+    for (size_t i = 0; i < counted.size(); ++i) {
+      modules += (i == 0 ? "" : ", ") + std::to_string(counted[i]);
+    }
+    if (counted.empty()) modules = "no module";
+    modules += " (" + std::to_string(counted.size()) + " of the record's " +
+               std::to_string(physics->takes.size()) + " takes of one bay)";
   }
   char seconds[64];
   std::snprintf(seconds, sizeof(seconds), "%.6f s of one bay's %.6f s counted",
@@ -363,8 +379,7 @@ Measure PhysicsShare(const std::string& name, const Plan& plan, double one_bay_s
       Round(CountedSeconds(*physics) / one_bay_s, 6), "1", "higher",
       "measured",
       file + ": " + (steps.empty() ? "no step" : "steps " + steps) +
-          " of module " + std::to_string(physics->module) +
-          " carried out in physics, " + seconds);
+          " of " + modules + " carried out in physics, " + seconds);
 }
 
 }  // namespace

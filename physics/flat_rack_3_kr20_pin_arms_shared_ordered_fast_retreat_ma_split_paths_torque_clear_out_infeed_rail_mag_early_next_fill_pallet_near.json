@@ -2,52 +2,416 @@
   "layout": "flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque_clear_out_infeed_rail_mag_early_next_fill_pallet_near",
   "layout_sha256": "0ced8a957408e22ec2b459e66c9a0b45b84eeefa1a6bc046fc5591114732fc0b",
   "plan_sha256": "25adeef100a2966d4099d7b969fff60888751d98150de1818505c906f27e83f5",
-  "command": "bazel run --config=opt //:run_physics -- flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque_clear_out_infeed_rail_mag_early_next_fill_pallet_near --write",
-  "module": 8,
-  "take": 8,
+  "command": "bazel run --config=opt //:run_physics -- flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque_clear_out_infeed_rail_mag_early_next_fill_pallet_near --bay 0 --write",
   "clearance_m": 0.015,
   "gate_offset_mm": 3.0,
   "gate_yaw_deg": 0.15,
-  "steps": [
+  "takes": [
     {
-      "number": 141,
-      "what": "take module 8",
-      "arm": "module_arm",
-      "start_s": 279.085629,
-      "end_s": 289.326425,
-      "planned_s": 10.240796,
-      "max_joint_error_mrad": 0.6188,
-      "max_frame_error_mm": 0.6971,
-      "max_frame_error_deg": 0.0462,
-      "least_clearance_m": 0.019825,
-      "least_clearance_pair": "module_arm_tool_combined_gripper_plate to bay_module_5_laminate",
-      "least_clearance_t": 281.835629,
-      "plan_least_clearance_m": 0.019825,
-      "counted": true
+      "module": 0,
+      "take": 0,
+      "steps": [
+        {
+          "number": 24,
+          "what": "take module 0",
+          "arm": "module_arm",
+          "start_s": 116.154884,
+          "end_s": 127.541454,
+          "planned_s": 11.38657,
+          "max_joint_error_mrad": 0.6199,
+          "max_frame_error_mm": 0.6179,
+          "max_frame_error_deg": 0.0461,
+          "least_clearance_m": 0.024311,
+          "least_clearance_pair": "module_arm_tool_combined_gripper_plate to stock_rails_rack",
+          "least_clearance_t": 121.504884,
+          "plan_least_clearance_m": 0.024309,
+          "counted": true
+        },
+        {
+          "number": 25,
+          "what": "set module 0",
+          "arm": "module_arm",
+          "start_s": 127.541454,
+          "end_s": 137.054727,
+          "planned_s": 9.513273,
+          "max_joint_error_mrad": 0.7047,
+          "max_frame_error_mm": 0.6571,
+          "max_frame_error_deg": 0.0453,
+          "least_clearance_m": 0.017921,
+          "least_clearance_pair": "module_arm_held_module_frame_long_a to bay_rail_2_top",
+          "least_clearance_t": 130.794884,
+          "plan_least_clearance_m": 0.018241,
+          "counted": true
+        }
+      ],
+      "set_down": {
+        "offset_mm": 0.1809,
+        "across_mm": -0.0043,
+        "along_mm": -0.1809,
+        "yaw_deg": -0.0011,
+        "height_mm": -0.0001
+      }
     },
     {
-      "number": 142,
-      "what": "set module 8",
-      "arm": "module_arm",
-      "start_s": 289.326425,
-      "end_s": 302.477534,
-      "planned_s": 13.151109,
-      "max_joint_error_mrad": 0.7618,
-      "max_frame_error_mm": 1.0337,
-      "max_frame_error_deg": 0.0707,
-      "least_clearance_m": 0.024534,
-      "least_clearance_pair": "module_arm_held_module_frame_short_b to stock_rails_rack",
-      "least_clearance_t": 291.255629,
-      "plan_least_clearance_m": 0.024545,
-      "counted": true
+      "module": 3,
+      "take": 1,
+      "steps": [
+        {
+          "number": 40,
+          "what": "take module 3",
+          "arm": "module_arm",
+          "start_s": 137.054727,
+          "end_s": 145.798919,
+          "planned_s": 8.744192,
+          "max_joint_error_mrad": 0.6198,
+          "max_frame_error_mm": 0.625,
+          "max_frame_error_deg": 0.0464,
+          "least_clearance_m": 0.027544,
+          "least_clearance_pair": "module_arm_tool_combined_gripper_plate to pallet_module_1_laminate",
+          "least_clearance_t": 140.444727,
+          "plan_least_clearance_m": 0.027549,
+          "counted": true
+        },
+        {
+          "number": 41,
+          "what": "set module 3",
+          "arm": "module_arm",
+          "start_s": 145.798919,
+          "end_s": 155.50637,
+          "planned_s": 9.707451,
+          "max_joint_error_mrad": 2.9513,
+          "max_frame_error_mm": 1.1004,
+          "max_frame_error_deg": 0.1866,
+          "least_clearance_m": 0.019424,
+          "least_clearance_pair": "module_arm_held_module_flange_short_a to stock_rails_rack",
+          "least_clearance_t": 146.884727,
+          "plan_least_clearance_m": 0.019234,
+          "counted": true
+        }
+      ],
+      "set_down": {
+        "offset_mm": 0.1927,
+        "across_mm": 0.0206,
+        "along_mm": 0.1916,
+        "yaw_deg": -0.0012,
+        "height_mm": -0.0001
+      }
+    },
+    {
+      "module": 6,
+      "take": 2,
+      "steps": [
+        {
+          "number": 55,
+          "what": "take module 6",
+          "arm": "module_arm",
+          "start_s": 155.50637,
+          "end_s": 162.418172,
+          "planned_s": 6.911802,
+          "max_joint_error_mrad": 0.6197,
+          "max_frame_error_mm": 0.632,
+          "max_frame_error_deg": 0.0466,
+          "least_clearance_m": 0.023181,
+          "least_clearance_pair": "module_arm_tool_combined_gripper_plate to bay_rail_5_top",
+          "least_clearance_t": 156.19637,
+          "plan_least_clearance_m": 0.023183,
+          "counted": true
+        },
+        {
+          "number": 56,
+          "what": "set module 6",
+          "arm": "module_arm",
+          "start_s": 162.418172,
+          "end_s": 172.862026,
+          "planned_s": 10.443854,
+          "max_joint_error_mrad": 1.1347,
+          "max_frame_error_mm": 0.888,
+          "max_frame_error_deg": 0.1006,
+          "least_clearance_m": 0.022043,
+          "least_clearance_pair": "module_arm_held_module_flange_short_a to stock_rails_rack",
+          "least_clearance_t": 162.69637,
+          "plan_least_clearance_m": 0.021905,
+          "counted": true
+        }
+      ],
+      "set_down": {
+        "offset_mm": 0.172,
+        "across_mm": 0.0394,
+        "along_mm": -0.1675,
+        "yaw_deg": -0.0021,
+        "height_mm": -0.0001
+      }
+    },
+    {
+      "module": 1,
+      "take": 3,
+      "steps": [
+        {
+          "number": 71,
+          "what": "take module 1",
+          "arm": "module_arm",
+          "start_s": 172.862026,
+          "end_s": 183.827657,
+          "planned_s": 10.965631,
+          "max_joint_error_mrad": 0.6195,
+          "max_frame_error_mm": 0.6394,
+          "max_frame_error_deg": 0.0469,
+          "least_clearance_m": 0.026511,
+          "least_clearance_pair": "module_arm_tool_combined_gripper_plate to bay_module_6_laminate",
+          "least_clearance_t": 174.332026,
+          "plan_least_clearance_m": 0.02651,
+          "counted": true
+        },
+        {
+          "number": 72,
+          "what": "set module 1",
+          "arm": "module_arm",
+          "start_s": 183.827657,
+          "end_s": 195.474093,
+          "planned_s": 11.646436,
+          "max_joint_error_mrad": 1.3204,
+          "max_frame_error_mm": 0.9942,
+          "max_frame_error_deg": 0.1053,
+          "least_clearance_m": 0.020827,
+          "least_clearance_pair": "module_arm_held_module_frame_long_b to bay_module_3_frame_long_b",
+          "least_clearance_t": 187.742026,
+          "plan_least_clearance_m": 0.021295,
+          "counted": true
+        }
+      ],
+      "set_down": {
+        "offset_mm": 0.1922,
+        "across_mm": 0.0155,
+        "along_mm": -0.1916,
+        "yaw_deg": -0.0009,
+        "height_mm": -0.0001
+      }
+    },
+    {
+      "module": 4,
+      "take": 4,
+      "steps": [
+        {
+          "number": 85,
+          "what": "take module 4",
+          "arm": "module_arm",
+          "start_s": 195.474093,
+          "end_s": 204.456603,
+          "planned_s": 8.98251,
+          "max_joint_error_mrad": 0.6193,
+          "max_frame_error_mm": 0.6549,
+          "max_frame_error_deg": 0.0452,
+          "least_clearance_m": 0.022031,
+          "least_clearance_pair": "module_arm_tool_combined_gripper_plate to pallet_module_4_laminate",
+          "least_clearance_t": 199.454093,
+          "plan_least_clearance_m": 0.022026,
+          "counted": true
+        },
+        {
+          "number": 86,
+          "what": "set module 4",
+          "arm": "module_arm",
+          "start_s": 204.456603,
+          "end_s": 213.973415,
+          "planned_s": 9.516812,
+          "max_joint_error_mrad": 1.9194,
+          "max_frame_error_mm": 0.9514,
+          "max_frame_error_deg": 0.1282,
+          "least_clearance_m": 0.018325,
+          "least_clearance_pair": "module_arm_held_module_frame_long_a to stock_rails_rack",
+          "least_clearance_t": 205.794093,
+          "plan_least_clearance_m": 0.018392,
+          "counted": true
+        }
+      ],
+      "set_down": {
+        "offset_mm": 0.2318,
+        "across_mm": 0.0336,
+        "along_mm": 0.2294,
+        "yaw_deg": -0.001,
+        "height_mm": -0.0001
+      }
+    },
+    {
+      "module": 7,
+      "take": 5,
+      "steps": [
+        {
+          "number": 99,
+          "what": "take module 7",
+          "arm": "module_arm",
+          "start_s": 213.973415,
+          "end_s": 223.00588,
+          "planned_s": 9.032465,
+          "max_joint_error_mrad": 0.6192,
+          "max_frame_error_mm": 0.6642,
+          "max_frame_error_deg": 0.0455,
+          "least_clearance_m": 0.026456,
+          "least_clearance_pair": "module_arm_tool_combined_gripper_plate to bay_module_4_frame_long_b",
+          "least_clearance_t": 214.393415,
+          "plan_least_clearance_m": 0.026469,
+          "counted": true
+        },
+        {
+          "number": 100,
+          "what": "set module 7",
+          "arm": "module_arm",
+          "start_s": 223.00588,
+          "end_s": 234.640605,
+          "planned_s": 11.634725,
+          "max_joint_error_mrad": 0.8382,
+          "max_frame_error_mm": 0.6687,
+          "max_frame_error_deg": 0.0568,
+          "least_clearance_m": 0.018733,
+          "least_clearance_pair": "module_arm_held_module_flange_short_a to stock_rails_rack",
+          "least_clearance_t": 224.353415,
+          "plan_least_clearance_m": 0.018906,
+          "counted": true
+        }
+      ],
+      "set_down": {
+        "offset_mm": 0.2117,
+        "across_mm": 0.0001,
+        "along_mm": -0.2117,
+        "yaw_deg": 0.0001,
+        "height_mm": -0.0001
+      }
+    },
+    {
+      "module": 2,
+      "take": 6,
+      "steps": [
+        {
+          "number": 113,
+          "what": "take module 2",
+          "arm": "module_arm",
+          "start_s": 234.640605,
+          "end_s": 246.407507,
+          "planned_s": 11.766902,
+          "max_joint_error_mrad": 0.6191,
+          "max_frame_error_mm": 0.6629,
+          "max_frame_error_deg": 0.047,
+          "least_clearance_m": 0.019095,
+          "least_clearance_pair": "module_arm_tool_combined_gripper_plate to bay_module_7_frame_long_b",
+          "least_clearance_t": 235.880605,
+          "plan_least_clearance_m": 0.019095,
+          "counted": true
+        },
+        {
+          "number": 114,
+          "what": "set module 2",
+          "arm": "module_arm",
+          "start_s": 246.407507,
+          "end_s": 257.427812,
+          "planned_s": 11.020305,
+          "max_joint_error_mrad": 1.376,
+          "max_frame_error_mm": 1.0787,
+          "max_frame_error_deg": 0.1064,
+          "least_clearance_m": 0.019465,
+          "least_clearance_pair": "module_arm_held_module_frame_long_a to bay_module_4_frame_short_b",
+          "least_clearance_t": 249.620605,
+          "plan_least_clearance_m": 0.019938,
+          "counted": true
+        }
+      ],
+      "set_down": {
+        "offset_mm": 0.2045,
+        "across_mm": 0.0175,
+        "along_mm": -0.2038,
+        "yaw_deg": -0.0001,
+        "height_mm": -0.0001
+      }
+    },
+    {
+      "module": 5,
+      "take": 7,
+      "steps": [
+        {
+          "number": 127,
+          "what": "take module 5",
+          "arm": "module_arm",
+          "start_s": 257.427812,
+          "end_s": 266.418572,
+          "planned_s": 8.99076,
+          "max_joint_error_mrad": 0.6189,
+          "max_frame_error_mm": 0.6733,
+          "max_frame_error_deg": 0.0469,
+          "least_clearance_m": 0.024444,
+          "least_clearance_pair": "module_arm_tool_combined_gripper_plate to stock_rails_rack",
+          "least_clearance_t": 261.147812,
+          "plan_least_clearance_m": 0.024448,
+          "counted": true
+        },
+        {
+          "number": 128,
+          "what": "set module 5",
+          "arm": "module_arm",
+          "start_s": 266.418572,
+          "end_s": 279.085629,
+          "planned_s": 12.667057,
+          "max_joint_error_mrad": 2.3461,
+          "max_frame_error_mm": 0.9365,
+          "max_frame_error_deg": 0.1489,
+          "least_clearance_m": 0.02066,
+          "least_clearance_pair": "module_arm_held_module_flange_long_a to stock_rails_rack",
+          "least_clearance_t": 268.417812,
+          "plan_least_clearance_m": 0.020466,
+          "counted": true
+        }
+      ],
+      "set_down": {
+        "offset_mm": 0.211,
+        "across_mm": 0.0178,
+        "along_mm": -0.2103,
+        "yaw_deg": 0.0002,
+        "height_mm": -0.0001
+      }
+    },
+    {
+      "module": 8,
+      "take": 8,
+      "steps": [
+        {
+          "number": 141,
+          "what": "take module 8",
+          "arm": "module_arm",
+          "start_s": 279.085629,
+          "end_s": 289.326425,
+          "planned_s": 10.240796,
+          "max_joint_error_mrad": 0.6188,
+          "max_frame_error_mm": 0.6971,
+          "max_frame_error_deg": 0.0462,
+          "least_clearance_m": 0.019825,
+          "least_clearance_pair": "module_arm_tool_combined_gripper_plate to bay_module_5_laminate",
+          "least_clearance_t": 281.835629,
+          "plan_least_clearance_m": 0.019825,
+          "counted": true
+        },
+        {
+          "number": 142,
+          "what": "set module 8",
+          "arm": "module_arm",
+          "start_s": 289.326425,
+          "end_s": 302.477534,
+          "planned_s": 13.151109,
+          "max_joint_error_mrad": 0.7618,
+          "max_frame_error_mm": 1.0337,
+          "max_frame_error_deg": 0.0707,
+          "least_clearance_m": 0.024534,
+          "least_clearance_pair": "module_arm_held_module_frame_short_b to stock_rails_rack",
+          "least_clearance_t": 291.255629,
+          "plan_least_clearance_m": 0.024545,
+          "counted": true
+        }
+      ],
+      "set_down": {
+        "offset_mm": 0.3156,
+        "across_mm": 0.1294,
+        "along_mm": 0.2878,
+        "yaw_deg": -0.0059,
+        "height_mm": -0.0001
+      }
     }
   ],
-  "set_down": {
-    "offset_mm": 0.3156,
-    "across_mm": 0.1294,
-    "along_mm": 0.2878,
-    "yaw_deg": -0.0059,
-    "height_mm": -0.0001
-  },
-  "counted_s": 23.391905
+  "counted_s": 186.32265
 }

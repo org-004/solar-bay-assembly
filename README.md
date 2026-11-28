@@ -140,12 +140,15 @@ the same seeds; the table is on the
 **Physics.** The simulator is MuJoCo 4.0.0. The stand-in cell runs in physics with its
 cameras, and a gate runs eight whole pallets (240 modules) in it and fails if one is not
 placed within 3 mm and 0.15 degrees ([`docs/gate.md`](docs/gate.md)). The flat rack cell is
-kinematic but for one module: in the chosen layout the module arm takes module 8 from the
-pallet, turns it flat and sets it on its rails in physics, on its servos and with its real
-payload and the rail magazine's 12 kg, along the committed plan's own timing, within 0.32 mm of
-its place and never nearer anything than 19.83 mm, every motor below its limit (joint 1 at 0.970)
-([`docs/flat-rack-physics.md`](docs/flat-rack-physics.md), `//:run_physics`). Those 23.39 s are
-why `physics_share` is 0.057 (v24's record, steps 141 and 142, over one bay of 408.03 s); the failures are still modelled. One part of it has a physics test, the locating nose that pulls a
+kinematic but for the module arm's nine cycles of a bay: in the chosen layout the module arm
+takes each of bay 0's nine modules from the pallet, turns it flat and sets it on its rails in
+physics, each take run on its own from the plan's state at its start, on its servos and with
+its real payload and the rail magazine's 12 kg, along the committed plan's own timing, each
+within 0.32 mm of its place and never nearer anything than 17.92 mm, every motor below its limit
+(joint 1 at worst 0.991) ([`docs/flat-rack-physics.md`](docs/flat-rack-physics.md),
+`//:run_physics -- --bay 0`). Those 186.32 s are why `physics_share` is 0.457 (v24's record,
+nine takes and sets, over one bay of 408.03 s); the pin arms, the rail sets and the tube are not
+run in physics; the failures are still modelled. One part of it has a physics test, the locating nose that pulls a
 module's holes into line before pinning (`tests/locate_physics_test.cc`,
 [`docs/bay-hardware.md`](docs/bay-hardware.md)).
 

@@ -51,11 +51,13 @@ TEST(PhysicsRun, TheChosenLayoutsModuleIsCarriedAndSetAsRecorded) {
                  Sha256OfFile(layout_path), Sha256OfFile(plan_path));
   ASSERT_TRUE(r.ok) << r.error;
   std::printf("%s", PhysicsText(r).c_str());
-  ASSERT_EQ(r.record.steps.size(), 2u);
-  for (const PhysicsStep& s : r.record.steps) {
+  ASSERT_EQ(r.record.takes.size(), 1u);
+  const PhysicsTake& run = r.record.takes.front();
+  ASSERT_EQ(run.steps.size(), 2u);
+  for (const PhysicsStep& s : run.steps) {
     EXPECT_TRUE(s.counted) << "step " << s.number << ": least clearance "
                            << s.least_clearance_m << " m, set-down "
-                           << r.record.set_down.offset_mm << " mm";
+                           << run.set_down.offset_mm << " mm";
   }
   EXPECT_TRUE(CheckPhysicsRecord(r.record, *plan, Sha256OfFile(plan_path)).empty());
 
@@ -68,12 +70,18 @@ TEST(PhysicsRun, TheChosenLayoutsModuleIsCarriedAndSetAsRecorded) {
   ASSERT_TRUE(committed.has_value()) << error;
   EXPECT_EQ(committed->plan_sha256, r.record.plan_sha256);
   EXPECT_EQ(committed->layout_sha256, r.record.layout_sha256);
-  EXPECT_EQ(committed->module, r.record.module);
-  EXPECT_EQ(committed->take, r.record.take);
-  ASSERT_EQ(committed->steps.size(), r.record.steps.size());
-  for (size_t i = 0; i < committed->steps.size(); ++i) {
-    const PhysicsStep& a = committed->steps[i];
-    const PhysicsStep& b = r.record.steps[i];
+  // The record may hold several takes of the bay: this run's is the one of
+  // its module.
+  const PhysicsTake* kept = nullptr;
+  for (const PhysicsTake& t : committed->takes) {
+    if (t.module == run.module) kept = &t;
+  }
+  ASSERT_NE(kept, nullptr) << "the record holds no take of module " << run.module;
+  EXPECT_EQ(kept->take, run.take);
+  ASSERT_EQ(kept->steps.size(), run.steps.size());
+  for (size_t i = 0; i < kept->steps.size(); ++i) {
+    const PhysicsStep& a = kept->steps[i];
+    const PhysicsStep& b = run.steps[i];
     EXPECT_EQ(a.number, b.number);
     EXPECT_EQ(a.counted, b.counted) << "step " << a.number;
     EXPECT_NEAR(a.planned_s, b.planned_s, 1e-6) << "step " << a.number;
@@ -84,9 +92,11 @@ TEST(PhysicsRun, TheChosenLayoutsModuleIsCarriedAndSetAsRecorded) {
     EXPECT_NEAR(a.max_frame_error_mm, b.max_frame_error_mm,
                 0.05 + 0.05 * a.max_frame_error_mm) << "step " << a.number;
   }
-  EXPECT_NEAR(committed->set_down.offset_mm, r.record.set_down.offset_mm, 0.05);
-  EXPECT_NEAR(committed->set_down.yaw_deg, r.record.set_down.yaw_deg, 0.005);
-  EXPECT_NEAR(committed->counted_s, r.record.counted_s, 1e-6);
+  EXPECT_NEAR(kept->set_down.offset_mm, run.set_down.offset_mm, 0.05);
+  EXPECT_NEAR(kept->set_down.yaw_deg, run.set_down.yaw_deg, 0.005);
+  if (committed->takes.size() == 1) {
+    EXPECT_NEAR(committed->counted_s, r.record.counted_s, 1e-6);
+  }
 }
 
 }  // namespace

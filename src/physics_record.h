@@ -31,6 +31,14 @@
 // the record's `counted` flags are what it gave when the record was
 // written, and the test checks that they still agree.
 //
+// A record holds one or several takes of one bay (PhysicsTake): each with
+// its module, its module_take index, its steps (the take and the set after
+// it) and the module's set-down. One bay is counted once: no module twice,
+// and every step of the record of the same bay of the plan (bay 0, whose
+// one_bay_s is the denominator; the later bays repeat the same modules).
+// CountedSeconds sums over every take, each step judged against its own
+// take's set-down.
+//
 // The file, physics/<layout>.json (PhysicsRecordToJson writes it with fixed
 // precision, so that the same record is the same text):
 //   {"layout", "layout_sha256", "plan_sha256", "command",
@@ -44,8 +52,15 @@
 //    "set_down": {"offset_mm", "across_mm", "along_mm", "yaw_deg",
 //                 "height_mm"},
 //    "counted_s"}
-// Seconds to 6 decimals (as the plan holds them), distances in metres to 6,
-// millimetres, milliradians and degrees to 4.
+// for a record of one take (as every record written before run 071 is, so
+// that their text and their sha256 stay what they were), and for several
+//   {"layout", "layout_sha256", "plan_sha256", "command",
+//    "clearance_m", "gate_offset_mm", "gate_yaw_deg",
+//    "takes": [{"module", "take", "steps": [...], "set_down": {...}}],
+//    "counted_s"}
+// with the takes in the plan's order. Seconds to 6 decimals (as the plan
+// holds them), distances in metres to 6, millimetres, milliradians and
+// degrees to 4.
 
 #ifndef SRC_PHYSICS_RECORD_H_
 #define SRC_PHYSICS_RECORD_H_
@@ -87,27 +102,44 @@ struct SetDown {
   double height_mm = 0.0;
 };
 
+// One take of the record: the module's take and the set after it.
+struct PhysicsTake {
+  int module = -1;              // The bay's module the run carried.
+  int take = -1;                // Its module_take index.
+  std::vector<PhysicsStep> steps;  // In the plan's order.
+  SetDown set_down;
+};
+
 struct PhysicsRecord {
   std::string layout;
   std::string layout_sha256;    // Of layouts/<layout>.json.
   std::string plan_sha256;      // Of plans/<layout>.json.
   std::string command;          // The command that wrote the record.
-  int module = -1;              // The bay's module the run carried.
-  int take = -1;                // Its module_take index.
   double clearance_m = 0.0;     // The layout's margins.clearance_m.
   double gate_offset_mm = 0.0;  // kGateOffset in mm.
   double gate_yaw_deg = 0.0;    // kGateYaw in degrees.
-  std::vector<PhysicsStep> steps;  // In the plan's order.
-  SetDown set_down;
+  std::vector<PhysicsTake> takes;  // In the plan's order; one or more.
   double counted_s = 0.0;       // CountedSeconds when it was written.
 };
 
-// The rule above, for one step of the record.
-bool StepCounts(const PhysicsRecord& record, const PhysicsStep& step);
+// The rule above, for one step of a take of the record.
+bool StepCounts(const PhysicsRecord& record, const PhysicsTake& take,
+                const PhysicsStep& step);
 
-// The sum of planned_s over the steps for which StepCounts holds (not the
-// stored flags).
+// The sum of planned_s over the steps of every take for which StepCounts
+// holds (not the stored flags).
 double CountedSeconds(const PhysicsRecord& record);
+
+// The modules of the takes of which a step counts, in the record's order.
+std::vector<int> CountedModules(const PhysicsRecord& record);
+
+// Several records of runs of the same layout, plan and gate as one record
+// whose takes are theirs in the plan's order, its flags and counted_s
+// computed again. Returns nothing and sets *error when they are of another
+// layout, plan or gate, or when there are none.
+std::optional<PhysicsRecord> JoinPhysicsRecords(
+    const std::vector<PhysicsRecord>& records, const std::string& command,
+    std::string* error);
 
 // The record as text, the same for the same record, and back. FromJson
 // returns nothing and sets *error on a missing field or a wrong type.
@@ -120,7 +152,9 @@ std::optional<PhysicsRecord> PhysicsRecordFromJson(const std::string& text,
 // `plan_sha256`, and each step: it exists in plan.steps by number with the
 // same what and arm, and start_s, end_s and planned_s within 1e-6 s of the
 // plan's. Also each stored `counted` against StepCounts and counted_s
-// against CountedSeconds (within 1e-6 s).
+// against CountedSeconds (within 1e-6 s). And one bay counted once: a
+// record without takes, a take without steps, a module held by two takes,
+// or steps of different bays of the plan (StepTime::bay) are faults.
 std::vector<std::string> CheckPhysicsRecord(const PhysicsRecord& record,
                                             const Plan& plan,
                                             const std::string& plan_sha256);
