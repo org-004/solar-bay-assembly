@@ -68,7 +68,7 @@ std::string Faults(const VerifyReport& r) {
 
 int CountSteps(const Plan& p, const std::string& prefix) {
   int n = 0;
-  for (const BayStep& s : p.steps) n += s.what.rfind(prefix, 0) == 0 ? 1 : 0;
+  for (const StepTime& s : p.steps) n += s.what.rfind(prefix, 0) == 0 ? 1 : 0;
   return n;
 }
 
@@ -112,8 +112,8 @@ TEST(RailMagazine, TheMagazineRidesOnTheGripper) {
   EXPECT_EQ(g->magazine_holds, 10);
   EXPECT_DOUBLE_EQ(g->mass_kg, 36.0 + 12.0);
   ASSERT_EQ(g->boxes.size(), 5U);
-  EXPECT_EQ(g->boxes[1].name, "magazine_pos_x");
-  EXPECT_EQ(g->boxes[2].name, "magazine_neg_x");
+  EXPECT_EQ(g->boxes[2].name, "magazine_pos_x");
+  EXPECT_EQ(g->boxes[3].name, "magazine_neg_x");
   EXPECT_EQ(g->boxes.back().name, "cups");  // The box that touches stays last.
   EXPECT_EQ(RailsPerTake(l), 10);
   EXPECT_TRUE(RailHasTake(l, 0));
@@ -141,15 +141,18 @@ TEST(RailMagazine, SettingMoreRailsThanTheMagazineHoldsIsRefused) {
   Tool* g = Gripper(&o.layout);
   ASSERT_NE(g, nullptr);
   g->magazine_holds = 9;  // The plan loads ten at its one take and sets ten.
+  EXPECT_EQ(RailsPerTake(o.layout), 9);
+  EXPECT_TRUE(RailHasTake(o.layout, 9));
   VerifyOptions quick;
   quick.schedule = false;
   const VerifyReport r =
       VerifyPlan(o.layout, ModelPaths::FromEnvironment(), o.plan, o.sha256, quick);
   EXPECT_FALSE(r.ok);
+  // The bay's steps of a nine-rail magazine hold a second take, before rail
+  // 9, which the plan does not have: its tenth set comes with no rail left.
   bool found = false;
   for (const std::string& f : r.faults) {
-    found = found || (f.find("set rail 9") != std::string::npos &&
-                      f.find("rail magazine is empty") != std::string::npos);
+    found = found || f.find("(take rail 9)") != std::string::npos;
   }
   EXPECT_TRUE(found) << Faults(r);
 }

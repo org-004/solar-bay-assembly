@@ -303,8 +303,10 @@ TEST(TorqueLimit, TheVerifierHoldsThePlanToTheLayout) {
 // them: every module arm move within the fraction, and some slowed.
 class CommittedTorquePlan : public ::testing::TestWithParam<const char*> {};
 
-TEST_P(CommittedTorquePlan, HoldsItsFraction) {
-  std::unique_ptr<Measured> m = Measure(GetParam());
+// Every module arm move of the committed plan `name` within the fraction;
+// more than `fewest` moves and some slowed.
+void HoldsItsFraction(const char* name, int fewest) {
+  std::unique_ptr<Measured> m = Measure(name);
   ASSERT_TRUE(m->error.empty()) << m->error;
   const double fraction = m->plan->figures.torque_limit_scale;
   ASSERT_GT(fraction, 0.0);
@@ -319,12 +321,18 @@ TEST_P(CommittedTorquePlan, HoldsItsFraction) {
     ASSERT_TRUE(m->dynamics->AlongSegment(s, m->motion, m->plan->figures, &d, &error)) << error;
     EXPECT_LE(d.Worst(), fraction) << "step " << s.step;
   }
-  EXPECT_GT(moves, 30);
+  EXPECT_GT(moves, fewest);
   EXPECT_GT(slowed, 0);
 }
 
+TEST_P(CommittedTorquePlan, HoldsItsFraction) { HoldsItsFraction(GetParam(), 30); }
+
+// Run 056: one bay with the rail magazine has 30 module arm moves (one rail
+// take for ten in v21's 39).
+TEST(TorqueLimit, TheRailMagazinePlanHoldsItsFraction) { HoldsItsFraction(kRailMag, 29); }
+
 INSTANTIATE_TEST_SUITE_P(TorqueLimit, CommittedTorquePlan,
-                         ::testing::Values(kTorque, kSplitTorque, kV19, kV20, kV21, kRailMag));
+                         ::testing::Values(kTorque, kSplitTorque, kV19, kV20, kV21));
 
 // The seconds the slowed moves of the module arm add to its motion: each
 // slowed move's time without its settle, less the same at time scale 1.
