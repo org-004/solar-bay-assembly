@@ -1,0 +1,75 @@
+layout: flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque_clear_out_infeed_rail_mag_early_next_fill_pallet_near_a31_b61
+base: flat_rack
+module_arms: 1
+pin_arms: 3
+arms: 4
+clearance_m: 0.0150
+plan_pad_m: 0.0030
+joint_margin_deg: 5.0
+moves: 357
+moves_found: 357
+bay_planned_s: 420.98
+bay_model_s: 355.26
+bays: 3
+torque_limit_scale: 0.900
+moves_slowed: 25
+moves_slowed_added_s: 15.43
+bay_0_tube_in: 0.00 to 40.00 s
+bay_0_clamp: 40.00 to 45.00 s
+bay_0_release: 375.98 to 380.98 s
+bay_0_bay_out: 380.98 to 420.98 s
+bay_1_tube_in: 382.57 to 422.57 s
+bay_1_clamp: 422.57 to 427.57 s
+bay_1_release: 768.41 to 773.41 s
+bay_1_bay_out: 773.41 to 813.41 s
+bay_2_tube_in: 775.00 to 815.00 s
+bay_2_clamp: 815.00 to 820.00 s
+bay_2_release: 1159.24 to 1164.24 s
+bay_2_bay_out: 1164.24 to 1204.24 s
+bay_0_out_bay_1_in_overlap_s: 38.41
+bay_1_out_bay_2_in_overlap_s: 38.41
+one_bay_s: 420.98
+cycle_s: 401.41
+interval_s: 390.84
+phase_bay_0_tube_in_planned_s: 40.00
+phase_bay_0_tube_in_model_s: 40.00
+phase_bay_0_clamp_planned_s: 5.00
+phase_bay_0_clamp_model_s: 5.00
+phase_bay_0_rails_planned_s: 112.89
+phase_bay_0_rails_model_s: 93.87
+phase_bay_0_modules_planned_s: 218.09
+phase_bay_0_modules_model_s: 171.39
+phase_bay_0_end_planned_s: 45.00
+phase_bay_0_end_model_s: 45.00
+phase_bay_1_tube_in_planned_s: 40.00
+phase_bay_1_tube_in_model_s: 40.00
+phase_bay_1_clamp_planned_s: 5.00
+phase_bay_1_clamp_model_s: 5.00
+phase_bay_1_rails_planned_s: 112.69
+phase_bay_1_rails_model_s: 93.87
+phase_bay_1_modules_planned_s: 228.14
+phase_bay_1_modules_model_s: 171.39
+phase_bay_1_end_planned_s: 45.00
+phase_bay_1_end_model_s: 45.00
+phase_bay_2_tube_in_planned_s: 40.00
+phase_bay_2_tube_in_model_s: 40.00
+phase_bay_2_clamp_planned_s: 5.00
+phase_bay_2_clamp_model_s: 5.00
+phase_bay_2_rails_planned_s: 112.44
+phase_bay_2_rails_model_s: 93.87
+phase_bay_2_modules_planned_s: 226.80
+phase_bay_2_modules_model_s: 171.39
+phase_bay_2_end_planned_s: 45.00
+phase_bay_2_end_model_s: 45.00
+least_clearance_m: -0.1351
+least_arm_to_arm_m: -0.1351
+least_joint_margin_deg: 5.00
+waits: 43
+wait_s: 1807.26
+planning_s: 419.7
+planning_queries: 88010684
+complete: false
+fault: verify: at 378.75 s (step 166) arm module_arm and arm pin_arm_b: module_arm_arm_link_1_collision to pin_arm_b_tool_pin_tool_body at 0.0008 m, below 0.0150 m
+fault: verify: at 378.80 s (step 166) arm module_arm and arm pin_arm_b: module_arm_arm_link_1_collision to pin_arm_b_arm_link_5_collision at -0.0107 m, below 0.0150 m
+fault: verify: at 378.85 s (step 166) arm module_arm and arm pin_arm_b: module_arm_arm_link_1_collision to pin_arm_b_arm_link_4_collision at -0.0297 m, below 0.0150 m
+fault: verify: and 26 more samples below the clearance for module_arm|pin_arm_b

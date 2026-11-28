@@ -19,6 +19,8 @@ CANDS = {
     "a31_b61": [(12, A), (13, A), (24, B), (25, B)],  # A swages 3/0, 3/1; B 6/0, 6/1
     "a31": [(12, A), (13, A)],                        # A swages 3/0, 3/1
     "a30_b60": [(12, A), (24, B)],                    # run 067's sw30_sw60
+    "c52": [(22, C)],                                 # C swages 5/2 (5/3 fails: C carriage into B carriage)
+    "a31_c52": [(12, A), (13, A), (22, C)],           # A 3/0, 3/1; C 5/2
 }
 
 def span(s):
