@@ -14,7 +14,7 @@ The chosen version is v24, "One 40 ft flat rack, three KR 20 pin arms on one sha
 | not ranked | one_bay_s | 408.03 | s | - | planned | bay 0 of the committed plan alone, from the start of its tube_in to the end of its bay_out |
 | not ranked | interval_s | 375.08 | s | - | planned | from the end of bay 1's bay_out to the end of bay 2's |
 | P0 | failures_per_bay | 0.373 | - | lower | modelled | count of operations by kind x rates of scores/rates.json; 100% of it on rates of basis ours |
-| P0 | physics_share | 0.0573 | - | higher | measured | physics/flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque_clear_out_infeed_rail_mag_early_next_fill_pallet_near.json: steps 141, 142 of module 8 carried out in physics, 23.391905 s of one bay's 408.028661 s counted |
+| P0 | physics_share | 0.457 | - | higher | measured | physics/flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque_clear_out_infeed_rail_mag_early_next_fill_pallet_near.json: steps 24, 25, 40, 41, 55, 56, 71, 72, 85, 86, 99, 100, 113, 114, 127, 128, 141, 142 of modules 0, 3, 6, 1, 4, 7, 2, 5, 8 (9 of the record's 9 takes of one bay) carried out in physics, 186.322650 s of one bay's 408.028661 s counted |
 | P1 | part_count | 39 | - | lower | counted | pieces of equipment by the rule of docs/scorecard.md |
 | P1 | arms | 4 | arms | lower | counted | arms of the layout |
 | P1 | driven_axes | 39 | - | lower | counted | arm joints, tracks, driven tools and grips by the rule of docs/scorecard.md |
@@ -81,7 +81,7 @@ Run 066's seed table, three bays planned whole, cycle_s in s per bay, every plan
 | not ranked | one_bay_s | 408.03 | s | - | planned | bay 0 of the committed plan alone, from the start of its tube_in to the end of its bay_out |
 | not ranked | interval_s | 375.08 | s | - | planned | from the end of bay 1's bay_out to the end of bay 2's |
 | P0 | failures_per_bay | 0.373 | - | lower | modelled | count of operations by kind x rates of scores/rates.json; 100% of it on rates of basis ours |
-| P0 | physics_share | 0.0573 | - | higher | measured | physics/flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque_clear_out_infeed_rail_mag_early_next_fill_pallet_near.json: steps 141, 142 of module 8 carried out in physics, 23.391905 s of one bay's 408.028661 s counted |
+| P0 | physics_share | 0.457 | - | higher | measured | physics/flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque_clear_out_infeed_rail_mag_early_next_fill_pallet_near.json: steps 24, 25, 40, 41, 55, 56, 71, 72, 85, 86, 99, 100, 113, 114, 127, 128, 141, 142 of modules 0, 3, 6, 1, 4, 7, 2, 5, 8 (9 of the record's 9 takes of one bay) carried out in physics, 186.322650 s of one bay's 408.028661 s counted |
 | P1 | part_count | 39 | - | lower | counted | pieces of equipment by the rule of docs/scorecard.md |
 | P1 | arms | 4 | arms | lower | counted | arms of the layout |
 | P1 | driven_axes | 39 | - | lower | counted | arm joints, tracks, driven tools and grips by the rule of docs/scorecard.md |
@@ -113,7 +113,7 @@ Each figure as the two versions' own sources report it; the conditions of a run 
 | mass_in_transit_kg | 4144.2 kg | 4144.2 kg | 0.0 kg |
 | one_bay_s | 417.06 s | 408.03 s | -9.03 s |
 | part_count | 39 | 39 | 0 |
-| physics_share | 0.0552 | 0.0573 | +0.00211 |
+| physics_share | 0.0552 | 0.457 | +0.401 |
 | placement_mm | none | none | not comparable: not known |
 | plan_s | none | none | not comparable: not known |
 
