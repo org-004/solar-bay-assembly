@@ -1,0 +1,42 @@
+layout: flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque_clear_out_infeed_rail_mag_early_next_fill_pallet_near_st30
+base: flat_rack
+module_arms: 1
+pin_arms: 3
+arms: 4
+clearance_m: 0.0150
+plan_pad_m: 0.0030
+joint_margin_deg: 5.0
+moves: 117
+moves_found: 113
+bay_planned_s: 0.00
+bay_model_s: 363.78
+bays: 1
+torque_limit_scale: 0.900
+moves_slowed: 12
+moves_slowed_added_s: 6.88
+one_bay_s: 0.00
+cycle_s: 0.00
+interval_s: 0.00
+phase_tube_in_planned_s: 0.00
+phase_tube_in_model_s: 40.00
+phase_clamp_planned_s: 0.00
+phase_clamp_model_s: 5.00
+phase_rails_planned_s: 0.00
+phase_rails_model_s: 93.87
+phase_modules_planned_s: 0.00
+phase_modules_model_s: 179.91
+phase_end_planned_s: 0.00
+phase_end_model_s: 45.00
+least_clearance_m: none
+least_arm_to_arm_m: none
+least_joint_margin_deg: none
+waits: 0
+wait_s: 0.00
+planning_s: 127.4
+planning_queries: 44012278
+complete: false
+fault: bay 0: step 43 pin_arm_b: move from pins_take 1 retreat to locate 3/0 approach not found: not found within 640000 iterations
+fault: bay 0: step 45 pin_arm_b: move from pin 3/0 retreat to locate 3/2 approach not found: not found within 640000 iterations
+fault: bay 0: step 54 pin_arm_b: move from swage 3/2 retreat to swage 3/0 approach not found: not found within 640000 iterations
+fault: bay 0: step 87 pin_arm_b: move from swage 3/0 retreat to locate 4/0 approach not found: not found within 640000 iterations
+fault: bay 0: the schedule was not built: not every move was found

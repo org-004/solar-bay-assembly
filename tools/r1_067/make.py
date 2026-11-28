@@ -27,9 +27,10 @@ CANDS = {
     "sw30_sw60": [("swage", 12, A), ("swage", 24, B)],  # + B swages 6/0
     "sw30_sw32": [("swage", 12, A), ("swage", 14, A)],  # A swages 3/2 and 3/0
 }
-# tag: [(kind, hole, arm, stop)]; B's swage 3/0 from -2.0 to -1.6 m, 0.4 m
+# tag: [(kind, hole, arm, stop)]; B at hole 3/0 from -2.0 to -1.8 m, 0.2 m (-1.7 and -1.6 put link 3 into the deck)
+# (all three kinds: the checker poses a hole once, at its locate stop),
 # farther from A at holes 1/2 and 1/3 (-3.1, -3.5), where it waited 18 s.
-STOPS = {"st30": [("swage", 12, B, -1.6)]}
+STOPS = {"st30": [(k, 12, B, -1.8) for k in HOLE]}
 
 def span(s):
     out = []

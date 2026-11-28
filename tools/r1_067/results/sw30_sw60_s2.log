@@ -1,0 +1,71 @@
+layout: flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque_clear_out_infeed_rail_mag_early_next_fill_pallet_near_sw30_sw60_s2
+base: flat_rack
+module_arms: 1
+pin_arms: 3
+arms: 4
+clearance_m: 0.0150
+plan_pad_m: 0.0030
+joint_margin_deg: 5.0
+moves: 351
+moves_found: 351
+bay_planned_s: 410.70
+bay_model_s: 358.26
+bays: 3
+torque_limit_scale: 0.900
+moves_slowed: 30
+moves_slowed_added_s: 17.96
+bay_0_tube_in: 0.00 to 40.00 s
+bay_0_clamp: 40.00 to 45.00 s
+bay_0_release: 365.70 to 370.70 s
+bay_0_bay_out: 370.70 to 410.70 s
+bay_1_tube_in: 372.29 to 412.29 s
+bay_1_clamp: 412.29 to 417.29 s
+bay_1_release: 745.81 to 750.81 s
+bay_1_bay_out: 750.81 to 790.81 s
+bay_2_tube_in: 752.40 to 792.40 s
+bay_2_clamp: 792.40 to 797.40 s
+bay_2_release: 1120.79 to 1125.79 s
+bay_2_bay_out: 1125.79 to 1165.79 s
+bay_0_out_bay_1_in_overlap_s: 38.41
+bay_1_out_bay_2_in_overlap_s: 38.41
+one_bay_s: 410.70
+cycle_s: 388.60
+interval_s: 374.98
+phase_bay_0_tube_in_planned_s: 40.00
+phase_bay_0_tube_in_model_s: 40.00
+phase_bay_0_clamp_planned_s: 5.00
+phase_bay_0_clamp_model_s: 5.00
+phase_bay_0_rails_planned_s: 113.26
+phase_bay_0_rails_model_s: 93.87
+phase_bay_0_modules_planned_s: 207.45
+phase_bay_0_modules_model_s: 174.39
+phase_bay_0_end_planned_s: 45.00
+phase_bay_0_end_model_s: 45.00
+phase_bay_1_tube_in_planned_s: 40.00
+phase_bay_1_tube_in_model_s: 40.00
+phase_bay_1_clamp_planned_s: 5.00
+phase_bay_1_clamp_model_s: 5.00
+phase_bay_1_rails_planned_s: 112.78
+phase_bay_1_rails_model_s: 93.87
+phase_bay_1_modules_planned_s: 215.75
+phase_bay_1_modules_model_s: 174.39
+phase_bay_1_end_planned_s: 45.00
+phase_bay_1_end_model_s: 45.00
+phase_bay_2_tube_in_planned_s: 40.00
+phase_bay_2_tube_in_model_s: 40.00
+phase_bay_2_clamp_planned_s: 5.00
+phase_bay_2_clamp_model_s: 5.00
+phase_bay_2_rails_planned_s: 112.78
+phase_bay_2_rails_model_s: 93.87
+phase_bay_2_modules_planned_s: 210.61
+phase_bay_2_modules_model_s: 174.39
+phase_bay_2_end_planned_s: 45.00
+phase_bay_2_end_model_s: 45.00
+least_clearance_m: 0.0160
+least_arm_to_arm_m: 0.0190
+least_joint_margin_deg: 5.00
+waits: 41
+wait_s: 1662.51
+planning_s: 304.5
+planning_queries: 86439131
+complete: true

@@ -1,0 +1,7 @@
+sw30 exit=0 secs=475
+st30 exit=0 secs=535
+sw30_sw60 exit=0 secs=469
+sw30_s2 exit=0 secs=429
+st30_s2 exit=1 secs=127
+sw30_sw60_s2 exit=0 secs=316
+st30 exit=1 secs=128
