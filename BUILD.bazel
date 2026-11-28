@@ -2285,14 +2285,21 @@ cc_test(
     # torque by bay (run 051), about 7 s;
     # tests/layout_critical_test.cc: the critical chains of a small plan and
     # of the infeed layout's (run 055);
-    # tests/rail_magazine_test.cc: a rail magazine on the gripper (run 056).
+    # tests/rail_magazine_test.cc: a rail magazine on the gripper (run 056);
+    # tests/swage_after_pins_test.cc: two pin arms swage one module
+    # (swage_after_pins, run 070);
+    # tests/borrowed_last_test.cc: an arm's borrowed hole steps after its own
+    # modules (borrowed_last, run 072) or after its n-th own module
+    # (borrowed_after, run 073), about 80 s.
     srcs = [
+        "tests/borrowed_last_test.cc",
         "tests/layout_critical_test.cc",
         "tests/layout_margins_test.cc",
         "tests/path_tries_test.cc",
         "tests/plan_replay_test.cc",
         "tests/rail_magazine_test.cc",
         "tests/retreat_legs_test.cc",
+        "tests/swage_after_pins_test.cc",
         "tests/torque_limit_test.cc",
     ],
     data = LAYOUT_FILES + LAYOUT_MODEL_FILES + PLAN_FILES,
@@ -2364,46 +2371,6 @@ cc_test(
         ":layout_model",
         ":layout_plan",
         "@googletest//:gtest_main",
-    ],
-)
-
-# Two pin arms swage one module (swage_after_pins, src/layout.h, run 070): a
-# swage by a second arm waits for the other arm's swage under the old rule
-# and only for the module's last pin under the new one.
-#   bazel test --config=opt //:swage_after_pins_test
-cc_test(
-    name = "swage_after_pins_test",
-    size = "medium",
-    srcs = ["tests/swage_after_pins_test.cc"],
-    data = LAYOUT_FILES + LAYOUT_MODEL_FILES,
-    env = LAYOUT_ENV,
-    deps = [
-        ":layout",
-        ":layout_model",
-        ":layout_plan",
-        "@googletest//:gtest_main",
-        "@nlohmann_json//:json",
-    ],
-)
-
-# Borrowed work after an arm's own modules (borrowed_last, src/layout.h, run
-# 072): the checker's step list puts a lent swage after the borrowing arm's
-# own last module, and a plan does it there; with borrowed_after (run 073)
-# between two of its own modules.
-#   bazel test --config=opt //:borrowed_last_test
-cc_test(
-    name = "borrowed_last_test",
-    size = "medium",
-    srcs = ["tests/borrowed_last_test.cc"],
-    data = LAYOUT_FILES + LAYOUT_MODEL_FILES,
-    env = LAYOUT_ENV,
-    deps = [
-        ":layout",
-        ":layout_check",
-        ":layout_model",
-        ":layout_plan",
-        "@googletest//:gtest_main",
-        "@nlohmann_json//:json",
     ],
 )
 

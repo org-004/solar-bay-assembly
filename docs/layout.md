@@ -836,6 +836,23 @@ of their own; the precedence rules (`swage_after_pins`) are unchanged.
 `tests/borrowed_last_test.cc` shows A's lent swages 3/1 and 3/0 after its own swage 2/0, in
 the step list and in a plan.
 
+### `borrowed_after`: borrowed work at a chosen place in the arm's order (run 073)
+
+An optional object of arm names and counts on a flat rack base, for example
+`"borrowed_after": {"pin_arm_b": 2}`. An arm it names does its borrowed work (as defined for
+`borrowed_last`) right after its n-th own module of the bay in set order, an own module being
+one the arm locates; a borrowed step whose module is set later than that stays at its
+module's place. Borrowed steps keep the order of their modules' sets and, within a module,
+the hole order. In the chosen order (0, 3, 6, 1, 4, 7, 2, 5, 8) B's own modules are 3, 4 and
+5, so `{"pin_arm_b": 2}` puts B's borrowed swages of module 6 after its module 4 and before
+its module 5; `1` is the set order, and a count of at least the arm's own module count is
+`borrowed_last`. For an arm it names the field takes the place of `borrowed_last`; the arms
+it does not name follow `borrowed_last`. A count is an integer from 1 to 9, and a name must
+be an arm of the layout. The checker's step list (`SolveAll`) carries the order, so the
+planner, the verifier and the critical-chain walk agree without code of their own. Without
+the field every plan is as before. `tests/borrowed_last_test.cc` shows B's lent swages 6/1
+and 6/0 between its swage 4/0 and its locate 5/0, in the step list and in a plan.
+
 ## The form for two racks and for stages
 
 Since run 020 a layout may stand on two 20 ft flat racks and may work the tube in stages.
