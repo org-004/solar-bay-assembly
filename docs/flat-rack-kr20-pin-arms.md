@@ -202,7 +202,9 @@ three bays 496.59 / 501.82 / 490.08 s, cycle 496.16 s), and v20 until run 054 ma
 infeed unit of its own whose tube comes in over the bay going out, run 053; bay ends 496.59 / 960.13 / 1412.03 s,
 cycle 470.68 s, part count 38; [`infeed-unit.md`](infeed-unit.md)), and v21 until run 057 made v22 chosen (v21
 with a magazine of ten rails on the module arm's gripper, run 056; bay ends 442.03 / 858.63 / 1254.92 s, cycle
-418.31 s, part count 39; [`rail-magazine.md`](rail-magazine.md)).
+418.31 s, part count 39; [`rail-magazine.md`](rail-magazine.md)), and v22 until run 063 made v23 chosen (v22
+with the magazine filled while the first tube comes in and while the bay before is finished, runs 059 and 061;
+bay ends 417.06 / 815.51 / 1193.58 s, cycle 397.86 s, part count 39).
 
 | | v15 `flat_rack_3_kr20_pin_arms_shared_ordered` | v16 `..._fast_retreat` |
 |---|---:|---:|

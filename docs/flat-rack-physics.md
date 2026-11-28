@@ -14,9 +14,10 @@ The run is measured as the checker measures. Its committed record,
 `physics/flat_rack_3_pin_arms_ordered.json`, is what the scorecard's `physics_share`
 counts ([`scorecard.md`](scorecard.md)).
 
-Since run 057 the chosen layout is v22, `flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque_clear_out_infeed_rail_mag`
-(all KUKA, v21 with a rail magazine on the module arm's gripper), so `run_physics` with no name runs v22's plan; its record is in
-"[v22's record (run 057)](#v22s-record-run-057)" below, after v21's, chosen from run 054 to run 057, in
+Since run 063 the chosen layout is v23, `flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque_clear_out_infeed_rail_mag_early_next_fill`
+(all KUKA, v22 with the magazine filled while the tube comes in and while the bay before is finished), so `run_physics` with no name runs v23's plan; its record is in
+"[v23's record (run 063)](#v23s-record-run-063)" below, after v22's, chosen from run 057 to run 063, in
+"[v22's record (run 057)](#v22s-record-run-057)", v21's, chosen from run 054 to run 057, in
 "[v21's record (run 054)](#v21s-record-run-054)", v20's, chosen from run 052 to run 054, in
 "[v20's record (run 052)](#v20s-record-run-052)", v19's, chosen from run 048 to run 052, in
 "[v19's record (run 048)](#v19s-record-run-048)", v18's, chosen from run 046 to run 048, in
@@ -663,3 +664,35 @@ Both steps count. The take's least clearance is the magazine's own: `magazine_po
 (joint 1 0.865 against 0.420, joint 6 0.702 against 0.200, track 0.779 against 0.579) with the
 magazine's 12 kg on the gripper, and still stays below every limit. v22 is chosen (run 057):
 every module arm joint stays below its limit on the take and the set.
+
+## v23's record (run 063)
+
+v23 is v22's layout with two schedule fields and no part added
+(`flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque_clear_out_infeed_rail_mag_early_next_fill`):
+`first_bay_early` (run 059), so bay 0's module arm fills its rail magazine while the first tube
+comes in, and `next_bay_fill` (run 061), so it fills bay b+1's as soon as it has set bay b's last
+module. Three bays, 351 of 351 moves, 30 of the module arm's 90 slowed, none over 0.90: bay ends
+417.06 / 815.51 / 1193.58 s, `cycle_s` 397.86 s against v22's 418.31 s (-20.45 s), `one_bay_s`
+417.06 s (v22 442.03 s), `interval_s` 378.07 s (v22 396.30 s).
+
+`bazel run --config=opt //:run_physics -- flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque_clear_out_infeed_rail_mag_early_next_fill --write`
+wrote `physics/flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque_clear_out_infeed_rail_mag_early_next_fill.json`.
+The record take is v22's, module 1's (module_take 3, plan steps 71 and 72), 24.98 s earlier
+(181.89 to 204.92 s against 206.87 to 229.90 s), since bay 0's fill no longer waits for the clamp.
+Its path, its timing within the steps and the bay built around it are v22's, so every figure is.
+
+| Figure (derived) | v23, module 1 | v22, module 1 (run 057) |
+|---|---|---|
+| counted, of one bay | 23.030565 s of 417.058577 s | 23.030565 s of 442.034753 s |
+| `physics_share` | 0.055221 | 0.052101 |
+| peak torque over its limit, joints 1-6, take | 0.968 0.705 0.262 0.138 0.320 0.255 | 0.968 0.705 0.262 0.138 0.320 0.255 |
+| peak torque over its limit, joints 1-6, set | 0.865 0.635 0.370 0.233 0.431 0.702 | 0.865 0.635 0.370 0.233 0.431 0.702 |
+| peak track force over its limit, take / set | 0.386 / 0.779 | 0.386 / 0.779 |
+| least clearance in physics, take / set | 0.018580 m / 0.019230 m (plan 0.018578 / 0.019443), against 0.015 m | 0.018580 m / 0.019230 m |
+| largest joint tracking error, take / set | 0.6197 / 2.9227 mrad | 0.6197 / 2.9227 mrad |
+| largest Cartesian error, take / set | 0.6415 mm / 0.8737 mm | 0.6415 mm / 0.8737 mm |
+| set-down offset after settling | 0.2040 mm, yaw 0.0053 deg (gate 3.0 mm, 0.15 deg) | 0.2040 mm, yaw 0.0053 deg |
+
+Both steps count. `physics_share` rises only because the same 23.03 s are counted against a
+shorter bay. v23 is chosen (run 063): every module arm joint stays below its limit on the take and
+the set.

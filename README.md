@@ -23,11 +23,11 @@ layout, and [`docs/scorecard.md`](docs/scorecard.md) defines each one.
 
 ### One 40 ft base: the cell on the real parts
 
-![v22  2026-11-28  One 40 ft flat rack, three KR 20 pin arms on one shared beam, three modules to each pin arm in turns, each move the quickest of 8 paths, the module arm within 0.90 of its motors, the bay out once it is clear, the next tube in over it from an infeed unit, ten rails at once in a magazine on the gripper: three bays planned; cycle 418.31 s per bay (planned), 4 arms](docs/evolution/v22.gif)
+![v23  2026-11-28  One 40 ft flat rack, three KR 20 pin arms on one shared beam, three modules to each pin arm in turns, each move the quickest of 8 paths, the module arm within 0.90 of its motors, the bay out once it is clear, the next tube in over it from an infeed unit, ten rails at once in a magazine on the gripper, filled while the tube comes in and while the bay before is finished: three bays planned; cycle 397.86 s per bay (planned), 4 arms](docs/evolution/v23.gif)
 
 | Version | Cycle time | One bay | Failures per bay | Arms | Part count | Placement error | Mass in transit | Gates |
 |---|---|---|---|---|---|---|---|---|
-| v22 | 418.31 s per bay (planned) | 442.03 s | 0.373 | 4 | 39 | none | 4144.2 kg | all 3 pass |
+| v23 | 397.86 s per bay (planned) | 417.06 s | 0.373 | 4 | 39 | none | 4144.2 kg | all 3 pass |
 
 [One 40 ft base: the cell on the real parts: progress and versions](docs/directions/one-40ft-flat-rack.md)
 
@@ -113,14 +113,21 @@ run 054) is v20 with an infeed unit of its own (run 053): the next tube comes in
 place over the bay going out, so the two ways overlap 38.41 s at each boundary between bays; one
 bay still takes 496.59 s, but three average 470.68 s, 25.48 s a bay less than v20, at the price of
 one part (38 against 37). The unit's carriage is an assumption, not a model:
-[`docs/infeed-unit.md`](docs/infeed-unit.md) says what it is taken to be. The chosen layout,
+[`docs/infeed-unit.md`](docs/infeed-unit.md) says what it is taken to be.
 `flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque_clear_out_infeed_rail_mag`
-(v22, runs 056 and 057), is v21 with a magazine of ten rails on the module arm's gripper (12 kg,
+(v22, runs 056 and 057) is v21 with a magazine of ten rails on the module arm's gripper (12 kg,
 `basis: ours`): the arm takes a bay's ten rails at one take and sets them with no trip back to the
 rail rack, so one bay takes 442.03 s and three average 418.31 s, 52.37 s a bay less than v21, at
 the price of one part (39 against 38). Its indexing drive and how the rack fills it are not
-modelled: [`docs/rail-magazine.md`](docs/rail-magazine.md) says what it is taken to be (the
-recording, of one bay, is v22's, above).
+modelled: [`docs/rail-magazine.md`](docs/rail-magazine.md) says what it is taken to be. The
+chosen layout,
+`flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque_clear_out_infeed_rail_mag_early_next_fill`
+(v23, runs 059, 061 and 063), is v22 with two changes to the schedule and none to the parts: the
+module arm fills bay 0's magazine while the first tube comes in (`first_bay_early`, run 059), and
+fills bay b+1's as soon as it has set bay b's last module, while bay b's pin arms still pin and
+swage and bay b goes out (`next_bay_fill`, run 061). One bay takes 417.06 s and three average
+397.86 s, 20.45 s a bay less than v22, at no extra part (39) (the recording, of one bay, is v23's,
+above).
 
 ![The whole bay as planned with run 011's order, 16 times real time](docs/bay_planned.gif)
 
@@ -132,7 +139,8 @@ pallet, turns it flat and sets it on its rails in physics, on its servos and wit
 payload and the rail magazine's 12 kg, along the committed plan's own timing, within 0.20 mm of
 its place and never nearer anything than 18.58 mm, every motor below its limit (joint 1 at 0.968)
 ([`docs/flat-rack-physics.md`](docs/flat-rack-physics.md), `//:run_physics`). Those 23.03 s are
-why `physics_share` is 0.052 (v22's record, steps 71 and 72, over one bay of 442.03 s); the failures are still modelled. One part of it has a physics test, the locating nose that pulls a
+why `physics_share` is 0.055 (v23's record, steps 71 and 72, v22's take and set 24.98 s earlier,
+over one bay of 417.06 s); the failures are still modelled. One part of it has a physics test, the locating nose that pulls a
 module's holes into line before pinning (`tests/locate_physics_test.cc`,
 [`docs/bay-hardware.md`](docs/bay-hardware.md)).
 
