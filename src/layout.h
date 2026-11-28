@@ -249,6 +249,15 @@ struct Layout {
   // so the planner, the verifier and the critical chain follow it. Without
   // it, or false, each arm works its steps in the modules' set order.
   bool borrowed_last = false;
+  // "borrowed_after" (optional, flat rack bases only; run 073): an object of
+  // arm names and counts, {"pin_arm_b": 2}. The named arm's borrowed work
+  // (as for borrowed_last) is done right after the arm's n-th own module of
+  // the bay in set order (a module it locates), or at its module's place if
+  // that module is set later, in the order of the modules' sets. For an arm
+  // it names it takes the place of borrowed_last; n at least the arm's own
+  // module count is the same as borrowed_last. Without it each arm follows
+  // borrowed_last.
+  std::map<std::string, int> borrowed_after;
   std::optional<std::string> first_bay_early;  // Its basis; optional (src/layout_bays.h).
   std::string next_bay_fill;  // The arm it names; empty without it (src/layout_bays.h).
 };

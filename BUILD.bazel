@@ -2388,7 +2388,8 @@ cc_test(
 
 # Borrowed work after an arm's own modules (borrowed_last, src/layout.h, run
 # 072): the checker's step list puts a lent swage after the borrowing arm's
-# own last module, and a plan does it there.
+# own last module, and a plan does it there; with borrowed_after (run 073)
+# between two of its own modules.
 #   bazel test --config=opt //:borrowed_last_test
 cc_test(
     name = "borrowed_last_test",

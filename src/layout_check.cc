@@ -2249,6 +2249,10 @@ std::vector<CheckRow> Checker::TimeRows(std::vector<BayStep>* steps,
     std::string what, part;
   };
   std::vector<Borrowed> borrowed;  // borrowed_last (src/layout.h).
+  // borrowed_after (src/layout.h): each named arm's held borrowed steps and
+  // the count of its own modules done so far in the loop.
+  std::map<std::string, std::vector<Borrowed>> held;
+  std::map<std::string, int> own_done;
   std::vector<int> takes_here;
   for (int k = 0; k < M; ++k) {
     if (st == nullptr || Has(st->modules, order[k])) takes_here.push_back(k);
@@ -2285,11 +2289,16 @@ std::vector<CheckRow> Checker::TimeRows(std::vector<BayStep>* steps,
     // the one that locates module m (borrowed work) waits in `borrowed`
     // and is done after the module loop, so each arm does its own modules
     // first and then its borrowed steps in the order of their modules' sets.
+    // With borrowed_after an arm it names holds its borrowed steps until
+    // its n-th own module of the bay is done, then does them in set order.
     const Work* loc = FindWork(L_, "locate", 4 * m + bay::kLocateOrder[0]);
     auto own_hole = [&](const std::string& kind, int i, const std::string& what,
                         const std::string& part) {
       const Work* w = FindWork(L_, kind, 4 * m + i);
-      if (L_.borrowed_last && loc != nullptr && w != nullptr && w->arm != loc->arm) {
+      const bool lent = loc != nullptr && w != nullptr && w->arm != loc->arm;
+      if (lent && L_.borrowed_after.count(w->arm) != 0) {
+        held[w->arm].push_back({kind, m, u, i, what, part});
+      } else if (lent && L_.borrowed_last) {
         borrowed.push_back({kind, m, u, i, what, part});
       } else {
         hole(kind, m, u, i, what, part);
@@ -2304,6 +2313,15 @@ std::vector<CheckRow> Checker::TimeRows(std::vector<BayStep>* steps,
       own_hole("swage", i, Fmt("swage %d/%d", m, i),
                Fmt("collar %d/%d", m, i));
     }
+    if (loc != nullptr) ++own_done[loc->arm];
+    for (auto& [arm, steps] : held) {
+      if (own_done[arm] < L_.borrowed_after.at(arm)) continue;
+      for (const Borrowed& b : steps) hole(b.kind, b.m, b.unit, b.i, b.what, b.part);
+      steps.clear();
+    }
+  }
+  for (auto& [arm, steps] : held) {
+    for (const Borrowed& b : steps) hole(b.kind, b.m, b.unit, b.i, b.what, b.part);
   }
   for (const Borrowed& b : borrowed) hole(b.kind, b.m, b.unit, b.i, b.what, b.part);
   const Phase modules = PhaseTime(module_pieces, module_units, arm_count);

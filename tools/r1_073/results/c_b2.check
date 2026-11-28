@@ -1,0 +1,955 @@
+check,item,arm,tool,figure,unit,limit,result,detail
+transport,stowed x,,,0.0040,m,0.0000,pass,"worst holder_end_column, inside +/-1.219"
+transport,stowed y,,,0.0060,m,0.0000,pass,"worst item_pin_lane_lane, inside +/-6.096"
+transport,stowed top,,,0.2656,m,0.0000,pass,"worst module_arm_tool_combined_gripper_magazine_neg_x, under 2.896"
+transport,stowed bottom,,,0.0000,m,0.0000,pass,"worst pin_arm_a_beam, above 0.648"
+transport,stow track module_arm,module_arm,,3.6000,m,0.0000,pass,stow_track 0.000 on the track's -3.600..5.500
+transport,stow track pin_arm_a,pin_arm_a,,1.0000,m,0.0000,pass,stow_track -4.700 on the track's -5.700..-0.800
+transport,stow track pin_arm_c,pin_arm_c,,0.7500,m,0.0000,pass,stow_track 4.250 on the track's 0.800..5.000
+transport,stow track pin_arm_b,pin_arm_b,,1.3000,m,0.0000,pass,stow_track 0.600 on the track's -2.700..1.900
+transport,on the deck holder,,,0.0000,boxes,0.0000,pass,all 19 stand on the deck
+transport,on the deck beam module_arm,,,0.0000,boxes,0.0000,pass,all 1 stand on the deck
+transport,on the deck beam pin_arm_a,,,0.0000,boxes,0.0000,pass,all 1 stand on the deck
+transport,on the deck beam pin_arm_c,,,0.0000,boxes,0.0000,pass,all 1 stand on the deck
+transport,on the deck beam pin_arm_b,,,0.0000,boxes,0.0000,pass,all 1 stand on the deck
+transport,on the deck arm module_arm,module_arm,,0.0000,m,0.0010,pass,"worst at lo: carriage 0.0000 m from the beam's top, 0.0000 m past the beam's end, 0.0000 m off the beam across, base 0.0000 m from the carriage's top"
+transport,on the deck arm pin_arm_a,pin_arm_a,,0.0000,m,0.0010,pass,"worst at lo: carriage 0.0000 m from the beam's top, 0.0000 m past the beam's end, 0.0000 m off the beam across, base 0.0000 m from the carriage's top"
+transport,on the deck arm pin_arm_c,pin_arm_c,,0.0000,m,0.0010,pass,"worst at lo: carriage 0.0000 m from the beam's top, 0.0000 m past the beam's end, 0.0000 m off the beam across, base 0.0000 m from the carriage's top"
+transport,on the deck arm pin_arm_b,pin_arm_b,,0.0000,m,0.0010,pass,"worst at lo: carriage 0.0000 m from the beam's top, 0.0000 m past the beam's end, 0.0000 m off the beam across, base 0.0000 m from the carriage's top"
+transport,on the deck stock pins,,,0.0000,boxes,0.0000,pass,no box
+transport,on the deck stock pins_1,,,0.0000,boxes,0.0000,pass,no box
+transport,on the deck stock pins_2,,,0.0000,boxes,0.0000,pass,no box
+transport,on the deck item pin_lane,,,0.0000,boxes,0.0000,pass,all 4 stand on the deck
+transport,mass,,,4147.2000,kg,13608.0000,pass,"arms 1842, tracks 1896, tools 78.0, holder 220, items inside 108, stocks inside 3"
+hold,grip bay_hold_2,,,0.2000,m,1.0440,pass,stretch 1.044 long
+hold,grip bay_hold_4,,,0.2000,m,1.0440,pass,stretch 1.044 long
+hold,grip bay_hold_6,,,0.2000,m,1.0440,pass,stretch 1.044 long
+hold,grip bay_hold_8,,,0.2000,m,1.0440,pass,stretch 1.044 long
+hold,grips not only the ends,,,4.0000,,1.0000,pass,4 of 4 grips on stretches between rails
+hold,angle pin,,,0.0000,,0.0000,pass,an end stretch: bay_hold_0 or bay_hold_10
+hold,moment,,,150.0000,N m,150.0000,pass,"about the tube's axis, at least bay::kHoldMoment"
+hold,angle,,,0.8000,deg,0.8000,pass,"the holes kept this close to straight up, at most bay::kHoldAngle"
+load,module_arm combined_gripper,module_arm,combined_gripper,80.4000,kg,210.0000,pass,"tool 48.00 + a module 32.40; rated payload of KUKA KR 210 R2700-2 (KR QUANTEC); centre of mass 0.238 m along the flange's axis (rated to 0.310), 0.000 m across (rated to 0.355)"
+load,pin_arm_a nutrunner,pin_arm_a,nutrunner,3.0000,kg,20.0000,pass,"tool 3.00 + nothing 0.00; rated payload of KUKA KR 20 R1810-2 (KR CYBERTECH-2); centre of mass 0.077 m along the flange's axis (rated to 0.155), 0.000 m across (rated to 0.120)"
+load,pin_arm_a pin_tool,pin_arm_a,pin_tool,8.5000,kg,20.0000,pass,"tool 8.00 + a pin magazine (ours) 0.50; rated payload of KUKA KR 20 R1810-2 (KR CYBERTECH-2); centre of mass 0.090 m along the flange's axis (rated to 0.155), 0.000 m across (rated to 0.120)"
+load,pin_arm_c nutrunner,pin_arm_c,nutrunner,3.0000,kg,20.0000,pass,"tool 3.00 + nothing 0.00; rated payload of KUKA KR 20 R1810-2 (KR CYBERTECH-2); centre of mass 0.077 m along the flange's axis (rated to 0.155), 0.000 m across (rated to 0.120)"
+load,pin_arm_c pin_tool,pin_arm_c,pin_tool,8.5000,kg,20.0000,pass,"tool 8.00 + a pin magazine (ours) 0.50; rated payload of KUKA KR 20 R1810-2 (KR CYBERTECH-2); centre of mass 0.090 m along the flange's axis (rated to 0.155), 0.000 m across (rated to 0.120)"
+load,pin_arm_b pin_tool,pin_arm_b,pin_tool,8.5000,kg,20.0000,pass,"tool 8.00 + a pin magazine (ours) 0.50; rated payload of KUKA KR 20 R1810-2 (KR CYBERTECH-2); centre of mass 0.090 m along the flange's axis (rated to 0.155), 0.000 m across (rated to 0.120)"
+reach,wait track module_arm,module_arm,,3.6000,m,0.0000,pass,wait_track 0.000 on the track's -3.600..5.500
+reach,wait track pin_arm_a,pin_arm_a,,0.0000,m,0.0000,pass,wait_track -5.700 on the track's -5.700..-0.800
+reach,wait track pin_arm_c,pin_arm_c,,0.4000,m,0.0000,pass,wait_track 4.600 on the track's 0.800..5.000
+reach,wait track pin_arm_b,pin_arm_b,,1.3000,m,0.0000,pass,wait_track 0.600 on the track's -2.700..1.900
+reach,rail_take 0,module_arm,combined_gripper,48.0606,deg,5.0000,pass,least margin at arm_joint_3; track 1.750 (the stop)
+reach,rail_take 1,module_arm,combined_gripper,48.0606,deg,5.0000,pass,least margin at arm_joint_3; track 1.750 (the stop)
+reach,rail_take 2,module_arm,combined_gripper,48.0606,deg,5.0000,pass,least margin at arm_joint_3; track 1.750 (the stop)
+reach,rail_take 3,module_arm,combined_gripper,48.0606,deg,5.0000,pass,least margin at arm_joint_3; track 1.750 (the stop)
+reach,rail_take 4,module_arm,combined_gripper,48.0606,deg,5.0000,pass,least margin at arm_joint_3; track 1.750 (the stop)
+reach,rail_take 5,module_arm,combined_gripper,48.0606,deg,5.0000,pass,least margin at arm_joint_3; track 1.750 (the stop)
+reach,rail_take 6,module_arm,combined_gripper,48.0606,deg,5.0000,pass,least margin at arm_joint_3; track 1.750 (the stop)
+reach,rail_take 7,module_arm,combined_gripper,48.0606,deg,5.0000,pass,least margin at arm_joint_3; track 1.750 (the stop)
+reach,rail_take 8,module_arm,combined_gripper,48.0606,deg,5.0000,pass,least margin at arm_joint_3; track 1.750 (the stop)
+reach,rail_take 9,module_arm,combined_gripper,48.0606,deg,5.0000,pass,least margin at arm_joint_3; track 1.750 (the stop)
+reach,rail_set 0,module_arm,combined_gripper,60.2155,deg,5.0000,pass,least margin at arm_joint_5; track -3.600 (stop 0)
+reach,rail_set 1,module_arm,combined_gripper,61.5465,deg,5.0000,pass,least margin at arm_joint_5; track -3.004 (stop 1)
+reach,rail_set 2,module_arm,combined_gripper,61.5465,deg,5.0000,pass,least margin at arm_joint_5; track -1.860 (stop 2)
+reach,rail_set 3,module_arm,combined_gripper,61.5465,deg,5.0000,pass,least margin at arm_joint_5; track -0.716 (stop 3)
+reach,rail_set 4,module_arm,combined_gripper,61.5465,deg,5.0000,pass,least margin at arm_joint_5; track 0.428 (stop 4)
+reach,rail_set 5,module_arm,combined_gripper,61.5465,deg,5.0000,pass,least margin at arm_joint_5; track 1.572 (stop 5)
+reach,rail_set 6,module_arm,combined_gripper,61.5465,deg,5.0000,pass,least margin at arm_joint_5; track 2.716 (stop 6)
+reach,rail_set 7,module_arm,combined_gripper,61.5465,deg,5.0000,pass,least margin at arm_joint_5; track 3.860 (stop 7)
+reach,rail_set 8,module_arm,combined_gripper,61.5465,deg,5.0000,pass,least margin at arm_joint_5; track 5.004 (stop 8)
+reach,rail_set 9,module_arm,combined_gripper,59.6400,deg,5.0000,pass,least margin at arm_joint_5; track 5.500 (stop 9)
+reach,strap_bolt 0,pin_arm_a,nutrunner,49.8137,deg,5.0000,pass,least margin at arm_joint_3; track -5.000 (stop 0)
+reach,strap_bolt 1,pin_arm_a,nutrunner,56.2898,deg,5.0000,pass,least margin at arm_joint_5; track -4.000 (stop 1)
+reach,strap_bolt 2,pin_arm_a,nutrunner,55.8062,deg,5.0000,pass,least margin at arm_joint_5; track -2.900 (stop 2)
+reach,strap_bolt 3,pin_arm_a,nutrunner,54.3665,deg,5.0000,pass,least margin at arm_joint_2; track -1.800 (stop 3)
+reach,strap_bolt 4,pin_arm_a,nutrunner,47.2000,deg,5.0000,pass,least margin at arm_joint_2; track -1.200 (stop 4)
+reach,strap_bolt 5,pin_arm_c,nutrunner,39.7460,deg,5.0000,pass,least margin at arm_joint_3; track 2.300 (stop 5)
+reach,strap_bolt 6,pin_arm_c,nutrunner,18.2915,deg,5.0000,pass,least margin at arm_joint_3; track 2.300 (stop 6)
+reach,strap_bolt 7,pin_arm_c,nutrunner,55.5975,deg,5.0000,pass,least margin at arm_joint_5; track 2.800 (stop 7)
+reach,strap_bolt 8,pin_arm_c,nutrunner,50.1103,deg,5.0000,pass,least margin at arm_joint_5; track 3.300 (stop 8)
+reach,strap_bolt 9,pin_arm_c,nutrunner,50.1166,deg,5.0000,pass,least margin at arm_joint_5; track 4.450 (stop 9)
+reach,module_take 0,module_arm,combined_gripper,23.8076,deg,5.0000,pass,least margin at arm_joint_5; track 0.000 (the stop)
+reach,module_take 1,module_arm,combined_gripper,25.2475,deg,5.0000,pass,least margin at arm_joint_5; track 0.000 (the stop)
+reach,module_take 2,module_arm,combined_gripper,26.6607,deg,5.0000,pass,least margin at arm_joint_5; track 0.000 (the stop)
+reach,module_take 3,module_arm,combined_gripper,28.0492,deg,5.0000,pass,least margin at arm_joint_5; track 0.000 (the stop)
+reach,module_take 4,module_arm,combined_gripper,29.4197,deg,5.0000,pass,least margin at arm_joint_5; track 0.000 (the stop)
+reach,module_take 5,module_arm,combined_gripper,30.7636,deg,5.0000,pass,least margin at arm_joint_5; track 0.000 (the stop)
+reach,module_take 6,module_arm,combined_gripper,32.0840,deg,5.0000,pass,least margin at arm_joint_5; track 0.000 (the stop)
+reach,module_take 7,module_arm,combined_gripper,32.2918,deg,5.0000,pass,least margin at arm_joint_2; track 0.000 (the stop)
+reach,module_take 8,module_arm,combined_gripper,32.1584,deg,5.0000,pass,least margin at arm_joint_2; track 0.000 (the stop)
+reach,module_take 9,module_arm,combined_gripper,31.9884,deg,5.0000,pass,least margin at arm_joint_2; track 0.000 (the stop)
+reach,module_take 10,module_arm,combined_gripper,31.7798,deg,5.0000,pass,least margin at arm_joint_2; track 0.000 (the stop)
+reach,module_take 11,module_arm,combined_gripper,31.5388,deg,5.0000,pass,least margin at arm_joint_2; track 0.000 (the stop)
+reach,module_take 12,module_arm,combined_gripper,31.2651,deg,5.0000,pass,least margin at arm_joint_2; track 0.000 (the stop)
+reach,module_take 13,module_arm,combined_gripper,30.9599,deg,5.0000,pass,least margin at arm_joint_2; track 0.000 (the stop)
+reach,module_take 14,module_arm,combined_gripper,30.6243,deg,5.0000,pass,least margin at arm_joint_2; track 0.000 (the stop)
+reach,module_take 15,module_arm,combined_gripper,30.2591,deg,5.0000,pass,least margin at arm_joint_2; track 0.000 (the stop)
+reach,module_take 16,module_arm,combined_gripper,29.8651,deg,5.0000,pass,least margin at arm_joint_2; track 0.000 (the stop)
+reach,module_take 17,module_arm,combined_gripper,29.4430,deg,5.0000,pass,least margin at arm_joint_2; track 0.000 (the stop)
+reach,module_take 18,module_arm,combined_gripper,28.9934,deg,5.0000,pass,least margin at arm_joint_2; track 0.000 (the stop)
+reach,module_take 19,module_arm,combined_gripper,28.5168,deg,5.0000,pass,least margin at arm_joint_2; track 0.000 (the stop)
+reach,module_take 20,module_arm,combined_gripper,28.0134,deg,5.0000,pass,least margin at arm_joint_2; track 0.000 (the stop)
+reach,module_take 21,module_arm,combined_gripper,27.4836,deg,5.0000,pass,least margin at arm_joint_2; track 0.000 (the stop)
+reach,module_take 22,module_arm,combined_gripper,26.9275,deg,5.0000,pass,least margin at arm_joint_2; track 0.000 (the stop)
+reach,module_take 23,module_arm,combined_gripper,26.3451,deg,5.0000,pass,least margin at arm_joint_2; track 0.000 (the stop)
+reach,module_take 24,module_arm,combined_gripper,25.7364,deg,5.0000,pass,least margin at arm_joint_2; track 0.000 (the stop)
+reach,module_take 25,module_arm,combined_gripper,25.1012,deg,5.0000,pass,least margin at arm_joint_2; track 0.000 (the stop)
+reach,module_take 26,module_arm,combined_gripper,24.4392,deg,5.0000,pass,least margin at arm_joint_2; track 0.000 (the stop)
+reach,module_take 27,module_arm,combined_gripper,23.7499,deg,5.0000,pass,least margin at arm_joint_2; track 0.000 (the stop)
+reach,module_take 28,module_arm,combined_gripper,23.0328,deg,5.0000,pass,least margin at arm_joint_2; track 0.000 (the stop)
+reach,module_take 29,module_arm,combined_gripper,22.2871,deg,5.0000,pass,least margin at arm_joint_2; track 0.000 (the stop)
+reach,module_take 30,module_arm,combined_gripper,21.5120,deg,5.0000,pass,least margin at arm_joint_2; track 0.000 (the stop)
+reach,module_take 31,module_arm,combined_gripper,20.7063,deg,5.0000,pass,least margin at arm_joint_2; track 0.000 (the stop)
+reach,module_take 32,module_arm,combined_gripper,19.8688,deg,5.0000,pass,least margin at arm_joint_2; track 0.000 (the stop)
+reach,module_take 33,module_arm,combined_gripper,18.9980,deg,5.0000,pass,least margin at arm_joint_2; track 0.000 (the stop)
+reach,module_take 34,module_arm,combined_gripper,18.0919,deg,5.0000,pass,least margin at arm_joint_2; track 0.000 (the stop)
+reach,module_take 35,module_arm,combined_gripper,17.1483,deg,5.0000,pass,least margin at arm_joint_2; track 0.000 (the stop)
+reach,module_set 0,module_arm,combined_gripper,60.2190,deg,5.0000,pass,least margin at arm_joint_5; track -3.576 (stop 0)
+reach,module_set 1,module_arm,combined_gripper,60.2184,deg,5.0000,pass,least margin at arm_joint_5; track -2.432 (stop 1)
+reach,module_set 2,module_arm,combined_gripper,60.2184,deg,5.0000,pass,least margin at arm_joint_5; track -1.288 (stop 2)
+reach,module_set 3,module_arm,combined_gripper,60.2187,deg,5.0000,pass,least margin at arm_joint_5; track -0.144 (stop 3)
+reach,module_set 4,module_arm,combined_gripper,60.2184,deg,5.0000,pass,least margin at arm_joint_5; track 1.000 (stop 4)
+reach,module_set 5,module_arm,combined_gripper,60.2184,deg,5.0000,pass,least margin at arm_joint_5; track 2.144 (stop 5)
+reach,module_set 6,module_arm,combined_gripper,60.2190,deg,5.0000,pass,least margin at arm_joint_5; track 3.288 (stop 6)
+reach,module_set 7,module_arm,combined_gripper,60.2186,deg,5.0000,pass,least margin at arm_joint_5; track 4.432 (stop 7)
+reach,module_set 8,module_arm,combined_gripper,60.2317,deg,5.0000,pass,least margin at arm_joint_5; track 5.500 (stop 8)
+reach,locate 0/0,pin_arm_a,pin_tool,38.4995,deg,5.0000,pass,least margin at arm_joint_2; track -5.500 (stop 0)
+reach,locate 0/1,pin_arm_a,pin_tool,38.6680,deg,5.0000,pass,least margin at arm_joint_2; track -5.700 (stop 1)
+reach,locate 0/2,pin_arm_a,pin_tool,38.2064,deg,5.0000,pass,least margin at arm_joint_2; track -4.400 (stop 2)
+reach,locate 0/3,pin_arm_a,pin_tool,38.3320,deg,5.0000,pass,least margin at arm_joint_2; track -4.600 (stop 3)
+reach,locate 1/0,pin_arm_a,pin_tool,34.6564,deg,5.0000,pass,least margin at arm_joint_2; track -4.300 (stop 4)
+reach,locate 1/1,pin_arm_a,pin_tool,42.6714,deg,5.0000,pass,least margin at arm_joint_2; track -4.600 (stop 5)
+reach,locate 1/2,pin_arm_a,pin_tool,28.5800,deg,5.0000,pass,least margin at arm_joint_2; track -3.100 (stop 6)
+reach,locate 1/3,pin_arm_a,pin_tool,42.2839,deg,5.0000,pass,least margin at arm_joint_2; track -3.500 (stop 7)
+reach,locate 2/0,pin_arm_a,pin_tool,37.6322,deg,5.0000,pass,least margin at arm_joint_2; track -3.200 (stop 8)
+reach,locate 2/1,pin_arm_a,pin_tool,37.6715,deg,5.0000,pass,least margin at arm_joint_2; track -3.400 (stop 9)
+reach,locate 2/2,pin_arm_a,pin_tool,37.3483,deg,5.0000,pass,least margin at arm_joint_2; track -2.100 (stop 10)
+reach,locate 2/3,pin_arm_a,pin_tool,37.3469,deg,5.0000,pass,least margin at arm_joint_2; track -2.300 (stop 11)
+reach,locate 3/0,pin_arm_b,pin_tool,33.8996,deg,5.0000,pass,least margin at arm_joint_2; track -2.000 (stop 12)
+reach,locate 3/1,pin_arm_b,pin_tool,41.5159,deg,5.0000,pass,least margin at arm_joint_2; track -2.300 (stop 13)
+reach,locate 3/2,pin_arm_b,pin_tool,27.9436,deg,5.0000,pass,least margin at arm_joint_2; track -0.800 (stop 14)
+reach,locate 3/3,pin_arm_b,pin_tool,41.1459,deg,5.0000,pass,least margin at arm_joint_2; track -1.200 (stop 15)
+reach,locate 4/0,pin_arm_b,pin_tool,36.7913,deg,5.0000,pass,least margin at arm_joint_2; track -0.900 (stop 16)
+reach,locate 4/1,pin_arm_b,pin_tool,36.7074,deg,5.0000,pass,least margin at arm_joint_2; track -1.100 (stop 17)
+reach,locate 4/2,pin_arm_b,pin_tool,36.5157,deg,5.0000,pass,least margin at arm_joint_2; track 0.200 (stop 18)
+reach,locate 4/3,pin_arm_b,pin_tool,36.3930,deg,5.0000,pass,least margin at arm_joint_2; track 0.000 (stop 19)
+reach,locate 5/0,pin_arm_b,pin_tool,33.1535,deg,5.0000,pass,least margin at arm_joint_2; track 0.300 (stop 20)
+reach,locate 5/1,pin_arm_b,pin_tool,40.4117,deg,5.0000,pass,least margin at arm_joint_2; track 0.000 (stop 21)
+reach,locate 5/2,pin_arm_b,pin_tool,27.3181,deg,5.0000,pass,least margin at arm_joint_2; track 1.500 (stop 22)
+reach,locate 5/3,pin_arm_b,pin_tool,40.0570,deg,5.0000,pass,least margin at arm_joint_2; track 1.100 (stop 23)
+reach,locate 6/0,pin_arm_c,pin_tool,35.9707,deg,5.0000,pass,least margin at arm_joint_2; track 1.400 (stop 24)
+reach,locate 6/1,pin_arm_c,pin_tool,35.7725,deg,5.0000,pass,least margin at arm_joint_2; track 1.200 (stop 25)
+reach,locate 6/2,pin_arm_c,pin_tool,35.7065,deg,5.0000,pass,least margin at arm_joint_2; track 2.500 (stop 26)
+reach,locate 6/3,pin_arm_c,pin_tool,35.4672,deg,5.0000,pass,least margin at arm_joint_2; track 2.300 (stop 27)
+reach,locate 7/0,pin_arm_c,pin_tool,32.4276,deg,5.0000,pass,least margin at arm_joint_2; track 2.600 (stop 28)
+reach,locate 7/1,pin_arm_c,pin_tool,39.3522,deg,5.0000,pass,least margin at arm_joint_2; track 2.300 (stop 29)
+reach,locate 7/2,pin_arm_c,pin_tool,32.1908,deg,5.0000,pass,least margin at arm_joint_2; track 3.700 (stop 30)
+reach,locate 7/3,pin_arm_c,pin_tool,39.0108,deg,5.0000,pass,least margin at arm_joint_2; track 3.400 (stop 31)
+reach,locate 8/0,pin_arm_c,pin_tool,39.2063,deg,5.0000,pass,least margin at arm_joint_5; track 3.500 (stop 32)
+reach,locate 8/1,pin_arm_c,pin_tool,34.3670,deg,5.0000,pass,least margin at arm_joint_5; track 3.300 (stop 33)
+reach,locate 8/2,pin_arm_c,pin_tool,39.8493,deg,5.0000,pass,least margin at arm_joint_5; track 4.600 (stop 34)
+reach,locate 8/3,pin_arm_c,pin_tool,35.6931,deg,5.0000,pass,least margin at arm_joint_5; track 4.400 (stop 35)
+reach,pin 0/0,pin_arm_a,pin_tool,38.4995,deg,5.0000,pass,least margin at arm_joint_2; track -5.500 (stop 0)
+reach,pin 0/1,pin_arm_a,pin_tool,38.6680,deg,5.0000,pass,least margin at arm_joint_2; track -5.700 (stop 1)
+reach,pin 0/2,pin_arm_a,pin_tool,38.2064,deg,5.0000,pass,least margin at arm_joint_2; track -4.400 (stop 2)
+reach,pin 0/3,pin_arm_a,pin_tool,38.3320,deg,5.0000,pass,least margin at arm_joint_2; track -4.600 (stop 3)
+reach,pin 1/0,pin_arm_a,pin_tool,34.6564,deg,5.0000,pass,least margin at arm_joint_2; track -4.300 (stop 4)
+reach,pin 1/1,pin_arm_a,pin_tool,42.6714,deg,5.0000,pass,least margin at arm_joint_2; track -4.600 (stop 5)
+reach,pin 1/2,pin_arm_a,pin_tool,28.5800,deg,5.0000,pass,least margin at arm_joint_2; track -3.100 (stop 6)
+reach,pin 1/3,pin_arm_a,pin_tool,42.2839,deg,5.0000,pass,least margin at arm_joint_2; track -3.500 (stop 7)
+reach,pin 2/0,pin_arm_a,pin_tool,37.6322,deg,5.0000,pass,least margin at arm_joint_2; track -3.200 (stop 8)
+reach,pin 2/1,pin_arm_a,pin_tool,37.6715,deg,5.0000,pass,least margin at arm_joint_2; track -3.400 (stop 9)
+reach,pin 2/2,pin_arm_a,pin_tool,37.3483,deg,5.0000,pass,least margin at arm_joint_2; track -2.100 (stop 10)
+reach,pin 2/3,pin_arm_a,pin_tool,37.3469,deg,5.0000,pass,least margin at arm_joint_2; track -2.300 (stop 11)
+reach,pin 3/0,pin_arm_b,pin_tool,33.8996,deg,5.0000,pass,least margin at arm_joint_2; track -2.000 (stop 12)
+reach,pin 3/1,pin_arm_b,pin_tool,41.5159,deg,5.0000,pass,least margin at arm_joint_2; track -2.300 (stop 13)
+reach,pin 3/2,pin_arm_b,pin_tool,27.9436,deg,5.0000,pass,least margin at arm_joint_2; track -0.800 (stop 14)
+reach,pin 3/3,pin_arm_b,pin_tool,41.1459,deg,5.0000,pass,least margin at arm_joint_2; track -1.200 (stop 15)
+reach,pin 4/0,pin_arm_b,pin_tool,36.7913,deg,5.0000,pass,least margin at arm_joint_2; track -0.900 (stop 16)
+reach,pin 4/1,pin_arm_b,pin_tool,36.7074,deg,5.0000,pass,least margin at arm_joint_2; track -1.100 (stop 17)
+reach,pin 4/2,pin_arm_b,pin_tool,36.5157,deg,5.0000,pass,least margin at arm_joint_2; track 0.200 (stop 18)
+reach,pin 4/3,pin_arm_b,pin_tool,36.3930,deg,5.0000,pass,least margin at arm_joint_2; track 0.000 (stop 19)
+reach,pin 5/0,pin_arm_b,pin_tool,33.1535,deg,5.0000,pass,least margin at arm_joint_2; track 0.300 (stop 20)
+reach,pin 5/1,pin_arm_b,pin_tool,40.4117,deg,5.0000,pass,least margin at arm_joint_2; track 0.000 (stop 21)
+reach,pin 5/2,pin_arm_b,pin_tool,27.3181,deg,5.0000,pass,least margin at arm_joint_2; track 1.500 (stop 22)
+reach,pin 5/3,pin_arm_b,pin_tool,40.0570,deg,5.0000,pass,least margin at arm_joint_2; track 1.100 (stop 23)
+reach,pin 6/0,pin_arm_c,pin_tool,35.9707,deg,5.0000,pass,least margin at arm_joint_2; track 1.400 (stop 24)
+reach,pin 6/1,pin_arm_c,pin_tool,35.7725,deg,5.0000,pass,least margin at arm_joint_2; track 1.200 (stop 25)
+reach,pin 6/2,pin_arm_c,pin_tool,35.7065,deg,5.0000,pass,least margin at arm_joint_2; track 2.500 (stop 26)
+reach,pin 6/3,pin_arm_c,pin_tool,35.4672,deg,5.0000,pass,least margin at arm_joint_2; track 2.300 (stop 27)
+reach,pin 7/0,pin_arm_c,pin_tool,32.4276,deg,5.0000,pass,least margin at arm_joint_2; track 2.600 (stop 28)
+reach,pin 7/1,pin_arm_c,pin_tool,39.3522,deg,5.0000,pass,least margin at arm_joint_2; track 2.300 (stop 29)
+reach,pin 7/2,pin_arm_c,pin_tool,32.1908,deg,5.0000,pass,least margin at arm_joint_2; track 3.700 (stop 30)
+reach,pin 7/3,pin_arm_c,pin_tool,39.0108,deg,5.0000,pass,least margin at arm_joint_2; track 3.400 (stop 31)
+reach,pin 8/0,pin_arm_c,pin_tool,39.2063,deg,5.0000,pass,least margin at arm_joint_5; track 3.500 (stop 32)
+reach,pin 8/1,pin_arm_c,pin_tool,34.3670,deg,5.0000,pass,least margin at arm_joint_5; track 3.300 (stop 33)
+reach,pin 8/2,pin_arm_c,pin_tool,39.8493,deg,5.0000,pass,least margin at arm_joint_5; track 4.600 (stop 34)
+reach,pin 8/3,pin_arm_c,pin_tool,35.6931,deg,5.0000,pass,least margin at arm_joint_5; track 4.400 (stop 35)
+reach,swage 0/0,pin_arm_a,pin_tool,38.4995,deg,5.0000,pass,least margin at arm_joint_2; track -5.500 (stop 0)
+reach,swage 0/1,pin_arm_a,pin_tool,38.6680,deg,5.0000,pass,least margin at arm_joint_2; track -5.700 (stop 1)
+reach,swage 0/2,pin_arm_a,pin_tool,38.2064,deg,5.0000,pass,least margin at arm_joint_2; track -4.400 (stop 2)
+reach,swage 0/3,pin_arm_a,pin_tool,38.3320,deg,5.0000,pass,least margin at arm_joint_2; track -4.600 (stop 3)
+reach,swage 1/0,pin_arm_a,pin_tool,34.6564,deg,5.0000,pass,least margin at arm_joint_2; track -4.300 (stop 4)
+reach,swage 1/1,pin_arm_a,pin_tool,42.6714,deg,5.0000,pass,least margin at arm_joint_2; track -4.600 (stop 5)
+reach,swage 1/2,pin_arm_a,pin_tool,28.5800,deg,5.0000,pass,least margin at arm_joint_2; track -3.100 (stop 6)
+reach,swage 1/3,pin_arm_a,pin_tool,42.2839,deg,5.0000,pass,least margin at arm_joint_2; track -3.500 (stop 7)
+reach,swage 2/0,pin_arm_a,pin_tool,37.6322,deg,5.0000,pass,least margin at arm_joint_2; track -3.200 (stop 8)
+reach,swage 2/1,pin_arm_a,pin_tool,37.6715,deg,5.0000,pass,least margin at arm_joint_2; track -3.400 (stop 9)
+reach,swage 2/2,pin_arm_a,pin_tool,37.3483,deg,5.0000,pass,least margin at arm_joint_2; track -2.100 (stop 10)
+reach,swage 2/3,pin_arm_a,pin_tool,37.3469,deg,5.0000,pass,least margin at arm_joint_2; track -2.300 (stop 11)
+reach,swage 3/0,pin_arm_a,pin_tool,33.8999,deg,5.0000,pass,least margin at arm_joint_2; track -2.000 (stop 12)
+reach,swage 3/1,pin_arm_a,pin_tool,41.5181,deg,5.0000,pass,least margin at arm_joint_2; track -2.300 (stop 13)
+reach,swage 3/2,pin_arm_b,pin_tool,27.9436,deg,5.0000,pass,least margin at arm_joint_2; track -0.800 (stop 14)
+reach,swage 3/3,pin_arm_b,pin_tool,41.1459,deg,5.0000,pass,least margin at arm_joint_2; track -1.200 (stop 15)
+reach,swage 4/0,pin_arm_b,pin_tool,36.7913,deg,5.0000,pass,least margin at arm_joint_2; track -0.900 (stop 16)
+reach,swage 4/1,pin_arm_b,pin_tool,36.7074,deg,5.0000,pass,least margin at arm_joint_2; track -1.100 (stop 17)
+reach,swage 4/2,pin_arm_b,pin_tool,36.5157,deg,5.0000,pass,least margin at arm_joint_2; track 0.200 (stop 18)
+reach,swage 4/3,pin_arm_b,pin_tool,36.3930,deg,5.0000,pass,least margin at arm_joint_2; track 0.000 (stop 19)
+reach,swage 5/0,pin_arm_b,pin_tool,33.1535,deg,5.0000,pass,least margin at arm_joint_2; track 0.300 (stop 20)
+reach,swage 5/1,pin_arm_b,pin_tool,40.4117,deg,5.0000,pass,least margin at arm_joint_2; track 0.000 (stop 21)
+reach,swage 5/2,pin_arm_b,pin_tool,27.3181,deg,5.0000,pass,least margin at arm_joint_2; track 1.500 (stop 22)
+reach,swage 5/3,pin_arm_b,pin_tool,40.0570,deg,5.0000,pass,least margin at arm_joint_2; track 1.100 (stop 23)
+reach,swage 6/0,pin_arm_b,pin_tool,35.9727,deg,5.0000,pass,least margin at arm_joint_2; track 1.400 (stop 24)
+reach,swage 6/1,pin_arm_b,pin_tool,35.7718,deg,5.0000,pass,least margin at arm_joint_2; track 1.200 (stop 25)
+reach,swage 6/2,pin_arm_c,pin_tool,35.7065,deg,5.0000,pass,least margin at arm_joint_2; track 2.500 (stop 26)
+reach,swage 6/3,pin_arm_c,pin_tool,35.4672,deg,5.0000,pass,least margin at arm_joint_2; track 2.300 (stop 27)
+reach,swage 7/0,pin_arm_c,pin_tool,32.4276,deg,5.0000,pass,least margin at arm_joint_2; track 2.600 (stop 28)
+reach,swage 7/1,pin_arm_c,pin_tool,39.3522,deg,5.0000,pass,least margin at arm_joint_2; track 2.300 (stop 29)
+reach,swage 7/2,pin_arm_c,pin_tool,32.1908,deg,5.0000,pass,least margin at arm_joint_2; track 3.700 (stop 30)
+reach,swage 7/3,pin_arm_c,pin_tool,39.0108,deg,5.0000,pass,least margin at arm_joint_2; track 3.400 (stop 31)
+reach,swage 8/0,pin_arm_c,pin_tool,39.2063,deg,5.0000,pass,least margin at arm_joint_5; track 3.500 (stop 32)
+reach,swage 8/1,pin_arm_c,pin_tool,34.3670,deg,5.0000,pass,least margin at arm_joint_5; track 3.300 (stop 33)
+reach,swage 8/2,pin_arm_c,pin_tool,39.8493,deg,5.0000,pass,least margin at arm_joint_5; track 4.600 (stop 34)
+reach,swage 8/3,pin_arm_c,pin_tool,35.6931,deg,5.0000,pass,least margin at arm_joint_5; track 4.400 (stop 35)
+reach,pins_take 0,pin_arm_a,pin_tool,5.0000,deg,5.0000,pass,least margin at arm_joint_1; track -5.200 (the stop)
+reach,pins_take 1,pin_arm_b,pin_tool,25.3523,deg,5.0000,pass,least margin at arm_joint_5; track -1.000 (the stop)
+reach,pins_take 2,pin_arm_c,pin_tool,25.3605,deg,5.0000,pass,least margin at arm_joint_5; track 4.400 (the stop)
+reach,tools pin_arm_a,pin_arm_a,,74.7218,deg,5.0000,pass,"least margin at arm_joint_3; flange at (-0.100, -7.000, 1.248), z down, track -5.700"
+reach,tools pin_arm_c,pin_arm_c,,20.4638,deg,5.0000,pass,"least margin at arm_joint_5; flange at (-0.100, 6.200, 1.248), z down, track 4.600"
+reach,wait pose module_arm,module_arm,,10.0000,deg,5.0000,pass,least margin at arm_joint_2
+reach,wait pose pin_arm_a,pin_arm_a,,25.0000,deg,5.0000,pass,least margin at arm_joint_2
+reach,wait pose pin_arm_c,pin_arm_c,,20.5000,deg,5.0000,pass,least margin at arm_joint_5
+reach,wait pose pin_arm_b,pin_arm_b,,5.0000,deg,5.0000,pass,least margin at arm_joint_1
+clearance,rail_take 0,module_arm,combined_gripper,0.0290,m,0.0150,pass,module_arm_tool_combined_gripper_plate to pallet_module_0_frame_short_a
+clearance,rail_take 1,module_arm,combined_gripper,0.0290,m,0.0150,pass,module_arm_tool_combined_gripper_plate to pallet_module_0_frame_short_a
+clearance,rail_take 2,module_arm,combined_gripper,0.0290,m,0.0150,pass,module_arm_tool_combined_gripper_plate to pallet_module_0_frame_short_a
+clearance,rail_take 3,module_arm,combined_gripper,0.0290,m,0.0150,pass,module_arm_tool_combined_gripper_plate to pallet_module_0_frame_short_a
+clearance,rail_take 4,module_arm,combined_gripper,0.0290,m,0.0150,pass,module_arm_tool_combined_gripper_plate to pallet_module_0_frame_short_a
+clearance,rail_take 5,module_arm,combined_gripper,0.0290,m,0.0150,pass,module_arm_tool_combined_gripper_plate to pallet_module_0_frame_short_a
+clearance,rail_take 6,module_arm,combined_gripper,0.0290,m,0.0150,pass,module_arm_tool_combined_gripper_plate to pallet_module_0_frame_short_a
+clearance,rail_take 7,module_arm,combined_gripper,0.0290,m,0.0150,pass,module_arm_tool_combined_gripper_plate to pallet_module_0_frame_short_a
+clearance,rail_take 8,module_arm,combined_gripper,0.0290,m,0.0150,pass,module_arm_tool_combined_gripper_plate to pallet_module_0_frame_short_a
+clearance,rail_take 9,module_arm,combined_gripper,0.0290,m,0.0150,pass,module_arm_tool_combined_gripper_plate to pallet_module_0_frame_short_a
+clearance,rail_set 0,module_arm,combined_gripper,0.0630,m,0.0150,pass,module_arm_tool_combined_gripper_cups to bay_tube
+clearance,rail_set 1,module_arm,combined_gripper,0.0456,m,0.0150,pass,module_arm_held_rail_foot_a_neg to holder_stand_2_cheek_pos
+clearance,rail_set 2,module_arm,combined_gripper,0.0630,m,0.0150,pass,module_arm_tool_combined_gripper_cups to bay_tube
+clearance,rail_set 3,module_arm,combined_gripper,0.0456,m,0.0150,pass,module_arm_held_rail_foot_a_neg to holder_stand_4_cheek_pos
+clearance,rail_set 4,module_arm,combined_gripper,0.0630,m,0.0150,pass,module_arm_tool_combined_gripper_cups to bay_tube
+clearance,rail_set 5,module_arm,combined_gripper,0.0456,m,0.0150,pass,module_arm_held_rail_foot_a_neg to holder_stand_6_cheek_pos
+clearance,rail_set 6,module_arm,combined_gripper,0.0630,m,0.0150,pass,module_arm_tool_combined_gripper_cups to bay_tube
+clearance,rail_set 7,module_arm,combined_gripper,0.0456,m,0.0150,pass,module_arm_held_rail_foot_a_neg to holder_stand_8_cheek_pos
+clearance,rail_set 8,module_arm,combined_gripper,0.0630,m,0.0150,pass,module_arm_tool_combined_gripper_cups to bay_tube
+clearance,rail_set 9,module_arm,combined_gripper,0.0630,m,0.0150,pass,module_arm_tool_combined_gripper_cups to bay_tube
+clearance,strap_bolt 0,pin_arm_a,nutrunner,0.0300,m,0.0150,pass,pin_arm_a_carriage to item_pin_lane_lane
+clearance,strap_bolt 1,pin_arm_a,nutrunner,0.0300,m,0.0150,pass,pin_arm_a_carriage to item_pin_lane_lane
+clearance,strap_bolt 2,pin_arm_a,nutrunner,0.0300,m,0.0150,pass,pin_arm_a_carriage to item_pin_lane_lane
+clearance,strap_bolt 3,pin_arm_a,nutrunner,0.0300,m,0.0150,pass,pin_arm_a_carriage to item_pin_lane_lane
+clearance,strap_bolt 4,pin_arm_a,nutrunner,0.0300,m,0.0150,pass,pin_arm_a_carriage to item_pin_lane_lane
+clearance,strap_bolt 5,pin_arm_c,nutrunner,0.0260,m,0.0150,pass,pin_arm_c_tool_nutrunner_body to holder_stand_6_saddle
+clearance,strap_bolt 6,pin_arm_c,nutrunner,0.0300,m,0.0150,pass,pin_arm_c_carriage to item_pin_lane_lane
+clearance,strap_bolt 7,pin_arm_c,nutrunner,0.0300,m,0.0150,pass,pin_arm_c_carriage to item_pin_lane_lane
+clearance,strap_bolt 8,pin_arm_c,nutrunner,0.0300,m,0.0150,pass,pin_arm_c_carriage to item_pin_lane_lane
+clearance,strap_bolt 9,pin_arm_c,nutrunner,0.0300,m,0.0150,pass,pin_arm_c_carriage to item_pin_lane_lane
+clearance,free space bolt 0,pin_arm_a,nutrunner,0.1550,m,0.0000,pass,probe_bolt to pin_arm_a_arm_link_6_collision
+clearance,free space bolt 1,pin_arm_a,nutrunner,0.0600,m,0.0000,pass,probe_bolt to holder_stand_2_saddle
+clearance,free space bolt 2,pin_arm_a,nutrunner,0.1550,m,0.0000,pass,probe_bolt to pin_arm_a_arm_link_6_collision
+clearance,free space bolt 3,pin_arm_a,nutrunner,0.0600,m,0.0000,pass,probe_bolt to holder_stand_4_saddle
+clearance,free space bolt 4,pin_arm_a,nutrunner,0.1550,m,0.0000,pass,probe_bolt to pin_arm_a_arm_link_6_collision
+clearance,free space bolt 5,pin_arm_c,nutrunner,0.0600,m,0.0000,pass,probe_bolt to holder_stand_6_saddle
+clearance,free space bolt 6,pin_arm_c,nutrunner,0.1550,m,0.0000,pass,probe_bolt to pin_arm_c_arm_link_6_collision
+clearance,free space bolt 7,pin_arm_c,nutrunner,0.0600,m,0.0000,pass,probe_bolt to holder_stand_8_saddle
+clearance,free space bolt 8,pin_arm_c,nutrunner,0.1550,m,0.0000,pass,probe_bolt to pin_arm_c_arm_link_6_collision
+clearance,free space bolt 9,pin_arm_c,nutrunner,0.1550,m,0.0000,pass,probe_bolt to pin_arm_c_arm_link_6_collision
+clearance,tool in free space strap_bolt nutrunner,pin_arm_a,nutrunner,0.0007,m,0.0000,pass,free radius 0.012 over the 0.100 behind the working point; box socket reaches 0.0113 from the axis
+clearance,tool in free space strap_bolt nutrunner,pin_arm_c,nutrunner,0.0007,m,0.0000,pass,free radius 0.012 over the 0.100 behind the working point; box socket reaches 0.0113 from the axis
+clearance,module_take 0,module_arm,combined_gripper,0.0300,m,0.0150,pass,module_arm_held_module_flange_short_a to pallet_module_2_frame_long_a
+clearance,module_take 1,module_arm,combined_gripper,0.0300,m,0.0150,pass,module_arm_held_module_frame_short_a to pallet_module_3_frame_short_a
+clearance,module_take 2,module_arm,combined_gripper,0.0300,m,0.0150,pass,module_arm_held_module_flange_long_a to pallet_module_4_frame_long_a
+clearance,module_take 3,module_arm,combined_gripper,0.0300,m,0.0150,pass,module_arm_held_module_frame_short_a to pallet_module_5_frame_short_a
+clearance,module_take 4,module_arm,combined_gripper,0.0300,m,0.0150,pass,module_arm_held_module_frame_short_a to pallet_module_6_frame_long_b
+clearance,module_take 5,module_arm,combined_gripper,0.0300,m,0.0150,pass,module_arm_held_module_flange_short_b to pallet_module_7_frame_long_a
+clearance,module_take 6,module_arm,combined_gripper,0.0300,m,0.0150,pass,module_arm_held_module_frame_long_a to pallet_module_8_frame_long_a
+clearance,module_take 7,module_arm,combined_gripper,0.0300,m,0.0150,pass,module_arm_held_module_frame_short_a to pallet_module_9_frame_long_a
+clearance,module_take 8,module_arm,combined_gripper,0.0300,m,0.0150,pass,module_arm_held_module_frame_long_b to pallet_module_10_frame_long_b
+clearance,module_take 9,module_arm,combined_gripper,0.0300,m,0.0150,pass,module_arm_held_module_flange_short_a to pallet_module_11_frame_long_b
+clearance,module_take 10,module_arm,combined_gripper,0.0300,m,0.0150,pass,module_arm_held_module_frame_short_a to pallet_module_12_frame_long_b
+clearance,module_take 11,module_arm,combined_gripper,0.0300,m,0.0150,pass,module_arm_held_module_flange_short_a to pallet_module_13_frame_short_b
+clearance,module_take 12,module_arm,combined_gripper,0.0300,m,0.0150,pass,module_arm_held_module_flange_long_a to pallet_module_14_frame_short_b
+clearance,module_take 13,module_arm,combined_gripper,0.0300,m,0.0150,pass,module_arm_held_module_frame_short_a to pallet_module_15_frame_long_b
+clearance,module_take 14,module_arm,combined_gripper,0.0300,m,0.0150,pass,module_arm_held_module_frame_long_a to pallet_module_16_frame_long_b
+clearance,module_take 15,module_arm,combined_gripper,0.0300,m,0.0150,pass,module_arm_held_module_flange_long_a to pallet_module_17_frame_long_b
+clearance,module_take 16,module_arm,combined_gripper,0.0300,m,0.0150,pass,module_arm_held_module_flange_short_a to pallet_module_18_frame_long_b
+clearance,module_take 17,module_arm,combined_gripper,0.0300,m,0.0150,pass,module_arm_held_module_flange_short_a to pallet_module_19_frame_long_b
+clearance,module_take 18,module_arm,combined_gripper,0.0300,m,0.0150,pass,module_arm_held_module_flange_long_a to pallet_module_20_frame_long_b
+clearance,module_take 19,module_arm,combined_gripper,0.0300,m,0.0150,pass,module_arm_held_module_frame_long_a to pallet_module_21_frame_long_b
+clearance,module_take 20,module_arm,combined_gripper,0.0300,m,0.0150,pass,module_arm_held_module_frame_long_a to pallet_module_22_frame_long_b
+clearance,module_take 21,module_arm,combined_gripper,0.0300,m,0.0150,pass,module_arm_held_module_frame_long_a to pallet_module_23_frame_long_b
+clearance,module_take 22,module_arm,combined_gripper,0.0300,m,0.0150,pass,module_arm_held_module_flange_short_a to pallet_module_24_frame_long_b
+clearance,module_take 23,module_arm,combined_gripper,0.0300,m,0.0150,pass,module_arm_held_module_flange_long_a to pallet_module_25_frame_long_b
+clearance,module_take 24,module_arm,combined_gripper,0.0300,m,0.0150,pass,module_arm_held_module_frame_long_a to pallet_module_26_frame_long_b
+clearance,module_take 25,module_arm,combined_gripper,0.0300,m,0.0150,pass,module_arm_held_module_frame_long_a to pallet_module_27_frame_long_b
+clearance,module_take 26,module_arm,combined_gripper,0.0300,m,0.0150,pass,module_arm_held_module_frame_short_a to pallet_module_28_frame_short_b
+clearance,module_take 27,module_arm,combined_gripper,0.0300,m,0.0150,pass,module_arm_held_module_flange_short_a to pallet_module_29_frame_short_b
+clearance,module_take 28,module_arm,combined_gripper,0.0300,m,0.0150,pass,module_arm_held_module_frame_long_a to pallet_module_30_frame_short_b
+clearance,module_take 29,module_arm,combined_gripper,0.0300,m,0.0150,pass,module_arm_held_module_frame_long_a to pallet_module_31_frame_long_b
+clearance,module_take 30,module_arm,combined_gripper,0.0300,m,0.0150,pass,module_arm_held_module_frame_long_a to pallet_module_32_frame_short_b
+clearance,module_take 31,module_arm,combined_gripper,0.0300,m,0.0150,pass,module_arm_held_module_frame_long_a to pallet_module_33_frame_long_b
+clearance,module_take 32,module_arm,combined_gripper,0.0300,m,0.0150,pass,module_arm_held_module_flange_long_a to pallet_module_34_frame_long_b
+clearance,module_take 33,module_arm,combined_gripper,0.0300,m,0.0150,pass,module_arm_held_module_frame_long_a to pallet_module_35_frame_long_b
+clearance,module_take 34,module_arm,combined_gripper,0.0310,m,0.0150,pass,module_arm_tool_combined_gripper_cups to pallet_module_35_laminate
+clearance,module_take 35,module_arm,combined_gripper,0.1200,m,0.0150,pass,module_arm_carriage to item_pin_lane_lane
+clearance,module_set 0,module_arm,combined_gripper,0.0620,m,0.0150,pass,module_arm_held_module_flange_long_b to bay_tube
+clearance,module_set 1,module_arm,combined_gripper,0.0620,m,0.0150,pass,module_arm_held_module_frame_long_b to bay_tube
+clearance,module_set 2,module_arm,combined_gripper,0.0620,m,0.0150,pass,module_arm_held_module_frame_long_b to bay_tube
+clearance,module_set 3,module_arm,combined_gripper,0.0620,m,0.0150,pass,module_arm_held_module_flange_long_b to bay_tube
+clearance,module_set 4,module_arm,combined_gripper,0.0620,m,0.0150,pass,module_arm_held_module_flange_long_b to bay_tube
+clearance,module_set 5,module_arm,combined_gripper,0.0620,m,0.0150,pass,module_arm_held_module_flange_long_b to bay_tube
+clearance,module_set 6,module_arm,combined_gripper,0.0620,m,0.0150,pass,module_arm_held_module_frame_long_a to bay_tube
+clearance,module_set 7,module_arm,combined_gripper,0.0620,m,0.0150,pass,module_arm_held_module_frame_long_b to bay_tube
+clearance,module_set 8,module_arm,combined_gripper,0.0620,m,0.0150,pass,module_arm_held_module_frame_long_a to bay_tube
+clearance,locate 0/0,pin_arm_a,pin_tool,0.0210,m,0.0150,pass,pin_arm_a_tool_pin_tool_body to bay_rail_0_web_b_neg; worse before the next module
+clearance,locate 0/1,pin_arm_a,pin_tool,0.0210,m,0.0150,pass,pin_arm_a_tool_pin_tool_body to bay_rail_0_web_b_pos; worse before the next module
+clearance,locate 0/2,pin_arm_a,pin_tool,0.0194,m,0.0150,pass,pin_arm_a_tool_pin_tool_nose to bay_module_1_flange_long_a; worse with the next module on
+clearance,locate 0/3,pin_arm_a,pin_tool,0.0209,m,0.0150,pass,pin_arm_a_tool_pin_tool_nose to bay_module_1_flange_long_a; worse with the next module on
+clearance,locate 1/0,pin_arm_a,pin_tool,0.0193,m,0.0150,pass,pin_arm_a_tool_pin_tool_nose to bay_module_0_frame_long_b; worse before the next module
+clearance,locate 1/1,pin_arm_a,pin_tool,0.0209,m,0.0150,pass,pin_arm_a_tool_pin_tool_nose to bay_module_0_frame_long_b; worse before the next module
+clearance,locate 1/2,pin_arm_a,pin_tool,0.0193,m,0.0150,pass,pin_arm_a_tool_pin_tool_nose to bay_module_2_flange_long_a; worse with the next module on
+clearance,locate 1/3,pin_arm_a,pin_tool,0.0209,m,0.0150,pass,pin_arm_a_tool_pin_tool_nose to bay_module_2_flange_long_a; worse with the next module on
+clearance,locate 2/0,pin_arm_a,pin_tool,0.0194,m,0.0150,pass,pin_arm_a_tool_pin_tool_nose to bay_module_1_flange_long_b; worse before the next module
+clearance,locate 2/1,pin_arm_a,pin_tool,0.0208,m,0.0150,pass,pin_arm_a_tool_pin_tool_nose to bay_module_1_flange_long_b; worse before the next module
+clearance,locate 2/2,pin_arm_a,pin_tool,0.0194,m,0.0150,pass,pin_arm_a_tool_pin_tool_nose to bay_module_3_flange_long_a; worse before the next module
+clearance,locate 2/3,pin_arm_a,pin_tool,0.0209,m,0.0150,pass,pin_arm_a_tool_pin_tool_nose to bay_module_3_flange_long_a; worse before the next module
+clearance,locate 3/0,pin_arm_b,pin_tool,0.0187,m,0.0150,pass,pin_arm_b_tool_pin_tool_nose to bay_module_2_flange_long_b; worse with the next module on
+clearance,locate 3/1,pin_arm_b,pin_tool,0.0190,m,0.0150,pass,pin_arm_b_tool_pin_tool_nose to bay_module_2_flange_long_b; worse with the next module on
+clearance,locate 3/2,pin_arm_b,pin_tool,0.0188,m,0.0150,pass,pin_arm_b_tool_pin_tool_nose to bay_module_4_flange_long_a; worse with the next module on
+clearance,locate 3/3,pin_arm_b,pin_tool,0.0191,m,0.0150,pass,pin_arm_b_tool_pin_tool_nose to bay_module_4_flange_long_a; worse with the next module on
+clearance,locate 4/0,pin_arm_b,pin_tool,0.0187,m,0.0150,pass,pin_arm_b_tool_pin_tool_nose to bay_module_3_flange_long_b; worse before the next module
+clearance,locate 4/1,pin_arm_b,pin_tool,0.0190,m,0.0150,pass,pin_arm_b_tool_pin_tool_nose to bay_module_3_flange_long_b; worse before the next module
+clearance,locate 4/2,pin_arm_b,pin_tool,0.0187,m,0.0150,pass,pin_arm_b_tool_pin_tool_nose to bay_module_5_flange_long_a; worse with the next module on
+clearance,locate 4/3,pin_arm_b,pin_tool,0.0190,m,0.0150,pass,pin_arm_b_tool_pin_tool_nose to bay_module_5_flange_long_a; worse with the next module on
+clearance,locate 5/0,pin_arm_b,pin_tool,0.0187,m,0.0150,pass,pin_arm_b_tool_pin_tool_nose to bay_module_4_flange_long_b; worse before the next module
+clearance,locate 5/1,pin_arm_b,pin_tool,0.0190,m,0.0150,pass,pin_arm_b_tool_pin_tool_nose to bay_module_4_flange_long_b; worse before the next module
+clearance,locate 5/2,pin_arm_b,pin_tool,0.0188,m,0.0150,pass,pin_arm_b_tool_pin_tool_nose to bay_module_6_frame_long_a; worse before the next module
+clearance,locate 5/3,pin_arm_b,pin_tool,0.0190,m,0.0150,pass,pin_arm_b_tool_pin_tool_nose to bay_module_6_frame_long_a; worse before the next module
+clearance,locate 6/0,pin_arm_c,pin_tool,0.0210,m,0.0150,pass,pin_arm_c_tool_pin_tool_body to bay_rail_6_web_b_neg; worse before the next module
+clearance,locate 6/1,pin_arm_c,pin_tool,0.0205,m,0.0150,pass,pin_arm_c_tool_pin_tool_nose to bay_module_5_frame_long_b; worse with the next module on
+clearance,locate 6/2,pin_arm_c,pin_tool,0.0210,m,0.0150,pass,pin_arm_c_tool_pin_tool_body to bay_rail_7_web_a_neg; worse before the next module
+clearance,locate 6/3,pin_arm_c,pin_tool,0.0206,m,0.0150,pass,pin_arm_c_tool_pin_tool_nose to bay_module_7_frame_long_a; worse with the next module on
+clearance,locate 7/0,pin_arm_c,pin_tool,0.0210,m,0.0150,pass,pin_arm_c_tool_pin_tool_body to bay_rail_7_web_b_neg; worse before the next module
+clearance,locate 7/1,pin_arm_c,pin_tool,0.0205,m,0.0150,pass,pin_arm_c_tool_pin_tool_nose to bay_module_6_frame_long_b; worse before the next module
+clearance,locate 7/2,pin_arm_c,pin_tool,0.0210,m,0.0150,pass,pin_arm_c_tool_pin_tool_body to bay_rail_8_web_a_neg; worse before the next module
+clearance,locate 7/3,pin_arm_c,pin_tool,0.0205,m,0.0150,pass,pin_arm_c_tool_pin_tool_nose to bay_module_8_flange_long_a; worse with the next module on
+clearance,locate 8/0,pin_arm_c,pin_tool,0.0160,m,0.0150,pass,pin_arm_c_arm_link_3_collision to holder_stand_8_saddle
+clearance,locate 8/1,pin_arm_c,pin_tool,0.0203,m,0.0150,pass,pin_arm_c_tool_pin_tool_nose to bay_module_7_flange_long_b
+clearance,locate 8/2,pin_arm_c,pin_tool,0.0210,m,0.0150,pass,pin_arm_c_tool_pin_tool_body to bay_rail_9_web_a_neg
+clearance,locate 8/3,pin_arm_c,pin_tool,0.0210,m,0.0150,pass,pin_arm_c_tool_pin_tool_body to bay_rail_9_foot_a_pos
+clearance,free space locate 0/0,pin_arm_a,pin_tool,0.1240,m,0.0000,pass,probe_locate_below to bay_tube
+clearance,free space locate 0/1,pin_arm_a,pin_tool,0.1240,m,0.0000,pass,probe_locate_below to bay_tube
+clearance,free space locate 0/2,pin_arm_a,pin_tool,0.0102,m,0.0000,pass,probe_locate_below to bay_module_1_flange_long_a; with the next module on
+clearance,free space locate 0/3,pin_arm_a,pin_tool,0.0102,m,0.0000,pass,probe_locate_below to bay_module_1_flange_long_a; with the next module on
+clearance,free space locate 1/0,pin_arm_a,pin_tool,0.0102,m,0.0000,pass,probe_locate_below to bay_module_0_frame_long_b
+clearance,free space locate 1/1,pin_arm_a,pin_tool,0.0102,m,0.0000,pass,probe_locate_below to bay_module_0_frame_long_b
+clearance,free space locate 1/2,pin_arm_a,pin_tool,0.0102,m,0.0000,pass,probe_locate_below to bay_module_2_flange_long_a; with the next module on
+clearance,free space locate 1/3,pin_arm_a,pin_tool,0.0102,m,0.0000,pass,probe_locate_below to bay_module_2_flange_long_a; with the next module on
+clearance,free space locate 2/0,pin_arm_a,pin_tool,0.0102,m,0.0000,pass,probe_locate_below to bay_module_1_flange_long_b
+clearance,free space locate 2/1,pin_arm_a,pin_tool,0.0102,m,0.0000,pass,probe_locate_below to bay_module_1_flange_long_b
+clearance,free space locate 2/2,pin_arm_a,pin_tool,0.0102,m,0.0000,pass,probe_locate_below to bay_module_3_flange_long_a
+clearance,free space locate 2/3,pin_arm_a,pin_tool,0.0102,m,0.0000,pass,probe_locate_below to bay_module_3_flange_long_a
+clearance,free space locate 3/0,pin_arm_b,pin_tool,0.0102,m,0.0000,pass,probe_locate_below to bay_module_2_flange_long_b; with the next module on
+clearance,free space locate 3/1,pin_arm_b,pin_tool,0.0102,m,0.0000,pass,probe_locate_below to bay_module_2_flange_long_b; with the next module on
+clearance,free space locate 3/2,pin_arm_b,pin_tool,0.0102,m,0.0000,pass,probe_locate_below to bay_module_4_flange_long_a; with the next module on
+clearance,free space locate 3/3,pin_arm_b,pin_tool,0.0102,m,0.0000,pass,probe_locate_below to bay_module_4_flange_long_a; with the next module on
+clearance,free space locate 4/0,pin_arm_b,pin_tool,0.0102,m,0.0000,pass,probe_locate_below to bay_module_3_flange_long_b
+clearance,free space locate 4/1,pin_arm_b,pin_tool,0.0102,m,0.0000,pass,probe_locate_below to bay_module_3_flange_long_b
+clearance,free space locate 4/2,pin_arm_b,pin_tool,0.0102,m,0.0000,pass,probe_locate_below to bay_module_5_flange_long_a; with the next module on
+clearance,free space locate 4/3,pin_arm_b,pin_tool,0.0102,m,0.0000,pass,probe_locate_below to bay_module_5_flange_long_a; with the next module on
+clearance,free space locate 5/0,pin_arm_b,pin_tool,0.0102,m,0.0000,pass,probe_locate_below to bay_module_4_flange_long_b
+clearance,free space locate 5/1,pin_arm_b,pin_tool,0.0102,m,0.0000,pass,probe_locate_below to bay_module_4_flange_long_b
+clearance,free space locate 5/2,pin_arm_b,pin_tool,0.0102,m,0.0000,pass,probe_locate_below to bay_module_6_frame_long_a
+clearance,free space locate 5/3,pin_arm_b,pin_tool,0.0102,m,0.0000,pass,probe_locate_below to bay_module_6_frame_long_a
+clearance,free space locate 6/0,pin_arm_c,pin_tool,0.0102,m,0.0000,pass,probe_locate_below to bay_module_5_frame_long_b; with the next module on
+clearance,free space locate 6/1,pin_arm_c,pin_tool,0.0102,m,0.0000,pass,probe_locate_below to bay_module_5_frame_long_b; with the next module on
+clearance,free space locate 6/2,pin_arm_c,pin_tool,0.0102,m,0.0000,pass,probe_locate_below to bay_module_7_frame_long_a; with the next module on
+clearance,free space locate 6/3,pin_arm_c,pin_tool,0.0102,m,0.0000,pass,probe_locate_below to bay_module_7_frame_long_a; with the next module on
+clearance,free space locate 7/0,pin_arm_c,pin_tool,0.0102,m,0.0000,pass,probe_locate_below to bay_module_6_frame_long_b
+clearance,free space locate 7/1,pin_arm_c,pin_tool,0.0102,m,0.0000,pass,probe_locate_below to bay_module_6_frame_long_b
+clearance,free space locate 7/2,pin_arm_c,pin_tool,0.0102,m,0.0000,pass,probe_locate_below to bay_module_8_frame_long_a; with the next module on
+clearance,free space locate 7/3,pin_arm_c,pin_tool,0.0102,m,0.0000,pass,probe_locate_below to bay_module_8_frame_long_a; with the next module on
+clearance,free space locate 8/0,pin_arm_c,pin_tool,0.0102,m,0.0000,pass,probe_locate_below to bay_module_7_frame_long_b
+clearance,free space locate 8/1,pin_arm_c,pin_tool,0.0102,m,0.0000,pass,probe_locate_below to bay_module_7_frame_long_b
+clearance,free space locate 8/2,pin_arm_c,pin_tool,0.1240,m,0.0000,pass,probe_locate_below to bay_tube
+clearance,free space locate 8/3,pin_arm_c,pin_tool,0.1240,m,0.0000,pass,probe_locate_below to bay_tube
+clearance,tool in free space locate pin_tool,pin_arm_a,pin_tool,0.0077,m,0.0000,pass,free radius 0.019 over the 0.080 behind the working point; box nose reaches 0.0113 from the axis
+clearance,tool in free space locate pin_tool,pin_arm_b,pin_tool,0.0077,m,0.0000,pass,free radius 0.019 over the 0.080 behind the working point; box nose reaches 0.0113 from the axis
+clearance,tool in free space locate pin_tool,pin_arm_c,pin_tool,0.0077,m,0.0000,pass,free radius 0.019 over the 0.080 behind the working point; box nose reaches 0.0113 from the axis
+clearance,pin 0/0,pin_arm_a,pin_tool,0.0210,m,0.0150,pass,pin_arm_a_tool_pin_tool_body to bay_rail_0_web_b_neg; worse before the next module
+clearance,pin 0/1,pin_arm_a,pin_tool,0.0210,m,0.0150,pass,pin_arm_a_tool_pin_tool_body to bay_rail_0_web_b_pos; worse before the next module
+clearance,pin 0/2,pin_arm_a,pin_tool,0.0194,m,0.0150,pass,pin_arm_a_tool_pin_tool_nose to bay_module_1_flange_long_a; worse with the next module on
+clearance,pin 0/3,pin_arm_a,pin_tool,0.0209,m,0.0150,pass,pin_arm_a_tool_pin_tool_nose to bay_module_1_flange_long_a; worse with the next module on
+clearance,pin 1/0,pin_arm_a,pin_tool,0.0193,m,0.0150,pass,pin_arm_a_tool_pin_tool_nose to bay_module_0_frame_long_b; worse before the next module
+clearance,pin 1/1,pin_arm_a,pin_tool,0.0209,m,0.0150,pass,pin_arm_a_tool_pin_tool_nose to bay_module_0_frame_long_b; worse before the next module
+clearance,pin 1/2,pin_arm_a,pin_tool,0.0193,m,0.0150,pass,pin_arm_a_tool_pin_tool_nose to bay_module_2_flange_long_a; worse with the next module on
+clearance,pin 1/3,pin_arm_a,pin_tool,0.0209,m,0.0150,pass,pin_arm_a_tool_pin_tool_nose to bay_module_2_flange_long_a; worse with the next module on
+clearance,pin 2/0,pin_arm_a,pin_tool,0.0194,m,0.0150,pass,pin_arm_a_tool_pin_tool_nose to bay_module_1_flange_long_b; worse before the next module
+clearance,pin 2/1,pin_arm_a,pin_tool,0.0208,m,0.0150,pass,pin_arm_a_tool_pin_tool_nose to bay_module_1_flange_long_b; worse before the next module
+clearance,pin 2/2,pin_arm_a,pin_tool,0.0194,m,0.0150,pass,pin_arm_a_tool_pin_tool_nose to bay_module_3_flange_long_a; worse before the next module
+clearance,pin 2/3,pin_arm_a,pin_tool,0.0209,m,0.0150,pass,pin_arm_a_tool_pin_tool_nose to bay_module_3_flange_long_a; worse before the next module
+clearance,pin 3/0,pin_arm_b,pin_tool,0.0187,m,0.0150,pass,pin_arm_b_tool_pin_tool_nose to bay_module_2_flange_long_b; worse with the next module on
+clearance,pin 3/1,pin_arm_b,pin_tool,0.0190,m,0.0150,pass,pin_arm_b_tool_pin_tool_nose to bay_module_2_flange_long_b; worse with the next module on
+clearance,pin 3/2,pin_arm_b,pin_tool,0.0188,m,0.0150,pass,pin_arm_b_tool_pin_tool_nose to bay_module_4_flange_long_a; worse with the next module on
+clearance,pin 3/3,pin_arm_b,pin_tool,0.0191,m,0.0150,pass,pin_arm_b_tool_pin_tool_nose to bay_module_4_flange_long_a; worse with the next module on
+clearance,pin 4/0,pin_arm_b,pin_tool,0.0187,m,0.0150,pass,pin_arm_b_tool_pin_tool_nose to bay_module_3_flange_long_b; worse before the next module
+clearance,pin 4/1,pin_arm_b,pin_tool,0.0190,m,0.0150,pass,pin_arm_b_tool_pin_tool_nose to bay_module_3_flange_long_b; worse before the next module
+clearance,pin 4/2,pin_arm_b,pin_tool,0.0187,m,0.0150,pass,pin_arm_b_tool_pin_tool_nose to bay_module_5_flange_long_a; worse with the next module on
+clearance,pin 4/3,pin_arm_b,pin_tool,0.0190,m,0.0150,pass,pin_arm_b_tool_pin_tool_nose to bay_module_5_flange_long_a; worse with the next module on
+clearance,pin 5/0,pin_arm_b,pin_tool,0.0187,m,0.0150,pass,pin_arm_b_tool_pin_tool_nose to bay_module_4_flange_long_b; worse before the next module
+clearance,pin 5/1,pin_arm_b,pin_tool,0.0190,m,0.0150,pass,pin_arm_b_tool_pin_tool_nose to bay_module_4_flange_long_b; worse before the next module
+clearance,pin 5/2,pin_arm_b,pin_tool,0.0188,m,0.0150,pass,pin_arm_b_tool_pin_tool_nose to bay_module_6_frame_long_a; worse before the next module
+clearance,pin 5/3,pin_arm_b,pin_tool,0.0190,m,0.0150,pass,pin_arm_b_tool_pin_tool_nose to bay_module_6_frame_long_a; worse before the next module
+clearance,pin 6/0,pin_arm_c,pin_tool,0.0210,m,0.0150,pass,pin_arm_c_tool_pin_tool_body to bay_rail_6_web_b_neg; worse before the next module
+clearance,pin 6/1,pin_arm_c,pin_tool,0.0205,m,0.0150,pass,pin_arm_c_tool_pin_tool_nose to bay_module_5_frame_long_b; worse with the next module on
+clearance,pin 6/2,pin_arm_c,pin_tool,0.0210,m,0.0150,pass,pin_arm_c_tool_pin_tool_body to bay_rail_7_web_a_neg; worse before the next module
+clearance,pin 6/3,pin_arm_c,pin_tool,0.0206,m,0.0150,pass,pin_arm_c_tool_pin_tool_nose to bay_module_7_frame_long_a; worse with the next module on
+clearance,pin 7/0,pin_arm_c,pin_tool,0.0210,m,0.0150,pass,pin_arm_c_tool_pin_tool_body to bay_rail_7_web_b_neg; worse before the next module
+clearance,pin 7/1,pin_arm_c,pin_tool,0.0205,m,0.0150,pass,pin_arm_c_tool_pin_tool_nose to bay_module_6_frame_long_b; worse before the next module
+clearance,pin 7/2,pin_arm_c,pin_tool,0.0210,m,0.0150,pass,pin_arm_c_tool_pin_tool_body to bay_rail_8_web_a_neg; worse before the next module
+clearance,pin 7/3,pin_arm_c,pin_tool,0.0205,m,0.0150,pass,pin_arm_c_tool_pin_tool_nose to bay_module_8_flange_long_a; worse with the next module on
+clearance,pin 8/0,pin_arm_c,pin_tool,0.0160,m,0.0150,pass,pin_arm_c_arm_link_3_collision to holder_stand_8_saddle
+clearance,pin 8/1,pin_arm_c,pin_tool,0.0203,m,0.0150,pass,pin_arm_c_tool_pin_tool_nose to bay_module_7_flange_long_b
+clearance,pin 8/2,pin_arm_c,pin_tool,0.0210,m,0.0150,pass,pin_arm_c_tool_pin_tool_body to bay_rail_9_web_a_neg
+clearance,pin 8/3,pin_arm_c,pin_tool,0.0210,m,0.0150,pass,pin_arm_c_tool_pin_tool_body to bay_rail_9_foot_a_pos
+clearance,free space pin 0/0,pin_arm_a,pin_tool,0.1299,m,0.0000,pass,probe_pin to bay_tube
+clearance,free space pin 0/1,pin_arm_a,pin_tool,0.1299,m,0.0000,pass,probe_pin to bay_tube
+clearance,free space pin 0/2,pin_arm_a,pin_tool,0.0161,m,0.0000,pass,probe_pin to bay_module_1_flange_long_a; with the next module on
+clearance,free space pin 0/3,pin_arm_a,pin_tool,0.0161,m,0.0000,pass,probe_pin to bay_module_1_flange_long_a; with the next module on
+clearance,free space pin 1/0,pin_arm_a,pin_tool,0.0161,m,0.0000,pass,probe_pin to bay_module_0_frame_long_b
+clearance,free space pin 1/1,pin_arm_a,pin_tool,0.0161,m,0.0000,pass,probe_pin to bay_module_0_frame_long_b
+clearance,free space pin 1/2,pin_arm_a,pin_tool,0.0161,m,0.0000,pass,probe_pin to bay_module_2_flange_long_a; with the next module on
+clearance,free space pin 1/3,pin_arm_a,pin_tool,0.0161,m,0.0000,pass,probe_pin to bay_module_2_flange_long_a; with the next module on
+clearance,free space pin 2/0,pin_arm_a,pin_tool,0.0161,m,0.0000,pass,probe_pin to bay_module_1_flange_long_b
+clearance,free space pin 2/1,pin_arm_a,pin_tool,0.0161,m,0.0000,pass,probe_pin to bay_module_1_flange_long_b
+clearance,free space pin 2/2,pin_arm_a,pin_tool,0.0161,m,0.0000,pass,probe_pin to bay_module_3_flange_long_a
+clearance,free space pin 2/3,pin_arm_a,pin_tool,0.0161,m,0.0000,pass,probe_pin to bay_module_3_flange_long_a
+clearance,free space pin 3/0,pin_arm_b,pin_tool,0.0161,m,0.0000,pass,probe_pin to bay_module_2_flange_long_b; with the next module on
+clearance,free space pin 3/1,pin_arm_b,pin_tool,0.0161,m,0.0000,pass,probe_pin to bay_module_2_flange_long_b; with the next module on
+clearance,free space pin 3/2,pin_arm_b,pin_tool,0.0161,m,0.0000,pass,probe_pin to bay_module_4_flange_long_a; with the next module on
+clearance,free space pin 3/3,pin_arm_b,pin_tool,0.0161,m,0.0000,pass,probe_pin to bay_module_4_flange_long_a; with the next module on
+clearance,free space pin 4/0,pin_arm_b,pin_tool,0.0161,m,0.0000,pass,probe_pin to bay_module_3_flange_long_b
+clearance,free space pin 4/1,pin_arm_b,pin_tool,0.0161,m,0.0000,pass,probe_pin to bay_module_3_flange_long_b
+clearance,free space pin 4/2,pin_arm_b,pin_tool,0.0161,m,0.0000,pass,probe_pin to bay_module_5_flange_long_a; with the next module on
+clearance,free space pin 4/3,pin_arm_b,pin_tool,0.0161,m,0.0000,pass,probe_pin to bay_module_5_flange_long_a; with the next module on
+clearance,free space pin 5/0,pin_arm_b,pin_tool,0.0161,m,0.0000,pass,probe_pin to bay_module_4_flange_long_b
+clearance,free space pin 5/1,pin_arm_b,pin_tool,0.0161,m,0.0000,pass,probe_pin to bay_module_4_flange_long_b
+clearance,free space pin 5/2,pin_arm_b,pin_tool,0.0161,m,0.0000,pass,probe_pin to bay_module_6_frame_long_a
+clearance,free space pin 5/3,pin_arm_b,pin_tool,0.0161,m,0.0000,pass,probe_pin to bay_module_6_frame_long_a
+clearance,free space pin 6/0,pin_arm_c,pin_tool,0.0161,m,0.0000,pass,probe_pin to bay_module_5_frame_long_b; with the next module on
+clearance,free space pin 6/1,pin_arm_c,pin_tool,0.0161,m,0.0000,pass,probe_pin to bay_module_5_frame_long_b; with the next module on
+clearance,free space pin 6/2,pin_arm_c,pin_tool,0.0161,m,0.0000,pass,probe_pin to bay_module_7_frame_long_a; with the next module on
+clearance,free space pin 6/3,pin_arm_c,pin_tool,0.0161,m,0.0000,pass,probe_pin to bay_module_7_frame_long_a; with the next module on
+clearance,free space pin 7/0,pin_arm_c,pin_tool,0.0161,m,0.0000,pass,probe_pin to bay_module_6_frame_long_b
+clearance,free space pin 7/1,pin_arm_c,pin_tool,0.0161,m,0.0000,pass,probe_pin to bay_module_6_frame_long_b
+clearance,free space pin 7/2,pin_arm_c,pin_tool,0.0161,m,0.0000,pass,probe_pin to bay_module_8_frame_long_a; with the next module on
+clearance,free space pin 7/3,pin_arm_c,pin_tool,0.0161,m,0.0000,pass,probe_pin to bay_module_8_frame_long_a; with the next module on
+clearance,free space pin 8/0,pin_arm_c,pin_tool,0.0161,m,0.0000,pass,probe_pin to bay_module_7_frame_long_b
+clearance,free space pin 8/1,pin_arm_c,pin_tool,0.0161,m,0.0000,pass,probe_pin to bay_module_7_frame_long_b
+clearance,free space pin 8/2,pin_arm_c,pin_tool,0.1299,m,0.0000,pass,probe_pin to bay_tube
+clearance,free space pin 8/3,pin_arm_c,pin_tool,0.1299,m,0.0000,pass,probe_pin to bay_tube
+clearance,tool in free space pin pin_tool,pin_arm_a,pin_tool,0.0017,m,0.0000,pass,free radius 0.013 over the 0.080 behind the working point; box nose reaches 0.0113 from the axis
+clearance,tool in free space pin pin_tool,pin_arm_b,pin_tool,0.0017,m,0.0000,pass,free radius 0.013 over the 0.080 behind the working point; box nose reaches 0.0113 from the axis
+clearance,tool in free space pin pin_tool,pin_arm_c,pin_tool,0.0017,m,0.0000,pass,free radius 0.013 over the 0.080 behind the working point; box nose reaches 0.0113 from the axis
+clearance,swage 0/0,pin_arm_a,pin_tool,0.0210,m,0.0150,pass,pin_arm_a_tool_pin_tool_body to bay_rail_0_web_b_neg; worse before the next module
+clearance,swage 0/1,pin_arm_a,pin_tool,0.0210,m,0.0150,pass,pin_arm_a_tool_pin_tool_body to bay_rail_0_web_b_pos; worse before the next module
+clearance,swage 0/2,pin_arm_a,pin_tool,0.0194,m,0.0150,pass,pin_arm_a_tool_pin_tool_nose to bay_module_1_flange_long_a; worse with the next module on
+clearance,swage 0/3,pin_arm_a,pin_tool,0.0209,m,0.0150,pass,pin_arm_a_tool_pin_tool_nose to bay_module_1_flange_long_a; worse with the next module on
+clearance,swage 1/0,pin_arm_a,pin_tool,0.0193,m,0.0150,pass,pin_arm_a_tool_pin_tool_nose to bay_module_0_frame_long_b; worse before the next module
+clearance,swage 1/1,pin_arm_a,pin_tool,0.0209,m,0.0150,pass,pin_arm_a_tool_pin_tool_nose to bay_module_0_frame_long_b; worse before the next module
+clearance,swage 1/2,pin_arm_a,pin_tool,0.0193,m,0.0150,pass,pin_arm_a_tool_pin_tool_nose to bay_module_2_flange_long_a; worse with the next module on
+clearance,swage 1/3,pin_arm_a,pin_tool,0.0209,m,0.0150,pass,pin_arm_a_tool_pin_tool_nose to bay_module_2_flange_long_a; worse with the next module on
+clearance,swage 2/0,pin_arm_a,pin_tool,0.0194,m,0.0150,pass,pin_arm_a_tool_pin_tool_nose to bay_module_1_flange_long_b; worse before the next module
+clearance,swage 2/1,pin_arm_a,pin_tool,0.0208,m,0.0150,pass,pin_arm_a_tool_pin_tool_nose to bay_module_1_flange_long_b; worse before the next module
+clearance,swage 2/2,pin_arm_a,pin_tool,0.0194,m,0.0150,pass,pin_arm_a_tool_pin_tool_nose to bay_module_3_flange_long_a; worse before the next module
+clearance,swage 2/3,pin_arm_a,pin_tool,0.0209,m,0.0150,pass,pin_arm_a_tool_pin_tool_nose to bay_module_3_flange_long_a; worse before the next module
+clearance,swage 3/0,pin_arm_a,pin_tool,0.0193,m,0.0150,pass,pin_arm_a_tool_pin_tool_nose to bay_module_2_flange_long_b; worse with the next module on
+clearance,swage 3/1,pin_arm_a,pin_tool,0.0209,m,0.0150,pass,pin_arm_a_tool_pin_tool_nose to bay_module_2_flange_long_b; worse with the next module on
+clearance,swage 3/2,pin_arm_b,pin_tool,0.0188,m,0.0150,pass,pin_arm_b_tool_pin_tool_nose to bay_module_4_flange_long_a; worse with the next module on
+clearance,swage 3/3,pin_arm_b,pin_tool,0.0191,m,0.0150,pass,pin_arm_b_tool_pin_tool_nose to bay_module_4_flange_long_a; worse with the next module on
+clearance,swage 4/0,pin_arm_b,pin_tool,0.0187,m,0.0150,pass,pin_arm_b_tool_pin_tool_nose to bay_module_3_flange_long_b; worse before the next module
+clearance,swage 4/1,pin_arm_b,pin_tool,0.0190,m,0.0150,pass,pin_arm_b_tool_pin_tool_nose to bay_module_3_flange_long_b; worse before the next module
+clearance,swage 4/2,pin_arm_b,pin_tool,0.0187,m,0.0150,pass,pin_arm_b_tool_pin_tool_nose to bay_module_5_flange_long_a; worse with the next module on
+clearance,swage 4/3,pin_arm_b,pin_tool,0.0190,m,0.0150,pass,pin_arm_b_tool_pin_tool_nose to bay_module_5_flange_long_a; worse with the next module on
+clearance,swage 5/0,pin_arm_b,pin_tool,0.0187,m,0.0150,pass,pin_arm_b_tool_pin_tool_nose to bay_module_4_flange_long_b; worse before the next module
+clearance,swage 5/1,pin_arm_b,pin_tool,0.0190,m,0.0150,pass,pin_arm_b_tool_pin_tool_nose to bay_module_4_flange_long_b; worse before the next module
+clearance,swage 5/2,pin_arm_b,pin_tool,0.0188,m,0.0150,pass,pin_arm_b_tool_pin_tool_nose to bay_module_6_frame_long_a; worse before the next module
+clearance,swage 5/3,pin_arm_b,pin_tool,0.0190,m,0.0150,pass,pin_arm_b_tool_pin_tool_nose to bay_module_6_frame_long_a; worse before the next module
+clearance,swage 6/0,pin_arm_b,pin_tool,0.0187,m,0.0150,pass,pin_arm_b_tool_pin_tool_nose to bay_module_5_frame_long_b; worse with the next module on
+clearance,swage 6/1,pin_arm_b,pin_tool,0.0190,m,0.0150,pass,pin_arm_b_tool_pin_tool_nose to bay_module_5_frame_long_b; worse with the next module on
+clearance,swage 6/2,pin_arm_c,pin_tool,0.0210,m,0.0150,pass,pin_arm_c_tool_pin_tool_body to bay_rail_7_web_a_neg; worse before the next module
+clearance,swage 6/3,pin_arm_c,pin_tool,0.0206,m,0.0150,pass,pin_arm_c_tool_pin_tool_nose to bay_module_7_frame_long_a; worse with the next module on
+clearance,swage 7/0,pin_arm_c,pin_tool,0.0210,m,0.0150,pass,pin_arm_c_tool_pin_tool_body to bay_rail_7_web_b_neg; worse before the next module
+clearance,swage 7/1,pin_arm_c,pin_tool,0.0205,m,0.0150,pass,pin_arm_c_tool_pin_tool_nose to bay_module_6_frame_long_b; worse before the next module
+clearance,swage 7/2,pin_arm_c,pin_tool,0.0210,m,0.0150,pass,pin_arm_c_tool_pin_tool_body to bay_rail_8_web_a_neg; worse before the next module
+clearance,swage 7/3,pin_arm_c,pin_tool,0.0205,m,0.0150,pass,pin_arm_c_tool_pin_tool_nose to bay_module_8_flange_long_a; worse with the next module on
+clearance,swage 8/0,pin_arm_c,pin_tool,0.0160,m,0.0150,pass,pin_arm_c_arm_link_3_collision to holder_stand_8_saddle
+clearance,swage 8/1,pin_arm_c,pin_tool,0.0203,m,0.0150,pass,pin_arm_c_tool_pin_tool_nose to bay_module_7_flange_long_b
+clearance,swage 8/2,pin_arm_c,pin_tool,0.0210,m,0.0150,pass,pin_arm_c_tool_pin_tool_body to bay_rail_9_web_a_neg
+clearance,swage 8/3,pin_arm_c,pin_tool,0.0210,m,0.0150,pass,pin_arm_c_tool_pin_tool_body to bay_rail_9_foot_a_pos
+clearance,tool in free space swage pin_tool,pin_arm_a,pin_tool,0.0017,m,0.0000,pass,free radius 0.013 over the 0.080 behind the working point; box nose reaches 0.0113 from the axis
+clearance,tool in free space swage pin_tool,pin_arm_b,pin_tool,0.0017,m,0.0000,pass,free radius 0.013 over the 0.080 behind the working point; box nose reaches 0.0113 from the axis
+clearance,tool in free space swage pin_tool,pin_arm_c,pin_tool,0.0017,m,0.0000,pass,free radius 0.013 over the 0.080 behind the working point; box nose reaches 0.0113 from the axis
+clearance,pins_take 0,pin_arm_a,pin_tool,0.0300,m,0.0150,pass,pin_arm_a_carriage to item_pin_lane_lane
+clearance,pins_take 1,pin_arm_b,pin_tool,0.0300,m,0.0150,pass,pin_arm_b_carriage to item_pin_lane_lane
+clearance,pins_take 2,pin_arm_c,pin_tool,0.0300,m,0.0150,pass,pin_arm_c_carriage to item_pin_lane_lane
+clearance,tools pin_arm_a,pin_arm_a,nutrunner,0.0300,m,0.0150,pass,pin_arm_a_carriage to item_pin_lane_lane; worst with nutrunner on the flange; all rails and modules on
+clearance,tools pin_arm_c,pin_arm_c,nutrunner,0.0300,m,0.0150,pass,pin_arm_c_carriage to item_pin_lane_lane; worst with nutrunner on the flange; all rails and modules on
+clearance,wait pose module_arm,module_arm,combined_gripper,0.1200,m,0.0150,pass,module_arm_carriage to item_pin_lane_lane; worse with the bare tube
+clearance,wait pose pin_arm_a,pin_arm_a,nutrunner,0.0300,m,0.0150,pass,pin_arm_a_carriage to item_pin_lane_lane; worse with the bare tube
+clearance,wait pose pin_arm_c,pin_arm_c,nutrunner,0.0300,m,0.0150,pass,pin_arm_c_carriage to item_pin_lane_lane; worse with the bare tube
+clearance,wait pose pin_arm_b,pin_arm_b,pin_tool,0.0300,m,0.0150,pass,pin_arm_b_carriage to item_pin_lane_lane; worse with the bare tube
+ways,tube in,,,0.0430,m,0.0150,pass,"bay_tube to holder_stand_4_column at offset (0.000, 0.000, 0.000); 205 samples, at most 0.025 m apart"
+ways,bay out,,,0.0430,m,0.0150,pass,"bay_tube to holder_stand_4_column at offset (0.000, 0.000, 0.000); 122 samples, at most 0.025 m apart"
+time,bay,,,355.2604,s,0.0000,pass,"tube in 40.0 + clamp 5.0 + rails 93.9 (setting 75.1, bolting 77.1, 3 arms) + modules 171.4 (module arm 103.6, pin arms 428.2, 4 arms) + end 45.0"
+time,busy module_arm,module_arm,,183.6598,s,0.0000,pass,the sum of its steps
+time,busy pin_arm_a,pin_arm_a,,204.5897,s,0.0000,pass,the sum of its steps
+time,busy pin_arm_c,pin_arm_c,,184.1209,s,0.0000,pass,the sum of its steps
+time,busy pin_arm_b,pin_arm_b,,140.4730,s,0.0000,pass,the sum of its steps
+allowed,module arm module_arm,module_arm,,210.0000,kg,210.0000,pass,"KUKA KR 210 R2700-2 (KR QUANTEC), reach 2.701 m"
+allowed,maker module_arm,module_arm,,1.0000,,1.0000,pass,"KUKA KR 210 R2700-2 (KR QUANTEC): every arm is KUKA (the owner, 2026-11-26)"
+allowed,maker pin_arm_a,pin_arm_a,,1.0000,,1.0000,pass,"KUKA KR 20 R1810-2 (KR CYBERTECH-2): every arm is KUKA (the owner, 2026-11-26)"
+allowed,maker pin_arm_c,pin_arm_c,,1.0000,,1.0000,pass,"KUKA KR 20 R1810-2 (KR CYBERTECH-2): every arm is KUKA (the owner, 2026-11-26)"
+allowed,maker pin_arm_b,pin_arm_b,,1.0000,,1.0000,pass,"KUKA KR 20 R1810-2 (KR CYBERTECH-2): every arm is KUKA (the owner, 2026-11-26)"
+allowed,pallet 0,,,36.0000,modules,36.0000,pass,stands on_long_edge
+port,tubes and bays are two ports,,,2.0000,ports,2.0000,pass,"1 for tubes, 1 for bays"
+port,frame tubes_in on the outline,,,0.0000,m,0.0010,pass,"-0.0000 m from the outline in the plane, 0.0000 m from the deck's height 0.648"
+port,frame bays_out on the outline,,,0.0000,m,0.0010,pass,"-0.0000 m from the outline in the plane, 0.0000 m from the deck's height 0.648"
+port,frame modules on the outline,,,0.0000,m,0.0010,pass,"-0.0000 m from the outline in the plane, 0.0000 m from the deck's height 0.648"
+port,frame rails on the outline,,,0.0000,m,0.0010,pass,"-0.0000 m from the outline in the plane, 0.0000 m from the deck's height 0.648"
+port,frame pin_magazines on the outline,,,0.0000,m,0.0010,pass,"-0.0000 m from the outline in the plane, 0.0000 m from the deck's height 0.648"
+port,frame tubes_in faces its zone,,,5.1060,m,0.0000,pass,the zone's centre along the frame's x axis
+port,frame bays_out faces its zone,,,2.1560,m,0.0000,pass,the zone's centre along the frame's x axis
+port,frame modules faces its zone,,,1.6410,m,0.0000,pass,the zone's centre along the frame's x axis
+port,frame rails faces its zone,,,0.9910,m,0.0000,pass,the zone's centre along the frame's x axis
+port,frame pin_magazines faces its zone,,,0.4500,m,0.0000,pass,the zone's centre along the frame's x axis
+port,port tubes_in hands over what crosses,,,1.0000,ok,1.0000,pass,"crosses tubes needs way:tube_in; has item:infeed_unit, way:tube_in"
+port,port bays_out hands over what crosses,,,1.0000,ok,1.0000,pass,"crosses bays needs way:bay_out; has item:transfer_cart, way:bay_out"
+port,port modules hands over what crosses,,,1.0000,ok,1.0000,pass,crosses modules needs pallet:<p> and nothing else; has pallet:0
+port,port rails hands over what crosses,,,1.0000,ok,1.0000,pass,crosses rails needs stock:rails; has stock:rails
+port,port pin_magazines hands over what crosses,,,1.0000,ok,1.0000,pass,crosses pin_magazines needs stock:pins... or item:...; has item:pin_feeder
+port,zone tubes_in off the base,,,4.3310,m,0.0000,pass,clear of the footprint
+port,zone bays_out off the base,,,0.0310,m,0.0000,pass,clear of the footprint
+port,zone modules off the base,,,0.0410,m,0.0000,pass,clear of the footprint
+port,zone rails off the base,,,0.0410,m,0.0000,pass,clear of the footprint
+port,zone pin_magazines off the base,,,0.0000,m,0.0000,pass,clear of the footprint
+port,zones tubes_in and bays_out apart,,,0.0500,m,0.0000,pass,apart
+port,zones tubes_in and modules apart,,,6.8100,m,0.0000,pass,apart
+port,zones tubes_in and rails apart,,,6.8100,m,0.0000,pass,apart
+port,zones tubes_in and pin_magazines apart,,,5.3200,m,0.0000,pass,apart
+port,zones bays_out and modules apart,,,2.5100,m,0.0000,pass,apart
+port,zones bays_out and rails apart,,,2.5100,m,0.0000,pass,apart
+port,zones bays_out and pin_magazines apart,,,1.0200,m,0.0000,pass,apart
+port,zones modules and rails apart,,,0.0350,m,0.0000,pass,apart
+port,zones modules and pin_magazines apart,,,4.6460,m,0.0000,pass,apart
+port,zones rails and pin_magazines apart,,,4.0610,m,0.0000,pass,apart
+port,pallet 0 in a zone,,,0.0090,m,0.0000,pass,"port modules, nearest face +y of the box"
+port,stock rails in a zone,,,0.0650,m,0.0000,pass,"port rails, nearest face -y of the box"
+port,item transfer_cart in a zone,,,1.2000,m,0.0000,pass,"port bays_out, nearest face -y of the box"
+port,item infeed_unit in a zone,,,0.1500,m,0.0000,pass,"port tubes_in, nearest face -x of the box"
+port,item pin_feeder in a zone,,,0.0540,m,0.0000,pass,"port pin_magazines, nearest face -y of the box"
+port,way tube_in in a zone,,,0.1180,m,0.0000,pass,"port tubes_in, nearest face +x of the box"
+port,way bay_out in a zone,,,0.3290,m,0.0000,pass,"port bays_out, nearest face -x of the box"
+port,stowed clear of zone tubes_in,,,4.3350,m,0.0000,pass,nearest holder_end_column
+port,stowed clear of zone bays_out,,,0.0350,m,0.0000,pass,nearest holder_end_bar
+port,stowed clear of zone modules,,,0.0590,m,0.0000,pass,nearest module_arm_arm_base_visual
+port,stowed clear of zone rails,,,0.0600,m,0.0000,pass,nearest module_arm_beam
+port,stowed clear of zone pin_magazines,,,0.0060,m,0.0000,pass,nearest item_pin_lane_lane
+approach,rail_take 0 approach,module_arm,combined_gripper,0.0290,m,0.0150,pass,module_arm_tool_combined_gripper_plate to pallet_module_0_frame_short_a at 0.0 mm along; least joint margin 48.1 deg at arm_joint_3; 30 samples over 150.0 mm
+approach,rail_take 0 retreat,module_arm,combined_gripper,0.0290,m,0.0150,pass,module_arm_tool_combined_gripper_plate to pallet_module_0_frame_short_a at 0.0 mm along; least joint margin 48.1 deg at arm_joint_3; 50 samples over 250.0 mm
+approach,rail_take 1 approach,module_arm,combined_gripper,0.0290,m,0.0150,pass,module_arm_tool_combined_gripper_plate to pallet_module_0_frame_short_a at 0.0 mm along; least joint margin 48.1 deg at arm_joint_3; 30 samples over 150.0 mm
+approach,rail_take 1 retreat,module_arm,combined_gripper,0.0290,m,0.0150,pass,module_arm_tool_combined_gripper_plate to pallet_module_0_frame_short_a at 0.0 mm along; least joint margin 48.1 deg at arm_joint_3; 50 samples over 250.0 mm
+approach,rail_take 2 approach,module_arm,combined_gripper,0.0290,m,0.0150,pass,module_arm_tool_combined_gripper_plate to pallet_module_0_frame_short_a at 0.0 mm along; least joint margin 48.1 deg at arm_joint_3; 30 samples over 150.0 mm
+approach,rail_take 2 retreat,module_arm,combined_gripper,0.0290,m,0.0150,pass,module_arm_tool_combined_gripper_plate to pallet_module_0_frame_short_a at 0.0 mm along; least joint margin 48.1 deg at arm_joint_3; 50 samples over 250.0 mm
+approach,rail_take 3 approach,module_arm,combined_gripper,0.0290,m,0.0150,pass,module_arm_tool_combined_gripper_plate to pallet_module_0_frame_short_a at 0.0 mm along; least joint margin 48.1 deg at arm_joint_3; 30 samples over 150.0 mm
+approach,rail_take 3 retreat,module_arm,combined_gripper,0.0290,m,0.0150,pass,module_arm_tool_combined_gripper_plate to pallet_module_0_frame_short_a at 0.0 mm along; least joint margin 48.1 deg at arm_joint_3; 50 samples over 250.0 mm
+approach,rail_take 4 approach,module_arm,combined_gripper,0.0290,m,0.0150,pass,module_arm_tool_combined_gripper_plate to pallet_module_0_frame_short_a at 0.0 mm along; least joint margin 48.1 deg at arm_joint_3; 30 samples over 150.0 mm
+approach,rail_take 4 retreat,module_arm,combined_gripper,0.0290,m,0.0150,pass,module_arm_tool_combined_gripper_plate to pallet_module_0_frame_short_a at 0.0 mm along; least joint margin 48.1 deg at arm_joint_3; 50 samples over 250.0 mm
+approach,rail_take 5 approach,module_arm,combined_gripper,0.0290,m,0.0150,pass,module_arm_tool_combined_gripper_plate to pallet_module_0_frame_short_a at 0.0 mm along; least joint margin 48.1 deg at arm_joint_3; 30 samples over 150.0 mm
+approach,rail_take 5 retreat,module_arm,combined_gripper,0.0290,m,0.0150,pass,module_arm_tool_combined_gripper_plate to pallet_module_0_frame_short_a at 0.0 mm along; least joint margin 48.1 deg at arm_joint_3; 50 samples over 250.0 mm
+approach,rail_take 6 approach,module_arm,combined_gripper,0.0290,m,0.0150,pass,module_arm_tool_combined_gripper_plate to pallet_module_0_frame_short_a at 0.0 mm along; least joint margin 48.1 deg at arm_joint_3; 30 samples over 150.0 mm
+approach,rail_take 6 retreat,module_arm,combined_gripper,0.0290,m,0.0150,pass,module_arm_tool_combined_gripper_plate to pallet_module_0_frame_short_a at 0.0 mm along; least joint margin 48.1 deg at arm_joint_3; 50 samples over 250.0 mm
+approach,rail_take 7 approach,module_arm,combined_gripper,0.0290,m,0.0150,pass,module_arm_tool_combined_gripper_plate to pallet_module_0_frame_short_a at 0.0 mm along; least joint margin 48.1 deg at arm_joint_3; 30 samples over 150.0 mm
+approach,rail_take 7 retreat,module_arm,combined_gripper,0.0290,m,0.0150,pass,module_arm_tool_combined_gripper_plate to pallet_module_0_frame_short_a at 0.0 mm along; least joint margin 48.1 deg at arm_joint_3; 50 samples over 250.0 mm
+approach,rail_take 8 approach,module_arm,combined_gripper,0.0290,m,0.0150,pass,module_arm_tool_combined_gripper_plate to pallet_module_0_frame_short_a at 0.0 mm along; least joint margin 48.1 deg at arm_joint_3; 30 samples over 150.0 mm
+approach,rail_take 8 retreat,module_arm,combined_gripper,0.0290,m,0.0150,pass,module_arm_tool_combined_gripper_plate to pallet_module_0_frame_short_a at 0.0 mm along; least joint margin 48.1 deg at arm_joint_3; 50 samples over 250.0 mm
+approach,rail_take 9 approach,module_arm,combined_gripper,0.0290,m,0.0150,pass,module_arm_tool_combined_gripper_plate to pallet_module_0_frame_short_a at 0.0 mm along; least joint margin 48.1 deg at arm_joint_3; 30 samples over 150.0 mm
+approach,rail_take 9 retreat,module_arm,combined_gripper,0.0290,m,0.0150,pass,module_arm_tool_combined_gripper_plate to pallet_module_0_frame_short_a at 0.0 mm along; least joint margin 48.1 deg at arm_joint_3; 50 samples over 250.0 mm
+approach,rail_set 0 approach,module_arm,combined_gripper,0.0630,m,0.0150,pass,module_arm_tool_combined_gripper_cups to bay_tube at 0.0 mm along; least joint margin 51.5 deg at arm_joint_5; 40 samples over 200.0 mm
+approach,rail_set 0 retreat,module_arm,combined_gripper,0.0630,m,0.0150,pass,module_arm_tool_combined_gripper_cups to bay_tube at 0.0 mm along; least joint margin 53.7 deg at arm_joint_5; 30 samples over 150.0 mm
+approach,rail_set 1 approach,module_arm,combined_gripper,0.0456,m,0.0150,pass,module_arm_held_rail_foot_a_neg to holder_stand_2_cheek_pos at 0.0 mm along; least joint margin 52.6 deg at arm_joint_5; 40 samples over 200.0 mm
+approach,rail_set 1 retreat,module_arm,combined_gripper,0.0630,m,0.0150,pass,module_arm_tool_combined_gripper_cups to bay_tube at 0.0 mm along; least joint margin 54.9 deg at arm_joint_5; 30 samples over 150.0 mm
+approach,rail_set 2 approach,module_arm,combined_gripper,0.0630,m,0.0150,pass,module_arm_tool_combined_gripper_cups to bay_tube at 0.0 mm along; least joint margin 52.6 deg at arm_joint_5; 40 samples over 200.0 mm
+approach,rail_set 2 retreat,module_arm,combined_gripper,0.0630,m,0.0150,pass,module_arm_tool_combined_gripper_cups to bay_tube at 0.0 mm along; least joint margin 54.9 deg at arm_joint_5; 30 samples over 150.0 mm
+approach,rail_set 3 approach,module_arm,combined_gripper,0.0456,m,0.0150,pass,module_arm_held_rail_foot_a_neg to holder_stand_4_cheek_pos at 0.0 mm along; least joint margin 52.6 deg at arm_joint_5; 40 samples over 200.0 mm
+approach,rail_set 3 retreat,module_arm,combined_gripper,0.0630,m,0.0150,pass,module_arm_tool_combined_gripper_cups to bay_tube at 0.0 mm along; least joint margin 54.9 deg at arm_joint_5; 30 samples over 150.0 mm
+approach,rail_set 4 approach,module_arm,combined_gripper,0.0630,m,0.0150,pass,module_arm_tool_combined_gripper_cups to bay_tube at 0.0 mm along; least joint margin 52.6 deg at arm_joint_5; 40 samples over 200.0 mm
+approach,rail_set 4 retreat,module_arm,combined_gripper,0.0630,m,0.0150,pass,module_arm_tool_combined_gripper_cups to bay_tube at 0.0 mm along; least joint margin 54.9 deg at arm_joint_5; 30 samples over 150.0 mm
+approach,rail_set 5 approach,module_arm,combined_gripper,0.0456,m,0.0150,pass,module_arm_held_rail_foot_a_neg to holder_stand_6_cheek_pos at 0.0 mm along; least joint margin 52.6 deg at arm_joint_5; 40 samples over 200.0 mm
+approach,rail_set 5 retreat,module_arm,combined_gripper,0.0630,m,0.0150,pass,module_arm_tool_combined_gripper_cups to bay_tube at 0.0 mm along; least joint margin 54.9 deg at arm_joint_5; 30 samples over 150.0 mm
+approach,rail_set 6 approach,module_arm,combined_gripper,0.0630,m,0.0150,pass,module_arm_tool_combined_gripper_cups to bay_tube at 0.0 mm along; least joint margin 52.6 deg at arm_joint_5; 40 samples over 200.0 mm
+approach,rail_set 6 retreat,module_arm,combined_gripper,0.0630,m,0.0150,pass,module_arm_tool_combined_gripper_cups to bay_tube at 0.0 mm along; least joint margin 54.9 deg at arm_joint_5; 30 samples over 150.0 mm
+approach,rail_set 7 approach,module_arm,combined_gripper,0.0456,m,0.0150,pass,module_arm_held_rail_foot_a_neg to holder_stand_8_cheek_pos at 0.0 mm along; least joint margin 52.6 deg at arm_joint_5; 40 samples over 200.0 mm
+approach,rail_set 7 retreat,module_arm,combined_gripper,0.0630,m,0.0150,pass,module_arm_tool_combined_gripper_cups to bay_tube at 0.0 mm along; least joint margin 54.9 deg at arm_joint_5; 30 samples over 150.0 mm
+approach,rail_set 8 approach,module_arm,combined_gripper,0.0630,m,0.0150,pass,module_arm_tool_combined_gripper_cups to bay_tube at 0.0 mm along; least joint margin 52.6 deg at arm_joint_5; 40 samples over 200.0 mm
+approach,rail_set 8 retreat,module_arm,combined_gripper,0.0630,m,0.0150,pass,module_arm_tool_combined_gripper_cups to bay_tube at 0.0 mm along; least joint margin 54.9 deg at arm_joint_5; 30 samples over 150.0 mm
+approach,rail_set 9 approach,module_arm,combined_gripper,0.0630,m,0.0150,pass,module_arm_tool_combined_gripper_cups to bay_tube at 0.0 mm along; least joint margin 50.9 deg at arm_joint_5; 40 samples over 200.0 mm
+approach,rail_set 9 retreat,module_arm,combined_gripper,0.0630,m,0.0150,pass,module_arm_tool_combined_gripper_cups to bay_tube at 0.0 mm along; least joint margin 53.1 deg at arm_joint_5; 30 samples over 150.0 mm
+approach,strap_bolt 0 approach,pin_arm_a,nutrunner,0.0300,m,0.0150,pass,pin_arm_a_carriage to item_pin_lane_lane at 0.0 mm along; least joint margin 47.2 deg at arm_joint_3; 20 samples over 100.0 mm
+approach,strap_bolt 0 retreat,pin_arm_a,nutrunner,0.0300,m,0.0150,pass,pin_arm_a_carriage to item_pin_lane_lane at 0.0 mm along; least joint margin 47.2 deg at arm_joint_3; 20 samples over 100.0 mm
+approach,strap_bolt 1 approach,pin_arm_a,nutrunner,0.0300,m,0.0150,pass,pin_arm_a_carriage to item_pin_lane_lane at 0.0 mm along; least joint margin 51.2 deg at arm_joint_5; 20 samples over 100.0 mm
+approach,strap_bolt 1 retreat,pin_arm_a,nutrunner,0.0300,m,0.0150,pass,pin_arm_a_carriage to item_pin_lane_lane at 0.0 mm along; least joint margin 51.2 deg at arm_joint_5; 20 samples over 100.0 mm
+approach,strap_bolt 2 approach,pin_arm_a,nutrunner,0.0300,m,0.0150,pass,pin_arm_a_carriage to item_pin_lane_lane at 0.0 mm along; least joint margin 50.8 deg at arm_joint_5; 20 samples over 100.0 mm
+approach,strap_bolt 2 retreat,pin_arm_a,nutrunner,0.0300,m,0.0150,pass,pin_arm_a_carriage to item_pin_lane_lane at 0.0 mm along; least joint margin 50.8 deg at arm_joint_5; 20 samples over 100.0 mm
+approach,strap_bolt 3 approach,pin_arm_a,nutrunner,0.0300,m,0.0150,pass,pin_arm_a_carriage to item_pin_lane_lane at 0.0 mm along; least joint margin 50.5 deg at arm_joint_5; 20 samples over 100.0 mm
+approach,strap_bolt 3 retreat,pin_arm_a,nutrunner,0.0300,m,0.0150,pass,pin_arm_a_carriage to item_pin_lane_lane at 0.0 mm along; least joint margin 50.5 deg at arm_joint_5; 20 samples over 100.0 mm
+approach,strap_bolt 4 approach,pin_arm_a,nutrunner,0.0300,m,0.0150,pass,pin_arm_a_carriage to item_pin_lane_lane at 0.0 mm along; least joint margin 45.9 deg at arm_joint_2; 20 samples over 100.0 mm
+approach,strap_bolt 4 retreat,pin_arm_a,nutrunner,0.0300,m,0.0150,pass,pin_arm_a_carriage to item_pin_lane_lane at 0.0 mm along; least joint margin 45.9 deg at arm_joint_2; 20 samples over 100.0 mm
+approach,strap_bolt 5 approach,pin_arm_c,nutrunner,0.0260,m,0.0150,pass,pin_arm_c_tool_nutrunner_body to holder_stand_6_saddle at 0.0 mm along; least joint margin 36.9 deg at arm_joint_3; 20 samples over 100.0 mm
+approach,strap_bolt 5 retreat,pin_arm_c,nutrunner,0.0260,m,0.0150,pass,pin_arm_c_tool_nutrunner_body to holder_stand_6_saddle at 0.0 mm along; least joint margin 36.9 deg at arm_joint_3; 20 samples over 100.0 mm
+approach,strap_bolt 6 approach,pin_arm_c,nutrunner,0.0300,m,0.0150,pass,pin_arm_c_carriage to item_pin_lane_lane at 0.0 mm along; least joint margin 14.4 deg at arm_joint_3; 20 samples over 100.0 mm
+approach,strap_bolt 6 retreat,pin_arm_c,nutrunner,0.0300,m,0.0150,pass,pin_arm_c_carriage to item_pin_lane_lane at 0.0 mm along; least joint margin 14.4 deg at arm_joint_3; 20 samples over 100.0 mm
+approach,strap_bolt 7 approach,pin_arm_c,nutrunner,0.0300,m,0.0150,pass,pin_arm_c_carriage to item_pin_lane_lane at 0.0 mm along; least joint margin 50.7 deg at arm_joint_5; 20 samples over 100.0 mm
+approach,strap_bolt 7 retreat,pin_arm_c,nutrunner,0.0300,m,0.0150,pass,pin_arm_c_carriage to item_pin_lane_lane at 0.0 mm along; least joint margin 50.7 deg at arm_joint_5; 20 samples over 100.0 mm
+approach,strap_bolt 8 approach,pin_arm_c,nutrunner,0.0300,m,0.0150,pass,pin_arm_c_carriage to item_pin_lane_lane at 0.0 mm along; least joint margin 46.9 deg at arm_joint_5; 20 samples over 100.0 mm
+approach,strap_bolt 8 retreat,pin_arm_c,nutrunner,0.0300,m,0.0150,pass,pin_arm_c_carriage to item_pin_lane_lane at 0.0 mm along; least joint margin 46.9 deg at arm_joint_5; 20 samples over 100.0 mm
+approach,strap_bolt 9 approach,pin_arm_c,nutrunner,0.0300,m,0.0150,pass,pin_arm_c_carriage to item_pin_lane_lane at 0.0 mm along; least joint margin 46.9 deg at arm_joint_5; 20 samples over 100.0 mm
+approach,strap_bolt 9 retreat,pin_arm_c,nutrunner,0.0300,m,0.0150,pass,pin_arm_c_carriage to item_pin_lane_lane at 0.0 mm along; least joint margin 46.9 deg at arm_joint_5; 20 samples over 100.0 mm
+approach,module_take 0 approach,module_arm,combined_gripper,0.0310,m,0.0150,pass,module_arm_tool_combined_gripper_cups to pallet_module_1_laminate at 0.0 mm along; least joint margin 16.1 deg at arm_joint_5; 30 samples over 150.0 mm
+approach,module_take 0 retreat,module_arm,combined_gripper,0.0300,m,0.0150,pass,module_arm_held_module_flange_short_a to pallet_module_2_frame_long_a at 0.0 mm along; least joint margin 10.1 deg at arm_joint_3; 80 samples over 400.0 mm
+approach,module_take 1 approach,module_arm,combined_gripper,0.0310,m,0.0150,pass,module_arm_tool_combined_gripper_cups to pallet_module_2_laminate at 0.0 mm along; least joint margin 17.7 deg at arm_joint_5; 30 samples over 150.0 mm
+approach,module_take 1 retreat,module_arm,combined_gripper,0.0300,m,0.0150,pass,module_arm_held_module_frame_short_a to pallet_module_3_frame_short_a at 0.0 mm along; least joint margin 11.4 deg at arm_joint_3; 80 samples over 400.0 mm
+approach,module_take 2 approach,module_arm,combined_gripper,0.0310,m,0.0150,pass,module_arm_tool_combined_gripper_cups to pallet_module_3_laminate at 0.0 mm along; least joint margin 19.3 deg at arm_joint_5; 30 samples over 150.0 mm
+approach,module_take 2 retreat,module_arm,combined_gripper,0.0300,m,0.0150,pass,module_arm_held_module_flange_long_a to pallet_module_4_frame_long_a at 0.0 mm along; least joint margin 12.7 deg at arm_joint_3; 80 samples over 400.0 mm
+approach,module_take 3 approach,module_arm,combined_gripper,0.0310,m,0.0150,pass,module_arm_tool_combined_gripper_cups to pallet_module_4_laminate at 0.0 mm along; least joint margin 20.8 deg at arm_joint_5; 30 samples over 150.0 mm
+approach,module_take 3 retreat,module_arm,combined_gripper,0.0300,m,0.0150,pass,module_arm_held_module_frame_short_a to pallet_module_5_frame_short_a at 0.0 mm along; least joint margin 14.1 deg at arm_joint_3; 80 samples over 400.0 mm
+approach,module_take 4 approach,module_arm,combined_gripper,0.0310,m,0.0150,pass,module_arm_tool_combined_gripper_cups to pallet_module_5_laminate at 0.0 mm along; least joint margin 22.3 deg at arm_joint_5; 30 samples over 150.0 mm
+approach,module_take 4 retreat,module_arm,combined_gripper,0.0300,m,0.0150,pass,module_arm_held_module_frame_short_a to pallet_module_6_frame_long_b at 0.0 mm along; least joint margin 15.5 deg at arm_joint_3; 80 samples over 400.0 mm
+approach,module_take 5 approach,module_arm,combined_gripper,0.0310,m,0.0150,pass,module_arm_tool_combined_gripper_cups to pallet_module_6_laminate at 0.0 mm along; least joint margin 23.8 deg at arm_joint_5; 30 samples over 150.0 mm
+approach,module_take 5 retreat,module_arm,combined_gripper,0.0300,m,0.0150,pass,module_arm_held_module_flange_short_b to pallet_module_7_frame_long_a at 0.0 mm along; least joint margin 16.8 deg at arm_joint_3; 80 samples over 400.0 mm
+approach,module_take 6 approach,module_arm,combined_gripper,0.0310,m,0.0150,pass,module_arm_tool_combined_gripper_cups to pallet_module_7_laminate at 0.0 mm along; least joint margin 25.2 deg at arm_joint_5; 30 samples over 150.0 mm
+approach,module_take 6 retreat,module_arm,combined_gripper,0.0300,m,0.0150,pass,module_arm_held_module_frame_long_a to pallet_module_8_frame_long_a at 0.0 mm along; least joint margin 18.2 deg at arm_joint_3; 80 samples over 400.0 mm
+approach,module_take 7 approach,module_arm,combined_gripper,0.0310,m,0.0150,pass,module_arm_tool_combined_gripper_cups to pallet_module_8_laminate at 0.0 mm along; least joint margin 26.7 deg at arm_joint_5; 30 samples over 150.0 mm
+approach,module_take 7 retreat,module_arm,combined_gripper,0.0300,m,0.0150,pass,module_arm_held_module_frame_short_a to pallet_module_9_frame_long_a at 0.0 mm along; least joint margin 19.6 deg at arm_joint_3; 80 samples over 400.0 mm
+approach,module_take 8 approach,module_arm,combined_gripper,0.0310,m,0.0150,pass,module_arm_tool_combined_gripper_cups to pallet_module_9_laminate at 0.0 mm along; least joint margin 28.1 deg at arm_joint_5; 30 samples over 150.0 mm
+approach,module_take 8 retreat,module_arm,combined_gripper,0.0300,m,0.0150,pass,module_arm_held_module_frame_long_b to pallet_module_10_frame_long_b at 0.0 mm along; least joint margin 21.1 deg at arm_joint_3; 80 samples over 400.0 mm
+approach,module_take 9 approach,module_arm,combined_gripper,0.0310,m,0.0150,pass,module_arm_tool_combined_gripper_cups to pallet_module_10_laminate at 0.0 mm along; least joint margin 29.4 deg at arm_joint_5; 30 samples over 150.0 mm
+approach,module_take 9 retreat,module_arm,combined_gripper,0.0300,m,0.0150,pass,module_arm_held_module_flange_short_a to pallet_module_11_frame_long_b at 0.0 mm along; least joint margin 22.5 deg at arm_joint_3; 80 samples over 400.0 mm
+approach,module_take 10 approach,module_arm,combined_gripper,0.0310,m,0.0150,pass,module_arm_tool_combined_gripper_cups to pallet_module_11_laminate at 0.0 mm along; least joint margin 30.8 deg at arm_joint_5; 30 samples over 150.0 mm
+approach,module_take 10 retreat,module_arm,combined_gripper,0.0300,m,0.0150,pass,module_arm_held_module_frame_short_a to pallet_module_12_frame_long_b at 0.0 mm along; least joint margin 24.0 deg at arm_joint_3; 80 samples over 400.0 mm
+approach,module_take 11 approach,module_arm,combined_gripper,0.0310,m,0.0150,pass,module_arm_tool_combined_gripper_cups to pallet_module_12_laminate at 0.0 mm along; least joint margin 31.5 deg at arm_joint_2; 30 samples over 150.0 mm
+approach,module_take 11 retreat,module_arm,combined_gripper,0.0300,m,0.0150,pass,module_arm_held_module_flange_short_a to pallet_module_13_frame_short_b at 0.0 mm along; least joint margin 25.4 deg at arm_joint_3; 80 samples over 400.0 mm
+approach,module_take 12 approach,module_arm,combined_gripper,0.0310,m,0.0150,pass,module_arm_tool_combined_gripper_cups to pallet_module_13_laminate at 0.0 mm along; least joint margin 31.3 deg at arm_joint_2; 30 samples over 150.0 mm
+approach,module_take 12 retreat,module_arm,combined_gripper,0.0300,m,0.0150,pass,module_arm_held_module_flange_long_a to pallet_module_14_frame_short_b at 0.0 mm along; least joint margin 26.9 deg at arm_joint_3; 80 samples over 400.0 mm
+approach,module_take 13 approach,module_arm,combined_gripper,0.0310,m,0.0150,pass,module_arm_tool_combined_gripper_cups to pallet_module_14_laminate at 0.0 mm along; least joint margin 31.0 deg at arm_joint_2; 30 samples over 150.0 mm
+approach,module_take 13 retreat,module_arm,combined_gripper,0.0300,m,0.0150,pass,module_arm_held_module_frame_short_a to pallet_module_15_frame_long_b at 0.0 mm along; least joint margin 28.4 deg at arm_joint_3; 80 samples over 400.0 mm
+approach,module_take 14 approach,module_arm,combined_gripper,0.0310,m,0.0150,pass,module_arm_tool_combined_gripper_cups to pallet_module_15_laminate at 0.0 mm along; least joint margin 30.6 deg at arm_joint_2; 30 samples over 150.0 mm
+approach,module_take 14 retreat,module_arm,combined_gripper,0.0300,m,0.0150,pass,module_arm_held_module_frame_long_a to pallet_module_16_frame_long_b at 0.0 mm along; least joint margin 29.9 deg at arm_joint_3; 80 samples over 400.0 mm
+approach,module_take 15 approach,module_arm,combined_gripper,0.0310,m,0.0150,pass,module_arm_tool_combined_gripper_cups to pallet_module_16_laminate at 0.0 mm along; least joint margin 30.3 deg at arm_joint_2; 30 samples over 150.0 mm
+approach,module_take 15 retreat,module_arm,combined_gripper,0.0300,m,0.0150,pass,module_arm_held_module_flange_long_a to pallet_module_17_frame_long_b at 0.0 mm along; least joint margin 30.3 deg at arm_joint_2; 80 samples over 400.0 mm
+approach,module_take 16 approach,module_arm,combined_gripper,0.0310,m,0.0150,pass,module_arm_tool_combined_gripper_cups to pallet_module_17_laminate at 0.0 mm along; least joint margin 29.9 deg at arm_joint_2; 30 samples over 150.0 mm
+approach,module_take 16 retreat,module_arm,combined_gripper,0.0300,m,0.0150,pass,module_arm_held_module_flange_short_a to pallet_module_18_frame_long_b at 0.0 mm along; least joint margin 29.9 deg at arm_joint_2; 80 samples over 400.0 mm
+approach,module_take 17 approach,module_arm,combined_gripper,0.0310,m,0.0150,pass,module_arm_tool_combined_gripper_cups to pallet_module_18_laminate at 0.0 mm along; least joint margin 29.4 deg at arm_joint_2; 30 samples over 150.0 mm
+approach,module_take 17 retreat,module_arm,combined_gripper,0.0300,m,0.0150,pass,module_arm_held_module_flange_short_a to pallet_module_19_frame_long_b at 0.0 mm along; least joint margin 29.4 deg at arm_joint_2; 80 samples over 400.0 mm
+approach,module_take 18 approach,module_arm,combined_gripper,0.0310,m,0.0150,pass,module_arm_tool_combined_gripper_cups to pallet_module_19_laminate at 0.0 mm along; least joint margin 29.0 deg at arm_joint_2; 30 samples over 150.0 mm
+approach,module_take 18 retreat,module_arm,combined_gripper,0.0300,m,0.0150,pass,module_arm_held_module_flange_long_a to pallet_module_20_frame_long_b at 0.0 mm along; least joint margin 29.0 deg at arm_joint_2; 80 samples over 400.0 mm
+approach,module_take 19 approach,module_arm,combined_gripper,0.0310,m,0.0150,pass,module_arm_tool_combined_gripper_cups to pallet_module_20_laminate at 0.0 mm along; least joint margin 28.5 deg at arm_joint_2; 30 samples over 150.0 mm
+approach,module_take 19 retreat,module_arm,combined_gripper,0.0300,m,0.0150,pass,module_arm_held_module_frame_long_a to pallet_module_21_frame_long_b at 0.0 mm along; least joint margin 28.5 deg at arm_joint_2; 80 samples over 400.0 mm
+approach,module_take 20 approach,module_arm,combined_gripper,0.0310,m,0.0150,pass,module_arm_tool_combined_gripper_cups to pallet_module_21_laminate at 0.0 mm along; least joint margin 28.0 deg at arm_joint_2; 30 samples over 150.0 mm
+approach,module_take 20 retreat,module_arm,combined_gripper,0.0300,m,0.0150,pass,module_arm_held_module_frame_long_a to pallet_module_22_frame_long_b at 0.0 mm along; least joint margin 28.0 deg at arm_joint_2; 80 samples over 400.0 mm
+approach,module_take 21 approach,module_arm,combined_gripper,0.0310,m,0.0150,pass,module_arm_tool_combined_gripper_cups to pallet_module_22_laminate at 0.0 mm along; least joint margin 27.5 deg at arm_joint_2; 30 samples over 150.0 mm
+approach,module_take 21 retreat,module_arm,combined_gripper,0.0300,m,0.0150,pass,module_arm_held_module_frame_long_a to pallet_module_23_frame_long_b at 0.0 mm along; least joint margin 27.5 deg at arm_joint_2; 80 samples over 400.0 mm
+approach,module_take 22 approach,module_arm,combined_gripper,0.0310,m,0.0150,pass,module_arm_tool_combined_gripper_cups to pallet_module_23_laminate at 0.0 mm along; least joint margin 26.9 deg at arm_joint_2; 30 samples over 150.0 mm
+approach,module_take 22 retreat,module_arm,combined_gripper,0.0300,m,0.0150,pass,module_arm_held_module_flange_short_a to pallet_module_24_frame_long_b at 0.0 mm along; least joint margin 26.9 deg at arm_joint_2; 80 samples over 400.0 mm
+approach,module_take 23 approach,module_arm,combined_gripper,0.0310,m,0.0150,pass,module_arm_tool_combined_gripper_cups to pallet_module_24_laminate at 0.0 mm along; least joint margin 26.3 deg at arm_joint_2; 30 samples over 150.0 mm
+approach,module_take 23 retreat,module_arm,combined_gripper,0.0300,m,0.0150,pass,module_arm_held_module_flange_long_a to pallet_module_25_frame_long_b at 0.0 mm along; least joint margin 26.3 deg at arm_joint_2; 80 samples over 400.0 mm
+approach,module_take 24 approach,module_arm,combined_gripper,0.0310,m,0.0150,pass,module_arm_tool_combined_gripper_cups to pallet_module_25_laminate at 0.0 mm along; least joint margin 25.7 deg at arm_joint_2; 30 samples over 150.0 mm
+approach,module_take 24 retreat,module_arm,combined_gripper,0.0300,m,0.0150,pass,module_arm_held_module_frame_long_a to pallet_module_26_frame_long_b at 0.0 mm along; least joint margin 25.7 deg at arm_joint_2; 80 samples over 400.0 mm
+approach,module_take 25 approach,module_arm,combined_gripper,0.0310,m,0.0150,pass,module_arm_tool_combined_gripper_cups to pallet_module_26_laminate at 0.0 mm along; least joint margin 25.1 deg at arm_joint_2; 30 samples over 150.0 mm
+approach,module_take 25 retreat,module_arm,combined_gripper,0.0300,m,0.0150,pass,module_arm_held_module_frame_long_a to pallet_module_27_frame_long_b at 0.0 mm along; least joint margin 25.1 deg at arm_joint_2; 80 samples over 400.0 mm
+approach,module_take 26 approach,module_arm,combined_gripper,0.0310,m,0.0150,pass,module_arm_tool_combined_gripper_cups to pallet_module_27_laminate at 0.0 mm along; least joint margin 24.4 deg at arm_joint_2; 30 samples over 150.0 mm
+approach,module_take 26 retreat,module_arm,combined_gripper,0.0300,m,0.0150,pass,module_arm_held_module_frame_short_a to pallet_module_28_frame_short_b at 0.0 mm along; least joint margin 24.4 deg at arm_joint_2; 80 samples over 400.0 mm
+approach,module_take 27 approach,module_arm,combined_gripper,0.0310,m,0.0150,pass,module_arm_tool_combined_gripper_cups to pallet_module_28_laminate at 0.0 mm along; least joint margin 23.7 deg at arm_joint_2; 30 samples over 150.0 mm
+approach,module_take 27 retreat,module_arm,combined_gripper,0.0300,m,0.0150,pass,module_arm_held_module_flange_short_a to pallet_module_29_frame_short_b at 0.0 mm along; least joint margin 23.7 deg at arm_joint_2; 80 samples over 400.0 mm
+approach,module_take 28 approach,module_arm,combined_gripper,0.0310,m,0.0150,pass,module_arm_tool_combined_gripper_cups to pallet_module_29_laminate at 0.0 mm along; least joint margin 23.0 deg at arm_joint_2; 30 samples over 150.0 mm
+approach,module_take 28 retreat,module_arm,combined_gripper,0.0300,m,0.0150,pass,module_arm_held_module_frame_long_a to pallet_module_30_frame_short_b at 0.0 mm along; least joint margin 23.0 deg at arm_joint_2; 80 samples over 400.0 mm
+approach,module_take 29 approach,module_arm,combined_gripper,0.0310,m,0.0150,pass,module_arm_tool_combined_gripper_cups to pallet_module_30_laminate at 0.0 mm along; least joint margin 22.3 deg at arm_joint_2; 30 samples over 150.0 mm
+approach,module_take 29 retreat,module_arm,combined_gripper,0.0300,m,0.0150,pass,module_arm_held_module_frame_long_a to pallet_module_31_frame_long_b at 0.0 mm along; least joint margin 22.3 deg at arm_joint_2; 80 samples over 400.0 mm
+approach,module_take 30 approach,module_arm,combined_gripper,0.0310,m,0.0150,pass,module_arm_tool_combined_gripper_cups to pallet_module_31_laminate at 0.0 mm along; least joint margin 21.5 deg at arm_joint_2; 30 samples over 150.0 mm
+approach,module_take 30 retreat,module_arm,combined_gripper,0.0300,m,0.0150,pass,module_arm_held_module_frame_long_a to pallet_module_32_frame_short_b at 0.0 mm along; least joint margin 21.5 deg at arm_joint_2; 80 samples over 400.0 mm
+approach,module_take 31 approach,module_arm,combined_gripper,0.0310,m,0.0150,pass,module_arm_tool_combined_gripper_cups to pallet_module_32_laminate at 0.0 mm along; least joint margin 20.7 deg at arm_joint_2; 30 samples over 150.0 mm
+approach,module_take 31 retreat,module_arm,combined_gripper,0.0300,m,0.0150,pass,module_arm_held_module_frame_long_a to pallet_module_33_frame_long_b at 0.0 mm along; least joint margin 20.7 deg at arm_joint_2; 80 samples over 400.0 mm
+approach,module_take 32 approach,module_arm,combined_gripper,0.0310,m,0.0150,pass,module_arm_tool_combined_gripper_cups to pallet_module_33_laminate at 0.0 mm along; least joint margin 19.9 deg at arm_joint_2; 30 samples over 150.0 mm
+approach,module_take 32 retreat,module_arm,combined_gripper,0.0300,m,0.0150,pass,module_arm_held_module_flange_long_a to pallet_module_34_frame_long_b at 0.0 mm along; least joint margin 19.9 deg at arm_joint_2; 80 samples over 400.0 mm
+approach,module_take 33 approach,module_arm,combined_gripper,0.0310,m,0.0150,pass,module_arm_tool_combined_gripper_cups to pallet_module_34_laminate at 0.0 mm along; least joint margin 19.0 deg at arm_joint_2; 30 samples over 150.0 mm
+approach,module_take 33 retreat,module_arm,combined_gripper,0.0300,m,0.0150,pass,module_arm_held_module_frame_long_a to pallet_module_35_frame_long_b at 0.0 mm along; least joint margin 19.0 deg at arm_joint_2; 80 samples over 400.0 mm
+approach,module_take 34 approach,module_arm,combined_gripper,0.0310,m,0.0150,pass,module_arm_tool_combined_gripper_cups to pallet_module_35_laminate at 0.0 mm along; least joint margin 18.1 deg at arm_joint_2; 30 samples over 150.0 mm
+approach,module_take 34 retreat,module_arm,combined_gripper,0.0310,m,0.0150,pass,module_arm_tool_combined_gripper_cups to pallet_module_35_laminate at 0.0 mm along; least joint margin 18.1 deg at arm_joint_2; 80 samples over 400.0 mm
+approach,module_take 35 approach,module_arm,combined_gripper,0.1200,m,0.0150,pass,module_arm_carriage to item_pin_lane_lane at 0.0 mm along; least joint margin 17.1 deg at arm_joint_2; 30 samples over 150.0 mm
+approach,module_take 35 retreat,module_arm,combined_gripper,0.1200,m,0.0150,pass,module_arm_carriage to item_pin_lane_lane at 0.0 mm along; least joint margin 17.1 deg at arm_joint_2; 80 samples over 400.0 mm
+approach,module_set 0 approach,module_arm,combined_gripper,0.0346,m,0.0150,pass,module_arm_held_module_frame_short_b to module_arm_arm_link_2_collision at the approach pose; least joint margin 53.5 deg at arm_joint_5; 30 samples over 150.0 mm
+approach,module_set 0 retreat,module_arm,combined_gripper,0.0641,m,0.0150,pass,module_arm_arm_link_2_collision to bay_module_0_frame_short_b at 0.0 mm along; least joint margin 53.5 deg at arm_joint_5; 30 samples over 150.0 mm
+approach,module_set 1 approach,module_arm,combined_gripper,0.0346,m,0.0150,pass,module_arm_held_module_frame_short_b to module_arm_arm_link_2_collision at the approach pose; least joint margin 53.5 deg at arm_joint_5; 30 samples over 150.0 mm
+approach,module_set 1 retreat,module_arm,combined_gripper,0.0641,m,0.0150,pass,module_arm_arm_link_2_collision to bay_module_1_frame_short_b at 0.0 mm along; least joint margin 53.5 deg at arm_joint_5; 30 samples over 150.0 mm
+approach,module_set 2 approach,module_arm,combined_gripper,0.0346,m,0.0150,pass,module_arm_held_module_frame_short_b to module_arm_arm_link_2_collision at the approach pose; least joint margin 53.5 deg at arm_joint_5; 30 samples over 150.0 mm
+approach,module_set 2 retreat,module_arm,combined_gripper,0.0641,m,0.0150,pass,module_arm_arm_link_2_collision to bay_module_2_frame_short_b at 0.0 mm along; least joint margin 53.5 deg at arm_joint_5; 30 samples over 150.0 mm
+approach,module_set 3 approach,module_arm,combined_gripper,0.0346,m,0.0150,pass,module_arm_held_module_frame_short_a to module_arm_arm_link_2_collision at the approach pose; least joint margin 53.5 deg at arm_joint_5; 30 samples over 150.0 mm
+approach,module_set 3 retreat,module_arm,combined_gripper,0.0641,m,0.0150,pass,module_arm_arm_link_2_collision to bay_module_3_frame_short_b at 0.0 mm along; least joint margin 53.5 deg at arm_joint_5; 30 samples over 150.0 mm
+approach,module_set 4 approach,module_arm,combined_gripper,0.0346,m,0.0150,pass,module_arm_held_module_frame_short_a to module_arm_arm_link_2_collision at the approach pose; least joint margin 53.5 deg at arm_joint_5; 30 samples over 150.0 mm
+approach,module_set 4 retreat,module_arm,combined_gripper,0.0641,m,0.0150,pass,module_arm_arm_link_2_collision to bay_module_4_frame_short_b at 0.0 mm along; least joint margin 53.5 deg at arm_joint_5; 30 samples over 150.0 mm
+approach,module_set 5 approach,module_arm,combined_gripper,0.0346,m,0.0150,pass,module_arm_held_module_frame_short_b to module_arm_arm_link_2_collision at the approach pose; least joint margin 53.5 deg at arm_joint_5; 30 samples over 150.0 mm
+approach,module_set 5 retreat,module_arm,combined_gripper,0.0641,m,0.0150,pass,module_arm_arm_link_2_collision to bay_module_5_frame_short_b at 0.0 mm along; least joint margin 53.5 deg at arm_joint_5; 30 samples over 150.0 mm
+approach,module_set 6 approach,module_arm,combined_gripper,0.0346,m,0.0150,pass,module_arm_held_module_frame_short_b to module_arm_arm_link_2_collision at the approach pose; least joint margin 53.5 deg at arm_joint_5; 30 samples over 150.0 mm
+approach,module_set 6 retreat,module_arm,combined_gripper,0.0641,m,0.0150,pass,module_arm_arm_link_2_collision to bay_module_6_frame_short_b at 0.0 mm along; least joint margin 53.5 deg at arm_joint_5; 30 samples over 150.0 mm
+approach,module_set 7 approach,module_arm,combined_gripper,0.0346,m,0.0150,pass,module_arm_held_module_frame_short_a to module_arm_arm_link_2_collision at the approach pose; least joint margin 53.5 deg at arm_joint_5; 30 samples over 150.0 mm
+approach,module_set 7 retreat,module_arm,combined_gripper,0.0641,m,0.0150,pass,module_arm_arm_link_2_collision to bay_module_7_frame_short_b at 0.0 mm along; least joint margin 53.5 deg at arm_joint_5; 30 samples over 150.0 mm
+approach,module_set 8 approach,module_arm,combined_gripper,0.0382,m,0.0150,pass,module_arm_held_module_frame_short_a to module_arm_arm_link_2_collision at the approach pose; least joint margin 53.5 deg at arm_joint_5; 30 samples over 150.0 mm
+approach,module_set 8 retreat,module_arm,combined_gripper,0.0669,m,0.0150,pass,module_arm_arm_link_2_collision to bay_module_8_frame_short_b at 0.0 mm along; least joint margin 53.5 deg at arm_joint_5; 30 samples over 150.0 mm
+approach,locate 0/0 approach,pin_arm_a,pin_tool,0.0210,m,0.0150,pass,pin_arm_a_tool_pin_tool_body to bay_rail_0_web_b_neg at 0.0 mm along; least joint margin 34.4 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,locate 0/0 retreat,pin_arm_a,pin_tool,0.0210,m,0.0150,pass,pin_arm_a_tool_pin_tool_body to bay_rail_0_web_b_neg at 0.0 mm along; least joint margin 34.4 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,locate 0/1 approach,pin_arm_a,pin_tool,0.0210,m,0.0150,pass,pin_arm_a_tool_pin_tool_body to bay_rail_0_web_b_pos at 0.0 mm along; least joint margin 34.6 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,locate 0/1 retreat,pin_arm_a,pin_tool,0.0210,m,0.0150,pass,pin_arm_a_tool_pin_tool_body to bay_rail_0_web_b_pos at 0.0 mm along; least joint margin 34.6 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,locate 0/2 approach,pin_arm_a,pin_tool,0.0194,m,0.0150,pass,pin_arm_a_tool_pin_tool_nose to bay_module_1_flange_long_a at 0.0 mm along; least joint margin 34.1 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,locate 0/2 retreat,pin_arm_a,pin_tool,0.0194,m,0.0150,pass,pin_arm_a_tool_pin_tool_nose to bay_module_1_flange_long_a at 0.0 mm along; least joint margin 34.1 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,locate 0/3 approach,pin_arm_a,pin_tool,0.0209,m,0.0150,pass,pin_arm_a_tool_pin_tool_nose to bay_module_1_flange_long_a at 0.0 mm along; least joint margin 34.2 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,locate 0/3 retreat,pin_arm_a,pin_tool,0.0209,m,0.0150,pass,pin_arm_a_tool_pin_tool_nose to bay_module_1_flange_long_a at 0.0 mm along; least joint margin 34.2 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,locate 1/0 approach,pin_arm_a,pin_tool,0.0193,m,0.0150,pass,pin_arm_a_tool_pin_tool_nose to bay_module_0_frame_long_b at 0.0 mm along; least joint margin 30.4 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,locate 1/0 retreat,pin_arm_a,pin_tool,0.0193,m,0.0150,pass,pin_arm_a_tool_pin_tool_nose to bay_module_0_frame_long_b at 0.0 mm along; least joint margin 30.4 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,locate 1/1 approach,pin_arm_a,pin_tool,0.0209,m,0.0150,pass,pin_arm_a_tool_pin_tool_nose to bay_module_0_frame_long_b at 0.0 mm along; least joint margin 38.8 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,locate 1/1 retreat,pin_arm_a,pin_tool,0.0209,m,0.0150,pass,pin_arm_a_tool_pin_tool_nose to bay_module_0_frame_long_b at 0.0 mm along; least joint margin 38.8 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,locate 1/2 approach,pin_arm_a,pin_tool,0.0193,m,0.0150,pass,pin_arm_a_tool_pin_tool_nose to bay_module_2_flange_long_a at 0.0 mm along; least joint margin 24.0 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,locate 1/2 retreat,pin_arm_a,pin_tool,0.0193,m,0.0150,pass,pin_arm_a_tool_pin_tool_nose to bay_module_2_flange_long_a at 0.0 mm along; least joint margin 24.0 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,locate 1/3 approach,pin_arm_a,pin_tool,0.0209,m,0.0150,pass,pin_arm_a_tool_pin_tool_nose to bay_module_2_flange_long_a at 0.0 mm along; least joint margin 38.4 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,locate 1/3 retreat,pin_arm_a,pin_tool,0.0209,m,0.0150,pass,pin_arm_a_tool_pin_tool_nose to bay_module_2_flange_long_a at 0.0 mm along; least joint margin 38.4 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,locate 2/0 approach,pin_arm_a,pin_tool,0.0194,m,0.0150,pass,pin_arm_a_tool_pin_tool_nose to bay_module_1_flange_long_b at 0.0 mm along; least joint margin 33.5 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,locate 2/0 retreat,pin_arm_a,pin_tool,0.0194,m,0.0150,pass,pin_arm_a_tool_pin_tool_nose to bay_module_1_flange_long_b at 0.0 mm along; least joint margin 33.5 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,locate 2/1 approach,pin_arm_a,pin_tool,0.0208,m,0.0150,pass,pin_arm_a_tool_pin_tool_nose to bay_module_1_flange_long_b at 0.0 mm along; least joint margin 33.5 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,locate 2/1 retreat,pin_arm_a,pin_tool,0.0208,m,0.0150,pass,pin_arm_a_tool_pin_tool_nose to bay_module_1_flange_long_b at 0.0 mm along; least joint margin 33.5 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,locate 2/2 approach,pin_arm_a,pin_tool,0.0194,m,0.0150,pass,pin_arm_a_tool_pin_tool_nose to bay_module_3_flange_long_a at 0.0 mm along; least joint margin 33.2 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,locate 2/2 retreat,pin_arm_a,pin_tool,0.0194,m,0.0150,pass,pin_arm_a_tool_pin_tool_nose to bay_module_3_flange_long_a at 0.0 mm along; least joint margin 33.2 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,locate 2/3 approach,pin_arm_a,pin_tool,0.0209,m,0.0150,pass,pin_arm_a_tool_pin_tool_nose to bay_module_3_flange_long_a at 0.0 mm along; least joint margin 33.2 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,locate 2/3 retreat,pin_arm_a,pin_tool,0.0209,m,0.0150,pass,pin_arm_a_tool_pin_tool_nose to bay_module_3_flange_long_a at 0.0 mm along; least joint margin 33.2 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,locate 3/0 approach,pin_arm_b,pin_tool,0.0187,m,0.0150,pass,pin_arm_b_tool_pin_tool_nose to bay_module_2_flange_long_b at 0.0 mm along; least joint margin 29.6 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,locate 3/0 retreat,pin_arm_b,pin_tool,0.0187,m,0.0150,pass,pin_arm_b_tool_pin_tool_nose to bay_module_2_flange_long_b at 0.0 mm along; least joint margin 29.6 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,locate 3/1 approach,pin_arm_b,pin_tool,0.0190,m,0.0150,pass,pin_arm_b_tool_pin_tool_nose to bay_module_2_flange_long_b at 0.0 mm along; least joint margin 37.5 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,locate 3/1 retreat,pin_arm_b,pin_tool,0.0190,m,0.0150,pass,pin_arm_b_tool_pin_tool_nose to bay_module_2_flange_long_b at 0.0 mm along; least joint margin 37.5 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,locate 3/2 approach,pin_arm_b,pin_tool,0.0188,m,0.0150,pass,pin_arm_b_tool_pin_tool_nose to bay_module_4_flange_long_a at 0.0 mm along; least joint margin 23.3 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,locate 3/2 retreat,pin_arm_b,pin_tool,0.0188,m,0.0150,pass,pin_arm_b_tool_pin_tool_nose to bay_module_4_flange_long_a at 0.0 mm along; least joint margin 23.3 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,locate 3/3 approach,pin_arm_b,pin_tool,0.0191,m,0.0150,pass,pin_arm_b_tool_pin_tool_nose to bay_module_4_flange_long_a at 0.0 mm along; least joint margin 37.2 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,locate 3/3 retreat,pin_arm_b,pin_tool,0.0191,m,0.0150,pass,pin_arm_b_tool_pin_tool_nose to bay_module_4_flange_long_a at 0.0 mm along; least joint margin 37.2 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,locate 4/0 approach,pin_arm_b,pin_tool,0.0187,m,0.0150,pass,pin_arm_b_tool_pin_tool_nose to bay_module_3_flange_long_b at 0.0 mm along; least joint margin 32.6 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,locate 4/0 retreat,pin_arm_b,pin_tool,0.0187,m,0.0150,pass,pin_arm_b_tool_pin_tool_nose to bay_module_3_flange_long_b at 0.0 mm along; least joint margin 32.6 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,locate 4/1 approach,pin_arm_b,pin_tool,0.0190,m,0.0150,pass,pin_arm_b_tool_pin_tool_nose to bay_module_3_flange_long_b at 0.0 mm along; least joint margin 32.5 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,locate 4/1 retreat,pin_arm_b,pin_tool,0.0190,m,0.0150,pass,pin_arm_b_tool_pin_tool_nose to bay_module_3_flange_long_b at 0.0 mm along; least joint margin 32.5 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,locate 4/2 approach,pin_arm_b,pin_tool,0.0187,m,0.0150,pass,pin_arm_b_tool_pin_tool_nose to bay_module_5_flange_long_a at 0.0 mm along; least joint margin 32.3 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,locate 4/2 retreat,pin_arm_b,pin_tool,0.0187,m,0.0150,pass,pin_arm_b_tool_pin_tool_nose to bay_module_5_flange_long_a at 0.0 mm along; least joint margin 32.3 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,locate 4/3 approach,pin_arm_b,pin_tool,0.0190,m,0.0150,pass,pin_arm_b_tool_pin_tool_nose to bay_module_5_flange_long_a at 0.0 mm along; least joint margin 32.2 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,locate 4/3 retreat,pin_arm_b,pin_tool,0.0190,m,0.0150,pass,pin_arm_b_tool_pin_tool_nose to bay_module_5_flange_long_a at 0.0 mm along; least joint margin 32.2 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,locate 5/0 approach,pin_arm_b,pin_tool,0.0187,m,0.0150,pass,pin_arm_b_tool_pin_tool_nose to bay_module_4_flange_long_b at 0.0 mm along; least joint margin 28.8 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,locate 5/0 retreat,pin_arm_b,pin_tool,0.0187,m,0.0150,pass,pin_arm_b_tool_pin_tool_nose to bay_module_4_flange_long_b at 0.0 mm along; least joint margin 28.8 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,locate 5/1 approach,pin_arm_b,pin_tool,0.0190,m,0.0150,pass,pin_arm_b_tool_pin_tool_nose to bay_module_4_flange_long_b at 0.0 mm along; least joint margin 36.4 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,locate 5/1 retreat,pin_arm_b,pin_tool,0.0190,m,0.0150,pass,pin_arm_b_tool_pin_tool_nose to bay_module_4_flange_long_b at 0.0 mm along; least joint margin 36.4 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,locate 5/2 approach,pin_arm_b,pin_tool,0.0188,m,0.0150,pass,pin_arm_b_tool_pin_tool_nose to bay_module_6_frame_long_a at 0.0 mm along; least joint margin 22.6 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,locate 5/2 retreat,pin_arm_b,pin_tool,0.0188,m,0.0150,pass,pin_arm_b_tool_pin_tool_nose to bay_module_6_frame_long_a at 0.0 mm along; least joint margin 22.6 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,locate 5/3 approach,pin_arm_b,pin_tool,0.0190,m,0.0150,pass,pin_arm_b_tool_pin_tool_nose to bay_module_6_frame_long_a at 0.0 mm along; least joint margin 36.0 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,locate 5/3 retreat,pin_arm_b,pin_tool,0.0190,m,0.0150,pass,pin_arm_b_tool_pin_tool_nose to bay_module_6_frame_long_a at 0.0 mm along; least joint margin 36.0 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,locate 6/0 approach,pin_arm_c,pin_tool,0.0210,m,0.0150,pass,pin_arm_c_tool_pin_tool_body to bay_rail_6_web_b_neg at 0.0 mm along; least joint margin 31.7 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,locate 6/0 retreat,pin_arm_c,pin_tool,0.0210,m,0.0150,pass,pin_arm_c_tool_pin_tool_body to bay_rail_6_web_b_neg at 0.0 mm along; least joint margin 31.7 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,locate 6/1 approach,pin_arm_c,pin_tool,0.0205,m,0.0150,pass,pin_arm_c_tool_pin_tool_nose to bay_module_5_frame_long_b at 0.0 mm along; least joint margin 31.5 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,locate 6/1 retreat,pin_arm_c,pin_tool,0.0205,m,0.0150,pass,pin_arm_c_tool_pin_tool_nose to bay_module_5_frame_long_b at 0.0 mm along; least joint margin 31.5 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,locate 6/2 approach,pin_arm_c,pin_tool,0.0210,m,0.0150,pass,pin_arm_c_tool_pin_tool_body to bay_rail_7_web_a_neg at 0.0 mm along; least joint margin 31.5 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,locate 6/2 retreat,pin_arm_c,pin_tool,0.0210,m,0.0150,pass,pin_arm_c_tool_pin_tool_body to bay_rail_7_web_a_neg at 0.0 mm along; least joint margin 31.5 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,locate 6/3 approach,pin_arm_c,pin_tool,0.0206,m,0.0150,pass,pin_arm_c_tool_pin_tool_nose to bay_module_7_frame_long_a at 0.0 mm along; least joint margin 31.2 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,locate 6/3 retreat,pin_arm_c,pin_tool,0.0206,m,0.0150,pass,pin_arm_c_tool_pin_tool_nose to bay_module_7_frame_long_a at 0.0 mm along; least joint margin 31.2 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,locate 7/0 approach,pin_arm_c,pin_tool,0.0210,m,0.0150,pass,pin_arm_c_tool_pin_tool_body to bay_rail_7_web_b_neg at 0.0 mm along; least joint margin 28.0 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,locate 7/0 retreat,pin_arm_c,pin_tool,0.0210,m,0.0150,pass,pin_arm_c_tool_pin_tool_body to bay_rail_7_web_b_neg at 0.0 mm along; least joint margin 28.0 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,locate 7/1 approach,pin_arm_c,pin_tool,0.0205,m,0.0150,pass,pin_arm_c_tool_pin_tool_nose to bay_module_6_frame_long_b at 0.0 mm along; least joint margin 35.3 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,locate 7/1 retreat,pin_arm_c,pin_tool,0.0205,m,0.0150,pass,pin_arm_c_tool_pin_tool_nose to bay_module_6_frame_long_b at 0.0 mm along; least joint margin 35.3 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,locate 7/2 approach,pin_arm_c,pin_tool,0.0210,m,0.0150,pass,pin_arm_c_tool_pin_tool_body to bay_rail_8_web_a_neg at 0.0 mm along; least joint margin 27.8 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,locate 7/2 retreat,pin_arm_c,pin_tool,0.0210,m,0.0150,pass,pin_arm_c_tool_pin_tool_body to bay_rail_8_web_a_neg at 0.0 mm along; least joint margin 27.8 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,locate 7/3 approach,pin_arm_c,pin_tool,0.0205,m,0.0150,pass,pin_arm_c_tool_pin_tool_nose to bay_module_8_flange_long_a at 0.0 mm along; least joint margin 34.9 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,locate 7/3 retreat,pin_arm_c,pin_tool,0.0205,m,0.0150,pass,pin_arm_c_tool_pin_tool_nose to bay_module_8_flange_long_a at 0.0 mm along; least joint margin 34.9 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,locate 8/0 approach,pin_arm_c,pin_tool,0.0160,m,0.0150,pass,pin_arm_c_arm_link_3_collision to holder_stand_8_saddle at 0.0 mm along; least joint margin 34.0 deg at arm_joint_5; 24 samples over 120.0 mm
+approach,locate 8/0 retreat,pin_arm_c,pin_tool,0.0160,m,0.0150,pass,pin_arm_c_arm_link_3_collision to holder_stand_8_saddle at 0.0 mm along; least joint margin 34.0 deg at arm_joint_5; 24 samples over 120.0 mm
+approach,locate 8/1 approach,pin_arm_c,pin_tool,0.0203,m,0.0150,pass,pin_arm_c_tool_pin_tool_nose to bay_module_7_flange_long_b at 0.0 mm along; least joint margin 27.6 deg at arm_joint_5; 24 samples over 120.0 mm
+approach,locate 8/1 retreat,pin_arm_c,pin_tool,0.0203,m,0.0150,pass,pin_arm_c_tool_pin_tool_nose to bay_module_7_flange_long_b at 0.0 mm along; least joint margin 27.6 deg at arm_joint_5; 24 samples over 120.0 mm
+approach,locate 8/2 approach,pin_arm_c,pin_tool,0.0210,m,0.0150,pass,pin_arm_c_tool_pin_tool_body to bay_rail_9_web_a_neg at 0.0 mm along; least joint margin 34.7 deg at arm_joint_5; 24 samples over 120.0 mm
+approach,locate 8/2 retreat,pin_arm_c,pin_tool,0.0210,m,0.0150,pass,pin_arm_c_tool_pin_tool_body to bay_rail_9_web_a_neg at 0.0 mm along; least joint margin 34.7 deg at arm_joint_5; 24 samples over 120.0 mm
+approach,locate 8/3 approach,pin_arm_c,pin_tool,0.0210,m,0.0150,pass,pin_arm_c_tool_pin_tool_body to bay_rail_9_foot_a_pos at 0.0 mm along; least joint margin 29.8 deg at arm_joint_5; 24 samples over 120.0 mm
+approach,locate 8/3 retreat,pin_arm_c,pin_tool,0.0210,m,0.0150,pass,pin_arm_c_tool_pin_tool_body to bay_rail_9_foot_a_pos at 0.0 mm along; least joint margin 29.8 deg at arm_joint_5; 24 samples over 120.0 mm
+approach,pin 0/0 approach,pin_arm_a,pin_tool,0.0210,m,0.0150,pass,pin_arm_a_tool_pin_tool_body to bay_rail_0_web_b_neg at 0.0 mm along; least joint margin 34.4 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,pin 0/0 retreat,pin_arm_a,pin_tool,0.0210,m,0.0150,pass,pin_arm_a_tool_pin_tool_body to bay_rail_0_web_b_neg at 0.0 mm along; least joint margin 34.4 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,pin 0/1 approach,pin_arm_a,pin_tool,0.0210,m,0.0150,pass,pin_arm_a_tool_pin_tool_body to bay_rail_0_web_b_pos at 0.0 mm along; least joint margin 34.6 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,pin 0/1 retreat,pin_arm_a,pin_tool,0.0210,m,0.0150,pass,pin_arm_a_tool_pin_tool_body to bay_rail_0_web_b_pos at 0.0 mm along; least joint margin 34.6 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,pin 0/2 approach,pin_arm_a,pin_tool,0.0194,m,0.0150,pass,pin_arm_a_tool_pin_tool_nose to bay_module_1_flange_long_a at 0.0 mm along; least joint margin 34.1 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,pin 0/2 retreat,pin_arm_a,pin_tool,0.0194,m,0.0150,pass,pin_arm_a_tool_pin_tool_nose to bay_module_1_flange_long_a at 0.0 mm along; least joint margin 34.1 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,pin 0/3 approach,pin_arm_a,pin_tool,0.0209,m,0.0150,pass,pin_arm_a_tool_pin_tool_nose to bay_module_1_flange_long_a at 0.0 mm along; least joint margin 34.2 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,pin 0/3 retreat,pin_arm_a,pin_tool,0.0209,m,0.0150,pass,pin_arm_a_tool_pin_tool_nose to bay_module_1_flange_long_a at 0.0 mm along; least joint margin 34.2 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,pin 1/0 approach,pin_arm_a,pin_tool,0.0193,m,0.0150,pass,pin_arm_a_tool_pin_tool_nose to bay_module_0_frame_long_b at 0.0 mm along; least joint margin 30.4 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,pin 1/0 retreat,pin_arm_a,pin_tool,0.0193,m,0.0150,pass,pin_arm_a_tool_pin_tool_nose to bay_module_0_frame_long_b at 0.0 mm along; least joint margin 30.4 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,pin 1/1 approach,pin_arm_a,pin_tool,0.0209,m,0.0150,pass,pin_arm_a_tool_pin_tool_nose to bay_module_0_frame_long_b at 0.0 mm along; least joint margin 38.8 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,pin 1/1 retreat,pin_arm_a,pin_tool,0.0209,m,0.0150,pass,pin_arm_a_tool_pin_tool_nose to bay_module_0_frame_long_b at 0.0 mm along; least joint margin 38.8 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,pin 1/2 approach,pin_arm_a,pin_tool,0.0193,m,0.0150,pass,pin_arm_a_tool_pin_tool_nose to bay_module_2_flange_long_a at 0.0 mm along; least joint margin 24.0 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,pin 1/2 retreat,pin_arm_a,pin_tool,0.0193,m,0.0150,pass,pin_arm_a_tool_pin_tool_nose to bay_module_2_flange_long_a at 0.0 mm along; least joint margin 24.0 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,pin 1/3 approach,pin_arm_a,pin_tool,0.0209,m,0.0150,pass,pin_arm_a_tool_pin_tool_nose to bay_module_2_flange_long_a at 0.0 mm along; least joint margin 38.4 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,pin 1/3 retreat,pin_arm_a,pin_tool,0.0209,m,0.0150,pass,pin_arm_a_tool_pin_tool_nose to bay_module_2_flange_long_a at 0.0 mm along; least joint margin 38.4 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,pin 2/0 approach,pin_arm_a,pin_tool,0.0194,m,0.0150,pass,pin_arm_a_tool_pin_tool_nose to bay_module_1_flange_long_b at 0.0 mm along; least joint margin 33.5 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,pin 2/0 retreat,pin_arm_a,pin_tool,0.0194,m,0.0150,pass,pin_arm_a_tool_pin_tool_nose to bay_module_1_flange_long_b at 0.0 mm along; least joint margin 33.5 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,pin 2/1 approach,pin_arm_a,pin_tool,0.0208,m,0.0150,pass,pin_arm_a_tool_pin_tool_nose to bay_module_1_flange_long_b at 0.0 mm along; least joint margin 33.5 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,pin 2/1 retreat,pin_arm_a,pin_tool,0.0208,m,0.0150,pass,pin_arm_a_tool_pin_tool_nose to bay_module_1_flange_long_b at 0.0 mm along; least joint margin 33.5 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,pin 2/2 approach,pin_arm_a,pin_tool,0.0194,m,0.0150,pass,pin_arm_a_tool_pin_tool_nose to bay_module_3_flange_long_a at 0.0 mm along; least joint margin 33.2 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,pin 2/2 retreat,pin_arm_a,pin_tool,0.0194,m,0.0150,pass,pin_arm_a_tool_pin_tool_nose to bay_module_3_flange_long_a at 0.0 mm along; least joint margin 33.2 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,pin 2/3 approach,pin_arm_a,pin_tool,0.0209,m,0.0150,pass,pin_arm_a_tool_pin_tool_nose to bay_module_3_flange_long_a at 0.0 mm along; least joint margin 33.2 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,pin 2/3 retreat,pin_arm_a,pin_tool,0.0209,m,0.0150,pass,pin_arm_a_tool_pin_tool_nose to bay_module_3_flange_long_a at 0.0 mm along; least joint margin 33.2 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,pin 3/0 approach,pin_arm_b,pin_tool,0.0187,m,0.0150,pass,pin_arm_b_tool_pin_tool_nose to bay_module_2_flange_long_b at 0.0 mm along; least joint margin 29.6 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,pin 3/0 retreat,pin_arm_b,pin_tool,0.0187,m,0.0150,pass,pin_arm_b_tool_pin_tool_nose to bay_module_2_flange_long_b at 0.0 mm along; least joint margin 29.6 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,pin 3/1 approach,pin_arm_b,pin_tool,0.0190,m,0.0150,pass,pin_arm_b_tool_pin_tool_nose to bay_module_2_flange_long_b at 0.0 mm along; least joint margin 37.5 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,pin 3/1 retreat,pin_arm_b,pin_tool,0.0190,m,0.0150,pass,pin_arm_b_tool_pin_tool_nose to bay_module_2_flange_long_b at 0.0 mm along; least joint margin 37.5 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,pin 3/2 approach,pin_arm_b,pin_tool,0.0188,m,0.0150,pass,pin_arm_b_tool_pin_tool_nose to bay_module_4_flange_long_a at 0.0 mm along; least joint margin 23.3 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,pin 3/2 retreat,pin_arm_b,pin_tool,0.0188,m,0.0150,pass,pin_arm_b_tool_pin_tool_nose to bay_module_4_flange_long_a at 0.0 mm along; least joint margin 23.3 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,pin 3/3 approach,pin_arm_b,pin_tool,0.0191,m,0.0150,pass,pin_arm_b_tool_pin_tool_nose to bay_module_4_flange_long_a at 0.0 mm along; least joint margin 37.2 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,pin 3/3 retreat,pin_arm_b,pin_tool,0.0191,m,0.0150,pass,pin_arm_b_tool_pin_tool_nose to bay_module_4_flange_long_a at 0.0 mm along; least joint margin 37.2 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,pin 4/0 approach,pin_arm_b,pin_tool,0.0187,m,0.0150,pass,pin_arm_b_tool_pin_tool_nose to bay_module_3_flange_long_b at 0.0 mm along; least joint margin 32.6 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,pin 4/0 retreat,pin_arm_b,pin_tool,0.0187,m,0.0150,pass,pin_arm_b_tool_pin_tool_nose to bay_module_3_flange_long_b at 0.0 mm along; least joint margin 32.6 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,pin 4/1 approach,pin_arm_b,pin_tool,0.0190,m,0.0150,pass,pin_arm_b_tool_pin_tool_nose to bay_module_3_flange_long_b at 0.0 mm along; least joint margin 32.5 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,pin 4/1 retreat,pin_arm_b,pin_tool,0.0190,m,0.0150,pass,pin_arm_b_tool_pin_tool_nose to bay_module_3_flange_long_b at 0.0 mm along; least joint margin 32.5 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,pin 4/2 approach,pin_arm_b,pin_tool,0.0187,m,0.0150,pass,pin_arm_b_tool_pin_tool_nose to bay_module_5_flange_long_a at 0.0 mm along; least joint margin 32.3 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,pin 4/2 retreat,pin_arm_b,pin_tool,0.0187,m,0.0150,pass,pin_arm_b_tool_pin_tool_nose to bay_module_5_flange_long_a at 0.0 mm along; least joint margin 32.3 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,pin 4/3 approach,pin_arm_b,pin_tool,0.0190,m,0.0150,pass,pin_arm_b_tool_pin_tool_nose to bay_module_5_flange_long_a at 0.0 mm along; least joint margin 32.2 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,pin 4/3 retreat,pin_arm_b,pin_tool,0.0190,m,0.0150,pass,pin_arm_b_tool_pin_tool_nose to bay_module_5_flange_long_a at 0.0 mm along; least joint margin 32.2 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,pin 5/0 approach,pin_arm_b,pin_tool,0.0187,m,0.0150,pass,pin_arm_b_tool_pin_tool_nose to bay_module_4_flange_long_b at 0.0 mm along; least joint margin 28.8 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,pin 5/0 retreat,pin_arm_b,pin_tool,0.0187,m,0.0150,pass,pin_arm_b_tool_pin_tool_nose to bay_module_4_flange_long_b at 0.0 mm along; least joint margin 28.8 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,pin 5/1 approach,pin_arm_b,pin_tool,0.0190,m,0.0150,pass,pin_arm_b_tool_pin_tool_nose to bay_module_4_flange_long_b at 0.0 mm along; least joint margin 36.4 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,pin 5/1 retreat,pin_arm_b,pin_tool,0.0190,m,0.0150,pass,pin_arm_b_tool_pin_tool_nose to bay_module_4_flange_long_b at 0.0 mm along; least joint margin 36.4 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,pin 5/2 approach,pin_arm_b,pin_tool,0.0188,m,0.0150,pass,pin_arm_b_tool_pin_tool_nose to bay_module_6_frame_long_a at 0.0 mm along; least joint margin 22.6 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,pin 5/2 retreat,pin_arm_b,pin_tool,0.0188,m,0.0150,pass,pin_arm_b_tool_pin_tool_nose to bay_module_6_frame_long_a at 0.0 mm along; least joint margin 22.6 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,pin 5/3 approach,pin_arm_b,pin_tool,0.0190,m,0.0150,pass,pin_arm_b_tool_pin_tool_nose to bay_module_6_frame_long_a at 0.0 mm along; least joint margin 36.0 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,pin 5/3 retreat,pin_arm_b,pin_tool,0.0190,m,0.0150,pass,pin_arm_b_tool_pin_tool_nose to bay_module_6_frame_long_a at 0.0 mm along; least joint margin 36.0 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,pin 6/0 approach,pin_arm_c,pin_tool,0.0210,m,0.0150,pass,pin_arm_c_tool_pin_tool_body to bay_rail_6_web_b_neg at 0.0 mm along; least joint margin 31.7 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,pin 6/0 retreat,pin_arm_c,pin_tool,0.0210,m,0.0150,pass,pin_arm_c_tool_pin_tool_body to bay_rail_6_web_b_neg at 0.0 mm along; least joint margin 31.7 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,pin 6/1 approach,pin_arm_c,pin_tool,0.0205,m,0.0150,pass,pin_arm_c_tool_pin_tool_nose to bay_module_5_frame_long_b at 0.0 mm along; least joint margin 31.5 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,pin 6/1 retreat,pin_arm_c,pin_tool,0.0205,m,0.0150,pass,pin_arm_c_tool_pin_tool_nose to bay_module_5_frame_long_b at 0.0 mm along; least joint margin 31.5 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,pin 6/2 approach,pin_arm_c,pin_tool,0.0210,m,0.0150,pass,pin_arm_c_tool_pin_tool_body to bay_rail_7_web_a_neg at 0.0 mm along; least joint margin 31.5 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,pin 6/2 retreat,pin_arm_c,pin_tool,0.0210,m,0.0150,pass,pin_arm_c_tool_pin_tool_body to bay_rail_7_web_a_neg at 0.0 mm along; least joint margin 31.5 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,pin 6/3 approach,pin_arm_c,pin_tool,0.0206,m,0.0150,pass,pin_arm_c_tool_pin_tool_nose to bay_module_7_frame_long_a at 0.0 mm along; least joint margin 31.2 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,pin 6/3 retreat,pin_arm_c,pin_tool,0.0206,m,0.0150,pass,pin_arm_c_tool_pin_tool_nose to bay_module_7_frame_long_a at 0.0 mm along; least joint margin 31.2 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,pin 7/0 approach,pin_arm_c,pin_tool,0.0210,m,0.0150,pass,pin_arm_c_tool_pin_tool_body to bay_rail_7_web_b_neg at 0.0 mm along; least joint margin 28.0 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,pin 7/0 retreat,pin_arm_c,pin_tool,0.0210,m,0.0150,pass,pin_arm_c_tool_pin_tool_body to bay_rail_7_web_b_neg at 0.0 mm along; least joint margin 28.0 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,pin 7/1 approach,pin_arm_c,pin_tool,0.0205,m,0.0150,pass,pin_arm_c_tool_pin_tool_nose to bay_module_6_frame_long_b at 0.0 mm along; least joint margin 35.3 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,pin 7/1 retreat,pin_arm_c,pin_tool,0.0205,m,0.0150,pass,pin_arm_c_tool_pin_tool_nose to bay_module_6_frame_long_b at 0.0 mm along; least joint margin 35.3 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,pin 7/2 approach,pin_arm_c,pin_tool,0.0210,m,0.0150,pass,pin_arm_c_tool_pin_tool_body to bay_rail_8_web_a_neg at 0.0 mm along; least joint margin 27.8 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,pin 7/2 retreat,pin_arm_c,pin_tool,0.0210,m,0.0150,pass,pin_arm_c_tool_pin_tool_body to bay_rail_8_web_a_neg at 0.0 mm along; least joint margin 27.8 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,pin 7/3 approach,pin_arm_c,pin_tool,0.0205,m,0.0150,pass,pin_arm_c_tool_pin_tool_nose to bay_module_8_flange_long_a at 0.0 mm along; least joint margin 34.9 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,pin 7/3 retreat,pin_arm_c,pin_tool,0.0205,m,0.0150,pass,pin_arm_c_tool_pin_tool_nose to bay_module_8_flange_long_a at 0.0 mm along; least joint margin 34.9 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,pin 8/0 approach,pin_arm_c,pin_tool,0.0160,m,0.0150,pass,pin_arm_c_arm_link_3_collision to holder_stand_8_saddle at 0.0 mm along; least joint margin 34.0 deg at arm_joint_5; 24 samples over 120.0 mm
+approach,pin 8/0 retreat,pin_arm_c,pin_tool,0.0160,m,0.0150,pass,pin_arm_c_arm_link_3_collision to holder_stand_8_saddle at 0.0 mm along; least joint margin 34.0 deg at arm_joint_5; 24 samples over 120.0 mm
+approach,pin 8/1 approach,pin_arm_c,pin_tool,0.0203,m,0.0150,pass,pin_arm_c_tool_pin_tool_nose to bay_module_7_flange_long_b at 0.0 mm along; least joint margin 27.6 deg at arm_joint_5; 24 samples over 120.0 mm
+approach,pin 8/1 retreat,pin_arm_c,pin_tool,0.0203,m,0.0150,pass,pin_arm_c_tool_pin_tool_nose to bay_module_7_flange_long_b at 0.0 mm along; least joint margin 27.6 deg at arm_joint_5; 24 samples over 120.0 mm
+approach,pin 8/2 approach,pin_arm_c,pin_tool,0.0210,m,0.0150,pass,pin_arm_c_tool_pin_tool_body to bay_rail_9_web_a_neg at 0.0 mm along; least joint margin 34.7 deg at arm_joint_5; 24 samples over 120.0 mm
+approach,pin 8/2 retreat,pin_arm_c,pin_tool,0.0210,m,0.0150,pass,pin_arm_c_tool_pin_tool_body to bay_rail_9_web_a_neg at 0.0 mm along; least joint margin 34.7 deg at arm_joint_5; 24 samples over 120.0 mm
+approach,pin 8/3 approach,pin_arm_c,pin_tool,0.0210,m,0.0150,pass,pin_arm_c_tool_pin_tool_body to bay_rail_9_foot_a_pos at 0.0 mm along; least joint margin 29.8 deg at arm_joint_5; 24 samples over 120.0 mm
+approach,pin 8/3 retreat,pin_arm_c,pin_tool,0.0210,m,0.0150,pass,pin_arm_c_tool_pin_tool_body to bay_rail_9_foot_a_pos at 0.0 mm along; least joint margin 29.8 deg at arm_joint_5; 24 samples over 120.0 mm
+approach,swage 0/0 approach,pin_arm_a,pin_tool,0.0210,m,0.0150,pass,pin_arm_a_tool_pin_tool_body to bay_rail_0_web_b_neg at 0.0 mm along; least joint margin 34.4 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,swage 0/0 retreat,pin_arm_a,pin_tool,0.0210,m,0.0150,pass,pin_arm_a_tool_pin_tool_body to bay_rail_0_web_b_neg at 0.0 mm along; least joint margin 34.4 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,swage 0/1 approach,pin_arm_a,pin_tool,0.0210,m,0.0150,pass,pin_arm_a_tool_pin_tool_body to bay_rail_0_web_b_pos at 0.0 mm along; least joint margin 34.6 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,swage 0/1 retreat,pin_arm_a,pin_tool,0.0210,m,0.0150,pass,pin_arm_a_tool_pin_tool_body to bay_rail_0_web_b_pos at 0.0 mm along; least joint margin 34.6 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,swage 0/2 approach,pin_arm_a,pin_tool,0.0194,m,0.0150,pass,pin_arm_a_tool_pin_tool_nose to bay_module_1_flange_long_a at 0.0 mm along; least joint margin 34.1 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,swage 0/2 retreat,pin_arm_a,pin_tool,0.0194,m,0.0150,pass,pin_arm_a_tool_pin_tool_nose to bay_module_1_flange_long_a at 0.0 mm along; least joint margin 34.1 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,swage 0/3 approach,pin_arm_a,pin_tool,0.0209,m,0.0150,pass,pin_arm_a_tool_pin_tool_nose to bay_module_1_flange_long_a at 0.0 mm along; least joint margin 34.2 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,swage 0/3 retreat,pin_arm_a,pin_tool,0.0209,m,0.0150,pass,pin_arm_a_tool_pin_tool_nose to bay_module_1_flange_long_a at 0.0 mm along; least joint margin 34.2 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,swage 1/0 approach,pin_arm_a,pin_tool,0.0193,m,0.0150,pass,pin_arm_a_tool_pin_tool_nose to bay_module_0_frame_long_b at 0.0 mm along; least joint margin 30.4 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,swage 1/0 retreat,pin_arm_a,pin_tool,0.0193,m,0.0150,pass,pin_arm_a_tool_pin_tool_nose to bay_module_0_frame_long_b at 0.0 mm along; least joint margin 30.4 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,swage 1/1 approach,pin_arm_a,pin_tool,0.0209,m,0.0150,pass,pin_arm_a_tool_pin_tool_nose to bay_module_0_frame_long_b at 0.0 mm along; least joint margin 38.8 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,swage 1/1 retreat,pin_arm_a,pin_tool,0.0209,m,0.0150,pass,pin_arm_a_tool_pin_tool_nose to bay_module_0_frame_long_b at 0.0 mm along; least joint margin 38.8 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,swage 1/2 approach,pin_arm_a,pin_tool,0.0193,m,0.0150,pass,pin_arm_a_tool_pin_tool_nose to bay_module_2_flange_long_a at 0.0 mm along; least joint margin 24.0 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,swage 1/2 retreat,pin_arm_a,pin_tool,0.0193,m,0.0150,pass,pin_arm_a_tool_pin_tool_nose to bay_module_2_flange_long_a at 0.0 mm along; least joint margin 24.0 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,swage 1/3 approach,pin_arm_a,pin_tool,0.0209,m,0.0150,pass,pin_arm_a_tool_pin_tool_nose to bay_module_2_flange_long_a at 0.0 mm along; least joint margin 38.4 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,swage 1/3 retreat,pin_arm_a,pin_tool,0.0209,m,0.0150,pass,pin_arm_a_tool_pin_tool_nose to bay_module_2_flange_long_a at 0.0 mm along; least joint margin 38.4 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,swage 2/0 approach,pin_arm_a,pin_tool,0.0194,m,0.0150,pass,pin_arm_a_tool_pin_tool_nose to bay_module_1_flange_long_b at 0.0 mm along; least joint margin 33.5 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,swage 2/0 retreat,pin_arm_a,pin_tool,0.0194,m,0.0150,pass,pin_arm_a_tool_pin_tool_nose to bay_module_1_flange_long_b at 0.0 mm along; least joint margin 33.5 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,swage 2/1 approach,pin_arm_a,pin_tool,0.0208,m,0.0150,pass,pin_arm_a_tool_pin_tool_nose to bay_module_1_flange_long_b at 0.0 mm along; least joint margin 33.5 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,swage 2/1 retreat,pin_arm_a,pin_tool,0.0208,m,0.0150,pass,pin_arm_a_tool_pin_tool_nose to bay_module_1_flange_long_b at 0.0 mm along; least joint margin 33.5 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,swage 2/2 approach,pin_arm_a,pin_tool,0.0194,m,0.0150,pass,pin_arm_a_tool_pin_tool_nose to bay_module_3_flange_long_a at 0.0 mm along; least joint margin 33.2 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,swage 2/2 retreat,pin_arm_a,pin_tool,0.0194,m,0.0150,pass,pin_arm_a_tool_pin_tool_nose to bay_module_3_flange_long_a at 0.0 mm along; least joint margin 33.2 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,swage 2/3 approach,pin_arm_a,pin_tool,0.0209,m,0.0150,pass,pin_arm_a_tool_pin_tool_nose to bay_module_3_flange_long_a at 0.0 mm along; least joint margin 33.2 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,swage 2/3 retreat,pin_arm_a,pin_tool,0.0209,m,0.0150,pass,pin_arm_a_tool_pin_tool_nose to bay_module_3_flange_long_a at 0.0 mm along; least joint margin 33.2 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,swage 3/0 approach,pin_arm_a,pin_tool,0.0193,m,0.0150,pass,pin_arm_a_tool_pin_tool_nose to bay_module_2_flange_long_b at 0.0 mm along; least joint margin 29.6 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,swage 3/0 retreat,pin_arm_a,pin_tool,0.0193,m,0.0150,pass,pin_arm_a_tool_pin_tool_nose to bay_module_2_flange_long_b at 0.0 mm along; least joint margin 29.6 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,swage 3/1 approach,pin_arm_a,pin_tool,0.0209,m,0.0150,pass,pin_arm_a_tool_pin_tool_nose to bay_module_2_flange_long_b at 0.0 mm along; least joint margin 37.6 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,swage 3/1 retreat,pin_arm_a,pin_tool,0.0209,m,0.0150,pass,pin_arm_a_tool_pin_tool_nose to bay_module_2_flange_long_b at 0.0 mm along; least joint margin 37.6 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,swage 3/2 approach,pin_arm_b,pin_tool,0.0188,m,0.0150,pass,pin_arm_b_tool_pin_tool_nose to bay_module_4_flange_long_a at 0.0 mm along; least joint margin 23.3 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,swage 3/2 retreat,pin_arm_b,pin_tool,0.0188,m,0.0150,pass,pin_arm_b_tool_pin_tool_nose to bay_module_4_flange_long_a at 0.0 mm along; least joint margin 23.3 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,swage 3/3 approach,pin_arm_b,pin_tool,0.0191,m,0.0150,pass,pin_arm_b_tool_pin_tool_nose to bay_module_4_flange_long_a at 0.0 mm along; least joint margin 37.2 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,swage 3/3 retreat,pin_arm_b,pin_tool,0.0191,m,0.0150,pass,pin_arm_b_tool_pin_tool_nose to bay_module_4_flange_long_a at 0.0 mm along; least joint margin 37.2 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,swage 4/0 approach,pin_arm_b,pin_tool,0.0187,m,0.0150,pass,pin_arm_b_tool_pin_tool_nose to bay_module_3_flange_long_b at 0.0 mm along; least joint margin 32.6 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,swage 4/0 retreat,pin_arm_b,pin_tool,0.0187,m,0.0150,pass,pin_arm_b_tool_pin_tool_nose to bay_module_3_flange_long_b at 0.0 mm along; least joint margin 32.6 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,swage 4/1 approach,pin_arm_b,pin_tool,0.0190,m,0.0150,pass,pin_arm_b_tool_pin_tool_nose to bay_module_3_flange_long_b at 0.0 mm along; least joint margin 32.5 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,swage 4/1 retreat,pin_arm_b,pin_tool,0.0190,m,0.0150,pass,pin_arm_b_tool_pin_tool_nose to bay_module_3_flange_long_b at 0.0 mm along; least joint margin 32.5 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,swage 4/2 approach,pin_arm_b,pin_tool,0.0187,m,0.0150,pass,pin_arm_b_tool_pin_tool_nose to bay_module_5_flange_long_a at 0.0 mm along; least joint margin 32.3 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,swage 4/2 retreat,pin_arm_b,pin_tool,0.0187,m,0.0150,pass,pin_arm_b_tool_pin_tool_nose to bay_module_5_flange_long_a at 0.0 mm along; least joint margin 32.3 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,swage 4/3 approach,pin_arm_b,pin_tool,0.0190,m,0.0150,pass,pin_arm_b_tool_pin_tool_nose to bay_module_5_flange_long_a at 0.0 mm along; least joint margin 32.2 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,swage 4/3 retreat,pin_arm_b,pin_tool,0.0190,m,0.0150,pass,pin_arm_b_tool_pin_tool_nose to bay_module_5_flange_long_a at 0.0 mm along; least joint margin 32.2 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,swage 5/0 approach,pin_arm_b,pin_tool,0.0187,m,0.0150,pass,pin_arm_b_tool_pin_tool_nose to bay_module_4_flange_long_b at 0.0 mm along; least joint margin 28.8 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,swage 5/0 retreat,pin_arm_b,pin_tool,0.0187,m,0.0150,pass,pin_arm_b_tool_pin_tool_nose to bay_module_4_flange_long_b at 0.0 mm along; least joint margin 28.8 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,swage 5/1 approach,pin_arm_b,pin_tool,0.0190,m,0.0150,pass,pin_arm_b_tool_pin_tool_nose to bay_module_4_flange_long_b at 0.0 mm along; least joint margin 36.4 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,swage 5/1 retreat,pin_arm_b,pin_tool,0.0190,m,0.0150,pass,pin_arm_b_tool_pin_tool_nose to bay_module_4_flange_long_b at 0.0 mm along; least joint margin 36.4 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,swage 5/2 approach,pin_arm_b,pin_tool,0.0188,m,0.0150,pass,pin_arm_b_tool_pin_tool_nose to bay_module_6_frame_long_a at 0.0 mm along; least joint margin 22.6 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,swage 5/2 retreat,pin_arm_b,pin_tool,0.0188,m,0.0150,pass,pin_arm_b_tool_pin_tool_nose to bay_module_6_frame_long_a at 0.0 mm along; least joint margin 22.6 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,swage 5/3 approach,pin_arm_b,pin_tool,0.0190,m,0.0150,pass,pin_arm_b_tool_pin_tool_nose to bay_module_6_frame_long_a at 0.0 mm along; least joint margin 36.0 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,swage 5/3 retreat,pin_arm_b,pin_tool,0.0190,m,0.0150,pass,pin_arm_b_tool_pin_tool_nose to bay_module_6_frame_long_a at 0.0 mm along; least joint margin 36.0 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,swage 6/0 approach,pin_arm_b,pin_tool,0.0187,m,0.0150,pass,pin_arm_b_tool_pin_tool_nose to bay_module_5_frame_long_b at 0.0 mm along; least joint margin 31.7 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,swage 6/0 retreat,pin_arm_b,pin_tool,0.0187,m,0.0150,pass,pin_arm_b_tool_pin_tool_nose to bay_module_5_frame_long_b at 0.0 mm along; least joint margin 31.7 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,swage 6/1 approach,pin_arm_b,pin_tool,0.0190,m,0.0150,pass,pin_arm_b_tool_pin_tool_nose to bay_module_5_frame_long_b at 0.0 mm along; least joint margin 31.5 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,swage 6/1 retreat,pin_arm_b,pin_tool,0.0190,m,0.0150,pass,pin_arm_b_tool_pin_tool_nose to bay_module_5_frame_long_b at 0.0 mm along; least joint margin 31.5 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,swage 6/2 approach,pin_arm_c,pin_tool,0.0210,m,0.0150,pass,pin_arm_c_tool_pin_tool_body to bay_rail_7_web_a_neg at 0.0 mm along; least joint margin 31.5 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,swage 6/2 retreat,pin_arm_c,pin_tool,0.0210,m,0.0150,pass,pin_arm_c_tool_pin_tool_body to bay_rail_7_web_a_neg at 0.0 mm along; least joint margin 31.5 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,swage 6/3 approach,pin_arm_c,pin_tool,0.0206,m,0.0150,pass,pin_arm_c_tool_pin_tool_nose to bay_module_7_frame_long_a at 0.0 mm along; least joint margin 31.2 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,swage 6/3 retreat,pin_arm_c,pin_tool,0.0206,m,0.0150,pass,pin_arm_c_tool_pin_tool_nose to bay_module_7_frame_long_a at 0.0 mm along; least joint margin 31.2 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,swage 7/0 approach,pin_arm_c,pin_tool,0.0210,m,0.0150,pass,pin_arm_c_tool_pin_tool_body to bay_rail_7_web_b_neg at 0.0 mm along; least joint margin 28.0 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,swage 7/0 retreat,pin_arm_c,pin_tool,0.0210,m,0.0150,pass,pin_arm_c_tool_pin_tool_body to bay_rail_7_web_b_neg at 0.0 mm along; least joint margin 28.0 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,swage 7/1 approach,pin_arm_c,pin_tool,0.0205,m,0.0150,pass,pin_arm_c_tool_pin_tool_nose to bay_module_6_frame_long_b at 0.0 mm along; least joint margin 35.3 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,swage 7/1 retreat,pin_arm_c,pin_tool,0.0205,m,0.0150,pass,pin_arm_c_tool_pin_tool_nose to bay_module_6_frame_long_b at 0.0 mm along; least joint margin 35.3 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,swage 7/2 approach,pin_arm_c,pin_tool,0.0210,m,0.0150,pass,pin_arm_c_tool_pin_tool_body to bay_rail_8_web_a_neg at 0.0 mm along; least joint margin 27.8 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,swage 7/2 retreat,pin_arm_c,pin_tool,0.0210,m,0.0150,pass,pin_arm_c_tool_pin_tool_body to bay_rail_8_web_a_neg at 0.0 mm along; least joint margin 27.8 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,swage 7/3 approach,pin_arm_c,pin_tool,0.0205,m,0.0150,pass,pin_arm_c_tool_pin_tool_nose to bay_module_8_flange_long_a at 0.0 mm along; least joint margin 34.9 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,swage 7/3 retreat,pin_arm_c,pin_tool,0.0205,m,0.0150,pass,pin_arm_c_tool_pin_tool_nose to bay_module_8_flange_long_a at 0.0 mm along; least joint margin 34.9 deg at arm_joint_2; 24 samples over 120.0 mm
+approach,swage 8/0 approach,pin_arm_c,pin_tool,0.0160,m,0.0150,pass,pin_arm_c_arm_link_3_collision to holder_stand_8_saddle at 0.0 mm along; least joint margin 34.0 deg at arm_joint_5; 24 samples over 120.0 mm
+approach,swage 8/0 retreat,pin_arm_c,pin_tool,0.0160,m,0.0150,pass,pin_arm_c_arm_link_3_collision to holder_stand_8_saddle at 0.0 mm along; least joint margin 34.0 deg at arm_joint_5; 24 samples over 120.0 mm
+approach,swage 8/1 approach,pin_arm_c,pin_tool,0.0203,m,0.0150,pass,pin_arm_c_tool_pin_tool_nose to bay_module_7_flange_long_b at 0.0 mm along; least joint margin 27.6 deg at arm_joint_5; 24 samples over 120.0 mm
+approach,swage 8/1 retreat,pin_arm_c,pin_tool,0.0203,m,0.0150,pass,pin_arm_c_tool_pin_tool_nose to bay_module_7_flange_long_b at 0.0 mm along; least joint margin 27.6 deg at arm_joint_5; 24 samples over 120.0 mm
+approach,swage 8/2 approach,pin_arm_c,pin_tool,0.0210,m,0.0150,pass,pin_arm_c_tool_pin_tool_body to bay_rail_9_web_a_neg at 0.0 mm along; least joint margin 34.7 deg at arm_joint_5; 24 samples over 120.0 mm
+approach,swage 8/2 retreat,pin_arm_c,pin_tool,0.0210,m,0.0150,pass,pin_arm_c_tool_pin_tool_body to bay_rail_9_web_a_neg at 0.0 mm along; least joint margin 34.7 deg at arm_joint_5; 24 samples over 120.0 mm
+approach,swage 8/3 approach,pin_arm_c,pin_tool,0.0210,m,0.0150,pass,pin_arm_c_tool_pin_tool_body to bay_rail_9_foot_a_pos at 0.0 mm along; least joint margin 29.8 deg at arm_joint_5; 24 samples over 120.0 mm
+approach,swage 8/3 retreat,pin_arm_c,pin_tool,0.0210,m,0.0150,pass,pin_arm_c_tool_pin_tool_body to bay_rail_9_foot_a_pos at 0.0 mm along; least joint margin 29.8 deg at arm_joint_5; 24 samples over 120.0 mm
+approach,pins_take 0 approach,pin_arm_a,pin_tool,0.0300,m,0.0150,pass,pin_arm_a_carriage to item_pin_lane_lane at 0.0 mm along; least joint margin 5.0 deg at arm_joint_1; 30 samples over 150.0 mm
+approach,pins_take 0 retreat,pin_arm_a,pin_tool,0.0300,m,0.0150,pass,pin_arm_a_carriage to item_pin_lane_lane at 0.0 mm along; least joint margin 5.0 deg at arm_joint_1; 30 samples over 150.0 mm
+approach,pins_take 1 approach,pin_arm_b,pin_tool,0.0300,m,0.0150,pass,pin_arm_b_carriage to item_pin_lane_lane at 0.0 mm along; least joint margin 21.1 deg at arm_joint_5; 30 samples over 150.0 mm
+approach,pins_take 1 retreat,pin_arm_b,pin_tool,0.0300,m,0.0150,pass,pin_arm_b_carriage to item_pin_lane_lane at 0.0 mm along; least joint margin 21.1 deg at arm_joint_5; 30 samples over 150.0 mm
+approach,pins_take 2 approach,pin_arm_c,pin_tool,0.0300,m,0.0150,pass,pin_arm_c_carriage to item_pin_lane_lane at 0.0 mm along; least joint margin 21.1 deg at arm_joint_5; 30 samples over 150.0 mm
+approach,pins_take 2 retreat,pin_arm_c,pin_tool,0.0300,m,0.0150,pass,pin_arm_c_carriage to item_pin_lane_lane at 0.0 mm along; least joint margin 21.1 deg at arm_joint_5; 30 samples over 150.0 mm
+# bay time 355.3 s
+# A move of an arm from one pose to the next: 1.5 x the largest over its six joints of |change| / (the datasheet's greatest speed of that joint), the factor for speeding up and slowing down; its carriage moves at the same time and takes distance / speed + speed / acceleration of the track; the longer of the two counts, then 0.3 s to settle. A move with no change takes nothing. Moves go straight from the pose at one point to the pose at the next: the approaches and retreats are checked by the approach rows but not timed, and the paths between are not modelled or checked.
+# A working step is its move from the arm's last pose and the layout's process time for the kind. A tool change takes the arm's tool_change_s; the move to where the tools wait is not counted. Every arm starts the bay at its wait pose with its first tool, and each step is done by the arm the layout's division of the kind's points gives it.
+# The bay: tube in + clamp + the rail phase + the module phase + the end. A phase is a row of units (the ten rails; the nine modules). Each unit has a leading piece, its take and its set, by the arms that have them, and following pieces: a rail's strap bolt; a module's locating, pinning and swaging of its four holes, an arm's pin magazine counted with the module before whose holes it takes it. Each arm does its pieces in the order of the steps (the layout's rail_order for the rails); a following piece on unit k starts when every leading piece of unit k has ended and its arm has ended its pieces before it; a set of unit k starts when every leading piece of unit k-1 has ended (the rails and the modules go on in order); and the phase ends when the last arm ends. With one leading and one following arm this is the following arm one unit behind: the largest over k of (the leading arm's pieces on units 0..k + the following arm's on units k..end); when one arm does the whole phase, the plain sum. An arm's pieces include its tool changes. The time has no limit: its row passes when every step has a pose. The end: release + bay out, or the longest of the arms' moves back to their wait poses and first tools if that is longer.
+# margins: clearance 0.015 m, joint margin 5.0 deg
+# posture module_arm: largest change 2.15 s between module_set 8 and wait; 1 changes above 2.0 s
+# posture pin_arm_a: largest change 1.30 s between tool change and pins_take 0; 0 changes above 2.0 s
+# posture pin_arm_c: largest change 0.87 s between strap_bolt 7 and strap_bolt 8; 0 changes above 2.0 s
+# posture pin_arm_b: largest change 1.53 s between swage 5/0 and wait; 0 changes above 2.0 s

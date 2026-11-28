@@ -61,7 +61,8 @@ Layout ReadLayout(const Json& j) {
             two_racks ? "two_flat_racks" : "flat_rack", "margins", "ports", "approaches", "tube", "holder",
             "arms", "pallets", "stocks", "strap_bolts_from", "tube_in", "bay_out", "work", "rail_order", "items"},
            {"order", "staging", "retreat_legs", "path_tries", "plan_seed", "torque_limit_scale",
-            "bay_out_when_clear", "first_bay_early", "next_bay_fill", "swage_after_pins", "borrowed_last"});
+            "bay_out_when_clear", "first_bay_early", "next_bay_fill", "swage_after_pins", "borrowed_last",
+            "borrowed_after"});
   } else {
     throw LayoutError("base", "is \"container\", \"flat_rack\" or "
                               "\"two_flat_racks\", not \"" +
@@ -226,6 +227,21 @@ Layout ReadLayout(const Json& j) {
   }
   if (j.contains("borrowed_last")) {  // src/layout.h
     l.borrowed_last = Bool(j.at("borrowed_last"), "borrowed_last");
+  }
+  if (j.contains("borrowed_after")) {  // src/layout.h
+    const Json& b = j.at("borrowed_after");
+    if (!b.is_object() || b.empty()) {
+      throw LayoutError("borrowed_after", "is not an object of arm names and counts");
+    }
+    for (auto it = b.begin(); it != b.end(); ++it) {
+      const std::string key = Sub("borrowed_after", it.key().c_str());
+      if (FindArm(l, it.key()) == nullptr) throw LayoutError(key, "is not an arm of the layout");
+      const int n = Integer(it.value(), key);
+      if (n < 1 || n > 9) {  // A bay has nine modules (src/bay_hardware.h).
+        throw LayoutError(key, "is not an integer from 1 to 9");
+      }
+      l.borrowed_after[it.key()] = n;
+    }
   }
   if (j.contains("bay_out_when_clear")) {
     l.bay_out_when_clear = Bool(j.at("bay_out_when_clear"), "bay_out_when_clear");
