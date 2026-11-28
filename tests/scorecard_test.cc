@@ -117,8 +117,8 @@ std::vector<std::string> PlanNames() {
       "flat_rack_3_kr20_pin_arms_shared_ordered_fast_paths",
       "flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_torque",
       "flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_torque",
-      "flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque_clear_out_"
-      "infeed_rail_mag"};
+      std::string("flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_") +
+          "torque_clear_out_infeed_rail_mag"};
   std::vector<std::string> out;
   for (const std::string& name : ListLayouts(Dir("PLAN_DIR", "plans"))) {
     if (kOneBay.count(name) == 0) out.push_back(name);
