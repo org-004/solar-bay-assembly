@@ -23,11 +23,11 @@ layout, and [`docs/scorecard.md`](docs/scorecard.md) defines each one.
 
 ### One 40 ft base: the cell on the real parts
 
-![v23  2026-11-28  One 40 ft flat rack, three KR 20 pin arms on one shared beam, three modules to each pin arm in turns, each move the quickest of 8 paths, the module arm within 0.90 of its motors, the bay out once it is clear, the next tube in over it from an infeed unit, ten rails at once in a magazine on the gripper, filled while the tube comes in and while the bay before is finished: three bays planned; cycle 397.86 s per bay (planned), 4 arms](docs/evolution/v23.gif)
+![v24  2026-11-28  One 40 ft flat rack, three KR 20 pin arms on one shared beam, three modules to each pin arm in turns, each move the quickest of 8 paths, the module arm within 0.90 of its motors, the bay out once it is clear, the next tube in over it from an infeed unit, ten rails at once in a magazine on the gripper, filled while the tube comes in and while the bay before is finished, the pallet 0.23 m along its port zone: three bays planned; cycle 387.23 s per bay (planned), 4 arms](docs/evolution/v24.gif)
 
 | Version | Cycle time | One bay | Failures per bay | Arms | Part count | Placement error | Mass in transit | Gates |
 |---|---|---|---|---|---|---|---|---|
-| v23 | 397.86 s per bay (planned) | 417.06 s | 0.373 | 4 | 39 | none | 4144.2 kg | all 3 pass |
+| v24 | 387.23 s per bay (planned) | 408.03 s | 0.373 | 4 | 39 | none | 4144.2 kg | all 3 pass |
 
 [One 40 ft base: the cell on the real parts: progress and versions](docs/directions/one-40ft-flat-rack.md)
 

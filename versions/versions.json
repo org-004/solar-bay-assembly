@@ -795,9 +795,9 @@
       "commit": "this",
       "title": "One 40 ft flat rack, three KR 20 pin arms on one shared beam, three modules to each pin arm in turns, each move the quickest of 8 paths, the module arm within 0.90 of its motors, the bay out once it is clear, the next tube in over it from an infeed unit, ten rails at once in a magazine on the gripper, filled while the tube comes in and while the bay before is finished: three bays planned",
       "direction": "one-40ft-flat-rack",
-      "status": "chosen",
+      "status": "superseded",
       "changed": "v22's cell and layout with two schedule fields and no part added: first_bay_early (run 059) lets bay 0's module arm fill its rail magazine while the first tube comes in, and next_bay_fill (run 061) lets it fill bay b+1's magazine as soon as it has set bay b's last module, while bay b's pin arms still pin and swage and bay b goes out. Three bays are planned whole (budgets 5000,40000,160000,640000), 351 of 351 moves, 30 of the module arm's 90 slowed, none over 0.90, verified and committed; 945 of 945 checker rows pass: 417.06 s for one bay and a cycle time of 397.86 s over three (bay ends 417.06 / 815.51 / 1193.58 s, interval 378.07 s).",
-      "why": "Weighed against v22: 20.45 s a bay quicker (397.86 s against 418.31 s) and 24.97 s quicker for one bay (417.06 s against 442.03 s) by filling the rail magazine while the tube comes in and while the bay before is finished, at no extra part (39 against 39); the verifier holds the module arm apart from the tube coming in, the bay going out and bay b's arms. Registered as a candidate weighed against v22 and made the chosen version in the same run (run 063): in physics v23's record take (module 1, module_take 3, plan steps 71 and 72, the same take and set as v22's, 24.98 s earlier) keeps every module arm joint below its limit with the magazine's 12 kg on the gripper (joint 1 0.968 on the take, 0.865 at most on the set); v22 is superseded with its numbers kept.",
+      "why": "Weighed against v22: 20.45 s a bay quicker (397.86 s against 418.31 s) and 24.97 s quicker for one bay (417.06 s against 442.03 s) by filling the rail magazine while the tube comes in and while the bay before is finished, at no extra part (39 against 39); the verifier holds the module arm apart from the tube coming in, the bay going out and bay b's arms. Registered as a candidate weighed against v22 and made the chosen version in the same run (run 063): in physics v23's record take (module 1, module_take 3, plan steps 71 and 72, the same take and set as v22's, 24.98 s earlier) keeps every module arm joint below its limit with the magazine's 12 kg on the gripper (joint 1 0.968 on the take, 0.865 at most on the set); v22 is superseded with its numbers kept. Superseded by v24 (run 068): v24 moves the pallet 0.23 m along its port zone and its plan is the quickest verified plan of several seeds (seeds 1-3 of its layout give 387.23 / 395.89 / 396.11 s, all verified), 10.63 s a bay quicker (387.23 s against 397.86 s) at no extra part (39 against 39); on the mean of seeds 1-3 the layout is 393.08 s against v23's 396.33 s.",
       "recording": "docs/evolution/v23.gif",
       "competed_with": "v22",
       "layout": {
@@ -809,6 +809,27 @@
         "sha256": "f0a4b5fd0ebeb3df5eb58f198f980c8c6b2ae5efff758a1fe53f53d910af0167"
       },
       "scores": "scores/flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque_clear_out_infeed_rail_mag_early_next_fill.json"
+    },
+    {
+      "id": "v24",
+      "date": "2026-11-28",
+      "commit": "this",
+      "title": "One 40 ft flat rack, three KR 20 pin arms on one shared beam, three modules to each pin arm in turns, each move the quickest of 8 paths, the module arm within 0.90 of its motors, the bay out once it is clear, the next tube in over it from an infeed unit, ten rails at once in a magazine on the gripper, filled while the tube comes in and while the bay before is finished, the pallet 0.23 m along its port zone: three bays planned",
+      "direction": "one-40ft-flat-rack",
+      "status": "chosen",
+      "changed": "v23's cell and layout with the pallet moved +0.23 m in Y inside the modules port zone (which allows 0.239 m), its take stop unchanged, and no part added (run 066). Three bays are planned whole from the default seed 1, 351 of 351 moves, 27 of the module arm's moves slowed (14.98 s), none over 0.90, verified and committed; 945 of 945 checker rows pass: 408.03 s for one bay and a cycle time of 387.23 s over three (bay ends 408.03 / 786.59 / 1161.68 s, interval 375.08 s).",
+      "why": "Weighed against v23: 10.63 s a bay quicker (387.23 s against 397.86 s), 9.03 s quicker for one bay (408.03 s against 417.06 s) and 2.99 s on the interval (375.08 s against 378.07 s), at no extra part (39 against 39). Most of the 10.63 s is the planner's draw, not the pallet move. The cell runs one committed plan, and this plan, from the default seed 1, is the quickest of seeds 1-3 of this layout, all of which verify: planned from seeds 2 and 3 the same layout gives 395.89 s and 396.11 s, so the layout's mean over seeds 1-3 is 393.08 s, against v23's 396.33 s over the same seeds (run 066's table below). The layout is worth about 3 s a bay on the mean; the rest is a plan choice, and the plan is a real, verified one. Registered as a candidate weighed against v23 and made the chosen version in the same run (run 068): in physics v24's record take (module 8, module_take 8, plan steps 141 and 142, the take before the plan's hardest carry; v23's was module 1) keeps every module arm joint below its limit with the magazine's 12 kg on the gripper (joints 1-6 on the take 0.970 0.852 0.260 0.065 0.369 0.274, on the set 0.810 0.660 0.519 0.195 0.326 0.146; v23 0.968 on the take, 0.865 at most on the set); v23 is superseded with its numbers kept.\n\nRun 066's seed table, three bays planned whole, cycle_s in s per bay, every plan verified (945 of 945 checker rows):\n\n| Layout | seed 1 | seed 2 | seed 3 | seed 4 | mean of seeds 1-3 |\n|---|---:|---:|---:|---:|---:|\n| v23 `..._rail_mag_early_next_fill` | 397.86 (committed) | 398.50 | 392.64 | 399.37 | 396.33 |\n| v24 `..._rail_mag_early_next_fill_pallet_near` | 387.23 (committed) | 395.89 | 396.11 | not planned | 393.08 |",
+      "recording": "docs/evolution/v24.gif",
+      "competed_with": "v23",
+      "layout": {
+        "path": "layouts/flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque_clear_out_infeed_rail_mag_early_next_fill_pallet_near.json",
+        "sha256": "0ced8a957408e22ec2b459e66c9a0b45b84eeefa1a6bc046fc5591114732fc0b"
+      },
+      "plan": {
+        "path": "plans/flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque_clear_out_infeed_rail_mag_early_next_fill_pallet_near.json",
+        "sha256": "25adeef100a2966d4099d7b969fff60888751d98150de1818505c906f27e83f5"
+      },
+      "scores": "scores/flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque_clear_out_infeed_rail_mag_early_next_fill_pallet_near.json"
     }
   ]
 }
