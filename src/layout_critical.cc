@@ -196,9 +196,11 @@ class Walker {
       const int m = st->index / 4;
       const int k = find("module_set", m);
       if (k >= 0) needs.emplace_back(base + k, true);
+      // swage_after_pins (src/layout.h): a swage needs the module's last pin.
+      const bool after_pins = layout_.swage_after_pins && st->kind == "swage";
       for (int j = idx - 1; j >= 0; --j) {
         const BayStep& q = report_.steps[j];
-        if (IsHole(q.kind) && q.index / 4 == m) {
+        if (q.index / 4 == m && (after_pins ? q.kind == "pin" : IsHole(q.kind))) {
           needs.emplace_back(base + q.number, false);
           break;
         }

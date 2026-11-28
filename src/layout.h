@@ -234,6 +234,13 @@ struct Layout {
   std::optional<int> path_tries, plan_seed;  // Optional on a flat rack base.
   std::optional<double> torque_limit_scale; // Optional on a flat rack base.
   bool bay_out_when_clear = false;  // Optional on a flat rack base (src/layout_clear_out.h).
+  // "swage_after_pins" (optional, flat rack bases only; run 070): a swage of
+  // module m waits for the module's set and its last pin step, whichever arm
+  // sets it, not for the swage before it, so two arms may swage one module at
+  // once (docs/bay-hardware.md: swaging needs only that all four pins are in).
+  // Locates and pins keep their order. Without it, or false, each hole step
+  // waits for the module's hole step before it.
+  bool swage_after_pins = false;
   std::optional<std::string> first_bay_early;  // Its basis; optional (src/layout_bays.h).
   std::string next_bay_fill;  // The arm it names; empty without it (src/layout_bays.h).
 };

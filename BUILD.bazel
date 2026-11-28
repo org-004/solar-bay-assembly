@@ -2367,6 +2367,25 @@ cc_test(
     ],
 )
 
+# Two pin arms swage one module (swage_after_pins, src/layout.h, run 070): a
+# swage by a second arm waits for the other arm's swage under the old rule
+# and only for the module's last pin under the new one.
+#   bazel test --config=opt //:swage_after_pins_test
+cc_test(
+    name = "swage_after_pins_test",
+    size = "medium",
+    srcs = ["tests/swage_after_pins_test.cc"],
+    data = LAYOUT_FILES + LAYOUT_MODEL_FILES,
+    env = LAYOUT_ENV,
+    deps = [
+        ":layout",
+        ":layout_model",
+        ":layout_plan",
+        "@googletest//:gtest_main",
+        "@nlohmann_json//:json",
+    ],
+)
+
 # A layout planned from another seed (plan_seed, src/layout.h, run 066): the
 # landed layout's committed three-bay plan verifies with its figures, and a
 # layout without the field plans with today's seeds.

@@ -1306,9 +1306,12 @@ bool Planner::Schedule() {
       const int m = st.index / 4;
       auto it = module_set_step.find(m);
       if (it != module_set_step.end()) needs.push_back({it->second, true});
+      // With swage_after_pins (src/layout.h) a swage needs the module's last
+      // pin, whichever arm sets it, not the swage before it.
+      const bool after_pins = layout_.swage_after_pins && st.kind == "swage";
       for (int k = b.step_index - 1; k >= 0; --k) {
         const BayStep& q = report_.steps[k];
-        if (IsHoleKind(q.kind) && q.index / 4 == m) {
+        if (q.index / 4 == m && (after_pins ? q.kind == "pin" : IsHoleKind(q.kind))) {
           needs.push_back({q.number, false});
           break;
         }

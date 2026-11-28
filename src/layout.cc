@@ -61,7 +61,7 @@ Layout ReadLayout(const Json& j) {
             two_racks ? "two_flat_racks" : "flat_rack", "margins", "ports", "approaches", "tube", "holder",
             "arms", "pallets", "stocks", "strap_bolts_from", "tube_in", "bay_out", "work", "rail_order", "items"},
            {"order", "staging", "retreat_legs", "path_tries", "plan_seed", "torque_limit_scale",
-            "bay_out_when_clear", "first_bay_early", "next_bay_fill"});
+            "bay_out_when_clear", "first_bay_early", "next_bay_fill", "swage_after_pins"});
   } else {
     throw LayoutError("base", "is \"container\", \"flat_rack\" or "
                               "\"two_flat_racks\", not \"" +
@@ -220,6 +220,9 @@ Layout ReadLayout(const Json& j) {
       throw LayoutError("torque_limit_scale", "is not a fraction in [0.5, 1]");
     }
     l.torque_limit_scale = scale;
+  }
+  if (j.contains("swage_after_pins")) {  // src/layout.h
+    l.swage_after_pins = Bool(j.at("swage_after_pins"), "swage_after_pins");
   }
   if (j.contains("bay_out_when_clear")) {
     l.bay_out_when_clear = Bool(j.at("bay_out_when_clear"), "bay_out_when_clear");

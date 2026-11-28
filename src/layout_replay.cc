@@ -1582,6 +1582,7 @@ class Verifier {
       return w == work_end.end() ? -1.0 : w->second;
     };
     std::map<int, int> last_hole;  // Module to the step before in its holes.
+    std::map<int, int> last_pin;   // Module to its last pin so far.
     bool first_take = true;
     for (const BayStep& s : report_.steps) {
       const int n = in_plan(s.number);
@@ -1600,14 +1601,18 @@ class Verifier {
       if (s.kind == "locate" || s.kind == "pin" || s.kind == "swage") {
         const int m = s.index / 4;
         before(end_of_work("module_set", m), Fmt("module %d's set has ended", m));
-        auto it = last_hole.find(m);
-        if (it != last_hole.end()) {
+        // swage_after_pins (src/layout.h): a swage after the module's last
+        // pin, not after the swage before it.
+        const bool after_pins = L_.swage_after_pins && s.kind == "swage";
+        auto it = after_pins ? last_pin.find(m) : last_hole.find(m);
+        if (it != (after_pins ? last_pin.end() : last_hole.end())) {
           auto t = times_.find(it->second);
           if (t != times_.end()) {
             before(t->second.end, StepName(Step(it->second), it->second) + " has ended");
           }
         }
         last_hole[m] = n;
+        if (s.kind == "pin") last_pin[m] = n;
       }
       if (s.kind == "module_take" && L_.order.modules_start == "after_their_rails") {
         // src/layout.h, WorkOrder: the take of module m after the bolts of
