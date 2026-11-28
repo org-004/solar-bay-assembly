@@ -1,0 +1,3 @@
+bay 0: module_arm>c | waits: - | next: pin_arm_b swage 5/0 gap 3.92
+bay 1: module_arm>c | waits: - | next: pin_arm_b swage 5/0 gap 2.44
+bay 2: module_arm>c | waits: - | next: pin_arm_b swage 5/0 gap 2.32

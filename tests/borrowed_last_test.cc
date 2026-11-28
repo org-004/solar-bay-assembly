@@ -15,10 +15,12 @@
 // {"pin_arm_b": 2}, B's borrowed swages stand between its own modules 4 and 5.
 
 #include <algorithm>
+#include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <fstream>
 #include <optional>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -26,6 +28,7 @@
 #include <nlohmann/json.hpp>
 
 #include "src/layout.h"
+#include "src/layout_bays.h"
 #include "src/layout_check.h"
 #include "src/layout_model.h"
 #include "src/layout_plan.h"
@@ -280,6 +283,46 @@ TEST(BorrowedAfter, APlanDoesTheBorrowedSwagesBetweenTheOwnModules) {
   EXPECT_GE(s61_start, own_end - 1e-6);
   EXPECT_GE(s60_start, s61_end - 1e-6);
   EXPECT_GE(l50_start, s60_end - 1e-6);
+}
+
+// The landed layout (run 073): run 072's a31_b61, A swaging B's 3/1 and 3/0
+// and B swaging C's 6/1 and 6/0, each arm's borrowed swages after its own
+// modules (borrowed_last). Seeds 1 to 3 give 385.68, 389.12 and 385.81 s,
+// mean 386.87 s against v24's 393.08 s; the committed plan is seed 3's
+// (plan_seed 3). It verifies whole, its schedule included, with its figures.
+constexpr const char* kLanded =
+    "flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque_clear_out_infeed_"
+    "rail_mag_early_next_fill_pallet_near_borrowed";
+constexpr double kV24CycleS = 387.23;
+
+TEST(BorrowedAfter, TheLandedPlanVerifiesWithItsFigures) {
+  std::string error;
+  const std::optional<Layout> l = LoadLayout(LayoutFile(kLanded), &error);
+  ASSERT_TRUE(l.has_value()) << error;
+  EXPECT_TRUE(l->swage_after_pins);
+  EXPECT_TRUE(l->borrowed_last);
+  const char* dir = std::getenv("PLAN_DIR");
+  std::ifstream in(std::string(dir != nullptr ? dir : "plans") + "/" + kLanded + ".json",
+                   std::ios::binary);
+  std::stringstream text;
+  text << in.rdbuf();
+  const std::optional<Plan> p = PlanFromJson(text.str(), &error);
+  ASSERT_TRUE(p.has_value()) << error;
+  EXPECT_EQ(p->figures.seed, static_cast<std::uint32_t>(l->plan_seed.value_or(1)));
+  EXPECT_TRUE(p->complete);
+  EXPECT_EQ(p->bays, 3);
+  const VerifyReport r = VerifyPlan(*l, ModelPaths::FromEnvironment(), *p,
+                                    Sha256OfFile(LayoutFile(kLanded)), VerifyOptions{});
+  std::string faults;
+  for (const std::string& f : r.faults) faults += "  " + f + "\n";
+  EXPECT_TRUE(r.ok) << faults;
+  const CycleFigures c = CycleFiguresOf(*p);
+  std::printf("seed %u, bays %d: one bay %.2f s, cycle %.2f s, interval %.2f s (v24 %.2f s)\n",
+              p->figures.seed, c.bays, c.one_bay_s, c.cycle_s, c.interval_s, kV24CycleS);
+  EXPECT_NEAR(c.cycle_s, 385.81, 0.01);
+  EXPECT_NEAR(c.interval_s, 369.19, 0.01);
+  EXPECT_NEAR(c.one_bay_s, 413.14, 0.01);
+  EXPECT_LT(c.cycle_s, kV24CycleS);
 }
 
 }  // namespace
