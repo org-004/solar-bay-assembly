@@ -114,6 +114,9 @@ std::vector<std::string> PlanNames() {
   static constexpr const char* kRailMagEarly =
       "flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque_clear_out_infeed_"
       "rail_mag_early";
+  static constexpr const char* kPalletNear =
+      "flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque_clear_out_infeed_"
+      "rail_mag_early_next_fill_pallet_near";
   static const std::set<std::string> kOneBay = {
       "flat_rack_1_kr20_pin_arm_ordered",
       "flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma",
@@ -122,8 +125,7 @@ std::vector<std::string> PlanNames() {
       "flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_torque",
       "flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_torque",
       kRailMagEarly,
-      "flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque_clear_out_infeed_"
-      "rail_mag_early_next_fill_pallet_near"};
+      kPalletNear};
   std::vector<std::string> out;
   for (const std::string& name : ListLayouts(Dir("PLAN_DIR", "plans"))) {
     if (kOneBay.count(name) == 0) out.push_back(name);
