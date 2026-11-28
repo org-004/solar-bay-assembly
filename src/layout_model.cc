@@ -70,6 +70,7 @@
 #include "src/arm_catalog.h"
 #include "src/bay_model.h"
 #include "src/flat_rack.h"
+#include "src/layout_rail_magazine.h"
 
 namespace cell::layout {
 namespace {
@@ -336,6 +337,7 @@ std::string ToolMountContents(const Layout& layout, const ArmUse& arm,
     // (a half turn about the tool's x), its long side along the tool's x.
     t += "<body name=\"held_" + part + "_mount\" pos=\"0 0 " + Num(tool.length) +
          "\" quat=\"0 1 0 0\">\n";
+    t += MagazineRailsInertialXml(layout, part, tool.length);  // Run 056.
     std::string body;
     if (part == "module") {
       body = bay::ModuleBodyXml("held_module",

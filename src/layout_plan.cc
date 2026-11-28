@@ -24,6 +24,7 @@
 #include "src/layout_bays.h"
 #include "src/layout_clear_out.h"
 #include "src/layout_plan_stages.h"
+#include "src/layout_rail_magazine.h"
 #include "src/layout_stages.h"
 #include "src/layout_torque.h"
 #include "src/portable_random.h"
@@ -94,6 +95,27 @@ Built Union(const std::vector<Built>& states) {
   b.rails.assign(rails.begin(), rails.end());
   b.modules.assign(modules.begin(), modules.end());
   return b;
+}
+
+// With a rail magazine (src/layout_rail_magazine.h) the rails end before
+// the followers' bolts, so modules are set while pin arms bolt. Module m
+// (on rails m and m + 1) waits for the bolts of its rails and for the bolt
+// each of those arms does next: the move away from a bolt starts where the
+// module will lie. These are those bolts' places in `steps`.
+std::vector<size_t> MagazineModuleNeeds(const std::vector<BayStep>& steps, int m) {
+  std::vector<size_t> out;
+  for (size_t i = 0; i < steps.size(); ++i) {
+    const BayStep& b = steps[i];
+    if (b.kind != "strap_bolt" || (b.index != m && b.index != m + 1)) continue;
+    out.push_back(i);
+    for (size_t q = i + 1; q < steps.size(); ++q) {
+      if (steps[q].arm == b.arm && steps[q].kind == "strap_bolt") {
+        out.push_back(q);
+        break;
+      }
+    }
+  }
+  return out;
 }
 
 bool IsHoleKind(const std::string& kind) {
@@ -360,6 +382,7 @@ bool Planner::Assemble() {
     int last_stage = 0;
   };
   std::vector<Now> now(n);
+  std::vector<int> magazine_rails(n, 0);  // Rails left in each arm's rail magazine.
   for (int a = 0; a < n; ++a) {
     now[a].at = WaitPose(scene_->arm(a));
     now[a].tool = scene_->arm(a).use->first_tool;
@@ -593,6 +616,18 @@ bool Planner::Assemble() {
         ok = false;
       }
     } else {
+      // A rail magazine presents its next rail after a set's retreat
+      // (src/layout_rail_magazine.h); a set with none left is refused.
+      if (st.kind == "rail_set" && now[a].held.empty() && RailsPerTake(layout_) > 1) {
+        if (magazine_rails[a] > 0) {
+          now[a].held = "rail";
+        } else {
+          Fault(Fmt("step %d (%s): %s sets a rail with its rail magazine empty: it sets more "
+                    "rails than the magazine holds (%d) since its last take",
+                    st.number, st.what.c_str(), st.arm.c_str(), RailsPerTake(layout_)));
+          ok = false;
+        }
+      }
       // A pin magazine has no geoms: an arm that took one goes to its
       // holes with it, though the holes' legs name no part.
       if (now[a].held != p->held_approach &&
@@ -609,6 +644,24 @@ bool Planner::Assemble() {
       if (staged_) BuiltInStage(scopes_[stage], pallet_total, &at);
       Built built = Union(at.built);
       if (!leader) Lead(stage, staged_ && st.kind == "pins_take" ? "rails" : st.phase, &built);
+      // A rail magazine: a follower's bolt is planned with every module the
+      // module arm could set while it runs, those in the order before the
+      // first that waits for this bolt or a later one of this arm
+      // (MagazineModuleNeeds). Without a magazine nothing changes.
+      if (!leader && st.kind == "strap_bolt" && RailsPerTake(layout_) > 1 &&
+          layout_.order.modules_start == "after_their_rails") {
+        for (int m : ModuleOrder(layout_)) {
+          bool waits = false;
+          for (size_t k : MagazineModuleNeeds(report_.steps, m)) {
+            waits = waits || (report_.steps[k].arm == st.arm && k >= si);
+          }
+          if (waits) break;
+          if (std::find(built.modules.begin(), built.modules.end(), m) == built.modules.end()) {
+            built.modules.push_back(m);
+          }
+        }
+        std::sort(built.modules.begin(), built.modules.end());
+      }
       Built narrow = built;  // Without the modules set after the hole's.
       narrow.modules.clear();
       for (int m : built.modules) {
@@ -626,7 +679,9 @@ bool Planner::Assemble() {
       }
       push("approach", p->tool, p->held_approach, approach, ta);
     }
-    push("work", p->tool, p->held_approach, {work_c}, work->process_s);
+    push("work", p->tool, p->held_approach, {work_c}, WorkSeconds(layout_, *work, st.kind, st.index));
+    if (st.kind == "rail_take") magazine_rails[a] = RailsLoadedAt(layout_, st.index);
+    if (st.kind == "rail_set") --magazine_rails[a];
     push("retreat", p->tool, p->held_retreat, retreat, tr);
     now[a].at = retreat.back();
     now[a].held = p->held_retreat;
@@ -1253,6 +1308,14 @@ bool Planner::Schedule() {
         for (int rail : {m, m + 1}) {
           auto it = bolt_step.find(rail);
           if (it != bolt_step.end()) needs.push_back({it->second, false});
+        }
+      }
+      // A rail magazine: the bolts MagazineModuleNeeds names as well.
+      // Without a magazine nothing changes.
+      if (RailsPerTake(layout_) > 1 && st.index >= 0 &&
+          st.index < static_cast<int>(module_order.size())) {
+        for (size_t k : MagazineModuleNeeds(report_.steps, module_order[st.index])) {
+          needs.push_back({report_.steps[k].number, false});
         }
       }
     } else if (first_take[stage_of_step_[st.number]] == st.number) {

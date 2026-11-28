@@ -59,7 +59,8 @@
 //                (one); each item of the layout (feeders, lanes, carts),
 //                whether it travels or not; each pin magazine that a stock
 //                inside the cell holds (stocks whose part is a magazine,
-//                `holds` of them). Not counted: parts of the bay (tube,
+//                `holds` of them); each tool's rail magazine (run 056,
+//                a row only when there is one). Not counted: parts of the bay (tube,
 //                rails, modules, pins, bolts) and what they arrive in
 //                (pallets, the rail rack: stocks outside).
 //   driven_axes  each arm's joints (six for every arm of src/arm_catalog.h),
