@@ -14,9 +14,10 @@ The run is measured as the checker measures. Its committed record,
 `physics/flat_rack_3_pin_arms_ordered.json`, is what the scorecard's `physics_share`
 counts ([`scorecard.md`](scorecard.md)).
 
-Since run 054 the chosen layout is v21, `flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque_clear_out_infeed`
-(all KUKA, v20 with an infeed unit of its own), so `run_physics` with no name runs v21's plan; its record is in
-"[v21's record (run 054)](#v21s-record-run-054)" below, after v20's, chosen from run 052 to run 054, in
+Since run 057 the chosen layout is v22, `flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque_clear_out_infeed_rail_mag`
+(all KUKA, v21 with a rail magazine on the module arm's gripper), so `run_physics` with no name runs v22's plan; its record is in
+"[v22's record (run 057)](#v22s-record-run-057)" below, after v21's, chosen from run 054 to run 057, in
+"[v21's record (run 054)](#v21s-record-run-054)", v20's, chosen from run 052 to run 054, in
 "[v20's record (run 052)](#v20s-record-run-052)", v19's, chosen from run 048 to run 052, in
 "[v19's record (run 048)](#v19s-record-run-048)", v18's, chosen from run 046 to run 048, in
 "[v18's record (run 046)](#v18s-record-run-046)", v17's, chosen from run 043 to run 046, in
@@ -628,3 +629,37 @@ times (349.52 to 370.25 s): bay 0 up to its bay out is v20's, and the first over
 Both steps count, and every figure is v20's: `physics_share` is counted against `one_bay_s`, which
 the overlap does not change (it shortens the cycle, not bay 0). v21 is chosen (run 054): every
 module arm joint stays below its limit on the take and the set.
+
+## v22's record (run 057)
+
+v22 is v21's layout with a rail magazine on the module arm's combined gripper (run 056) and
+nothing else (`flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque_clear_out_infeed_rail_mag`):
+item `rail_magazine`, 12 kg and two 0.5 × 0.5 × 0.15 m boxes, `basis: ours`, so the tool load is
+48 kg + a module's 32.4 kg = 80.4 kg of the arm's 210 kg ([`rail-magazine.md`](rail-magazine.md)).
+The arm takes a bay's ten rails at one take. Three bays, 351 of 351 moves, 30 of the module arm's
+90 slowed (20.08 s): bay ends 442.03 / 858.63 / 1254.92 s, `cycle_s` 418.31 s against v21's
+470.68 s (-52.37 s), `one_bay_s` 442.03 s (v21 496.59 s), `interval_s` 396.30 s (v21 451.90 s).
+
+`bazel run --config=opt //:run_physics -- flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque_clear_out_infeed_rail_mag --write`
+wrote `physics/flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque_clear_out_infeed_rail_mag.json`.
+The record take moved: it is now module 1's (module_take 3, plan steps 71 and 72, 206.87 to
+229.90 s), not module 5's, because the schedule of bay 0 is new and the take before the hardest
+carry is another one.
+
+| Figure (derived) | v22, module 1 | v21, module 5 (run 054) |
+|---|---|---|
+| counted, of one bay | 23.030565 s of 442.034753 s | 20.727562 s of 496.589754 s |
+| `physics_share` | 0.052101 | 0.041740 |
+| peak torque over its limit, joints 1-6, take | 0.968 0.705 0.262 0.138 0.320 0.255 | 0.973 0.795 0.341 0.084 0.408 0.199 |
+| peak torque over its limit, joints 1-6, set | 0.865 0.635 0.370 0.233 0.431 0.702 | 0.420 0.597 0.315 0.124 0.335 0.200 |
+| peak track force over its limit, take / set | 0.386 / 0.779 | 0.540 / 0.579 |
+| least clearance in physics, take / set | 0.018580 m / 0.019230 m (plan 0.018578 / 0.019443), against 0.015 m | 0.021487 m / 0.019261 m |
+| largest joint tracking error, take / set | 0.6197 / 2.9227 mrad | 0.6200 / 0.8641 mrad |
+| largest Cartesian error, take / set | 0.6415 mm / 0.8737 mm | 0.6872 mm / 0.6994 mm |
+| set-down offset after settling | 0.2040 mm, yaw 0.0053 deg (gate 3.0 mm, 0.15 deg) | 0.2314 mm, yaw 0.0004 deg |
+
+Both steps count. The take's least clearance is the magazine's own: `magazine_pos_x` to
+`bay_module_6_flange_short_b` during step 71's move. The set asks more of the arm than v21's
+(joint 1 0.865 against 0.420, joint 6 0.702 against 0.200, track 0.779 against 0.579) with the
+magazine's 12 kg on the gripper, and still stays below every limit. v22 is chosen (run 057):
+every module arm joint stays below its limit on the take and the set.

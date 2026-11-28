@@ -107,27 +107,32 @@ bays), so one bay takes 502.55 s and three average 502.13 s.
 `flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque_clear_out` (v20, run
 052) is v19 with `bay_out_when_clear` (run 050): a bay goes out once its release is done and no
 arm comes near it on its way, so pin arm C's last tool change no longer holds it back; one bay
-takes 496.59 s and three average 496.16 s. The chosen layout,
+takes 496.59 s and three average 496.16 s.
 `flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque_clear_out_infeed` (v21,
-run 054), is v20 with an infeed unit of its own (run 053): the next tube comes in 0.45 m above its
+run 054) is v20 with an infeed unit of its own (run 053): the next tube comes in 0.45 m above its
 place over the bay going out, so the two ways overlap 38.41 s at each boundary between bays; one
 bay still takes 496.59 s, but three average 470.68 s, 25.48 s a bay less than v20, at the price of
 one part (38 against 37). The unit's carriage is an assumption, not a model:
-[`docs/infeed-unit.md`](docs/infeed-unit.md) says what it is taken to be (the recording, of one
-bay, is v21's, above).
+[`docs/infeed-unit.md`](docs/infeed-unit.md) says what it is taken to be. The chosen layout,
+`flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque_clear_out_infeed_rail_mag`
+(v22, runs 056 and 057), is v21 with a magazine of ten rails on the module arm's gripper (12 kg,
+`basis: ours`): the arm takes a bay's ten rails at one take and sets them with no trip back to the
+rail rack, so one bay takes 442.03 s and three average 418.31 s, 52.37 s a bay less than v21, at
+the price of one part (39 against 38). Its indexing drive and how the rack fills it are not
+modelled: [`docs/rail-magazine.md`](docs/rail-magazine.md) says what it is taken to be (the
+recording, of one bay, is v22's, above).
 
 ![The whole bay as planned with run 011's order, 16 times real time](docs/bay_planned.gif)
 
 **Physics.** The simulator is MuJoCo 4.0.0. The stand-in cell runs in physics with its
 cameras, and a gate runs eight whole pallets (240 modules) in it and fails if one is not
 placed within 3 mm and 0.15 degrees ([`docs/gate.md`](docs/gate.md)). The flat rack cell is
-kinematic but for one module: in the chosen layout the module arm takes module 5 from the
+kinematic but for one module: in the chosen layout the module arm takes module 1 from the
 pallet, turns it flat and sets it on its rails in physics, on its servos and with its real
-payload, along the committed plan's own timing, within 0.23 mm of its place and never nearer
-anything than 19.26 mm, every motor below its limit (joint 1 at 0.973)
-([`docs/flat-rack-physics.md`](docs/flat-rack-physics.md), `//:run_physics`). Those 20.73 s are
-why `physics_share` is 0.042 (v21's record is v20's take and set at the same times, over the
-same one bay of 496.59 s); the failures are still modelled. One part of it has a physics test, the locating nose that pulls a
+payload and the rail magazine's 12 kg, along the committed plan's own timing, within 0.20 mm of
+its place and never nearer anything than 18.58 mm, every motor below its limit (joint 1 at 0.968)
+([`docs/flat-rack-physics.md`](docs/flat-rack-physics.md), `//:run_physics`). Those 23.03 s are
+why `physics_share` is 0.052 (v22's record, steps 71 and 72, over one bay of 442.03 s); the failures are still modelled. One part of it has a physics test, the locating nose that pulls a
 module's holes into line before pinning (`tests/locate_physics_test.cc`,
 [`docs/bay-hardware.md`](docs/bay-hardware.md)).
 
