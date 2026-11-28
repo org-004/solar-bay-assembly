@@ -2386,6 +2386,26 @@ cc_test(
     ],
 )
 
+# Borrowed work after an arm's own modules (borrowed_last, src/layout.h, run
+# 072): the checker's step list puts a lent swage after the borrowing arm's
+# own last module, and a plan does it there.
+#   bazel test --config=opt //:borrowed_last_test
+cc_test(
+    name = "borrowed_last_test",
+    size = "medium",
+    srcs = ["tests/borrowed_last_test.cc"],
+    data = LAYOUT_FILES + LAYOUT_MODEL_FILES,
+    env = LAYOUT_ENV,
+    deps = [
+        ":layout",
+        ":layout_check",
+        ":layout_model",
+        ":layout_plan",
+        "@googletest//:gtest_main",
+        "@nlohmann_json//:json",
+    ],
+)
+
 # A layout planned from another seed (plan_seed, src/layout.h, run 066): the
 # landed layout's committed three-bay plan verifies with its figures, and a
 # layout without the field plans with today's seeds.

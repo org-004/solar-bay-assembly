@@ -241,6 +241,14 @@ struct Layout {
   // Locates and pins keep their order. Without it, or false, each hole step
   // waits for the module's hole step before it.
   bool swage_after_pins = false;
+  // "borrowed_last" (optional, flat rack bases only; run 072): a hole step of
+  // a module that another arm locates (borrowed work, meant for swages lent
+  // under swage_after_pins) is done after the arm's own modules of the bay,
+  // in the order of the modules' sets, not at its module's place. The
+  // checker's step list carries the order (src/layout_check.cc, SolveAll),
+  // so the planner, the verifier and the critical chain follow it. Without
+  // it, or false, each arm works its steps in the modules' set order.
+  bool borrowed_last = false;
   std::optional<std::string> first_bay_early;  // Its basis; optional (src/layout_bays.h).
   std::string next_bay_fill;  // The arm it names; empty without it (src/layout_bays.h).
 };

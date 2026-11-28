@@ -820,6 +820,22 @@ rule. It only matters when one module's swages are split between two arms in `wo
 `tests/swage_after_pins_test.cc` shows A's swage 3/0 waiting for B's swage 3/2 under the
 old rule and not under the new one.
 
+### `borrowed_last`: borrowed work after the arm's own modules (run 072)
+
+An optional boolean on a flat rack base, meant for use with `swage_after_pins`. A module's
+hole steps belong to the arm that locates it; a hole step that `work` gives to another arm
+is **borrowed** work of that arm. Without the field, or `false`, every arm does its steps
+in the modules' set order (`order.modules`), a borrowed step at its module's place, so an
+arm that swages another arm's module 3 before its own module 1 stands waiting for that
+module's last pin. With `true`, the checker (`src/layout_check.cc`, `SolveAll`) puts each
+borrowed step after the module loop, so each arm does its own modules of the bay first and
+then its borrowed steps, in the order of their modules' sets (and, within a module, in the
+hole order). The planner, the verifier (`src/layout_replay.cc`) and the critical-chain walk
+(`src/layout_critical.cc`) all follow the checker's step list, so they agree without code
+of their own; the precedence rules (`swage_after_pins`) are unchanged.
+`tests/borrowed_last_test.cc` shows A's lent swages 3/1 and 3/0 after its own swage 2/0, in
+the step list and in a plan.
+
 ## The form for two racks and for stages
 
 Since run 020 a layout may stand on two 20 ft flat racks and may work the tube in stages.

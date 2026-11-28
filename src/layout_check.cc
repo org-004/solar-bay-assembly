@@ -2243,6 +2243,12 @@ std::vector<CheckRow> Checker::TimeRows(std::vector<BayStep>* steps,
   // In staged work the order is the stage's (src/layout_stages.h) and the
   // unit the place among the stage's modules.
   const std::vector<int> order = ModuleOrder(L_);
+  struct Borrowed {
+    std::string kind;
+    int m, unit, i;
+    std::string what, part;
+  };
+  std::vector<Borrowed> borrowed;  // borrowed_last (src/layout.h).
   std::vector<int> takes_here;
   for (int k = 0; k < M; ++k) {
     if (st == nullptr || Has(st->modules, order[k])) takes_here.push_back(k);
@@ -2275,16 +2281,31 @@ std::vector<CheckRow> Checker::TimeRows(std::vector<BayStep>* steps,
         now[ai].magazines.clear();
       }
     }
+    // With borrowed_last (src/layout.h) a hole step of an arm other than
+    // the one that locates module m (borrowed work) waits in `borrowed`
+    // and is done after the module loop, so each arm does its own modules
+    // first and then its borrowed steps in the order of their modules' sets.
+    const Work* loc = FindWork(L_, "locate", 4 * m + bay::kLocateOrder[0]);
+    auto own_hole = [&](const std::string& kind, int i, const std::string& what,
+                        const std::string& part) {
+      const Work* w = FindWork(L_, kind, 4 * m + i);
+      if (L_.borrowed_last && loc != nullptr && w != nullptr && w->arm != loc->arm) {
+        borrowed.push_back({kind, m, u, i, what, part});
+      } else {
+        hole(kind, m, u, i, what, part);
+      }
+    };
     for (int i : bay::kLocateOrder) {
-      hole("locate", m, u, i, Fmt("locate %d/%d", m, i),
-           Fmt("module %d hole %d", m, i));
-      hole("pin", m, u, i, Fmt("pin %d/%d", m, i), Fmt("pin %d/%d", m, i));
+      own_hole("locate", i, Fmt("locate %d/%d", m, i),
+               Fmt("module %d hole %d", m, i));
+      own_hole("pin", i, Fmt("pin %d/%d", m, i), Fmt("pin %d/%d", m, i));
     }
     for (int i : bay::kSwageOrder) {
-      hole("swage", m, u, i, Fmt("swage %d/%d", m, i),
-           Fmt("collar %d/%d", m, i));
+      own_hole("swage", i, Fmt("swage %d/%d", m, i),
+               Fmt("collar %d/%d", m, i));
     }
   }
+  for (const Borrowed& b : borrowed) hole(b.kind, b.m, b.unit, b.i, b.what, b.part);
   const Phase modules = PhaseTime(module_pieces, module_units, arm_count);
   phase_now = "end";
   // The end.
