@@ -30,8 +30,11 @@ namespace {
 constexpr const char* kV23 =
     "flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque_clear_out_infeed_"
     "rail_mag_early_next_fill";
-// The quickest verified candidate of run 066.
-constexpr const char* kLanded = kV23;  // LANDED
+// The quickest verified of run 066's six candidates: v23 with the pallet
+// 0.23 m along its port zone, planned from the default seed.
+constexpr const char* kLanded =
+    "flat_rack_3_kr20_pin_arms_shared_ordered_fast_retreat_ma_split_paths_torque_clear_out_infeed_"
+    "rail_mag_early_next_fill_pallet_near";
 constexpr double kV23CycleS = 397.86;
 
 std::string Dir(const char* var, const char* fallback) {
@@ -124,9 +127,9 @@ TEST(PlanSeed, TheLandedPlanVerifiesWithItsFigures) {
   const CycleFigures c = CycleFiguresOf(o.plan);
   std::printf("seed %u, bays %d: one bay %.2f s, cycle %.2f s, interval %.2f s (v23 cycle %.2f s)\n",
               o.plan.figures.seed, c.bays, c.one_bay_s, c.cycle_s, c.interval_s, kV23CycleS);
-  EXPECT_NEAR(c.cycle_s, 397.86, 0.01);
-  EXPECT_NEAR(c.interval_s, 378.07, 0.01);
-  EXPECT_NEAR(c.one_bay_s, 417.06, 0.01);
+  EXPECT_NEAR(c.cycle_s, 387.23, 0.01);
+  EXPECT_NEAR(c.interval_s, 375.08, 0.01);
+  EXPECT_NEAR(c.one_bay_s, 408.03, 0.01);
   EXPECT_LE(c.cycle_s, kV23CycleS - 3.0);
 }
 
